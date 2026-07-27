@@ -1,0 +1,40 @@
+<!-- editorial-foto-texto-inverso.html — bloque editorial INVERTIDO: texto izquierda, imagen
+     derecha, centrado sobre blanco. Creado 2026-07-27 (evolución brand-native). Mismo contrato de
+     datos que editorial-foto-texto.html — solo cambia el orden de las columnas (texto a la
+     izquierda, imagen a la derecha en desktop). Mobile: apila imagen debajo del texto via
+     .mobile-stack. Datos: edImgSrc, edImgAlt, edEyebrow, edTitle, edBody, cta (via include).
+     Tokens: colors.primary, colors.text.secondary, typography.displayFont. -->
+<tr>
+<td style="background-color:#FFFFFF;padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+
+    <!-- Columna texto + columna imagen (invertido) -->
+    <tr>
+      <!-- Texto (54% desktop, full width mobile) -->
+      <td class="mobile-stack" style="width:54%;padding:0 10px 0 0;" width="324" valign="middle">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>
+            <td align="left" class="mobile-pad-sm" style="padding:0;">
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;color:{{token:colors.primary}};margin:0 0 6px;letter-spacing:1.5px;text-transform:uppercase;line-height:1.4;mso-line-height-rule:exactly;">
+                {{data:edEyebrow}}
+              </p>
+              <h3 style="font-family:{{token:typography.displayFont}};font-size:18px;font-weight:800;color:{{token:colors.primary}};margin:0 0 8px;line-height:1.25;letter-spacing:-0.3px;mso-line-height-rule:exactly;">
+                {{data:edTitle}}
+              </h3>
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.text.secondary}};margin:0 0 18px;line-height:1.55;mso-line-height-rule:exactly;">
+                {{data:edBody}}
+              </p>
+              {{include:cta-secondary-bulletproof}}
+            </td>
+          </tr>
+        </table>
+      </td>
+      <!-- Imagen (46% desktop, full width mobile) -->
+      <td class="mobile-stack" style="width:46%;padding:0 0 0 10px;" width="276" valign="middle">
+        <img src="{{data:edImgSrc}}" alt="{{data:edImgAlt}}" width="276" style="display:block;outline:none;border:none;width:100%;max-width:276px;height:auto;border-radius:{{token:radius.card}}px;" class="mobile-img">
+      </td>
+    </tr>
+
+  </table>
+</td>
+</tr>

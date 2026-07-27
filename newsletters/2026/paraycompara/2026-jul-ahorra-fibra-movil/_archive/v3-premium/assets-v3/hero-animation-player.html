@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#F4F3F9;display:flex;justify-content:center;align-items:center;min-height:100vh}
+.frame{width:600px;height:420px;position:relative;overflow:hidden;background:#FFFFFF;border-radius:16px}
+.hero-base{position:absolute;top:0;left:0;width:100%;height:100%;z-index:1}
+/* Overlay elements that appear/disappear per frame */
+.overlay{position:absolute;z-index:2;opacity:0;transition:none}
+/* Card elements positioned to match the hero image */
+.card-1{top:95px;left:340px;width:72px;height:28px;background:rgba(94,46,145,0.85);border-radius:8px;}
+.card-2{top:140px;left:340px;width:72px;height:28px;background:rgba(94,46,145,0.85);border-radius:8px;}
+.card-3{top:185px;left:340px;width:72px;height:28px;background:rgba(94,46,145,0.85);border-radius:8px;}
+.card-4{top:230px;left:340px;width:72px;height:28px;background:rgba(94,46,145,0.85);border-radius:8px;}
+.shield-glow{bottom:36px;right:56px;width:40px;height:40px;background:rgba(255,90,60,0.25);border-radius:50%;}
+.badge-save{top:20px;left:50%;transform:translateX(-50%);background:#FF5A3C;color:#FFF;border-radius:16px;padding:6px 18px;font:700 11px Arial;letter-spacing:1px;white-space:nowrap;}
+.highlight{top:110px;left:355px;width:60px;height:3px;background:#FF5A3C;border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <img class="hero-base" src="https://feebbodigital.com/creativities-library/paraycompara/2026/jul/paraycompara-2000.png" alt="">
+  <div id="c1" class="overlay card-1"></div>
+  <div id="c2" class="overlay card-2"></div>
+  <div id="c3" class="overlay card-3"></div>
+  <div id="c4" class="overlay card-4"></div>
+  <div id="sg" class="overlay shield-glow"></div>
+  <div id="bs" class="overlay badge-save">MEJOR OFERTA</div>
+  <div id="hl" class="overlay highlight"></div>
+</div>
+<script>
+// Frame states: which elements are visible per frame
+const frames = [
+  // [c1, c2, c3, c4, sg, bs, hl]
+  [0, 0, 0, 0, 0, 0, 0],  // frame 0: just the base image
+  [1, 0, 0, 0, 0, 0, 0],  // frame 1: card 1 appears
+  [1, 0, 0, 0, 0, 0, 0],
+  [1, 1, 0, 0, 0, 0, 0],  // frame 2: cards 1-2 appear
+  [1, 1, 0, 0, 0, 0, 0],
+  [1, 1, 1, 0, 0, 0, 0],  // frame 3: cards 1-3
+  [1, 1, 1, 0, 0, 0, 0],
+  [1, 1, 1, 1, 0, 0, 0],  // frame 4: all cards
+  [1, 1, 1, 1, 1, 0, 0],  // frame 5: shield glow
+  [1, 1, 1, 1, 1, 0, 0],
+  [1, 1, 1, 1, 1, 1, 0],  // frame 6: badge appears
+  [1, 1, 1, 1, 1, 1, 0],
+  [1, 1, 1, 1, 1, 1, 1],  // frame 7: highlight + complete
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 0],  // frame 8: highlight off
+  [1, 1, 1, 1, 1, 1, 1],  // frame 9: highlight on (pulse)
+  [1, 1, 1, 1, 1, 1, 0],
+  [1, 1, 1, 1, 1, 0, 0],  // frame 10: badge fades
+  [0, 0, 0, 0, 0, 0, 0],  // frame 11: reset for loop
+  [0, 0, 0, 0, 0, 0, 0],
+];
+
+const ids = ['c1','c2','c3','c4','sg','bs','hl'];
+let current = 0;
+
+function render(idx) {
+  const f = frames[idx];
+  ids.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.style.opacity = f[i] ? '1' : '0';
+  });
+}
+
+function nextFrame() {
+  render(current);
+  current = (current + 1) % frames.length;
+}
+
+// Run at 8fps for smooth animation
+setInterval(nextFrame, 125);
+nextFrame();
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!-- pasos.html
+  Origen: newsletters/2026/paraycompara/2026-jul-ahorra-fibra-movil/v5-premium/final-premium-v2.html líneas 309-412
+  Extraído: 2026-07-17 para engine/components/
+  Tokens que consume: colors.light, colors.primary, colors.white, colors.bodySecondary, surfaces.stepConnector, typography.displayFont
+  Campos de datos: section.eyebrow, section.title, items[*].number, items[*].title, items[*].body
+-->
+<!-- ════════════════════════════════════════════════════════════
+     CÓMO FUNCIONA — 3 pasos (sin línea conectora)
+     ════════════════════════════════════════════════════════════ -->
+<tr>
+<td style="background-color:{{token:colors.white}};padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:56px 24px 44px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto 10px;">
+          <tr><td width="32" height="2" style="background-color:{{token:colors.light}};font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:{{token:colors.light}};margin:0 0 6px;line-height:16px;letter-spacing:3px;text-transform:uppercase;text-align:center;mso-line-height-rule:exactly;">
+          {{data:section.eyebrow}}
+        </p>
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:22px;font-weight:800;color:{{token:colors.primary}};margin:0 0 28px;line-height:1.2;letter-spacing:-0.3px;text-align:center;mso-line-height-rule:exactly;">
+          {{data:section.title}}
+        </h2>
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>
+            {{#each:items}}
+            <td align="center" style="width:33%;padding:0 10px;vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                <tr><td align="center" style="padding:0 0 12px;">
+                  <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr>
+                      <td align="center" style="background-color:{{token:surfaces.stepConnector}};border-radius:50%;padding:4px;line-height:0;">
+                        <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                          <tr>
+                            <td align="center" style="background-color:{{token:colors.primary}};border-radius:50%;width:56px;height:56px;line-height:0;">
+                              <p style="font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:800;color:{{token:colors.white}};margin:0;line-height:56px;text-align:center;mso-line-height-rule:exactly;">{{number}}</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td></tr>
+                <tr><td align="center" style="padding:0 0 4px;">
+                  <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:{{token:colors.primary}};margin:0;line-height:20px;mso-line-height-rule:exactly;">{{title}}</h3>
+                </td></tr>
+                <tr><td align="center">
+                  <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.bodySecondary}};margin:0;line-height:1.5;mso-line-height-rule:exactly;">{{body}}</p>
+                </td></tr>
+              </table>
+            </td>
+            {{/each}}
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

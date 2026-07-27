@@ -1,0 +1,104 @@
+{
+  "_comment": "BMW M4 Competition Coupé — Campaña aspiracional de alto rendimiento. Patrón fotografia-primero (photographyWeight:dominante, iconDensity:nula). Hero: hero-imagen (requiere banner del M4 pendiente de CDN). Brand pack v2.3.1 observado de bmw.es. Discrepancias con guía visual del usuario documentadas en brand-analysis.md.",
+  "_claimSources": "Las especificaciones técnicas (510 CV, 0-100 km/h en 3,8 s, M xDrive) están verificadas en https://www.bmw.es/es/configurador.html sección BMW M4 Competition Coupé — Gasolina, 6 cilindros en línea, 510 CV, 0-100 en 3,8s, M xDrive. Fuente oficial BMW AG.",
+  "metadata": {
+    "campaignName": "2026-ago-bmw-m4-coupe",
+    "clientName": "BMW",
+    "subjectLine": "BMW M4 Competition Coupé. Ingeniería en estado puro.",
+    "preheader": "Descubre el BMW M4 Competition Coupé. 510 CV, 6 cilindros en línea, tracción M xDrive. Diseñado para emocionar.",
+    "fromName": "BMW",
+    "fromEmail": "test@example.com",
+    "version": "1.0.0",
+    "createdAt": "2026-08-15",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/bmw/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-BMW-LOGO/",
+        "logoAlt": "BMW",
+        "logoWidth": 120,
+        "logoHeight": 36,
+        "label": "M4 Competition Coupé"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/bmw-m4/hero-banner.png",
+        "bannerAlt": "BMW M4 Competition Coupé — deportivo de altas prestaciones",
+        "brandName": "BMW M4 Competition Coupé",
+        "h1": "Pura energía en cada curva.",
+        "subtitle": "6 cilindros en línea. 510 CV. Tracción M xDrive. Cada componente está diseñado para una cosa: ofrecer la experiencia de conducción más auténtica.",
+        "cta": {
+          "href": "https://www.bmw.es/es/configurador.html",
+          "label": "Configurar el M4"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Diseñado para la carretera. Hecho para emocionar.",
+        "body": "El BMW M4 Competition Coupé lleva la deportividad a un nuevo nivel. Su motor de 6 cilindros en línea con tecnología M TwinPower Turbo entrega 510 CV que se traducen en 3,8 segundos hasta los 100 km/h. La tracción M xDrive y el diferencial M activo trabajan en armonía para ofrecerte un control absoluto en cada curva.",
+        "cta": {
+          "href": "https://www.bmw.es/es/configurador.html",
+          "label": "Descubre el M4"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Tres cifras que hablan por sí solas.",
+        "highlight": "Datos clave del M4 Competition Coupé.",
+        "highlightNote": "*Valores según normativa WLTP. Consultar en concesionario.",
+        "items": [
+          {
+            "title": "510 CV",
+            "body": "Motor 6 cilindros en línea M TwinPower Turbo. Cada aceleración es una experiencia."
+          },
+          {
+            "title": "3,8 s",
+            "body": "Aceleración hasta los 100 km/h. La respuesta es inmediata, la experiencia, inolvidable."
+          },
+          {
+            "title": "M xDrive",
+            "body": "Tracción M xDrive con ajuste selectivo. Agarres y control en cualquier superficie."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "¿Listo para vivir la experiencia M?",
+        "body": "Descubre el BMW M4 Competition Coupé en tu concesionario. Solicita una cita o configúralo a tu medida.",
+        "cta": {
+          "href": "https://www.bmw.es/es/configurador.html",
+          "label": "Configurar el M4"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "BMW",
+        "tagline": "El placer de conducir.",
+        "disclosure": "Esta comunicación es un borrador de campaña de prueba. Los datos de producto mostrados son meramente ilustrativos.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© BMW AG 2026. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-ago-bmw-m4-coupe"
+  }
+}

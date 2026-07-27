@@ -1,0 +1,113 @@
+{
+  "_comment": "Tarífalo — 2026-jul-comparar-luz-gas. Rehecha por el pipeline correcto tras el incidente 2026-07-21 (ver engine/CHANGELOG.md). Variantes multimarca: hero-centrado (sin cifra confirmada ni logo PNG) y card-tarifa-3. trust-bar y lista-premium omitidas (opcionales, contenido sin confirmar). Copy claims-clean 0/0/0.",
+  "metadata": {
+    "campaignName": "2026-jul-comparar-luz-gas",
+    "clientName": "Tarífalo",
+    "subjectLine": "Tarífalo — Compara y ahorra en tus facturas de luz y gas",
+    "preheader": "Encuentra la tarifa de luz y gas que mejor se adapta a tu hogar. Gratis y sin compromiso — Tarífalo",
+    "fromName": "Tarífalo",
+    "fromEmail": "newsletter@tarifalo.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-21",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/tarifalo/tokens/brand-tokens.json",
+  "pattern": "saving",
+  "modules": [
+    {
+      "component": "hero-marca-tarifalo",
+      "data": {
+        "brandName": "Tarífalo",
+        "h1": "Compara y ahorra en tus facturas de luz y gas",
+        "subtitle": "Encuentra la tarifa que mejor se adapta a tu hogar comparando ofertas de múltiples comercializadoras. Gratis, rápido y sin compromiso.",
+        "cta": {
+          "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-comparar-luz-gas&utm_content=hero-cta",
+          "label": "Comparar tarifas"
+        }
+      }
+    },
+    {
+      "component": "card-tarifa-3",
+      "data": {
+        "eyebrow": "QUÉ PUEDES COMPARAR",
+        "title": "Luz, gas o ambas: tú eliges",
+        "subtitle": "Tres formas de comparar, un solo comparador.",
+        "items": [
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luz-hd.png",
+            "title": "Luz",
+            "body": "Compara tarifas de electricidad y elige la que se ajusta a tu consumo.",
+            "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-comparar-luz-gas&utm_content=card-luz",
+            "linkLabel": "Ver tarifas"
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-gas-hd.png",
+            "title": "Gas",
+            "body": "Encuentra una tarifa de gas natural que encaje con tu hogar.",
+            "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-comparar-luz-gas&utm_content=card-gas",
+            "linkLabel": "Ver tarifas"
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luzgas-hd.png",
+            "title": "Luz + Gas",
+            "body": "Combina ambas en una misma comercializadora y simplifica tus facturas.",
+            "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-comparar-luz-gas&utm_content=card-luzgas",
+            "linkLabel": "Ver tarifas"
+          }
+        ]
+      }
+    },
+    {
+      "component": "pasos",
+      "data": {
+        "eyebrow": "EN 3 PASOS",
+        "title": "Así de fácil es comparar",
+        "items": [
+          {
+            "number": "01",
+            "title": "Indica tu consumo",
+            "body": "Introduce tu consumo actual de luz y gas."
+          },
+          {
+            "number": "02",
+            "title": "Compara ofertas",
+            "body": "Revisa las tarifas disponibles de múltiples comercializadoras."
+          },
+          {
+            "number": "03",
+            "title": "Decide el cambio",
+            "body": "Escoge la opción que mejor encaja contigo."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Tus facturas pueden ser más claras",
+        "body": "Compara tu tarifa actual de luz y gas con otras comercializadoras y decide sin compromiso.",
+        "cta": {
+          "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-comparar-luz-gas&utm_content=closing-cta",
+          "label": "Comparar tarifas"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Tarífalo",
+        "tagline": "Ahorra en las facturas de tu hogar",
+        "disclosure": "Recibes este correo porque te registraste en Tarífalo.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Tarífalo. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-comparar-luz-gas"
+  }
+}

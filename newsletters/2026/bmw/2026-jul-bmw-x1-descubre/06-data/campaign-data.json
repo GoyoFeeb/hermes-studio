@@ -1,0 +1,102 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-bmw-x1-descubre",
+    "clientName": "BMW",
+    "subjectLine": "El nuevo BMW X1. Diseñado para emocionar.",
+    "preheader": "Descubre el SUV compacto que combina diseño, tecnología y la deportividad característica de BMW.",
+    "fromName": "BMW",
+    "fromEmail": "test@example.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-24",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/bmw/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-BMW-LOGO/",
+        "logoAlt": "BMW",
+        "logoWidth": 120,
+        "logoHeight": 36,
+        "label": "SUV compacto"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/bmw/hero-banner.png",
+        "bannerAlt": "BMW X1 — SUV compacto premium",
+        "brandName": "BMW",
+        "h1": "El nuevo BMW X1.",
+        "subtitle": "Diseñado para emocionar.",
+        "cta": {
+          "href": "https://www.bmw.es/es/coches-bmw/x/x1/bmw-x1.html",
+          "label": "Descubre el X1"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "SUV compacto. Alma deportiva.",
+        "body": "Cada trayecto cuenta una historia. Con el BMW X1, cada curva, cada recta, cada destino se convierte en una experiencia de conducción dinámica. Diseñado para quienes buscan versatilidad sin renunciar a la deportividad característica de BMW.",
+        "cta": {
+          "href": "https://www.bmw.es/es/coches-bmw/x/x1/bmw-x1.html",
+          "label": "Descubre el X1"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Tres razones para elegir el X1.",
+        "highlight": "Tres variantes disponibles.",
+        "highlightNote": "*Consultar en concesionario.",
+        "items": [
+          {
+            "title": "Diseño atemporal",
+            "body": "Líneas claras y superficies definidas. La parrilla BMW y los faros LED le dan una presencia inconfundible desde el primer vistazo."
+          },
+          {
+            "title": "Tecnología intuitiva",
+            "body": "El BMW Curved Display integra información y entretenimiento en una superficie curva. Control por voz, navegación inteligente y asistencia — todo al alcance de tu mano."
+          },
+          {
+            "title": "Versatilidad sin concesiones",
+            "body": "Compacto para la ciudad, espacioso para la carretera. Maletero modular, asientos traseros abatibles y una experiencia de conducción que solo BMW puede ofrecer."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "¿Listo para descubrir el BMW X1?",
+        "body": "Solicita información sin compromiso y descubre todo lo que el BMW X1 puede ofrecerte.",
+        "cta": {
+          "href": "https://www.bmw.es/es/coches-bmw/x/x1/bmw-x1.html",
+          "label": "Solicita información"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "BMW",
+        "tagline": "El placer de conducir.",
+        "disclosure": "Esta comunicación es un borrador de campaña de prueba. Los datos de producto mostrados son meramente ilustrativos.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© BMW AG 2026"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-bmw-x1-descubre"
+  }
+}

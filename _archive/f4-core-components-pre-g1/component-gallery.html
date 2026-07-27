@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Core Components — Universal Email System</title>
+<style>
+body{margin:0;padding:20px;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;}
+.frame{max-width:640px;margin:0 auto 40px;background:#fff;border-radius:12px;overflow:hidden;}
+.label{background:#e8e8e8;padding:12px 24px;border-bottom:1px solid #ddd;}
+.label h2{margin:0;font-size:15px;font-weight:700;}
+.label p{margin:4px 0 0;font-size:11px;color:#888;}
+.inner{padding:0;}
+@media only screen and (max-width:599px){.ms{display:block!important;width:100%!important;}.mh{display:none!important;}}
+</style>
+</head>
+<body>
+
+<!-- 1. HEADER CORE -->
+<div class="frame"><div class="label"><h2>1. Header (core)</h2><p>Estructural — sin logo, sin color de marca. La marca añade background-color y logo.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="background-color:#CCCCCC;padding:0;text-align:center;" bgcolor="#CCCCCC">
+  <table width="100%"><tr><td align="center" style="padding:22px 24px 18px;">
+    <p style="font:14px/1.4 Arial;color:#666;margin:0;">[LOGO]</p>
+  </td></tr></table>
+</td></tr></table>
+</div></div>
+
+<!-- 2. HERO CORE -->
+<div class="frame"><div class="label"><h2>2. Hero (core)</h2><p>Imagen + copy. Color de fondo por defecto, marca overridea.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="background-color:#F4F4F4;padding:0;font-size:0;line-height:0;" bgcolor="#F4F4F4">
+  <img src="[HERO_IMAGE]" alt="[DESCRIPCIÓN]" width="600" height="320" style="display:block;width:600px;max-width:100%;height:auto;background-color:#F4F4F4;" class="ms" onerror="this.style.display='none'">
+</td></tr></table>
+</div></div>
+
+<!-- 3. CTA CORE -->
+<div class="frame"><div class="label"><h2>3. CTA Primario (core)</h2><p>Bulletproof, VML, sin color. Marca añade background-color.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td align="center" style="padding:16px 32px;">
+  <table width="100%"><tr><td align="center" style="padding:0;">
+    <!--[if mso]>
+    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="[URL]" style="height:52px;v-text-anchor:middle;width:100%;" arcsize="50%" strokecolor="[BRAND_COLOR]" fillcolor="[BRAND_COLOR]"><w:anchorlock/><center style="color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;">[CTA_TEXT]</center></v:roundrect>
+    <![endif]-->
+    <!--[if !mso]><!-->
+    <table width="100%"><tr><td align="center" style="background-color:[BRAND_COLOR];border-radius:50px;padding:14px 32px;">
+      <a href="[URL]" target="_blank" style="display:inline-block;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;letter-spacing:0.5px;text-decoration:none;text-align:center;line-height:22px;">[CTA_TEXT]</a>
+    </td></tr></table>
+    <!--<![endif]-->
+  </td></tr></table>
+</td></tr></table>
+</div></div>
+
+<!-- 4. CARDS CORE -->
+<div class="frame"><div class="label"><h2>4. Cards 2-column (core)</h2><p>Estructural. Marca añade colores, border-radius, bordes.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="padding:24px;background:#F4F4F4;" bgcolor="#F4F4F4">
+  <table width="100%"><tr>
+    <td style="width:50%;padding:0 6px 0 0;vertical-align:top;" class="ms">
+      <table width="100%" style="background:#FFF;border:1px solid #DDD;border-radius:0;"><tr><td style="padding:22px 18px 18px;">
+        <p style="font:15px/20px Arial;font-weight:700;color:#333;margin:0 0 4px;">[Título]</p>
+        <p style="font:13px/1.45 Arial;color:#666;margin:0;">[Descripción breve]</p>
+      </td></tr></table>
+    </td>
+    <td style="width:50%;padding:0 0 0 6px;vertical-align:top;" class="ms">
+      <table width="100%" style="background:#FFF;border:1px solid #DDD;border-radius:0;"><tr><td style="padding:22px 18px 18px;">
+        <p style="font:15px/20px Arial;font-weight:700;color:#333;margin:0 0 4px;">[Título]</p>
+        <p style="font:13px/1.45 Arial;color:#666;margin:0;">[Descripción breve]</p>
+      </td></tr></table>
+    </td>
+  </tr></table>
+</td></tr></table>
+</div></div>
+
+<!-- 5. STEPS CORE -->
+<div class="frame"><div class="label"><h2>5. Steps 3 pasos (core)</h2><p>Estructural. Marca añade colores a círculos y texto.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="padding:24px;">
+  <table width="100%"><tr>
+    <td align="center" style="width:33%;padding:0 8px;vertical-align:top;" class="ms">
+      <p style="font:20px/1 Arial;font-weight:800;color:#666;margin:0 0 8px;">01</p>
+      <p style="font:15px/18px Arial;font-weight:700;color:#333;margin:0 0 4px;">[Paso 1]</p>
+      <p style="font:13px/1.45 Arial;color:#666;margin:0;">[Descripción]</p>
+    </td>
+    <td align="center" style="width:0;vertical-align:middle;" class="mh"><p style="font:22px/1 Arial;color:#CCC;margin:0 0 36px;">→</p></td>
+    <td align="center" style="width:33%;padding:0 8px;vertical-align:top;" class="ms">
+      <p style="font:20px/1 Arial;font-weight:800;color:#666;margin:0 0 8px;">02</p>
+      <p style="font:15px/18px Arial;font-weight:700;color:#333;margin:0 0 4px;">[Paso 2]</p>
+      <p style="font:13px/1.45 Arial;color:#666;margin:0;">[Descripción]</p>
+    </td>
+    <td align="center" style="width:0;vertical-align:middle;" class="mh"><p style="font:22px/1 Arial;color:#CCC;margin:0 0 36px;">→</p></td>
+    <td align="center" style="width:33%;padding:0 8px;vertical-align:top;" class="ms">
+      <p style="font:20px/1 Arial;font-weight:800;color:#666;margin:0 0 8px;">03</p>
+      <p style="font:15px/18px Arial;font-weight:700;color:#333;margin:0 0 4px;">[Paso 3]</p>
+      <p style="font:13px/1.45 Arial;color:#666;margin:0;">[Descripción]</p>
+    </td>
+  </tr></table>
+</td></tr></table>
+</div></div>
+
+<!-- 6. FOOTER CORE -->
+<div class="frame"><div class="label"><h2>6. Footer (core)</h2><p>Legal universal. Marca añade colores.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="padding:28px 24px 24px;background:#F4F4F4;" bgcolor="#F4F4F4">
+  <hr style="border:none;border-top:1px solid #DDD;margin:0 0 16px;">
+  <p style="font:12px/1.45 Arial;color:#999;margin:0 0 12px;text-align:center;">[MOTIVO DE RECEPCIÓN]</p>
+  <table width="100%"><tr><td align="center" style="padding:0 0 12px;">
+    <a href="[UNSUBSCRIBE_LINK]" target="_blank" style="color:#999;font:12px Arial;text-decoration:underline;margin:0 5px;">Darse de baja</a>
+    <span style="color:#CCC;font-size:12px;">|</span>
+    <a href="[PREFERENCES_LINK]" target="_blank" style="color:#999;font:12px Arial;text-decoration:underline;margin:0 5px;">Preferencias</a>
+  </td></tr></table>
+  <p style="font:11px/1.4 Arial;color:#AAA;margin:0;text-align:center;">&copy; [AÑO] [MARCA]. [DIRECCIÓN]</p>
+</td></tr></table>
+</div></div>
+
+<!-- 7. HERO EDITORIAL (NO PHOTO) -->
+<div class="frame"><div class="label"><h2>7. Hero Editorial sin foto (premium)</h2><p>Eyebrow + H1 + subtítulo + cifra destacada + CTA. Fondo [BRAND_BG_LIGHT].</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="background-color:[BRAND_BG_LIGHT];padding:0;">
+  <table width="100%"><tr><td align="center" style="padding:40px 32px 32px;">
+    <p style="font:12px/16px Arial;font-weight:700;color:[BRAND_COLOR_LIGHT];margin:0 0 12px;letter-spacing:2.5px;text-transform:uppercase;">[EYEBROW_TEXT]</p>
+    <h1 style="font:30px/1.15 Arial;font-weight:800;color:[BRAND_TEXT_DARK];margin:0 0 10px;text-align:center;">[H1_TEXT]</h1>
+    <p style="font:16px/1.55 Arial;color:[BRAND_TEXT_COLOR];margin:0 0 20px;text-align:center;">[SUBTITLE_TEXT]</p>
+    <table style="margin:0 auto 24px;"><tr>
+      <td align="center" style="background-color:[BRAND_COLOR];border-radius:16px;padding:16px 28px;">
+        <p style="font:36px/1 Arial;font-weight:800;color:#FFFFFF;margin:0 0 4px;">[STAT_NUMBER]</p>
+        <p style="font:13px/1.4 Arial;color:rgba(255,255,255,0.85);margin:0;">[STAT_LABEL]</p>
+      </td>
+    </tr></table>
+    <table width="100%"><tr><td align="center" style="padding:0;">
+      <v:roundrect href="[CTA_URL]" style="height:52px;v-text-anchor:middle;width:100%;" arcsize="50%" strokecolor="[CTA_COLOR]" fillcolor="[CTA_COLOR]"><w:anchorlock/><center style="color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;">[CTA_TEXT]</center></v:roundrect>
+      <table width="100%"><tr><td align="center" style="background-color:[CTA_COLOR];border-radius:50px;padding:14px 32px;">
+        <a href="[CTA_URL]" target="_blank" style="display:inline-block;color:#FFFFFF;font:16px Arial;font-weight:700;letter-spacing:0.5px;text-decoration:none;text-align:center;line-height:22px;">[CTA_TEXT]</a>
+      </td></tr></table>
+    </td></tr></table>
+  </td></tr></table>
+</td></tr></table>
+</div></div>
+
+<!-- 8. TRUST CHECKMARK -->
+<div class="frame"><div class="label"><h2>8. Trust Bar con checkmarks (premium)</h2><p>3 checks con icono ✓ sobre fondo lila. Heights compactas.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="background-color:[BRAND_BG_LIGHT];padding:0 24px 36px;">
+  <table width="100%" style="background-color:[BRAND_BG_LIGHT];border-radius:50px;">
+    <tr><td align="center" style="padding:14px 12px;">
+      <table width="100%"><tr>
+        <td align="center" style="width:33%;padding:6px 4px;" class="ms">
+          <table style="margin:0 auto;"><tr>
+            <td style="background-color:[BRAND_COLOR];border-radius:50%;width:22px;height:22px;"><p style="font:11px/22px Arial;font-weight:700;color:#FFFFFF;text-align:center;">✓</p></td>
+            <td width="6">&nbsp;</td>
+            <td align="left"><p style="font:12px/16px Arial;font-weight:600;color:[BRAND_COLOR];margin:0;">[CHECK_1_TEXT]</p></td>
+          </tr></table>
+        </td>
+        <td align="center" style="width:33%;padding:6px 4px;" class="ms">
+          <table style="margin:0 auto;"><tr>
+            <td style="background-color:[BRAND_COLOR];border-radius:50%;width:22px;height:22px;"><p style="font:11px/22px Arial;font-weight:700;color:#FFFFFF;text-align:center;">✓</p></td>
+            <td width="6">&nbsp;</td>
+            <td align="left"><p style="font:12px/16px Arial;font-weight:600;color:[BRAND_COLOR];margin:0;">[CHECK_2_TEXT]</p></td>
+          </tr></table>
+        </td>
+        <td align="center" style="width:33%;padding:6px 4px;" class="ms">
+          <table style="margin:0 auto;"><tr>
+            <td style="background-color:[BRAND_COLOR];border-radius:50%;width:22px;height:22px;"><p style="font:11px/22px Arial;font-weight:700;color:#FFFFFF;text-align:center;">✓</p></td>
+            <td width="6">&nbsp;</td>
+            <td align="left"><p style="font:12px/16px Arial;font-weight:600;color:[BRAND_COLOR];margin:0;">[CHECK_3_TEXT]</p></td>
+          </tr></table>
+        </td>
+      </tr></table>
+    </td></tr>
+  </table>
+</td></tr></table>
+</div></div>
+
+<!-- 9. LIST ACCENT BAR -->
+<div class="frame"><div class="label"><h2>9. Lista con barra de acento (premium)</h2><p>4 items con barra de color [CTA_COLOR] lateral. Para checklist o condiciones.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="background-color:[BRAND_BG_LIGHT];padding:0;">
+  <table width="100%"><tr><td align="center" style="padding:36px 24px;">
+    <p style="font:22px/1.2 Arial;font-weight:800;color:[BRAND_TEXT_DARK];margin:0 0 24px;text-align:center;">[LIST_TITLE]</p>
+    <table width="100%"><tr>
+      <td style="width:8px;background-color:[CTA_COLOR];border-radius:4px 0 0 4px;">&nbsp;</td>
+      <td style="padding:14px 16px;background-color:[BRAND_BG_LIGHT];">
+        <p style="font:15px/20px Arial;font-weight:700;color:[BRAND_TEXT_DARK];margin:0 0 2px;">[ITEM_1_LABEL]</p>
+        <p style="font:13px/1.4 Arial;color:[BRAND_TEXT_COLOR];margin:0;">[ITEM_1_VALUE]</p>
+      </td>
+    </tr></table>
+  </td></tr></table>
+</td></tr></table>
+</div></div>
+
+<!-- 10. CLOSING BAND -->
+<div class="frame"><div class="label"><h2>10. Closing Band sobre [BRAND_COLOR_DEEP] (premium)</h2><p>Banda de cierre sobre fondo oscuro [BRAND_COLOR_DEEP]. CTA coral.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="background-color:[BRAND_COLOR_DEEP];padding:0;">
+  <table width="100%"><tr><td align="center" style="padding:44px 32px 40px;">
+    <p style="font:26px/1.15 Arial;font-weight:800;color:#FFFFFF;margin:0 0 8px;text-align:center;">[FINAL_TITLE]</p>
+    <p style="font:15px/1.5 Arial;color:rgba(255,255,255,0.85);margin:0 0 24px;text-align:center;">[FINAL_BODY]</p>
+    <table width="100%"><tr><td align="center" style="background-color:[CTA_COLOR];border-radius:50px;padding:14px 32px;">
+      <a href="[CTA_URL]" target="_blank" style="display:inline-block;color:#FFFFFF;font:16px Arial;font-weight:700;letter-spacing:0.5px;text-decoration:none;text-align:center;line-height:22px;">[CTA_TEXT]</a>
+    </td></tr></table>
+  </td></tr></table>
+</td></tr></table>
+</div></div>
+
+
+<!-- 11. SECTION DIVIDER -->
+<div class="frame"><div class="label"><h2>11. Section Divider (core)</h2><p>6 bandas de 4px interpoladas entre dos colores. Sin gradientes CSS, sin imágenes. Compatible Outlook.</p></div>
+<div class="inner">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;margin:0 auto;">
+<tr><td style="font-size:0;line-height:0;height:4px;background-color:#CCCCCC;">&nbsp;</td></tr>
+<tr><td style="font-size:0;line-height:0;height:4px;background-color:#D5D5D5;">&nbsp;</td></tr>
+<tr><td style="font-size:0;line-height:0;height:4px;background-color:#DDDDDD;">&nbsp;</td></tr>
+<tr><td style="font-size:0;line-height:0;height:4px;background-color:#E6E6E6;">&nbsp;</td></tr>
+<tr><td style="font-size:0;line-height:0;height:4px;background-color:#EFEFEF;">&nbsp;</td></tr>
+<tr><td style="font-size:0;line-height:0;height:4px;background-color:#F7F7F7;">&nbsp;</td></tr>
+</table>
+</div></div>
+
+</body>
+</html>

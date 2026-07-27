@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-07-25T01:01:47.565Z",
+  "campaignDataPath": "/sessions/practical-laughing-cori/mnt/newsletter-system-reutilizable/sistema-final/newsletters/2026/rolex/2026-jul-rolex-datejust-verde/06-data/campaign-data.json",
+  "campaignDataSha256": "966e4f1c0cf893b85e917ed8da72ab8cbc054057b3a50e82986f7db6e8939a80",
+  "sourceSha256": "b1e554b3ee0804bbf6fad13f56aebaebe9c13fbe80597df723ac60399f18349e",
+  "inlineSha256": "7b6678ed8ca8ee16333ab505d76a6d215b5f87547e423618475b51cb6c6f22dc",
+  "brandPack": "/sessions/practical-laughing-cori/mnt/newsletter-system-reutilizable/sistema-final/brands/rolex/tokens/brand-tokens.json",
+  "brandVersion": "2.2.0",
+  "pattern": "fotografia-primero",
+  "modules": [
+    "header-logo",
+    "hero-imagen",
+    "intro-cta-asimetrico",
+    "columns-3-beneficios-sin-icono",
+    "banda-cierre-asimetrico",
+    "footer"
+  ],
+  "counts": {
+    "<img": {
+      "source": 2,
+      "inline": 2
+    },
+    "utm_source": {
+      "source": 6,
+      "inline": 6
+    },
+    "v:roundrect": {
+      "source": 6,
+      "inline": 6
+    },
+    "tableBalance": {
+      "source": {
+        "open": 24,
+        "close": 24
+      },
+      "inline": {
+        "open": 24,
+        "close": 24
+      }
+    },
+    "inlineBytes": 21601
+  },
+  "inlineBytes": 21601,
+  "warnings": []
+}

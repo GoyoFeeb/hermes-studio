@@ -1,0 +1,104 @@
+{
+  "brand": "bmw",
+  "description": "Design tokens for BMW — ultra-premium automotive, minimal, editorial campaigns",
+  "version": "1.0.0",
+  "colors": {
+    "primary": "#000000",
+    "ctaBackground": "#0066B1",
+    "ctaText": "#FFFFFF",
+    "textSecondary": "#6F6F6F",
+    "textBody": "#262626",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "link": "#0066B1",
+    "lightBg": "#F4F4F4",
+    "mediumBg": "#6F6F6F",
+    "darkBg": "#262626",
+    "border": "#D2D2D7",
+    "success": "#30D158",
+    "warning": "#FFD60A",
+    "error": "#FF453A",
+    "footerBg": "#F4F4F4",
+    "footerText": "#6F6F6F"
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "headline": {
+      "hero": "44px",
+      "h1": "36px",
+      "h2": "28px",
+      "h3": "24px",
+      "h4": "20px",
+      "h5": "18px"
+    },
+    "body": {
+      "large": "18px",
+      "normal": "16px",
+      "small": "14px",
+      "xsmall": "12px",
+      "legal": "11px"
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.1,
+      "normal": 1.4,
+      "relaxed": 1.6
+    }
+  },
+  "spacing": {
+    "section": "40px 0",
+    "innerSection": "28px 20px",
+    "hero": "48px 0",
+    "paragraph": "16px 0",
+    "cta": "20px 0"
+  },
+  "radius": {
+    "cta": 2,
+    "image": 0
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "fullWidth": "100%"
+  },
+  "images": {
+    "heroDimensions": "1200x700px",
+    "heroDisplay": "600x350px",
+    "modelDimensions": "400x300px",
+    "modelDisplay": "180x135px",
+    "technologyIconDimensions": "60x60px",
+    "format": "jpg",
+    "bgColor": "#FFFFFF"
+  },
+  "buttons": {
+    "vml": true,
+    "padding": "14px 36px",
+    "fontSize": "15px",
+    "fontWeight": 700,
+    "borderRadius": 2,
+    "shape": "rectangular"
+  },
+  "copyTone": "editorial, premium, aspiracional, emocional, automotriz",
+  "language": "es",
+  "notes": [
+    "BMW aesthetic: ultra-premium automotive — minimal, editorial, confident",
+    "ZERO card borders, ZERO shadows, ZERO accent stripes or decorative rules",
+    "Typography is clean and confident — Arial/Helvetica, generous white space",
+    "BMW blue (#0066B1) used sparingly — ONLY for CTAs, never as decorative color",
+    "Rectangular buttons (not pill) — 2px radius, bold text, blue bg white text",
+    "Images are full-bleed within 600px container — no rounded corners on images",
+    "Dark backgrounds (#262626) used for contrast sections (electrified section)",
+    "Light gray (#F4F4F4) used for alternating section backgrounds (technology section)",
+    "Pure black (#000000) primary text color for headlines",
+    "Dark gray (#262626) for body text — softer than pure black but still premium",
+    "Medium gray (#6F6F6F) for secondary text",
+    "3-column model grid with centered images and short model names",
+    "This is a STANDALONE exception — not compatible with engine components"
+  ]
+}

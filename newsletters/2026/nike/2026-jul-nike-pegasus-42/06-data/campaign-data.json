@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-nike-pegasus-42",
+    "clientName": "Nike",
+    "subjectLine": "Nike Pegasus 42. Diseñado para correr.",
+    "preheader": "La nueva generación de la zapatilla de running más icónica de Nike. Amortiguación Air Zoom full-length y ajuste mejorado.",
+    "fromName": "Nike",
+    "fromEmail": "test@example.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-24",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/nike/tokens/brand-tokens.json",
+  "pattern": "institutional",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-NIKE-LOGO/",
+        "logoAlt": "Nike",
+        "logoWidth": 80,
+        "logoHeight": 28,
+        "label": "RUNNING"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/nike/hero-banner.png",
+        "bannerAlt": "Nike Pegasus 42 — zapatilla de running",
+        "brandName": "Nike Pegasus 42",
+        "h1": "Diseñado para correr.",
+        "subtitle": "Men's Road Running Shoes.",
+        "cta": {
+          "href": "https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702",
+          "label": "Comprar el Pegasus 42"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Diseñado para correr.",
+        "body": "El Nike Pegasus 42 lleva la amortiguación responsive a un nuevo nivel. Con una unidad Air Zoom curvada full-length y una malla ultraligera, cada zancada se siente con más energía que nunca.",
+        "cta": {
+          "href": "https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702",
+          "label": "Comprar el Pegasus 42"
+        }
+      }
+    },
+    {
+      "component": "card-tarifa-3",
+      "data": {
+        "eyebrow": "NUEVA GENERACIÓN",
+        "title": "Tecnología que impulsa.",
+        "subtitle": "Tres razones para dar el salto al Pegasus 42.",
+        "items": [
+          {
+            "icon": "https://PENDING-NIKE-ICON-AIRZOOM/",
+            "title": "Air Zoom Full-Length",
+            "body": "Unidad curvada que ofrece una sensación propulsiva desde el talón hasta la puntera, con el mayor retorno de energía de Nike.",
+            "href": "https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702",
+            "linkLabel": "Más información"
+          },
+          {
+            "icon": "https://PENDING-NIKE-ICON-FIT/",
+            "title": "Ajuste mejorado",
+            "body": "Más espacio en la puntera y el antepié respecto al modelo anterior, para una pisada más natural y cómoda.",
+            "href": "https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702",
+            "linkLabel": "Más información"
+          },
+          {
+            "icon": "https://PENDING-NIKE-ICON-BREATHABLE/",
+            "title": "Upper transpirable",
+            "body": "Malla ligera más suave y transpirable que en iteraciones anteriores, manteniendo el pie fresco en todo momento.",
+            "href": "https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702",
+            "linkLabel": "Más información"
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "¿Preparado para la próxima zancada?",
+        "body": "El Pegasus 42 te espera. Descubre por qué es la zapatilla de running diario más icónica de Nike.",
+        "cta": {
+          "href": "https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702",
+          "label": "Comprar el Pegasus 42"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Nike",
+        "tagline": "Just Do It.",
+        "disclosure": "Esta comunicación es un borrador de prueba (isTestCampaign).",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© Nike, Inc. All Rights Reserved."
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-nike-pegasus-42"
+  }
+}

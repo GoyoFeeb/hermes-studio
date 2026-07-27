@@ -1,0 +1,77 @@
+<!-- hero-asimetrico.html — logo + hero asimetrico (H1 izq / stat der) + CTA. RESTAURADO 2026-07-21 desde el build determinista de F1 tras el incidente tarifalo (ver engine/CHANGELOG.md). Datos: hero.h1, hero.stat.number, hero.stat.label, hero.subtitle, cta.href, cta.label (via include). Tokens añadidos 2026-07-24: gradients.heroBackground — background-image adicional sobre colors.primary, degrada a bgcolor sólido si no hay soporte (ver engine/CHANGELOG.md, "gradientes bulletproof") -->
+<tr>
+<td style="background-color:{{token:colors.primary}};background-image:{{token:gradients.heroBackground}};padding:0;" class="header-bg"
+    background="{{token:assets.headerPatternTile}}"
+    bgcolor="{{token:colors.primary}}">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+
+    <!-- Logo -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:28px 32px 12px;">
+        <img src="{{token:assets.logo}}"
+             alt="{{token:assets.logoAlt}}"
+             width="{{token:assets.logoWidth}}" height="{{token:assets.logoHeight}}"
+             style="display:block;outline:none;border:none;text-decoration:none;width:{{token:assets.logoWidth}}px;height:{{token:assets.logoHeight}}px;max-width:100%;">
+      </td>
+    </tr>
+
+    <!-- Fila principal: H1 (izquierda) + Stat (derecha) 56/44 -->
+    <tr>
+      <td align="center" style="padding:16px 0 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>
+            <td align="left" style="width:56%;padding:0 12px 16px 32px;vertical-align:middle;" class="mobile-stack">
+              <h1 class="mobile-hero-h1" style="font-family:{{token:typography.displayFont}};font-size:28px;font-weight:800;color:#FFFFFF;margin:0;line-height:1.16;letter-spacing:-0.5px;text-align:left;mso-line-height-rule:exactly;">
+                {{data:hero.h1}}
+              </h1>
+            </td>
+            <td align="center" style="width:44%;padding:0 32px 16px 12px;vertical-align:middle;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
+                <tr>
+                  <td align="center">
+                    <p class="mobile-hero-stat" style="font-family:{{token:typography.displayFont}};font-size:56px;font-weight:800;color:#FFFFFF;margin:0;line-height:1;letter-spacing:-1.5px;text-align:center;mso-line-height-rule:exactly;">
+                      {{data:hero.stat.number}}
+                    </p>
+                    <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;color:{{token:colors.onBrandSecondary}};margin:6px 0 0;line-height:15px;letter-spacing:1.5px;text-transform:uppercase;text-align:center;mso-line-height-rule:exactly;">
+                      {{data:hero.stat.label}}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Subtítulo unificado (fusión del antiguo subtítulo + microcopy) -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:0 40px 0;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:400;color:{{token:colors.onBrandSecondary}};margin:0;line-height:1.5;text-align:center;mso-line-height-rule:exactly;">
+          {{data:hero.subtitle}}
+        </p>
+      </td>
+    </tr>
+
+    <!-- CTA -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:24px 32px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="mobile-full">
+          <tr>
+            <td align="center" style="padding:0;">
+              {{include:cta-bulletproof}}
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Cierre -->
+    <tr>
+      <td align="center" style="padding:32px 32px 40px;">&nbsp;</td>
+    </tr>
+
+  </table>
+</td>
+</tr>

@@ -1,0 +1,293 @@
+{
+  "brand": "aesop",
+  "description": "Design tokens for Aesop — casa australiana de cosmética y cuidado de la piel. Identidad visual extremadamente minimalista: sin bordes redondeados, sin sombras, sin iconos decorativos, sin modelos humanos, sin promesas de transformación. Dos familias tipográficas (SuisseIntl para cuerpo, Zapf-Humanist para display). Fondo crema #FFFEF2 en lugar de blanco puro. CTAs siempre outline (borde sin relleno), con border-radius: 0. Creado desde observación real de aesop.com y aesop.com/skin-care.html (Chrome, getComputedStyle) el 2026-07-24.",
+  "version": "2.2.1",
+  "colors": {
+    "primary": "#333333",
+    "ctaBackground": "#252525",
+    "ctaText": "#FFFEF2",
+    "ctaHover": "#333333",
+    "textPrimary": "#333333",
+    "textBody": "#333333",
+    "textSecondary": "#666666",
+    "textTertiary": "#999999",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "link": "#333333",
+    "light": "#D3D4D5",
+    "deep": "#1A1A1A",
+    "accentHaloLight": "#F0EFE5",
+    "footerSeparator": "#4A4A4A",
+    "onBrandSecondary": "#FFFEF2",
+    "lightBg": "#FFFEF2",
+    "mediumBg": "#666666",
+    "darkBg": "#252525",
+    "border": "#E0DFD5",
+    "borders": {
+      "card": "#E0DFD5",
+      "footer": "#4A4A4A"
+    },
+    "success": "#333333",
+    "warning": "#FFD60A",
+    "error": "#E91429",
+    "footerBg": "#252525",
+    "footerText": "#FFFEF2",
+    "heroOverlay": "rgba(37,37,37,0.4)",
+    "background": {
+      "white": "#FFFEF2",
+      "sectionAlt": "#F6F5E8",
+      "dark": "#252525"
+    },
+    "text": {
+      "primary": "#333333",
+      "body": "#333333",
+      "secondary": "#666666",
+      "tertiary": "#999999"
+    }
+  },
+  "typography": {
+    "family": "Arial, 'Helvetica Neue', Helvetica, sans-serif",
+    "note": "Aesop usa dos familias tipográficas propietarias, confirmadas con CSSFontFaceRule sobre aesop.com el 2026-07-24: (1) 'SuisseIntl' (Regular 400) y 'SuisseIntl-Medium' (Medium 500) como tipografía principal — sans-serif neo-grotesca de espaciado generoso. (2) 'Zapf-Humanist' (Regular 400) como tipografía decorativa para titulares editoriales y citas — humanista sans (≈Optima, no serif). Ninguna es email-safe. Se declara Inter como webFont (Google Fonts) para la función de display/titulares — neo-grotesca real, el sustituto más cercano a SuisseIntl disponible gratuitamente. El cuerpo (body, footer, legal) se mantiene en la cadena de sistema Arial/Helvetica porque (a) SuisseIntl no tiene un duplicado exacto en Google Fonts que cubra los 3 pesos con el mismo carácter, y (b) cargar 3 pesos de una webfont para el cuerpo duplica el peso del email sin beneficio real de legibilidad (14px en Arial vs Inter es indistinguible en email). La jerarquía de pesos: Regular 400 → 400 para cuerpo, Medium 500 → 700 para display/CTA (no existe el peso 500 en email-safe, se mapea a bold).",
+    "displayFont": "'Inter', Arial, 'Helvetica Neue', Helvetica, sans-serif",
+    "webFont": {
+      "family": "Inter",
+      "note": "Sustituto real de SuisseIntl (2026-07-25). SuisseIntl es una neo-grotesca propietaria de edición suiza, no disponible públicamente (verificada por CSSFontFaceRule sobre aesop.com). Inter (anteriormente 'Inter UI') es una neo-grotesca de Google Fonts diseñada por Rasmus Andersson, con el mismo esqueleto funcional que SuisseIntl: terminales rectos, curvas limpias, espaciado generoso, legibilidad óptima en pantalla. Es el sustituto más fiel disponible gratuitamente. Se carga solo para display/titulares (typography.displayFont), no para cuerpo — el cuerpo se mantiene en Arial porque la ganancia de cargar Inter a 14px es marginal y aumenta el peso del email sin beneficio real de marca para esta campaña de test.",
+      "weights": [
+        {
+          "weight": 400,
+          "url": "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeAmM.woff2"
+        },
+        {
+          "weight": 700,
+          "url": "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeAmM.woff2"
+        }
+      ]
+    },
+    "headline": {
+      "hero": "30px",
+      "h1": "30px",
+      "h2": "30px",
+      "h3": "16px",
+      "h4": "14px"
+    },
+    "body": {
+      "large": "16px",
+      "normal": "14px",
+      "small": "12px",
+      "xsmall": "11px",
+      "legal": "11px"
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 700,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.1,
+      "hero": 1.3,
+      "normal": 1.5,
+      "relaxed": 1.6
+    },
+    "hero": {
+      "h1": {
+        "size": 28,
+        "weight": 400,
+        "lineHeight": 1.3,
+        "color": "#FFFEF2",
+        "mobile": {
+          "size": 22,
+          "lineHeight": 1.3
+        }
+      },
+      "subtitle": {
+        "size": 14,
+        "weight": 400,
+        "lineHeight": 1.5,
+        "color": "#FFFEF2",
+        "mobile": {
+          "size": 13
+        }
+      }
+    },
+    "h2Section": {
+      "size": 22,
+      "weight": 700,
+      "lineHeight": 1.25,
+      "color": "#333333"
+    },
+    "h3Card": {
+      "size": 14,
+      "weight": 700,
+      "lineHeight": 1.3,
+      "color": "#333333"
+    },
+    "bodyLarge": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#333333"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#333333"
+    },
+    "cta": {
+      "size": 14,
+      "weight": 400,
+      "letterSpacing": 0
+    },
+    "footer": {
+      "brand": {
+        "size": 12,
+        "weight": 700,
+        "color": "#FFFEF2"
+      },
+      "legal": {
+        "size": 11,
+        "weight": 400,
+        "color": "#999999"
+      }
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 44,
+    "hero": 44,
+    "innerSection": "24px 20px",
+    "cta": "20px 0"
+  },
+  "radius": {
+    "cta": 0,
+    "ctaPill": 0,
+    "cardStripe": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "Aesop no usa degradados en su web real. La identidad visual es plana: bloques sólidos de color crema (#FFFEF2), gris oscuro (#333333) y negro. Sin transiciones cromáticas."
+  },
+  "surfaces": {
+    "global": "#FFFEF2",
+    "white": "#FFFFFF",
+    "sectionLila": "#F6F5E8"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FFFEF2",
+      "textColor": "#333333"
+    },
+    "cta": {
+      "backgroundColor": "#252525",
+      "textColor": "#FFFEF2",
+      "borderRadius": 0,
+      "padding": "13px 24px 12px",
+      "vml": true,
+      "style": "block"
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#E0DFD5",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "centrado",
+    "reason": "La página real de Aesop (aesop.com) utiliza una composición centrada y simétrica en casi todos sus bloques: títulos centrados sobre carrusel de producto, texto centrado en hero, cuadrícula de categorías centrada. No hay asimetría en el layout — la marca se expresa a través del espacio negativo y la tipografía generosa, no de la composición descentrada. El estilo de sección centrado es más fiel a la identidad real.",
+    "contentRhythm": "Estructura observada en aesop.com/skin-care.html el 2026-07-24:\n1) HEADER: Logo 'Aesop' centrado + navegación horizontal superior ('Shop all', 'Skin Care', 'Hand & Body', etc.) + iconos de cuenta/carrito/búsqueda. Fondo crema #FFFEF2. Densidad baja, tipografía pequeña (12px).\n2) HERO DE CATEGORÍA (PESO VISUAL ALTO): Fondo oscuro (imagen con overlay), título 'Skin Care' en 30px/400 weight/color crema #FFFEF2, párrafo descriptivo de 2 líneas en 14px/400. CTA 'Discover the new formulation' como outline (1px borde #FFFEF2, fondo transparente, border-radius 0). Densidad alta por la imagen de fondo.\n3) QUICK LINKS / CATEGORÍAS (PESO VISUAL MEDIO): Carrusel horizontal de 8 subcategorías con imagen cuadrada + nombre (Cleansers, Exfoliants & Masks, Toners, Hydrators & Moisturisers, Eye & Lip Care, Shaving, Sun Care, Skin Care Kits). Cada una es un link con imagen a ancho completo + título superpuesto. Fondo crema de sección.\n4) SECCIÓN EDITORIAL (PESO VISUAL ALTO): Fondo oscuro/imagen, título display grande (30px/400), párrafo descriptivo, CTA outline. Registro literario, sin iconos ni listas — solo texto + fotografía de producto/ingrediente.\n5) PRODUCTO DESTACADO: Una sección con fotografía de producto sobre fondo claro, nombre del producto (h3, 16px/700), precio ($), CTA 'Add to cabinet'. Sin tarjeta con borde — el producto flota sobre el fondo crema.\n6) 'RECENT ADDITIONS AND REVERED FORMULATIONS': Carrusel de productos con fotografía de producto sobre fondo blanco, nombre, descripción breve de una línea, precio, botón 'Add to cabinet'.\n7) FOOTER NEGRO: Fondo #252525, texto crema #FFFEF2. Columnas de enlaces, formulario de suscripción, cita literaria en cursiva. Densidad media-alta.\n\nCONCLUSIÓN PARA EMAIL: La marca se sostiene en 3 ingredientes visuales — (a) fondo crema #FFFEF2, (b) tipografía como protagonista (sin iconos ni adornos gráficos), (c) CTAs siempre outline con border-radius 0. No usa tarjetas, sombras, iconos decorativos, emojis ni modelos humanos. El motor actual está diseñado para marcas con CTAs pill, tarjetas con borde y sombra, y bloques de beneficios con icono — Aesop se sitúa FUERA de esa frontera. Las adaptaciones necesarias: border-radius 0 en CTAs, omitir sombras y bordes de tarjeta, usar outline como CTA primario, mantener fondo crema global."
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "Aesop utiliza fotografía de producto de altísima calidad con iluminación suave y natural, sobre fondos neutros (blanco puro o crema). Los productos se muestran aislados, sin modelos humanos en primer plano. Las imágenes de ambiente (hero) muestran ingredientes naturales (semillas, hojas, cortezas) con overlays oscuros para el texto. El estilo es clínico pero cálido: laboratorio de ciencia con sensibilidad artesanal. Sin modelos, sin lifestyle aspiracional, sin escenas de uso cotidiano.",
+    "source": "Observado en https://www.aesop.com/ y https://www.aesop.com/skin-care.html el 2026-07-24 (captura de pantalla + inspección DOM + vision_analyze)",
+    "note": "Para hero-imagen: usar fotografía de producto Aesop (botella ámbar sobre fondo claro) o fotografía de ingredientes (semillas, hojas). NO usar modelos humanos, NO usar escenas de baño o tocador con personas. El producto es el protagonista."
+  },
+  "iconography": {
+    "style": "ninguno-decorativo",
+    "monochrome": false,
+    "color": "N/A",
+    "source": "Observado en https://www.aesop.com/ el 2026-07-24: Aesop NO usa iconos decorativos en ninguna sección de producto o marketing. No hay iconos de beneficio, checkmarks, estrellas, hojas, ni emojis. La única iconografía son los iconos funcionales de interfaz (lupa de búsqueda, bolsa de compra, menú hamburguesa) y controles de vídeo/carrusel. La comunicación visual es 100% tipografía + fotografía de producto.",
+    "componentImplication": "Aesop es una marca 100% tipografía + fotografía de producto. NO usar iconGlyph de emoji en ningún módulo. Para secciones de beneficio o características, usar columns-3-beneficios-sin-icono (barrita de color decorativa) en vez de columns-3-beneficios (con icono) o card-tarifa-3 (exige icon obligatorio). Las 'barritas' decorativas (accent bar) son el único adorno visual aceptable, heredado de la variante sin-icono ya existente en el motor. ⚠️ NOTA: Incluso la barrita decorativa es un compromiso — Aesop no usa líneas divisorias decorativas en su web. Pero el motor no tiene un componente de '3 bloques de texto plano sin ningún adorno', así que la barrita es el recurso más cercano disponible."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "Campaña de test interno con isTestCampaign:true. El motor actual fuerza color-scheme:light. La marca real usa fondo crema #FFFEF2 con acentos oscuros — funcionaría en modo claro. Dark mode real requeriría adaptación futura."
+  },
+  "personalization": {
+    "status": "not-implemented",
+    "note": "isTestCampaign: true — sin personalización real."
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-aesop-ritual-facial",
+    "content": ""
+  },
+  "assets": {
+    "logo": "https://www.aesop.com/dw/image/v2/AANG_PRD/on/demandware.static/-/Sites-aesop-us-Library/default/dw1e4239a3/images/logo.png",
+    "logoWidth": 140,
+    "logoHeight": 45,
+    "logoAlt": "Aesop",
+    "headerPatternTile": "",
+    "note": "Logo PNG oficial verificado HTTP 200 desde aesop.com. Muestra 'Aesop' en tipografía serif (aprox. Didot-style). 140×45px. El logo tiene fondo transparente (el PNG se renderiza sobre el fondo crema #FFFEF2 de la página). ⚠️ Verificar si funciona sobre fondos oscuros — el logo es negro, puede perderse. Alternativa: usar 'Aesop' como texto en blanco sobre fondo oscuro.",
+    "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/aesop/hero-banner.png",
+    "heroBannerWidth": 600,
+    "heroBannerHeight": 350
+  },
+  "voice": {
+    "tone": "preciso, casi literario, sin superlativos. Aesop no vende transformación — describe fórmulas, ingredientes y gestos. Registro sensorial pero contenido: evoca texturas, aromas y rituales sin prometer resultados. Sin exclamaciones, sin urgencia, sin comparativos. Serio pero no solemne: hay espacio para una cita literaria o una observación inesperada.",
+    "ctaDefault": "Discover",
+    "ctaSecondary": "",
+    "rhythm": {
+      "sentenceLength": "Titulares de longitud media (5-8 palabras), a veces con punto y seguido. Frases descriptivas de 1-2 líneas, sin subordinadas complejas. Citas literarias ocasionales como cierre.",
+      "mode": "Tercera persona descriptiva ('Skin is ever-changing', 'Our range is designed with this in mind') combinada con segunda persona suave ('to guide you', 'your daily regimens'). Imperativo suave en CTAs ('Discover', 'Explore').",
+      "formality": "Formal pero no académico. Preciso sin ser técnico. Sin jerga de marketing, sin coloquialismos. Registro de editorial de diseño: culto pero accesible.",
+      "punctuationHabits": "Titulares con o sin punto final (uso variable). Frases declarativas rematadas en punto. Sin exclamaciones, sin preguntas retóricas. Uso de em dash (—) y paréntesis para incisos. Mayúscula inicial, nominal propio en nombres de producto.",
+      "examples": [
+        "Skin is ever-changing—it responds to environment, lifestyle and diet.",
+        "Our range is designed with this in mind, catering to various needs and preferences to guide you towards optimal skin health.",
+        "Modern science and botanicals intertwine to strengthen the skin through time.",
+        "Composed of an unexpected blend of essential oils.",
+        "A trio of fresh, green, citrus formulations.",
+        "Your best and wisest refuge from all troubles is in your science. — Ada Lovelace"
+      ],
+      "source": "Texto real extraído del DOM en https://www.aesop.com/ y https://www.aesop.com/skin-care.html el 2026-07-24"
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.1",
+      "date": "2026-07-24",
+      "author": "Hermes Agent (Orchestrator) — investigación real vía Chrome + getComputedStyle sobre aesop.com y aesop.com/skin-care.html",
+      "changes": [
+        "Pack CREADO desde cero. Aesop identificada como marca que se sitúa FUERA de la frontera del lenguaje de diseño del motor: CTAs outline sin border-radius, sin sombras, sin iconos decorativos, fondo crema #FFFEF2 en vez de blanco, dos familias tipográficas propietarias (SuisseIntl + Zapf-Humanist).",
+        "colors.primary (#333333) extraído con getComputedStyle sobre body/h1/h2 de aesop.com (rgb(51,51,51)). Es el color de texto dominante en toda la página: cuerpo, navegación, títulos de sección, nombres de producto, precios. Contrasta a 12.44:1 con el fondo #FFFEF2.",
+        "colors.ctaBackground (#252525) extraído con getComputedStyle sobre el footer de aesop.com (rgb(37,37,37)). Es el color estructural oscuro de Aesop, usado como fondo del footer y como color de relleno del CTA sólido. Contrasta a 15.12:1 con el texto crema #FFFEF2.",
+        "AÑADIDO: components.cta.style = 'block'. Activa resolveIncludeAlias() que redirige {{include:cta-bulletproof}} → cta-block-bulletproof.html: bloque sólido con border-radius fijo 0 y arcsize 0% en VML (Outlook clásico recibe rectángulo, no píldora). Esta es la primera marca del sistema que usa style:block — el mecanismo existía pero no se había ejercitado con una marca real.",
+        "AÑADIDO: typography.webFont con Inter (Google Fonts) como sustituto de la tipografía propietaria SuisseIntl. Inter es una neo-grotesca real, el equivalente más cercano disponible gratuitamente. Se carga solo para display/titulares (typography.displayFont), no para cuerpo — el cuerpo se mantiene en Arial porque cargar 3 pesos de Inter para 14px duplica el peso del email sin beneficio real para esta campaña de test.",
+        "DOCUMENTADO: bug VML en cta-secondary-bulletproof.html línea 23 — arcsize='50%' hardcodeado. Aunque el HTML use border-radius 0 (vía radius.ctaPill), Outlook clásico renderiza el CTA secundario como píldora. Hallazgo real para Agente 07: el VML del CTA secundario debería leer arcsize del token o fijarlo a 0 cuando radius.ctaPill=0. Mientras tanto, el CTA secundario de Aesop aparece como outline pill en Outlook (no square), lo cual es una desviación conocida de la identidad de marca.",
+        "colors.ctaBackground (#252525), colors.ctaText (#FFFEF2), colors.lightBg (#FFFEF2), typography.family y voice.rhythm.examples COMPUTADOS/EXTRAÍDOS con getComputedStyle y lectura de DOM real.",
+        "Logo PNG localizado y verificado HTTP 200: aesop.com/dw/image/.../logo.png (140x45px). El logo tiene fondo transparente — funciona sobre #FFFEF2 pero necesita verificación sobre fondo oscuro.",
+        "radius.cta se fija en 0px (border-radius real del CTA en la web de Aesop, getComputedStyle directo). Es el primer brand pack del sistema con border-radius 0 en el CTA — se desvía del default de plantilla (999px/pill).",
+        "surfaces.global se fija en #FFFEF2 (el crema exacto observado en el body de aesop.com: rgb(255, 254, 242)). Es el primer pack del sistema que NO usa #FFFFFF como fondo global. surfaces.sectionLila se fija en #F6F5E8 (un tono ligeramente más cálido para secciones alternas, muy sutil).",
+        "iconography documenta que Aesop NO usa iconos decorativos — implicación: columns-3-beneficios-sin-icono. NOTA: Incluso la barrita decorativa de ese componente es un compromiso visual, no hay alternativa sin adorno en el motor.",
+        "contentRhythm documenta 7 secciones observadas en la página de Skin Care, con peso visual asignado a cada una.",
+        "layout.sectionStyle se fija en 'centrado' porque la composición real de Aesop es simétrica/centrada, no asimétrica (a diferencia de Worn Wear).",
+        "cta.style no tiene token específico en el brand pack, pero se documenta que el CTA real de Aesop es OUTLINE (transparente con borde de 1px, sin relleno sólido). El motor actual solo genera CTA sólido (cta-bulletproof). La aproximación más cercana es usar cta-secondary-bulletproof (outline) o aceptar la limitación. Ver risks.md."
+      ]
+    }
+  ]
+}

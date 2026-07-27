@@ -1,0 +1,61 @@
+# Delivery Notes: DemoCorp S.L. — 2026-jul-test
+
+| Campo | Valor |
+|---|---|
+| Cliente | DemoCorp S.L. |
+| Campaña | 2026-jul-test |
+| Fecha de exportación | 2026-07-15 |
+| Versión | 1.0.0 |
+| Estado | ✅ Completado |
+| QA aprobado | ✅ [FECHA_QA] |
+
+## Archivos entregados
+
+| Archivo | Descripción |
+|---|---|
+| `09-exports/final.html` | HTML completo de la newsletter |
+| `09-exports/final-inline.html` | HTML con estilos inline (si aplica) |
+| `09-exports/final-preview.png` | Captura de preview |
+| `09-exports/assets/` | Assets empaquetados (si aplica) |
+| `09-exports/delivery-notes.md` | Este documento |
+
+## Instrucciones de subida
+
+| Plataforma | Archivo |
+|---|---|
+| Doctorsender | final.html |
+| Mailchimp / HubSpot | final-inline.html |
+
+## Resumen de la newsletter
+
+| Aspecto | Detalle |
+|---|---|
+| Asunto | [ASUNTO_SELECCIONADO] |
+| Preheader | [PREHEADER_SELECCIONADO] |
+| Módulos | [N] |
+| CTA principal | Saber más |
+
+## Enlaces incluidos
+
+| CTA | Texto | URL |
+|---|---|---|
+| Principal | | |
+| Secundario 1 | | |
+| Baja | | |
+| Preferencias | | |
+
+## Parámetros UTM
+
+| Parámetro | Valor |
+|---|---|
+| utm_source | [PENDIENTE] |
+| utm_medium | email |
+| utm_campaign | [PENDIENTE] |
+
+## Limitaciones conocidas
+
+- [PENDIENTE]
+
+## Recomendaciones post-entrega
+
+- [PENDIENTE]

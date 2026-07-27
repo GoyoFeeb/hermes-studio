@@ -1,0 +1,142 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-optica2000-cuida-tu-mirada",
+    "clientName": "Óptica 2000 — Grandvisión Spain Grupo Óptico, S.A.U.",
+    "subjectLine": "Vuelve a ver todo con claridad — Cuida tu mirada con Óptica 2000",
+    "preheader": "Reserva tu revisión visual y empieza a cuidar tu mirada.",
+    "fromName": "Óptica 2000",
+    "fromEmail": "info@optica2000.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-22",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/optica2000/tokens/brand-tokens.json",
+  "pattern": "institutional",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://placehold.co/160x55/2D2D2D/F1F1F1?text=OPTICA+2000",
+        "logoAlt": "Óptica 2000 — Cuidamos de tu mirada",
+        "logoWidth": 160,
+        "logoHeight": 55,
+        "label": "CUIDADO VISUAL"
+      }
+    },
+    {
+      "component": "hero-centrado",
+      "data": {
+        "brandName": "ÓPTICA 2000",
+        "h1": "Vuelve a ver todo con claridad",
+        "subtitle": "Tu vista cambia con el tiempo. Una revisión periódica puede ayudarte a disfrutar cada detalle con mayor comodidad.",
+        "cta": {
+          "href": "https://www.optica2000.com/pide-tu-cita?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-optica2000-cuida-tu-mirada&utm_content=hero-cta",
+          "label": "Pide tu cita"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Tu salud visual, en buenas manos",
+        "body": "En Óptica 2000 llevamos más de 30 años ayudando a las personas a ver mejor. Nuestro equipo de ópticos-optometristas realiza revisiones visuales completas con tecnología avanzada para detectar cualquier cambio en tu visión.",
+        "cta": {
+          "href": "https://www.optica2000.com/pide-tu-cita?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-optica2000-cuida-tu-mirada&utm_content=intro-cta",
+          "label": "Pide tu cita"
+        }
+      }
+    },
+    {
+      "component": "card-tarifa-3",
+      "data": {
+        "eyebrow": "VENTAJAS",
+        "title": "Tu salud visual, en buenas manos",
+        "subtitle": "Descubre por qué confiar en Óptica 2000 para el cuidado de tu vista.",
+        "items": [
+          {
+            "icon": "https://placehold.co/48x48/526A6B/F1F1F1?text=P",
+            "title": "Atención profesional",
+            "body": "Nuestros ópticos-optometristas te guiarán en cada paso, ofreciéndote un asesoramiento personalizado y cercano.",
+            "href": "https://www.optica2000.com/pide-tu-cita?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-optica2000-cuida-tu-mirada&utm_content=card1",
+            "linkLabel": "Más info"
+          },
+          {
+            "icon": "https://placehold.co/48x48/526A6B/F1F1F1?text=T",
+            "title": "Tecnología para tu visión",
+            "body": "Contamos con equipos de última generación para realizar revisiones visuales completas y precisas.",
+            "href": "https://www.optica2000.com/pide-tu-cita?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-optica2000-cuida-tu-mirada&utm_content=card2",
+            "linkLabel": "Más info"
+          },
+          {
+            "icon": "https://placehold.co/48x48/526A6B/F1F1F1?text=C",
+            "title": "Un centro cerca de ti",
+            "body": "Con más de 200 centros ópticos, encontrarás tu Óptica 2000 más cercana con facilidad.",
+            "href": "https://www.optica2000.com/pide-tu-cita?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-optica2000-cuida-tu-mirada&utm_content=card3",
+            "linkLabel": "Más info"
+          }
+        ]
+      }
+    },
+    {
+      "component": "category-grid-img",
+      "data": {
+        "title": "Soluciones para cada necesidad",
+        "intro": "Encuentra lo que buscas para cuidar tu vista en cada momento.",
+        "categories": [
+          {
+            "icon": "https://placehold.co/48x48/EBEBEB/2D2D2D?text=G",
+            "title": "Gafas graduadas",
+            "subtitle": "La solución clásica para ver con nitidez"
+          },
+          {
+            "icon": "https://placehold.co/48x48/EBEBEB/2D2D2D?text=LC",
+            "title": "Lentes de contacto",
+            "subtitle": "Comodidad y libertad para tu día a día"
+          },
+          {
+            "icon": "https://placehold.co/48x48/EBEBEB/2D2D2D?text=GS",
+            "title": "Gafas de sol",
+            "subtitle": "Protege tu vista con estilo"
+          },
+          {
+            "icon": "https://placehold.co/48x48/EBEBEB/2D2D2D?text=NI",
+            "title": "Protección infantil",
+            "subtitle": "Cuida la salud visual de los más pequeños"
+          }
+        ],
+        "cta": {
+          "href": "https://www.optica2000.com/pide-tu-cita?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-optica2000-cuida-tu-mirada&utm_content=grid-cta",
+          "label": "Descubre todos nuestros productos"
+        }
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Hazle un hueco a tu salud visual",
+        "body": "Reserva tu revisión y da hoy el primer paso para seguir disfrutando de todo lo que te rodea.",
+        "cta": {
+          "href": "https://www.optica2000.com/pide-tu-cita?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-optica2000-cuida-tu-mirada&utm_content=closing-cta",
+          "label": "Pide tu cita"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Óptica 2000",
+        "tagline": "Cuidamos de tu mirada",
+        "disclosure": "Recibes este correo porque solicitaste información sobre nuestros servicios o eres cliente de Óptica 2000.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Grandvisión Spain Grupo Óptico, S.A.U. Todos los derechos reservados. C/ Monforte de Lemos, 36, Local B-130-131, Centro, 28029 Madrid"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-optica2000-cuida-tu-mirada"
+  }
+}

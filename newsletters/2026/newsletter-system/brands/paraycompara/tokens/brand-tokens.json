@@ -1,0 +1,369 @@
+{
+  "brand": "Para y Compara",
+  "version": "2.2.6",
+  "extends": "core",
+  "colors": {
+    "primary": "#5E2E91",
+    "deep": "#3E244D",
+    "light": "#7B1FA2",
+    "ctaBackground": "#FF5A3C",
+    "ctaText": "#FFFFFF",
+    "onBrandSecondary": "#D9C2E6",
+    "accentHaloLight": "#DCC7E5",
+    "footerSeparator": "#CCB7C9",
+    "background": {
+      "white": "#FFFFFF",
+      "lila": "#F8F5FC",
+      "exterior": "#F4F3F9",
+      "trustBar": "#EAE0EA"
+    },
+    "text": {
+      "primary": "#29262D",
+      "secondary": "#66616A",
+      "tertiary": "#99939B"
+    },
+    "borders": {
+      "card": "#EDE7F3",
+      "footer": "#DCCBD9"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "displayFont": "'Sora','Segoe UI',Arial,Helvetica,sans-serif",
+    "eyebrow": { "size": 12, "weight": 700, "letterSpacing": "3px", "transform": "uppercase", "color": "#7B1FA2" },
+    "h1Hero": { "size": 32, "weight": 800, "lineHeight": 1.12, "color": "#29262D" },
+    "h1HeroOnBrand": { "size": 28, "weight": 800, "lineHeight": 1.16, "letterSpacing": "-0.5px", "color": "#FFFFFF", "mobile": { "size": 26, "lineHeight": 1.18 } },
+    "h2Section": { "size": 22, "weight": 800, "lineHeight": 1.2, "letterSpacing": "-0.3px", "color": "#5E2E91" },
+    "h2OnBrand": { "size": 26, "weight": 800, "lineHeight": 1.18, "letterSpacing": "-0.4px", "color": "#FFFFFF" },
+    "h3Card": { "size": 16, "weight": 700, "lineHeight": 1.25, "color": "#5E2E91" },
+    "bodyLarge": { "size": 16, "weight": 400, "lineHeight": 1.55, "color": "#66616A" },
+    "body": { "size": 14, "weight": 400, "lineHeight": 1.5, "color": "#66616A" },
+    "small": { "size": 12, "weight": 400, "lineHeight": 1.4, "color": "#999999" },
+    "statNumber": { "size": 56, "weight": 800, "lineHeight": 1, "letterSpacing": "-1.5px", "color": "#FFFFFF" },
+    "statLabel": { "size": 11, "weight": 700, "letterSpacing": "1.5px", "transform": "uppercase", "color": "#D9C2E6" },
+    "cta": { "size": 19, "weight": 700, "letterSpacing": "0.5px" },
+    "stepNumber": { "size": 20, "weight": 800, "color": "#FFFFFF" },
+    "stepTitle": { "size": 15, "weight": 700, "color": "#5E2E91" },
+    "cardLinkSecondary": { "size": 13, "weight": 700, "color": "#FF5A3C" },
+    "trustBarText": { "size": 12, "weight": 600, "color": "#5E2E91" },
+    "footerBrand": { "size": 12, "weight": 600, "letterSpacing": "0.2px", "color": "#5E2E91" },
+    "footerTagline": { "size": 12, "weight": 400, "color": "#66616A", "color_stale": "#99939B — CORREGIDO en v2.2.2 (prompt 12): contraste real de 2.72:1 sobre surfaces.global (#F4F3F9), por debajo del mínimo AA de 4.5:1 para texto de 12px. Es el MISMO fallo que ya se había corregido una vez en la línea de disclosure del footer (ver redesign-summary.md 'footer, corregido' 2.72→5.47), pero la corrección no se propagó a la línea de tagline — quedó con el valor fallido. Se reutiliza #66616A (colors.text.secondary, ya usado en footerDisclosure) — verificado 5.47:1, AA pass." },
+    "footerDisclosure": { "size": 12, "weight": 400, "color": "#66616A" },
+    "footerLegal": { "size": 11, "weight": 400, "color": "#66616A" },
+    "footerLinks": { "size": 12, "weight": 400, "color": "#66616A", "textDecoration": "underline" }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "hero": 56,
+    "close": 48
+  },
+  "radius": {
+    "ctaPill": 50,
+    "card": 18,
+    "cardStripe": "16px 16px 0 0",
+    "badgeCircle": "50%",
+    "listAccent": 0,
+    "circleHalo": 4,
+    "chip": 20,
+    "statPill": 24
+  },
+  "shadows": {
+    "card": "0 14px 32px rgba(94,46,145,0.08)",
+    "cta": "0 12px 28px rgba(255,90,60,0.22)",
+    "statPill": { "value": "0 18px 40px rgba(62,36,77,0.20)", "verified": false, "note": "No se encontró ningún box-shadow con este valor en 09-exports/final.html durante la fusión v2.2.0 (2026-07-17). El hero actual (asimétrico, H1 a la izquierda + '+30' como elemento gráfico) no usa contenedor tipo pill alrededor de la cifra — probablemente superseded por el rediseño G8. Confirmar antes de reutilizar; ver también radius.statPill y components.patterns.statPill." }
+  },
+  "gradients": {
+    "heroBackground": "linear-gradient(135deg, #5E2E91 0%, #3E244D 100%)"
+  },
+  "surfaces": {
+    "global": "#F4F3F9",
+    "sectionWhite": "#FFFFFF",
+    "sectionLila": "#F8F5FC",
+    "brandDeepClose": "#3E244D",
+    "brandHeader": "#5E2E91",
+    "trustBarPill": "#EAE0EA"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#5E2E91",
+      "textColor": "#FFFFFF"
+    },
+    "cta": {
+      "backgroundColor": "#FF5A3C",
+      "textColor": "#FFFFFF",
+      "borderRadius": 50,
+      "padding": "17px 36px"
+    },
+    "card": {
+      "borderRadius": 16,
+      "borderColor": "#EDE7F3",
+      "iconBackground": "#F3E5F5",
+      "iconRadius": 12
+    },
+    "trustBar": {
+      "backgroundColor": "#F8F5FC",
+      "backgroundColor_stale_pre_hero_redesign": "#EAE0EA — no aparece en 09-exports/final.html; corregido en v2.2.1 durante la extracción de componentes (prompt 11)",
+      "iconBackground": "#5E2E91",
+      "iconColor": "#FFFFFF"
+    },
+    "steps": {
+      "circleBackground": "#5E2E91",
+      "circleTextColor": "#FFFFFF",
+      "titleColor": "#5E2E91"
+    },
+    "patterns": {
+      "heroEditorialNoPhoto": {
+        "statBackground": "#5E2E91",
+        "statTextColor": "#FFFFFF",
+        "statRadius": 16,
+        "statPadding": "16px 28px"
+      },
+      "trustCheckmark": {
+        "bg": "#EAE0EA",
+        "iconBg": "#5E2E91",
+        "iconColor": "#FFFFFF",
+        "textColor": "#5E2E91"
+      },
+      "closingBand": {
+        "bg": "#3E244D",
+        "ctaBg": "#FF5A3C",
+        "ctaText": "#FFFFFF",
+        "titleColor": "#FFFFFF",
+        "bodyColor": "rgba(255,255,255,0.85)"
+      },
+      "listAccentBar": {
+        "accentColor": "#FF5A3C",
+        "bg": "#F8F5FC",
+        "items": 4,
+        "itemRadius": 4
+      },
+      "accentSignature": {
+        "description": "Sistema de acento premium (ronda G4): el mismo color 'light' (#7B1FA2) aplicado en 3 orientaciones distintas para dar coherencia visual sin introducir un color nuevo — línea kicker centrada (32×2px) sobre cada eyebrow de sección, franja superior (4px) en las tarjetas de tarifa, y barra lateral (4px) ya existente en listAccentBar (esa usa ctaBackground, no light — por diseño).",
+        "color": "light",
+        "orientations": ["kickerRule (center, 32x2px, above eyebrow)", "cardTopStripe (top, 4px, on tarifa cards)", "listAccentBar (left, 4px, uses ctaBackground — distinto por diseño)"]
+      },
+      "statPill": {
+        "description": "Fondo tipo 'chip' (color 'light' #7B1FA2, radius 20px, shadow statPill) detrás de una cifra de marca, para que se lea como elemento elevado/badge en vez de texto flotando sobre el fondo de marca.",
+        "background": "light",
+        "labelColor": "#E4CDF0",
+        "contrastLabelOnPill": "5.59:1 (AA pass)",
+        "status": "unverified-posiblemente-superseded-g8",
+        "note": "Diseñado en G6 sobre el hero pre-G8. En 09-exports/final.html (post-G8, hero asimétrico) la cifra '+30' es texto grande sin pill ni sombra (letterSpacing -1.5px, ver typography.statNumber) y el label usa #D9C2E6, no #E4CDF0. No se ha confirmado si este patrón sigue vigente para otros usos o quedó obsoleto. No editar/reutilizar sin verificar contra una pieza real primero."
+      },
+      "badgeElevation": {
+        "description": "RETIRADO en G7. Introducido en G4 (sombra en halos de pasos y círculos de check), eliminado en la auditoría contra el prompt maestro premium-conversión: 'no añadas sombras a todos los módulos'. La elevación queda reservada a tarjetas, CTAs y stat pill. Se conserva la entrada como registro histórico para no reintroducirla sin saber por qué se quitó.",
+        "status": "retired-g7"
+      },
+      "premiumListRow": {
+        "description": "Ronda G5 (2026-07-16): sustituye a listAccentBar en secciones tipo 'antes de decidir' — combina tarjeta (border+radius+shadow 'card'), franja superior de accentSignature (color 'light') y badge circular de check (36px, color 'primary').",
+        "cardBorder": "cardBorder",
+        "cardShadow": "card",
+        "stripeColor": "light",
+        "badgeColor": "primary",
+        "badgeShadow": "none (retirada en G7 — el badge vive dentro de una tarjeta ya elevada)",
+        "badgeSize": 36,
+        "contrastNote": "Badge en 'primary' (#5E2E91), no 'ctaBackground' (#FF5A3C): check blanco sobre primary = 9.23:1, sobre ctaBackground solo 3.10:1 (falla AA-normal)"
+      }
+    }
+  },
+  "darkMode": {
+    "status": "retired-g8.1",
+    "note": "RETIRADO en G8.1 tras verificación con render real: el dark mode de G8 oscurecía los fondos dejando los iconos PNG (trazo morado para tarjeta blanca) ilegibles — causa del feedback del cliente 'has deformado los iconos'. Las metas color-scheme están ahora forzadas a 'light'. Reintroducir SOLO cuando exista un set de assets dark-ready (iconos + logo, ver icon-system-spec.md) y siempre con captura real en oscuro antes de aprobar.",
+    "paletteForFuture": {
+      "background": "#171420",
+      "surface": "#211C2A",
+      "card": "#2A2437",
+      "cardBorder": "#3D3450",
+      "title": "#D9C2E6",
+      "body": "#B9B3C2"
+    }
+  },
+  "personalization": {
+    "mergeTagPattern": {
+      "mailchimp": "*|IF:FNAME|* *|FNAME|**|END:IF|*",
+      "usage": "Insertar tras el saludo, ej. 'Hola{{mergeTag}}, ...'. El fallback sin nombre es obligatorio.",
+      "esp": "pendiente de definir por campaña — adaptar sintaxis si el ESP no es Mailchimp"
+    },
+    "placement": "Snippet aplicado en la fase de carga al ESP, NO en el HTML (insertarlo en el HTML causó que el merge tag apareciera como texto crudo en previsualización — corregido en G8.1). Se coloca típicamente en la primera línea de saludo del bloque introductorio; la posición exacta depende de la estructura de cada pieza.",
+    "example_2026-jul-ahorra-fibra-movil": "Hola*|IF:FNAME|* *|FNAME|**|END:IF|*, compara ofertas de más de 30 compañías y encuentra una opción que encaje mejor contigo."
+  },
+  "utm": {
+    "convention": "docs/naming-conventions.md",
+    "rule": "Ningún enlace comercial sin UTM pasa el production gate."
+  },
+  "assets": {
+    "logo": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/logo-paraycompara.png",
+    "logoWidth": 176,
+    "logoHeight": 48,
+    "logoWidth_stale": "200/55 — no coincide con el width/height reales del <img> en 09-exports/final.html (176x48). Corregido en v2.2.1 durante extracción de componentes (prompt 11).",
+    "logoAlt": "Para y Compara — comparador de tarifas",
+    "heroPlaceholder": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/hero-paraycompara-v4.png",
+    "headerPatternTile": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/brand-pattern-tile.png"
+  },
+  "layout": {
+    "sectionStyle": "asimetrico",
+    "reason": "Nivel 2 (2026-07-22, ver engine/CHANGELOG.md). Usa el género 'saving', no 'institutional' — el campo se declara igualmente por consistencia (mismo patrón que voice, presente en todos los packs sin importar qué género usa cada campaña), y refleja lo que patterns/saving.md §2 ya documenta como su composición real (hero-asimetrico, lista-premium alineada a la izquierda — es literalmente la pieza de origen de ese lenguaje visual). No activa ningún componente nuevo de Nivel 2 porque saving.md no referencia los módulos de institutional."
+  },
+  "voice": {
+    "tone": "directo, claro, tranquilizador",
+    "ctaDefault": "COMPARAR TARIFAS",
+    "ctaSecondary": "VER OFERTAS"
+  },
+  "_changelog": [
+    {
+      "version": "2.2.6",
+      "date": "2026-07-24",
+      "author": "Auditoría de tamaño real de CTA (ronda 'CTAs siguen siendo enormes') — ver engine/CHANGELOG.md",
+      "changes": [
+        "components.cta.padding añadido: '17px 36px'. A diferencia de adeslas/uax/optica2000/tarifalo (donde el 19px/700 resultó ser un default de plantilla sin verificar), el typography.cta de ESTA marca ya estaba verificado contra su propio 09-exports/final.html (ver entrada v2.2.1 de este changelog, 'correctionsFoundDuringExtraction') — Para y Compara es una marca ficticia sin sitio real que observar, así que su CTA se define por lo que su propia pieza aprobada ya usa, no por observación externa. Se añade el padding con el mismo criterio: es el valor que el motor viene renderizando (hardcodeado hasta ahora en cta-bulletproof.html para las 8 marcas por igual) y que esta pieza concreta ya tiene aprobado — cero cambio visual para paraycompara, el token pasa a ser la fuente de verdad real en vez de un literal compartido."
+      ]
+    },
+    {
+      "version": "2.2.5",
+      "date": "2026-07-24",
+      "author": "Gradientes bulletproof — ver engine/CHANGELOG.md",
+      "changes": [
+        "Añadido gradients.heroBackground: linear-gradient(135deg, #5E2E91 0%, #3E244D 100%), construido con colors.primary y colors.deep YA existentes de este pack (ambos distintos, sin inventar ningún color nuevo). Se aplica como background-image adicional en hero-asimetrico/banda-cierre-asimetrico (el género 'saving' de esta marca usa las variantes asimétricas), sobre el background-color/bgcolor sólido existente."
+      ]
+    },
+    {
+      "version": "2.2.4",
+      "date": "2026-07-22",
+      "author": "Nivel 3 — ver engine/CHANGELOG.md",
+      "changes": [
+        "Corrección de un desajuste de versión heredado: el campo raíz \"version\" seguía en 2.2.2 aunque el _changelog ya tenía una entrada 2.2.3 (Nivel 1) — corregido a 2.2.4 (esta entrada).",
+        "Este pack predata el estándar de investigación profunda de marca (Nivel 3, 2026-07-22): no tiene 'photography', 'iconography' ni 'voice.rhythm' investigados con Chrome real sobre paraycompara.com. Válvula de escape documentada: no se navega retroactivamente en esta ronda por decisión explícita del usuario (alcance de Nivel 3 = definir el estándar para marcas nuevas, no backfill de las 3 marcas ya en producción). Pendiente si esta marca vuelve a necesitar trabajo de brand pack."
+      ]
+    },
+    {
+      "version": "2.2.3",
+      "date": "2026-07-22",
+      "summary": "Nivel 1 de tokenización de motor: typography.displayFont, radius.* y shadows.* pasan de estar hardcodeados en engine/components/*.html a leerse via {{token:...}} (ver engine/CHANGELOG.md). No cambia ningún valor de este pack salvo el formato literal de displayFont.",
+      "correctionsFound": [
+        {
+          "field": "typography.displayFont",
+          "before": "'Sora', Arial, Helvetica, sans-serif",
+          "resolved": "'Sora','Segoe UI',Arial,Helvetica,sans-serif",
+          "reason": "El valor hardcodeado en los componentes (font-family:'Sora','Segoe UI',Arial,Helvetica,sans-serif) incluía 'Segoe UI' como fallback de Windows y no llevaba espacios tras las comas. El token nunca se había leído en producción hasta ahora (los componentes ignoraban el token y usaban el literal), así que no reflejaba el valor real. Se normaliza el token para que coincida EXACTAMENTE con lo que ya se venía renderizando — cero cambio visual para paraycompara, ahora con el token como fuente de verdad real."
+        }
+      ],
+      "verifiedByteParity": "cmp byte a byte de 2026-jul-comparar-tv y 2026-jul-revision-verano tras el cambio — ver engine/CHANGELOG.md."
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-07-17",
+      "summary": "Fusión de v5-premium/design-tokens-premium.json (rondas G1-G8.1, campaña 2026-jul-ahorra-fibra-movil) al brand pack. Ejecutado como prompt 09 de prompts-hermes-rediseno/.",
+      "conflictsResolved": [
+        {
+          "field": "typography.h1HeroOnBrand",
+          "before_core": "size 30 / lineHeight 1.15",
+          "before_premium": "etiquetado como h1Hero, size 32 / lineHeight 1.14 (concepto equivocado: describía el H1 sobre fondo de marca con el nombre del H1 de texto oscuro)",
+          "resolved": "size 28 / weight 800 / lineHeight 1.16 / letterSpacing -0.5px / color #FFFFFF / mobile size 26 / lineHeight 1.18",
+          "verifiedAgainst": "09-exports/final.html líneas 48 y 97 — ninguna de las dos hipótesis previas coincidía con el HTML real; se usó el valor verificado. h1Hero (variante texto oscuro) no se tocó: no está en uso en esta pieza y no hay evidencia para cambiarlo."
+        },
+        {
+          "field": "typography.body.size",
+          "before_core": "14",
+          "before_premium": "13 (desactualizado desde G7)",
+          "resolved": "14",
+          "verifiedAgainst": "09-exports/final.html — todos los <p> de cuerpo (tarjetas, pasos, lista) en font-size:14px"
+        },
+        {
+          "field": "radius.card",
+          "before_core": "16",
+          "before_premium": "18 (cambio de G6)",
+          "resolved": "18",
+          "verifiedAgainst": "09-exports/final.html — border-radius:18px en las 4 tarjetas de tarifa"
+        }
+      ],
+      "additionalCorrectionsFoundDuringVerification": [
+        {
+          "field": "typography.eyebrow.letterSpacing",
+          "before_core": "2.5px",
+          "resolved": "3px",
+          "verifiedAgainst": "09-exports/final.html línea 240 — coincide con el cambio G6 documentado en premium"
+        },
+        {
+          "field": "typography.statNumber",
+          "before_both": "size 40 / letterSpacing -1px (idéntico en core y premium, no marcado como conflicto por eso)",
+          "resolved": "size 56 / letterSpacing -1.5px",
+          "verifiedAgainst": "09-exports/final.html línea 105 — único statNumber en el HTML, no hay ningún font-size:40px en toda la pieza",
+          "note": "Ambas fuentes estaban desactualizadas por igual. Refleja el rediseño G8 del hero (asimétrico, cifra como elemento gráfico grande) que sustituyó el tratamiento de 'pill elevado' de G6 — ver nota en components.patterns.statPill y shadows.statPill."
+        }
+      ],
+      "cleanAdditions": [
+        "radius: cardStripe, circleHalo, chip, statPill",
+        "shadows: sección nueva completa (card, cta verificados; statPill sin verificar, marcado explícitamente)",
+        "typography.h2OnBrand (verificado contra línea 538 de final.html)",
+        "typography.h2Section.letterSpacing",
+        "personalization (generalizado: estructura de merge-tag separada del copy concreto de esta campaña)",
+        "components.patterns: accentSignature, statPill (con nota de posible obsolescencia), premiumListRow, badgeElevation (retired-g7)",
+        "darkMode (retired-g8.1, con paleta para reintroducción futura)",
+        "utm: solo referencia a docs/naming-conventions.md, sin valores de campaña"
+      ],
+      "notFused": [
+        "utm.campaign / utm.content de design-tokens-premium.json — son valores de esta campaña, no de la marca",
+        "Notas de proceso _g6/_g7/_g8/_g8_1 sueltas por campo — consolidadas en este changelog en vez de repetirse en cada token"
+      ],
+      "explicitlyOutOfScope": "newsletter-system/core/components/*.html NO se tocó en esta ronda — sigue reflejando el estado pre-G1. Queda pendiente para la ronda de motor único (prompts-fase1-motor/, F1)."
+    },
+    {
+      "version": "2.2.1",
+      "date": "2026-07-20",
+      "summary": "Tokens añadidos/corregidos durante prompt 11 (extracción de componentes a engine/components/). Cada valor visual nuevo encontrado en 09-exports/final.html que no tenía token se añadió aquí en vez de dejarlo hardcodeado en los componentes, según instrucción del prompt 11.",
+      "cleanAdditions": [
+        "colors.onBrandSecondary (#D9C2E6) — texto secundario sobre fondo de marca: label del stat del hero, subtítulo del hero, subtítulo de la banda de cierre (3 usos idénticos)",
+        "colors.accentHaloLight (#DCC7E5) — halo de los círculos numerados de pasos + borde superior del footer (2 contextos, mismo valor)",
+        "colors.footerSeparator (#CCB7C9) — separador '|' entre enlaces de baja/preferencias",
+        "typography.statLabel, stepNumber, stepTitle, cardLinkSecondary, trustBarText, footerBrand, footerTagline, footerDisclosure, footerLegal, footerLinks — combinaciones tamaño/peso/color que se repiten en la pieza y no tenían token propio",
+        "assets.headerPatternTile — brand-pattern-tile.png, usado en header y banda de cierre, antes hardcodeado en 2 sitios"
+      ],
+      "correctionsFoundDuringExtraction": [
+        {
+          "field": "typography.cta.size",
+          "before": 16,
+          "resolved": 19,
+          "verifiedAgainst": "09-exports/final.html líneas 140/148/552/560 — el CTA se subió a 19px en la ronda 10 (2026-07-17) pero el token nunca se actualizó"
+        },
+        {
+          "field": "components.trustBar.backgroundColor",
+          "before": "#EAE0EA",
+          "resolved": "#F8F5FC",
+          "verifiedAgainst": "09-exports/final.html línea 174 — #EAE0EA no aparece en ningún sitio del HTML real (0 ocurrencias); el trust bar usa el mismo lila que las secciones (surfaces.sectionLila)"
+        },
+        {
+          "field": "assets.logoWidth / logoHeight",
+          "before": "200 / 55",
+          "resolved": "176 / 48",
+          "verifiedAgainst": "09-exports/final.html línea 86 — width/height reales del <img> del logo"
+        }
+      ],
+      "note": "surfaces.trustBarPill sigue en #EAE0EA (no se tocó, es un campo distinto de components.trustBar.backgroundColor) — mismo valor no verificado, posible mismo origen del error. No se corrige aquí para no exceder el alcance; queda anotado para revisión."
+    },
+    {
+      "version": "2.2.2",
+      "date": "2026-07-20",
+      "summary": "Corrección de un fallo real de contraste WCAG encontrado al construir la tabla de contrastes de patterns/saving.md (prompt 12). Verificado con fórmula de luminancia relativa (WCAG 2.x), no copiado de ningún documento anterior.",
+      "correctionsFound": [
+        {
+          "field": "typography.footerTagline.color",
+          "before": "#99939B",
+          "resolved": "#66616A",
+          "contrastBefore": "2.72:1 sobre surfaces.global (#F4F3F9) — falla AA (mínimo 4.5:1 para texto de 12px)",
+          "contrastAfter": "5.47:1 — AA pass",
+          "note": "Mismo fallo que ya se había corregido una vez en la línea de disclosure del footer (redesign-summary.md, ronda anterior a este sistema de tokens) pero nunca se propagó a la línea de tagline. Se reutiliza el mismo color ya validado (colors.text.secondary) en vez de introducir uno nuevo."
+        }
+      ],
+      "knownIssueNotFixed": {
+        "field": "typography.cardLinkSecondary",
+        "value": "#FF5A3C (ctaBackground) a 13px/700 sobre blanco",
+        "contrast": "3.10:1 — falla AA-normal (4.5:1). El mismo color SÍ pasa en el CTA principal (19px/700 = ≥18.66px bold, califica como 'texto grande', umbral 3:1) pero a 13px/700 NO califica como texto grande (umbral WCAG: ≥24px normal o ≥18.66px bold) y necesita 4.5:1.",
+        "reason_not_fixed": "Corregirlo implica o bien agrandar el enlace 'Ver tarifas →' a ≥18.66px (cambio de diseño, no de token) o bien oscurecer el naranja de marca (cambio de color de marca, requiere aprobación de quien la posea) — ninguna de las dos es una corrección técnica de bajo riesgo como la de footerTagline. Se documenta como hallazgo pendiente de decisión, no se improvisa un valor."
+      }
+    }
+  ]
+}

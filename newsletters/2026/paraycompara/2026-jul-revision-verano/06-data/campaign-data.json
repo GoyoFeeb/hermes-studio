@@ -1,0 +1,147 @@
+{
+  "_comment": "Variación generada a partir de la campaña piloto '2026-jul-ahorra-fibra-movil' (mismo brand pack, mismo patrón 'saving', mismos componentes del motor). Ángulo distinto: renovación de contrato en verano, en vez de ahorro genérico. Copy nuevo, redactado para esta campaña — no es una extracción de una pieza fuente existente, así que no lleva anotaciones _reconstructed (a diferencia de campaign-data.example.json). Catálogo de tarjetas, trust-bar y pasos se mantienen porque son contenido evergreen de marca (el mismo catálogo de servicios y proceso que usa la piloto), solo se actualizó el UTM de campaña en cada enlace.",
+  "metadata": {
+    "campaignName": "2026-jul-revision-verano",
+    "clientName": "Para y Compara",
+    "subjectLine": "Para y Compara — Tu tarifa puede subir este verano: revísala antes",
+    "preheader": "Muchos contratos se renuevan en verano con condiciones distintas. Compara en 2 minutos — Para y Compara",
+    "fromName": "Para y Compara",
+    "fromEmail": "newsletter@paraycompara.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-20",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/paraycompara/tokens/brand-tokens.json",
+  "pattern": "saving",
+  "modules": [
+    {
+      "component": "hero-asimetrico",
+      "data": {
+        "h1": "Revisa tu tarifa antes de que suba",
+        "stat": { "number": "+30", "label": "compañías" },
+        "subtitle": "Muchos contratos se renuevan en verano con condiciones distintas a las que firmaste. Compara en 2 minutos y comprueba si sigue siendo tu mejor opción.",
+        "cta": {
+          "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-revision-verano&utm_content=hero-cta",
+          "label": "Comparar tarifas"
+        }
+      }
+    },
+    {
+      "component": "trust-bar",
+      "data": {
+        "items": [
+          { "text": "Comparador independiente" },
+          { "text": "Ahorra tiempo y dinero" },
+          { "text": "100% gratuito" }
+        ]
+      }
+    },
+    {
+      "component": "card-tarifa",
+      "data": {
+        "eyebrow": "QUÉ PUEDES COMPARAR",
+        "title": "Móvil, fibra o todo en uno",
+        "subtitle": "Cuatro tipos de tarifa y más de 30 compañías, en un solo comparador.",
+        "items": [
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-tarifa-movil.png",
+            "title": "Móvil",
+            "body": "Datos y llamadas adaptados a tu consumo.",
+            "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-revision-verano&utm_content=card-movil",
+            "linkLabel": "Ver tarifas"
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-tarifa-fibra.png",
+            "title": "Fibra",
+            "body": "Compara velocidad, precio y condiciones.",
+            "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-revision-verano&utm_content=card-fibra",
+            "linkLabel": "Ver tarifas"
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-tarifa-convergente.png",
+            "title": "Fibra + Móvil",
+            "body": "Reúne tus servicios en una sola tarifa.",
+            "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-revision-verano&utm_content=card-convergente",
+            "linkLabel": "Ver tarifas"
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-tarifa-tv.png",
+            "title": "Televisión",
+            "body": "Canales, plataformas y fútbol en una misma comparativa.",
+            "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-revision-verano&utm_content=card-tv",
+            "linkLabel": "Ver tarifas"
+          }
+        ]
+      }
+    },
+    {
+      "component": "pasos",
+      "data": {
+        "eyebrow": "EN 3 PASOS",
+        "title": "Tres pasos, sin complicaciones",
+        "items": [
+          { "number": "01", "title": "Selecciona", "body": "Elige el tipo de tarifa." },
+          { "number": "02", "title": "Compara", "body": "Revisa precio, cobertura y condiciones." },
+          { "number": "03", "title": "Decide", "body": "Escoge la opción que mejor encaja contigo." }
+        ]
+      }
+    },
+    {
+      "component": "lista-premium",
+      "data": {
+        "eyebrow": "REVISIÓN DE VERANO",
+        "title": "Qué mirar antes de renovar",
+        "items": [
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-aspecto-datos.png",
+            "title": "Datos móviles",
+            "body": "Comprueba si tu consumo real coincide con los GB que sigues pagando."
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-aspecto-cobertura.png",
+            "title": "Cobertura en tu zona",
+            "body": "Verifica qué operadoras ofrecen mejor señal donde vives, no solo el precio."
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-aspecto-paquetes.png",
+            "title": "Paquetes combinados",
+            "body": "Agrupar fibra y móvil en una sola tarifa suele salir más a cuenta que por separado."
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-aspecto-condiciones.png",
+            "title": "Condiciones de renovación",
+            "body": "Revisa permanencia y si el precio sube pasado el primer año."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Antes de que te suban la tarifa, compárala",
+        "body": "Comprobar si sigues pagando de más te lleva menos de 5 minutos, sin compromiso.",
+        "cta": {
+          "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-revision-verano&utm_content=closing-cta",
+          "label": "Comparar tarifas"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Para y Compara",
+        "tagline": "Comparador independiente de tarifas de fibra, móvil y televisión.",
+        "disclosure": "Recibes este correo porque te registraste en Para y Compara.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Para y Compara. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-revision-verano"
+  }
+}

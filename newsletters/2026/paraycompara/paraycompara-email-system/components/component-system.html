@@ -1,0 +1,371 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="es">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>Para y Compara — Component System</title>
+<style type="text/css">
+body{margin:0;padding:20px;background:#F4F3F9;font-family:Arial,Helvetica,sans-serif;}
+.system-header{background:#5E2E91;color:#fff;padding:24px;text-align:center;border-radius:16px 16px 0 0;max-width:640px;margin:0 auto;}
+.system-header h1{margin:0 0 6px;font-size:24px;font-weight:800;}
+.system-header p{margin:0;font-size:14px;color:#D4B5D0;}
+.component-section{max-width:640px;margin:0 auto 40px;background:#fff;border-radius:0 0 16px 16px;overflow:hidden;}
+.component-label{background:#F8F5FC;padding:12px 24px;border-bottom:1px solid #EDE7F3;}
+.component-label h2{margin:0;font-size:16px;color:#5E2E91;font-weight:700;}
+.component-label p{margin:4px 0 0;font-size:12px;color:#99939B;}
+.component-preview{padding:0;}
+.email-container{max-width:600px;margin:0 auto;background:#fff;}
+.code-block{background:#29262D;color:#EDE7F3;padding:16px 24px;font:12px/1.5 'Courier New',monospace;overflow-x:auto;border-top:1px solid #EDE7F3;}
+
+/* Tokens */
+.palette{display:flex;gap:8px;padding:16px 24px;flex-wrap:wrap;}
+.swatch{width:48px;height:48px;border-radius:8px;border:2px solid #EDE7F3;}
+.swatch-label{text-align:center;font-size:10px;color:#66616A;margin-top:4px;}
+
+/* Responsive helpers */
+@media only screen and (max-width:599px){
+  .mobile-stack{display:block!important;width:100%!important;}
+  .mobile-hide{display:none!important;}
+  .mobile-img{width:100%!important;height:auto!important;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ SYSTEM HEADER ═══════ -->
+<div class="system-header">
+<h1>Para y Compara — Email Component System</h1>
+<p>20 componentes reutilizables para newsletters · v1.0</p>
+</div>
+
+<div class="component-section">
+<div class="component-label"><h2>🎨 Paleta de color</h2><p>Tokens visuales del sistema</p></div>
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:16px 24px;">
+<tr>
+<td style="padding:8px;text-align:center;"><div style="width:56px;height:56px;border-radius:8px;background:#5E2E91;margin:0 auto;"></div><p style="font-size:10px;color:#666;margin:4px 0 0;">#5E2E91<br>Primario</p></td>
+<td style="padding:8px;text-align:center;"><div style="width:56px;height:56px;border-radius:8px;background:#3E244D;margin:0 auto;"></div><p style="font-size:10px;color:#666;margin:4px 0 0;">#3E244D<br>Profundo</p></td>
+<td style="padding:8px;text-align:center;"><div style="width:56px;height:56px;border-radius:8px;background:#FF5A3C;margin:0 auto;"></div><p style="font-size:10px;color:#666;margin:4px 0 0;">#FF5A3C<br>Coral CTA</p></td>
+<td style="padding:8px;text-align:center;"><div style="width:56px;height:56px;border-radius:8px;background:#F8F5FC;margin:0 auto;border:1px solid #EDE7F3;"></div><p style="font-size:10px;color:#666;margin:4px 0 0;">#F8F5FC<br>Lila bg</p></td>
+<td style="padding:8px;text-align:center;"><div style="width:56px;height:56px;border-radius:8px;background:#29262D;margin:0 auto;"></div><p style="font-size:10px;color:#666;margin:4px 0 0;">#29262D<br>Texto ppal</p></td>
+<td style="padding:8px;text-align:center;"><div style="width:56px;height:56px;border-radius:8px;background:#66616A;margin:0 auto;"></div><p style="font-size:10px;color:#666;margin:4px 0 0;">#66616A<br>Texto sec</p></td>
+<td style="padding:8px;text-align:center;"><div style="width:56px;height:56px;border-radius:8px;background:#EDE7F3;margin:0 auto;"></div><p style="font-size:10px;color:#666;margin:4px 0 0;">#EDE7F3<br>Bordes</p></td>
+</tr>
+</table>
+</div>
+
+<!-- ── 1. HEADER ── -->
+<div class="component-section"><div class="component-label"><h2>1. Header</h2><p>Cabecera de marca — fondo morado, logo centrado</p></div>
+<div class="component-preview">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="email-container">
+<tr><td style="background-color:#5E2E91;padding:0;text-align:center;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr><td align="center" style="padding:22px 24px 18px;">
+      <img src="https://feebbodigital.com/creativities-library/paraycompara/2026/jul/logo-paraycompara.png"
+           alt="Para y Compara — comparador de tarifas"
+           width="200" height="55"
+           style="display:block;outline:none;border:none;width:200px;height:55px;max-width:100%;">
+    </td></tr>
+  </table>
+</td></tr></table></div>
+<div class="code-block">&lt;!-- Header estándar --&gt;<br>&lt;tr&gt;&lt;td style="background-color:#5E2E91;padding:0;text-align:center;"&gt;<br>  &lt;img src="..." alt="Para y Compara — comparador de tarifas" width="200" height="55" style="display:block;"&gt;<br>&lt;/td&gt;&lt;/tr&gt;</div></div>
+
+<!-- ── 2. HERO CON PLACEHOLDER ── -->
+<div class="component-section"><div class="component-label"><h2>2. Hero con placeholder</h2><p>Imagen de 600×340 + fallback #F8F5FC. Sin texto crítico dentro de la imagen.</p></div>
+<div class="component-preview">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="email-container">
+<tr><td style="background-color:#F8F5FC;padding:0;font-size:0;line-height:0;">
+  <img src="https://feebbodigital.com/creativities-library/paraycompara/2026/jul/hero-paraycompara-v4.png"
+       alt="Compara tarifas de fibra, móvil y televisión con Para y Compara"
+       width="600" height="340"
+       style="display:block;outline:none;border:none;width:600px;height:340px;max-width:100%;background-color:#F8F5FC;"
+       onerror="this.style.display='none'">
+</td></tr></table></div>
+<div class="code-block">&lt;!-- Hero con placeholder — sustituir src por URL del asset final --&gt;<br>&lt;tr&gt;&lt;td style="background-color:#F8F5FC;padding:0;font-size:0;line-height:0;"&gt;<br>  &lt;img src="URL_DEL_ASSET" alt="..." width="600" height="340"<br>       style="display:block;width:600px;max-width:100%;background-color:#F8F5FC;" class="mobile-img"&gt;<br>&lt;/td&gt;&lt;/tr&gt;</div></div>
+
+<!-- ── 3. HERO SIN IMAGEN ── -->
+<div class="component-section"><div class="component-label"><h2>3. Hero sin imagen</h2><p>Fondo lila, eyebrow, H1, texto, CTA, microcopy</p></div>
+<div class="component-preview">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="email-container">
+<tr><td style="background-color:#F8F5FC;padding:0;">
+  <table><tr><td align="center" style="padding:40px 32px 32px;">
+    <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#7B1FA2;margin:0 0 12px;line-height:16px;letter-spacing:2.5px;text-transform:uppercase;">COMPARA, ELIGE Y AHORRA</p>
+    <h1 style="font-family:Arial,Helvetica,sans-serif;font-size:30px;font-weight:800;color:#29262D;margin:0 0 10px;line-height:1.15;text-align:center;">Ahorra en tu tarifa de fibra y móvil</h1>
+    <p style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:400;color:#66616A;margin:0 0 24px;line-height:1.55;text-align:center;">Compara ofertas de más de 30 compañías y encuentra una opción que encaje mejor contigo.</p>
+    <!-- CTA -->
+    <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%"><tr><td align="center" style="padding:0;">
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="https://paraycompara.com/" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="50%" strokecolor="#FF5A3C" fillcolor="#FF5A3C"><w:anchorlock/><center style="color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;">COMPARAR TARIFAS</center></v:roundrect><![endif]-->
+      <!--[if !mso]><!--><table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;"><tr><td align="center" style="background-color:#FF5A3C;border-radius:50px;padding:14px 32px;"><a href="https://paraycompara.com/" target="_blank" style="display:inline-block;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;letter-spacing:0.5px;text-decoration:none;text-align:center;line-height:22px;">COMPARAR TARIFAS</a></td></tr></table><!--<![endif]-->
+    </td></tr></table>
+    <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:400;color:#99939B;margin:10px 0 0;line-height:18px;text-align:center;">Gratis, rápido y sin complicaciones.</p>
+  </td></tr></table>
+</td></tr></table></div>
+<div class="code-block">&lt;!-- Hero sin imagen — campañas rápidas --&gt;<br>&lt;p&gt;COMPARA, ELIGE Y AHORRA&lt;/p&gt;<br>&lt;h1&gt;Ahorra en tu tarifa de fibra y móvil&lt;/h1&gt;<br>&lt;p&gt;Compara ofertas de más de 30 compañías...&lt;/p&gt;<br>&lt;!-- CTA naranja bulletproof --&gt;<br>&lt;p&gt;Gratis, rápido y sin complicaciones.&lt;/p&gt;</div></div>
+
+<!-- ── 4. EYEBROW ── -->
+<div class="component-section"><div class="component-label"><h2>4. Eyebrow</h2><p>Etiqueta superior, uppercase, letter-spacing 2.5px, color #7B1FA2</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:16px 32px;text-align:center;">
+<p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:#7B1FA2;margin:0;line-height:16px;letter-spacing:2.5px;text-transform:uppercase;">FIBRA, MÓVIL Y MÁS</p>
+</td></tr></table></div>
+<div class="code-block">Variantes: "COMPARA, ELIGE Y AHORRA" · "FIBRA, MÓVIL Y MÁS" · "LA MEJOR OFERTA DEL MES"</div></div>
+
+<!-- ── 5. H1 ── -->
+<div class="component-section"><div class="component-label"><h2>5. H1</h2><p>Título hero — uno por newsletter, centrado, weight 800</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:8px 32px;text-align:center;">
+<h1 style="font-family:Arial,Helvetica,sans-serif;font-size:30px;font-weight:800;color:#29262D;margin:0;line-height:1.15;">¿Pagas de más por tu tarifa?</h1>
+</td></tr></table></div>
+<div class="code-block">Copy recomendado: "Ahorra en tu tarifa de fibra y móvil" · "¿Pagas de más por tu tarifa?" · "Encuentra tu tarifa ideal"</div></div>
+
+<!-- ── 6. TEXTO INTRODUCTORIO ── -->
+<div class="component-section"><div class="component-label"><h2>6. Texto introductorio</h2><p>Body estándar, centrado, 16px, #66616A, line-height 1.55</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:8px 32px;text-align:center;">
+<p style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:400;color:#66616A;margin:0;line-height:1.55;">Compara ofertas de más de 30 compañías y encuentra una opción que encaje mejor contigo.</p>
+</td></tr></table></div></div>
+
+<!-- ── 7. CTA PRINCIPAL ── -->
+<div class="component-section"><div class="component-label"><h2>7. CTA Principal</h2><p>Fondo #FF5A3C, texto blanco, pill, VML, altura 52px, full-width en móvil</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td align="center" style="padding:16px 32px;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr><td align="center" style="padding:0;">
+      <!--[if mso]>
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://paraycompara.com/" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="50%" strokecolor="#FF5A3C" fillcolor="#FF5A3C"><w:anchorlock/><center style="color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;">COMPARAR TARIFAS</center></v:roundrect>
+      <![endif]-->
+      <!--[if !mso]><!-->
+      <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;">
+        <tr><td align="center" style="background-color:#FF5A3C;border-radius:50px;padding:14px 32px;">
+          <a href="https://paraycompara.com/" target="_blank" style="display:inline-block;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;letter-spacing:0.5px;text-decoration:none;text-align:center;line-height:22px;">COMPARAR TARIFAS</a>
+        </td></tr>
+      </table>
+      <!--<![endif]-->
+    </td></tr>
+  </table>
+</td></tr></table></div>
+<div class="code-block">Copy recomendado: COMPARAR TARIFAS · VER OFERTAS · ENCONTRAR MI TARIFA · COMPARAR AHORA</div></div>
+
+<!-- ── 8. CTA SECUNDARIO ── -->
+<div class="component-section"><div class="component-label"><h2>8. CTA Secundario</h2><p>Fondo blanco, borde morado, texto morado. Uso limitado.</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td align="center" style="padding:8px 32px;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+    <tr><td align="center" style="background-color:#FFFFFF;border:2px solid #5E2E91;border-radius:50px;padding:12px 28px;">
+      <a href="https://paraycompara.com/" target="_blank" style="display:inline-block;color:#5E2E91;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;text-decoration:none;text-align:center;line-height:20px;">VER OFERTAS</a>
+    </td></tr>
+  </table>
+</td></tr></table></div>
+<div class="code-block">Solo usar cuando ya hay un CTA coral en la misma newsletter. No competir con el principal.</div></div>
+
+<!-- ── 9. TRUST BAR ── -->
+<div class="component-section"><div class="component-label"><h2>9. Trust Bar</h2><p>3 beneficios: % Las mejores ofertas · $ Ahorra tiempo y dinero · OK 100% Gratuito</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="background-color:#F8F5FC;padding:0 24px 36px;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:#EAE0EA;border-radius:50px;">
+    <tr><td align="center" style="padding:14px 12px;">
+      <table width="100%"><tr>
+        <td align="center" style="width:33%;padding:4px;vertical-align:middle;" class="mobile-stack">
+          <table style="margin:0 auto;"><tr>
+            <td style="background-color:#5E2E91;border-radius:50%;width:22px;height:22px;line-height:0;"><p style="font:11px/22px Arial;font-weight:700;color:#FFF;text-align:center;">%</p></td>
+            <td width="6">&nbsp;</td>
+            <td align="left"><p style="font:12px/16px Arial;font-weight:600;color:#5E2E91;margin:0;">Las mejores ofertas</p></td>
+          </tr></table>
+        </td>
+        <td align="center" style="width:33%;padding:4px;vertical-align:middle;" class="mobile-stack">
+          <table style="margin:0 auto;"><tr>
+            <td style="background-color:#5E2E91;border-radius:50%;width:22px;height:22px;line-height:0;"><p style="font:11px/22px Arial;font-weight:700;color:#FFF;text-align:center;">$</p></td>
+            <td width="6">&nbsp;</td>
+            <td align="left"><p style="font:12px/16px Arial;font-weight:600;color:#5E2E91;margin:0;">Ahorra tiempo y dinero</p></td>
+          </tr></table>
+        </td>
+        <td align="center" style="width:33%;padding:4px;vertical-align:middle;" class="mobile-stack">
+          <table style="margin:0 auto;"><tr>
+            <td style="background-color:#5E2E91;border-radius:50%;width:22px;height:22px;line-height:0;"><p style="font:8px/22px Arial;font-weight:700;color:#FFF;text-align:center;">OK</p></td>
+            <td width="6">&nbsp;</td>
+            <td align="left"><p style="font:12px/16px Arial;font-weight:600;color:#5E2E91;margin:0;">100% Gratuito</p></td>
+          </tr></table>
+        </td>
+      </tr></table>
+    </td></tr>
+  </table>
+</td></tr></table></div></div>
+
+<!-- ── 10. CARD CATEGORÍA ── -->
+<div class="component-section"><div class="component-label"><h2>10. Card de categoría</h2><p>R=16px, border #EDE7F3, padding 22px 18px, icono+title+body</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:16px 24px;background:#F8F5FC;">
+  <table width="100%"><tr>
+    <td style="width:50%;padding:0 6px 0 0;vertical-align:top;" class="mobile-stack">
+      <table width="100%" style="background:#FFF;border:1px solid #EDE7F3;border-radius:16px;"><tr><td style="padding:22px 18px 18px;">
+        <table><tr><td style="background:#F3E5F5;border-radius:12px;padding:10px;line-height:0;">
+          <img src="https://feebbodigital.com/creativities-library/paraycompara/2026/jul/tarifa-movil-icon.png" alt="" width="44" height="44" style="display:block;width:44px;height:44px;border:0;">
+        </td></tr></table>
+        <p style="font:16px/20px Arial;font-weight:700;color:#5E2E91;margin:12px 0 4px;">Móvil</p>
+        <p style="font:13px/1.45 Arial;color:#66616A;margin:0;">Datos y llamadas adaptados a tu consumo.</p>
+      </td></tr></table>
+    </td>
+    <td style="width:50%;padding:0 0 0 6px;vertical-align:top;" class="mobile-stack">
+      <table width="100%" style="background:#FFF;border:1px solid #EDE7F3;border-radius:16px;"><tr><td style="padding:22px 18px 18px;">
+        <table><tr><td style="background:#F3E5F5;border-radius:12px;padding:10px;line-height:0;">
+          <img src="https://feebbodigital.com/creativities-library/paraycompara/2026/jul/tarifa-fibra-icon.png" alt="" width="44" height="44" style="display:block;width:44px;height:44px;border:0;">
+        </td></tr></table>
+        <p style="font:16px/20px Arial;font-weight:700;color:#5E2E91;margin:12px 0 4px;">Fibra</p>
+        <p style="font:13px/1.45 Arial;color:#66616A;margin:0;">Compara velocidad, precio y condiciones.</p>
+      </td></tr></table>
+    </td>
+  </tr></table>
+</td></tr></table></div></div>
+
+<!-- ── 11. CARD BENEFICIO ── -->
+<div class="component-section"><div class="component-label"><h2>11. Card de beneficio</h2><p>Fondo #F8F5FC, sin borde, icono sobre círculo blanco</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:16px 24px;background:#FFF;">
+  <table width="100%"><tr>
+    <td style="width:50%;padding:0 8px 12px 0;vertical-align:top;" class="mobile-stack">
+      <table width="100%" style="background:#F8F5FC;border-radius:16px;"><tr><td align="center" style="padding:22px 14px 18px;">
+        <table><tr><td style="background:#FFF;border-radius:50%;width:44px;height:44px;line-height:0;">
+          <img src="https://feebbodigital.com/creativities-library/paraycompara/2026/jul/aspecto1.png" alt="" width="24" height="24" style="display:block;width:24px;height:24px;margin:10px auto;border:0;">
+        </td></tr></table>
+        <p style="font:14px/18px Arial;font-weight:700;color:#5E2E91;margin:10px 0 4px;">Datos móviles</p>
+        <p style="font:12px/1.4 Arial;color:#66616A;margin:0;">Elige solo los GB que necesitas.</p>
+      </td></tr></table>
+    </td>
+    <td style="width:50%;padding:0 0 12px 8px;vertical-align:top;" class="mobile-stack">
+      <table width="100%" style="background:#F8F5FC;border-radius:16px;"><tr><td align="center" style="padding:22px 14px 18px;">
+        <p style="font:14px/18px Arial;font-weight:700;color:#5E2E91;margin:10px 0 4px;">Cobertura</p>
+        <p style="font:12px/1.4 Arial;color:#66616A;margin:0;">Comprueba qué operadoras funcionan mejor en tu zona.</p>
+      </td></tr></table>
+    </td>
+  </tr></table>
+</td></tr></table></div></div>
+
+<!-- ── 12. PROCESO 3 PASOS ── -->
+<div class="component-section"><div class="component-label"><h2>12. Proceso de 3 pasos</h2><p>01 Selecciona → 02 Compara → 03 Decide</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:24px;background:#F8F5FC;">
+  <p style="font:22px/1.2 Arial;font-weight:800;color:#5E2E91;margin:0 0 24px;text-align:center;">Comparar es muy sencillo</p>
+  <table width="100%"><tr>
+    <td align="center" style="width:33%;padding:0 8px;vertical-align:top;" class="mobile-stack">
+      <table width="100%"><tr><td align="center" style="padding:0 0 10px;">
+        <table><tr><td style="background:#5E2E91;border-radius:50%;width:56px;height:56px;line-height:0;">
+          <p style="font:20px/56px Arial;font-weight:800;color:#FFF;text-align:center;">01</p>
+        </td></tr></table>
+      </td></tr>
+      <tr><td align="center"><p style="font:15px/20px Arial;font-weight:700;color:#5E2E91;margin:0;">Selecciona</p></td></tr>
+      <tr><td align="center"><p style="font:13px/1.45 Arial;color:#66616A;margin:0;">Elige el tipo de tarifa.</p></td></tr></table>
+    </td>
+    <td align="center" style="width:0;vertical-align:middle;" class="mobile-hide"><p style="font:22px/1 Arial;color:#CCB7C9;margin:0 0 36px;">→</p></td>
+    <td align="center" style="width:33%;padding:0 8px;vertical-align:top;" class="mobile-stack">
+      <table width="100%"><tr><td align="center" style="padding:0 0 10px;">
+        <table><tr><td style="background:#5E2E91;border-radius:50%;width:56px;height:56px;line-height:0;">
+          <p style="font:20px/56px Arial;font-weight:800;color:#FFF;text-align:center;">02</p>
+        </td></tr></table>
+      </td></tr>
+      <tr><td align="center"><p style="font:15px/20px Arial;font-weight:700;color:#5E2E91;margin:0;">Compara</p></td></tr>
+      <tr><td align="center"><p style="font:13px/1.45 Arial;color:#66616A;margin:0;">Revisa precio, cobertura y condiciones.</p></td></tr></table>
+    </td>
+    <td align="center" style="width:0;vertical-align:middle;" class="mobile-hide"><p style="font:22px/1 Arial;color:#CCB7C9;margin:0 0 36px;">→</p></td>
+    <td align="center" style="width:33%;padding:0 8px;vertical-align:top;" class="mobile-stack">
+      <table width="100%"><tr><td align="center" style="padding:0 0 10px;">
+        <table><tr><td style="background:#5E2E91;border-radius:50%;width:56px;height:56px;line-height:0;">
+          <p style="font:20px/56px Arial;font-weight:800;color:#FFF;text-align:center;">03</p>
+        </td></tr></table>
+      </td></tr>
+      <tr><td align="center"><p style="font:15px/20px Arial;font-weight:700;color:#5E2E91;margin:0;">Decide</p></td></tr>
+      <tr><td align="center"><p style="font:13px/1.45 Arial;color:#66616A;margin:0;">Escoge la opción que mejor encaja contigo.</p></td></tr></table>
+    </td>
+  </tr></table>
+</td></tr></table></div></div>
+
+<!-- ── 13. COMPARATIVA 2 OPCIONES ── -->
+<div class="component-section"><div class="component-label"><h2>13. Comparativa de dos opciones</h2><p>Lo que pagas → Lo que podrías encontrar</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:24px;background:#F8F5FC;">
+  <p style="font:22px/1.2 Arial;font-weight:800;color:#29262D;margin:0 0 20px;text-align:center;">Tu tarifa actual vs lo que podrías pagar</p>
+  <table width="100%"><tr>
+    <td style="width:45%;padding:16px;vertical-align:top;background:#FFF;border-radius:16px;border:1px solid #EDE7F3;" class="mobile-stack">
+      <p style="font:12px/16px Arial;font-weight:700;color:#99939B;margin:0 0 8px;text-transform:uppercase;letter-spacing:1.5px;">Tu tarifa actual</p>
+      <p style="font:28px/1.1 Arial;font-weight:800;color:#29262D;margin:0 0 4px;">50€</p>
+      <p style="font:13px/1.4 Arial;color:#66616A;margin:0;">Fibra 300Mb + Móvil 10GB</p>
+    </td>
+    <td align="center" style="width:10%;padding:8px;vertical-align:middle;" class="mobile-stack">
+      <p style="font:28px/1 Arial;font-weight:300;color:#99939B;margin:0;text-align:center;">→</p>
+    </td>
+    <td style="width:45%;padding:16px;vertical-align:top;background:#FFF;border-radius:16px;border:2px solid #5E2E91;" class="mobile-stack">
+      <p style="font:12px/16px Arial;font-weight:700;color:#5E2E91;margin:0 0 8px;text-transform:uppercase;letter-spacing:1.5px;">Podrías pagar</p>
+      <p style="font:28px/1.1 Arial;font-weight:800;color:#FF5A3C;margin:0 0 4px;">29,90€</p>
+      <p style="font:13px/1.4 Arial;color:#66616A;margin:0;">Fibra 1Gb + Móvil ilimitado 5G</p>
+    </td>
+  </tr></table>
+</td></tr></table></div></div>
+
+<!-- ── 14-15. LISTA CONDICIONES / EDUCATIVO ── -->
+<div class="component-section"><div class="component-label"><h2>14-15. Lista de condiciones / Bloque educativo</h2><p>Cards 2×2 con icono círculo blanco sobre #F8F5FC</p></div>
+<div class="component-preview"><table width="100%" class="email-container"><tr><td style="padding:24px;background:#FFF;">
+  <p style="font:20px/1.2 Arial;font-weight:800;color:#5E2E91;margin:0 0 20px;text-align:center;">¿Qué tener en cuenta al comparar?</p>
+  <table width="100%"><tr>
+    <td style="width:50%;padding:0 8px 12px 0;vertical-align:top;" class="mobile-stack">
+      <table width="100%" style="background:#F8F5FC;border-radius:16px;"><tr><td align="center" style="padding:18px 14px;">
+        <p style="font:14px/18px Arial;font-weight:700;color:#5E2E91;margin:0 0 4px;">Datos móviles</p>
+        <p style="font:12px/1.4 Arial;color:#66616A;margin:0;">Elige solo los GB que necesitas.</p>
+      </td></tr></table>
+    </td>
+    <td style="width:50%;padding:0 0 12px 8px;vertical-align:top;" class="mobile-stack">
+      <table width="100%" style="background:#F8F5FC;border-radius:16px;"><tr><td align="center" style="padding:18px 14px;">
+        <p style="font:14px/18px Arial;font-weight:700;color:#5E2E91;margin:0 0 4px;">Cobertura</p>
+        <p style="font:12px/1.4 Arial;color:#66616A;margin:0;">Comprueba qué operadoras funcionan en tu zona.</p>
+      </td></tr></table>
+    </td>
+  </tr></table>
+</td></tr></table></div></div>
+
+<!-- ── 16. CTA FINAL ── -->
+<div class="component-section"><div class="component-label"><h2>16. CTA Final</h2><p>Mismo estilo que el CTA hero, pero con más padding superior</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:44px 32px 40px;background:#F8F5FC;">
+  <p style="font:26px/1.15 Arial;font-weight:800;color:#29262D;margin:0 0 8px;text-align:center;">Encuentra tu próxima tarifa en minutos</p>
+  <p style="font:15px/1.5 Arial;font-weight:400;color:#66616A;margin:0 0 24px;text-align:center;">Compara tu tarifa actual y descubre si puedes pagar menos.</p>
+  <!-- CTA (mismo que componente 7) -->
+  <table width="100%"><tr><td align="center" style="background-color:#FF5A3C;border-radius:50px;padding:14px 32px;">
+    <a href="https://paraycompara.com/" target="_blank" style="display:inline-block;color:#FFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;letter-spacing:0.5px;text-decoration:none;text-align:center;line-height:22px;">COMPARAR TARIFAS</a>
+  </td></tr></table>
+</td></tr></table></div></div>
+
+<!-- ── 17. FOOTER ── -->
+<div class="component-section"><div class="component-label"><h2>17. Footer</h2><p>Compacto: separador, motivo recepción, enlaces, copyright</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="padding:28px 24px 24px;background:#F4F3F9;">
+  <hr style="border:none;border-top:1px solid #DCCBD9;margin:0 0 16px;">
+  <p style="font:12px/1.45 Arial;color:#99939B;margin:0 0 12px;text-align:center;">Recibes este correo porque te registraste en Para y Compara.</p>
+  <table width="100%"><tr><td align="center" style="padding:0 0 12px;">
+    <a href="[UNSUBSCRIBE_LINK]" target="_blank" style="color:#99939B;font:12px Arial;text-decoration:underline;margin:0 5px;">Darse de baja</a>
+    <span style="color:#CCB7C9;font-size:12px;">|</span>
+    <a href="[PREFERENCES_LINK]" target="_blank" style="color:#99939B;font:12px Arial;text-decoration:underline;margin:0 5px;">Preferencias</a>
+  </td></tr></table>
+  <p style="font:11px/1.4 Arial;color:#B0A0AD;margin:0;text-align:center;">&copy; 2026 Para y Compara. [DIRECCIÓN FÍSICA — pendiente del cliente]</p>
+</td></tr></table></div></div>
+
+<!-- ── 18. PREHEADER ── -->
+<div class="component-section"><div class="component-label"><h2>18. Preheader</h2><p>Oculto pero visible en bandeja de entrada</p></div>
+<div class="code-block">&lt;div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0;font-size:1px;font-family:Arial,Helvetica,sans-serif;color:#FFFFFF;mso-hide:all;"&gt;<br>  Compara ofertas de más de 30 compañías — Para y Compara<br>&lt;/div&gt;</div></div>
+
+<!-- ── 19. SEPARADOR ── -->
+<div class="component-section"><div class="component-label"><h2>19. Separador de sección</h2><p>Línea fina #EDE7F3</p></div>
+<div class="component-preview"><table width="100%" class="email-container"><tr><td style="padding:0 24px;"><hr style="border:none;border-top:1px solid #EDE7F3;margin:0 0 0;"></td></tr></table></div>
+<div class="code-block">&lt;hr style="border:none;border-top:1px solid #EDE7F3;margin:0;"&gt;</div></div>
+
+<!-- ── 20. PLACEHOLDER ASSET ── -->
+<div class="component-section"><div class="component-label"><h2>20. Placeholder de asset</h2><p>Tabla 600×280px, fondo #F8F5FC, texto informativo</p></div>
+<div class="component-preview">
+<table width="100%" class="email-container"><tr><td style="background:#F8F5FC;padding:0;">
+  <table width="100%" style="background:#F8F5FC;"><tr>
+    <td align="center" valign="middle" style="height:200px;padding:24px;background:#F8F5FC;font:13px/18px Arial;color:#B0A0AD;">
+      ASSET PENDIENTE · 600 × 340 PX
+    </td>
+  </tr></table>
+</td></tr></table></div>
+<div class="code-block">&lt;!-- Sustituir por: --&gt;<br>&lt;img src="URL_FINAL" alt="..." width="600" height="340" style="display:block;width:600px;max-width:100%;height:auto;border:0;"&gt;</div></div>
+
+</body>
+</html>

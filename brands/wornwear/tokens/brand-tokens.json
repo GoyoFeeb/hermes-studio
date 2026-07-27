@@ -1,0 +1,307 @@
+{
+  "brand": "wornwear",
+  "description": "Design tokens for Patagonia Worn Wear — submarca independiente de segunda mano de Patagonia. Identidad visual PROPIA, distinta de patagonia.com. Creado desde observación real de wornwear.patagonia.com (Chrome, getComputedStyle) el 2026-07-24. NO hereda paleta, tipografía ni estilo de botón de la marca madre.",
+  "version": "2.2.1",
+  "colors": {
+    "primary": "#000000",
+    "ctaBackground": "#FA4616",
+    "ctaText": "#000000",
+    "ctaHover": "#D14412",
+    "textPrimary": "#000000",
+    "textBody": "#494949",
+    "textSecondary": "#494949",
+    "textTertiary": "#8C8C8C",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "link": "#FA4616",
+    "light": "#D3D4D5",
+    "deep": "#1A1A1A",
+    "accentHaloLight": "#FDEDE8",
+    "footerSeparator": "#333333",
+    "onBrandSecondary": "#FFFFFF",
+    "lightBg": "#EFE7DA",
+    "mediumBg": "#666666",
+    "darkBg": "#000000",
+    "border": "#D3D4D5",
+    "borders": {
+      "card": "#EFE7DA",
+      "footer": "#333333"
+    },
+    "success": "#FA4616",
+    "warning": "#FFD60A",
+    "error": "#E91429",
+    "footerBg": "#000000",
+    "footerText": "#FFFFFF",
+    "heroOverlay": "rgba(0,0,0,0.0)",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#EFE7DA",
+      "dark": "#000000"
+    },
+    "text": {
+      "primary": "#000000",
+      "body": "#494949",
+      "secondary": "#494949",
+      "tertiary": "#8C8C8C"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "note": "Worn Wear usa RidgewaySans (Medium 500 / Regular 300 / Bold 700) como tipografía propietaria de marca, confirmado con CSSFontFaceRule sobre wornwear.patagonia.com el 2026-07-24. No es email-safe. La propia hoja de estilos de Worn Wear usa 'GTStandard-M, sans-serif' con Arial como fallback del sistema. Se usa Arial, Helvetica, sans-serif como pila email-safe, con la misma jerarquía de pesos (300 para cuerpo, 500 para titulares, 700 para énfasis fuerte).",
+    "displayFont": "'IBM Plex Sans', Arial, Helvetica, sans-serif",
+    "webFont": {
+      "family": "IBM Plex Sans",
+      "note": "Sustituto real de RidgewaySans (2026-07-25 — ver engine/CHANGELOG.md, 'Tipografía real por marca'). RidgewaySans es la tipografía propietaria e interna de Patagonia, presentada en 2025, no disponible públicamente (verificado por búsqueda web) — no se puede embeber en email. IBM Plex Sans es un grotesco real de Google Fonts inspirado en Franklin Gothic (terminales angulados, 'g' de doble piso, esqueleto mecánico con toques humanistas — mismo carácter general de grotesco funcional que un custom de marca outdoor). Pesos 300/500/700 elegidos para coincidir exactamente con la jerarquía ya declarada arriba (RidgewaySans Regular 300/Medium 500/Bold 700). URLs verificadas HTTP 200 en fonts.gstatic.com el 2026-07-25.",
+      "weights": [
+        {
+          "weight": 300,
+          "url": "https://fonts.gstatic.com/s/ibmplexsans/v23/zYXGKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1swZSAXcomDVmadSDtFlDB6g4tIOm6_De.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 500,
+          "url": "https://fonts.gstatic.com/s/ibmplexsans/v23/zYXGKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1swZSAXcomDVmadSD2FlDB6g4tIOm6_De.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 700,
+          "url": "https://fonts.gstatic.com/s/ibmplexsans/v23/zYXGKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1swZSAXcomDVmadSDDV5DB6g4tIOm6_De.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        }
+      ]
+    },
+    "headline": {
+      "hero": "40px",
+      "h1": "32px",
+      "h2": "28px",
+      "h3": "20px",
+      "h4": "16px"
+    },
+    "body": {
+      "large": "16px",
+      "normal": "14px",
+      "small": "12px",
+      "xsmall": "11px",
+      "legal": "11px"
+    },
+    "weights": {
+      "regular": 300,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.1,
+      "hero": 1.2,
+      "normal": 1.4,
+      "relaxed": 1.5
+    },
+    "hero": {
+      "h1": {
+        "size": 32,
+        "weight": 500,
+        "lineHeight": 1.2,
+        "color": "#FA4616",
+        "mobile": {
+          "size": 24,
+          "lineHeight": 1.25
+        }
+      },
+      "subtitle": {
+        "size": 16,
+        "weight": 300,
+        "lineHeight": 1.4,
+        "color": "#494949",
+        "mobile": {
+          "size": 14
+        }
+      }
+    },
+    "h2Section": {
+      "size": 22,
+      "weight": 500,
+      "lineHeight": 1.25,
+      "color": "#000000"
+    },
+    "h3Card": {
+      "size": 16,
+      "weight": 500,
+      "lineHeight": 1.3,
+      "color": "#000000"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 300,
+      "lineHeight": 1.5,
+      "color": "#494949"
+    },
+    "body": {
+      "size": 14,
+      "weight": 300,
+      "lineHeight": 1.5,
+      "color": "#494949"
+    },
+    "cta": {
+      "size": 16,
+      "weight": 500,
+      "letterSpacing": "-0.2px"
+    },
+    "footer": {
+      "brand": {
+        "size": 12,
+        "weight": 700,
+        "color": "#FFFFFF"
+      },
+      "legal": {
+        "size": 11,
+        "weight": 300,
+        "color": "#999999"
+      }
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "hero": 48,
+    "innerSection": "24px 20px",
+    "cta": "20px 0"
+  },
+  "radius": {
+    "cta": 40,
+    "ctaPill": 40,
+    "cardStripe": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "Worn Wear no usa degradados en su web real. La identidad visual es plana: bloques sólidos de color beige (#EFE7DA), blanco y naranja (#FA4616) sin transiciones. Se omiten degradados por coherencia con la marca real."
+  },
+  "surfaces": {
+    "global": "#EFE7DA",
+    "white": "#FFFFFF",
+    "sectionLila": "#EFE7DA"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#000000"
+    },
+    "cta": {
+      "backgroundColor": "#FA4616",
+      "textColor": "#000000",
+      "borderRadius": 40,
+      "padding": "9px 28px",
+      "vml": true
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#EFE7DA",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "asimetrico",
+    "reason": "La página real (wornwear.patagonia.com) tiene un hero SPLIT: texto a la izquierda sobre fondo beige (#EFE7DA) con headline naranja, y fotografía lifestyle a la derecha. Esta composición asimétrica es el rasgo visual más distintivo de la marca: ni centrado puro ni imagen de fondo con texto superpuesto, sino dos mitades que conviven. El resto de la página alterna fondos beige y blancos con producto sobre fondo blanco aislado. Un layout asimétrico en email (cuando sea posible) o al menos la inspiración de ese reparto refleja mejor la identidad real que un centrado institucional.",
+    "contentRhythm": "Estructura observada en wornwear.patagonia.com el 2026-07-24:\n1) HEADER: Logo 'WORN WEAR' + navegación 'Shop' / 'Trade-In' — fondo blanco, tipografía limpia.\n2) HERO SPLIT (PESO VISUAL MUY ALTO): Dos mitades: (a) izquierda sobre beige #EFE7DA con headline naranja #FA4616 a 40px 'Put Used to Use', párrafo explicativo de 2 líneas, CTA pill naranja 'Shop New Arrivals'; (b) derecha con fotografía lifestyle de outdoor (persona organizando equipo de escalada en garaje). FOTO = 50% del ancho, TEXTO = 50%. Es la sección más larga verticalmente y la que más ocupa.\n3) CATEGORY GRID: 4 columnas (Web Specials, The Repaired Collection, Re-Tool, Kids & Baby). Cada una con fotografía lifestyle a ancho completo + título. Fondo blanco. Las fotos tienen mucho peso visual — son la segunda sección más fotográfica.\n4) NEW ARRIVALS SLIDER: Fondo blanco, producto aislado (recortado sobre blanco puro), nombre de producto + color + precio. Diseño de tienda, mínima jerarquía. Título 'New Arrivals' centrado.\n5) 'YOUR GEAR DESERVES CREDIT' (PESO VISUAL ALTO): Banda de fondo negro aparente (#1A1A1A), título grande blanco 48px centrado, CTA pill blanco con texto negro 'Trade In'. La sección con más contraste de la página.\n6) SECCIÓN INFORMATIVA: Fondo blanco, título 'Worn Wear® allows you to trade in and buy used Patagonia® gear.' centrado + párrafo explicativo.\n7) FOOTER NEGRO: 4 columnas, fondo negro (#000000), texto blanco. Suscripción, ayuda, más info, legal. Enlaces con borde blanco (outline buttons).\n\nCONCLUSIÓN PARA EMAIL: La marca se sostiene en 3 ingredientes visuales — (a) fotografía real de outdoor lifestyle, (b) beige #EFE7DA como fondo alternante, (c) naranja #FA4616 como acento de CTAs y titulares. No usa iconos decorativos ni emblemas — todo es foto o texto. La jerarquía es: hero fotográfico → categorías con foto → producto blanco aislado → banda oscura de contraste → información."
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "Worn Wear utiliza fotografía lifestyle de exterior con iluminación natural y composición documental: personas en entornos reales (garajes, montaña, furgonetas, exteriores), no estudio blanco. La paleta cromática de las fotos es cálida/tierra (marrones, verdes, tonos piel) — coherente con el beige #EFE7DA de la marca. Los productos se muestran AISLADOS sobre fondo blanco puro en la sección de novedades — dos tratamientos distintos según el contexto: lifestyle aspiracional para secciones narrativas, producto aislado para secciones de compra. Aspecto general: auténtico, sin filtros ni postproducción agresiva, aire de outdoor real (no de catálogo).",
+    "source": "Observado en https://wornwear.patagonia.com/ el 2026-07-24 (captura de pantalla + inspección DOM + vision_analyze)",
+    "note": "Para hero-imagen: usar fotografía lifestyle de outdoor con tonos tierra/cálidos, preferiblemente con una persona interactuando con equipo Patagonia. Para módulos de producto (New Arrivals): producto aislado sobre fondo blanco. NO usar fotografía de estudio con iluminación dramática — Worn Wear es auténtico, aspiracional-real."
+  },
+  "iconography": {
+    "style": "ninguno-decorativo",
+    "monochrome": false,
+    "color": "N/A",
+    "source": "Observado en https://wornwear.patagonia.com/ el 2026-07-24: la web NO usa iconos decorativos en ninguna sección. No hay iconos de beneficio (checkmarks, estrellas, hojas), no hay emojis como iconos, no hay ilustraciones decorativas. La única iconografía son los iconos funcionales de interfaz (lupa de búsqueda, bolsa de compra, hamburger menu, X de cerrar) y 56 SVG inline para elementos de UI (Meteor Navigation, carrito, etc.), ninguno decorativo ni de marca.",
+    "componentImplication": "Worn Wear es una marca 100% fotografía + tipografía. NO usar iconGlyph de emoji en ningún módulo. Para secciones de beneficio o características, usar el componente columns-3-beneficios-sin-icono (3 columnas con barrita decorativa en vez de icono) o usp-cards-sin-icono (tarjetas con borde sin icono). Ambos existen en engine/components/ desde la campaña BMW (columns-3-beneficios-sin-icono) y Spotify (usp-cards-sin-icono). NO usar card-tarifa-3: exige icon obligatorio en cada ítem (img src, 48x48) y está fijado a exactamente 3 tarjetas — Worn Wear no tiene iconos que poner ahí."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "Campaña de test interno con isTestCampaign:true. El motor actual fuerza color-scheme:light. La marca real usa fondo blanco mayoritariamente con acentos naranja/beige — funcionaría en modo claro. Dark mode real requeriría adaptación futura."
+  },
+  "personalization": {
+    "status": "not-implemented",
+    "note": "isTestCampaign: true — sin personalización real."
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-wornwear-usado",
+    "content": ""
+  },
+  "assets": {
+    "logo": "https://wornwear.patagonia.com/cdn/shop/files/WW_Logo_Website.png?v=1745518005&width=500",
+    "logoWidth": 150,
+    "logoHeight": 42,
+    "logoAlt": "Patagonia Worn Wear®",
+    "headerPatternTile": "",
+    "note": "Logo PNG oficial verificado HTTP 200 (38KB) desde wornwear.patagonia.com/cdn/shop/files/WW_Logo_Website.png. No necesita SVG→PNG conversion — ya existe PNG. El logo muestra 'WORN WEAR' en tipografía serif sobre fondo blanco con el texto 'patagonia' en pequeño debajo. Para el email header, el logo en blanco sobre fondo negro o naranja no funcionaría — es un PNG con fondo blanco intrínseco, necesita fondo blanco o ser reemplazado por una versión invertida. Pendiente de confirmar si existe versión invertida (blanco sobre fondo oscuro) para usar en banda de cierre.",
+    "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+    "heroBannerWidth": 600,
+    "heroBannerHeight": 350
+  },
+  "voice": {
+    "tone": "directo, funcional, sin florituras — la marca no se toma demasiado en serio pero tampoco bromea. Tono de outdoor utility: práctico, honesto, con orgullo contenido de la durabilidad del producto.",
+    "ctaDefault": "Shop New Arrivals",
+    "ctaSecondary": "Trade In",
+    "rhythm": {
+      "sentenceLength": "Titulares muy cortos (3-5 palabras): 'Put Used to Use', 'Your gear deserves credit.', 'Web Specials'. Frases de apoyo de 1-2 líneas, informativas pero no técnicas. Sin subordinadas largas.",
+      "mode": "Segunda persona directa ('your gear', 'your wallet') combinada con voz activa de producto ('puts gear back to use', 'allows you to trade in'). Frases nominales sin verbo para titulares.",
+      "formality": "tú directo (inglés 'you'), cercano pero no familiar. Sin jerga, sin argot. Formalidad media — ni académico ni coloquial callejero.",
+      "punctuationHabits": "Titulares sin punto final. Frases declarativas rematadas en punto. Sin exclamaciones ni preguntas retóricas. Mayúscula inicial, el resto en minúscula (no ALL CAPS, salvo el logo 'WORN WEAR').",
+      "examples": [
+        "Put Used to Use.",
+        "Still in great shape, plenty of miles to go, easier on your wallet.",
+        "Your gear deserves credit.",
+        "Worn Wear® allows you to trade in and buy used Patagonia® gear.",
+        "Trade-in offers, repair tips, events, original stories and more."
+      ],
+      "source": "Texto real extraído del DOM en https://wornwear.patagonia.com/ el 2026-07-24"
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.1",
+      "date": "2026-07-24",
+      "author": "Hermes Agent — correcciones tras validación del usuario",
+      "changes": [
+        "CORREGIDO: typography.cta.size pasó de 18px (inventado) a 16px (valor real extraído con getComputedStyle).",
+        "CORREGIDO: typography.cta.weight pasó de 700 (inventado) a 500 (valor real).",
+        "CORREGIDO: typography.cta.letterSpacing pasó de 0 (default de plantilla) a -0.2px (valor real).",
+        "CORREGIDO: components.cta.padding pasó de 12px 28px (default de plantilla) a 9px 28px (valor real).",
+        "CORREGIDO: iconography.componentImplication señalaba card-tarifa-3 que exige icon obligatorio por ítem. Corregido a columns-3-beneficios-sin-icono / usp-cards-sin-icono, existentes en engine/components/.",
+        "CAMBIADO: colors.ctaText de #FFFFFF a #000000. DECISIÓN CONSCIENTE Y DOCUMENTADA: la web real de Worn Wear (wornwear.patagonia.com) usa texto BLANCO sobre botón naranja #FA4616 — 3.53:1, no alcanza WCAG AA (4.5:1). En email, donde el contraste es más crítico (sin zoom, clientes antiguos, audiencia amplia), se adopta texto NEGRO #000000 sobre el mismo naranja: 5.95:1, pasa AA con margen. El negro no es un color inventado — es el color estructural del pack (colors.primary, footer real de la marca). Precedente en el sistema: Spotify usa ctaText #000000 sobre ctaBackground #1ED760 por exactamente el mismo motivo (3.43:1 blanco vs 5.95:1 negro). Este cambio NO se presenta como una réplica del comportamiento real de la marca — es una decisión de accesibilidad del sistema, no un valor observado en el sitio."
+      ]
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-07-24",
+      "author": "Hermes Agent (Orchestrator) — investigación real vía Chrome + getComputedStyle sobre wornwear.patagonia.com",
+      "changes": [
+        "Pack CREADO desde cero. Worn Wear identificada como submarca con identidad visual independiente de Patagonia padre.",
+        "colors.primary (#FA4616), colors.ctaBackground (#FA4616), colors.ctaText (#FFFFFF), colors.lightBg (#EFE7DA), typography.family y voice.rhythm.examples COMPUTADOS/EXTRAÍDOS con getComputedStyle y lectura de DOM real sobre https://wornwear.patagonia.com/ el 2026-07-24 (Chrome real, no supuesto).",
+        "Logo PNG localizado y verificado HTTP 200: wornwear.patagonia.com/cdn/shop/files/WW_Logo_Website.png (38KB, 150x42px). No necesita conversión.",
+        "colors.primary se fija en #000000 (negro, idéntico al footer real de la marca) en vez de #FA4616 (el naranja de marca) porque el patrón institutional usa colors.primary como fondo de hero y banda-cierre — #FA4616 como fondo extenso no da contraste suficiente con onBrandSecondary #FFFFFF (3.43:1). El naranja se conserva como ctaBackground y accent color, no como fondo estructural.",
+        "colors.textBody (#494949) es el gris medio real de la marca (precios secundarios y var(--color-core-80) observado en vivo), no un valor derivado.",
+        "CORREGIDO EN v2.2.1: cta size/weight/padding/letterSpacing se inicializaron con defaults de plantilla en vez de valores reales — corregido en el parche posterior.",
+        "typography.note documenta la fuente real RidgewaySans (Medium/Regular/Bold) y su no-disponibilidad en email, con Arial como fallback declarado por la propia marca.",
+        "iconography documenta que la marca NO usa iconos decorativos — implicación directa para la selección de variante de módulo de beneficios. CORREGIDO EN v2.2.1: la implicación inicial apuntaba a card-tarifa-3 (erróneo).",
+        "contentRhythm describe las 7 secciones observadas con peso visual asignado a cada una.",
+        "photography documenta los dos tratamientos (lifestyle outdoor + producto aislado) según el contexto."
+      ]
+    }
+  ]
+}

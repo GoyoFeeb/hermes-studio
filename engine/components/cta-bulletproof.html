@@ -1,0 +1,51 @@
+<!-- cta-bulletproof.html — parcial VML+fallback compartido (hero y banda de cierre). RESTAURADO 2026-07-21 desde el build determinista de F1 (engine/_test-output/final.html, sha256 verificado) tras el incidente tarifalo — ver engine/CHANGELOG.md.
+     REESCRITO 2026-07-24 (ronda "CTAs siguen siendo enormes"): font-size/font-weight/letter-spacing/padding
+     estaban hardcodeados aquí — 19px/700/0.5px/17px 36px para las 8 marcas por igual, sin importar que
+     typography.cta.size/weight YA variaba por marca en los brand packs (15-19px según la marca) y nadie lo leía.
+     Ahora se leen del token real. Ver engine/CHANGELOG.md, entrada de esta fecha, para la auditoría completa
+     (incluye botones reales verificados con Chrome en 5 marcas: adeslas, tarifalo, uax, optica2000 + las 3 ya
+     reales de antes: bmw, nike, spotify). Placeholders {{data:cta.href}}/{{data:cta.label}} resueltos en el
+     scope del PADRE via {{include:}}.
+     NOTA (deuda conocida, no resuelta en esta ronda): el bloque VML (Outlook de escritorio clásico) sigue con
+     height:52px/width:280px fijos para todas las marcas — no hay forma de expresar aritmética (padding+altura
+     de línea) en el sistema de placeholders actual. El font-size SÍ es real por marca; el tamaño de la CÁPSULA
+     en Outlook clásico puede quedar más grande de lo necesario en marcas con padding pequeño (ej. adeslas
+     8px 24px). Impacto acotado: Outlook de escritorio es una fracción decreciente de aperturas y el problema
+     ya existía (era igual de genérico antes); no se introduce una regresión, solo no se corrige del todo aquí.
+     REESCRITO 2026-07-25 (ronda "por qué se sigue viendo genérico" — ver engine/CHANGELOG.md): la tabla
+     exterior llevaba `style="width:100%"` LITERAL además de `class="mobile-full"`. `.mobile-full` está
+     pensada para forzar el ancho completo SOLO en móvil (vive dentro de `@media max-width:599px` en
+     _shell.html) — pero como el 100% ya estaba puesto directamente en el HTML, la media query no cambiaba
+     nada: el botón era ancho completo SIEMPRE, en cualquier pantalla, sin importar cuánto texto llevara la
+     etiqueta. Es la causa real de que un CTA de 2 palabras ("Descubrir novedades", Worn Wear) ocupara casi
+     los 600px del email — no era el tamaño de fuente ni el padding (eso ya estaba bien tokenizado), era que
+     la cápsula de color nunca se ajustaba al contenido. Quitado el width:100% inline: en desktop la tabla
+     ahora se ajusta a su contenido (comportamiento nativo de una tabla sin ancho explícito), y en móvil
+     .mobile-full sigue forzando el ancho completo para el tap-target, sin cambios ahí.
+     FIX MENOR 2026-07-25 (detectado al crear cta-text-link-bulletproof.html): 3 de 9 packs
+     (nike, spotify, wornwear) declaraban typography.cta.letterSpacing como NÚMERO puro (ej.
+     wornwear: -0.2) en vez de como valor CSS completo. `letter-spacing:-0.2;` sin unidad es
+     inválido para valores no-cero (el "zero exception" de CSS solo cubre el 0 exacto) — los
+     navegadores lo ignoraban y caían a `normal`. El letter-spacing de CTA investigado y
+     tokenizado de estas 3 marcas nunca se había aplicado en ningún render de esta sesión.
+     Corregido en el DATO, no en la plantilla (consistente con bmw/tarifalo, que ya declaraban
+     "0.5px" como string completo): los 3 packs ahora guardan "Npx" — la plantilla sigue
+     insertando el token tal cual, sin adivinar si necesita unidad. -->
+<!--[if mso]>
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+  href="{{data:cta.href}}" style="height:52px;v-text-anchor:middle;width:280px;"
+  arcsize="50%" strokecolor="{{token:colors.ctaBackground}}" fillcolor="{{token:colors.ctaBackground}}">
+  <w:anchorlock/>
+  <center style="color:{{token:colors.ctaText}};font-family:{{token:typography.displayFont}};font-size:{{token:typography.cta.size}}px;font-weight:{{token:typography.cta.weight}};">{{data:cta.label}}</center>
+</v:roundrect>
+<![endif]-->
+<!--[if !mso]><!-->
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" class="mobile-full">
+  <tr>
+    <td align="center" class="mobile-full" style="background-color:{{token:colors.ctaBackground}};border-radius:{{token:radius.ctaPill}}px;padding:{{token:components.cta.padding}};box-shadow:{{token:shadows.cta}};">
+      <a href="{{data:cta.href}}" target="_blank"
+         style="display:block;color:{{token:colors.ctaText}};font-family:{{token:typography.displayFont}};font-size:{{token:typography.cta.size}}px;font-weight:{{token:typography.cta.weight}};letter-spacing:{{token:typography.cta.letterSpacing}};text-decoration:none;text-align:center;line-height:1.3;mso-line-height-rule:exactly;">{{data:cta.label}}</a>
+    </td>
+  </tr>
+</table>
+<!--<![endif]-->

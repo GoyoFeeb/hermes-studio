@@ -1,0 +1,58 @@
+<!-- hero-imagen.html — hero HÍBRIDO con arte generado (gpt-image): banner de imagen decorativo arriba (sin texto dentro — regla del flujo generate-hero-image) + marca, H1, subtítulo y CTA como HTML vivo sobre fondo de marca. Con imágenes bloqueadas (Outlook), el bloque de texto y el CTA sobreviven íntegros. Añadido 2026-07-21. Datos: hero.bannerSrc (URL https del CDN), hero.bannerAlt, hero.brandName, hero.h1, hero.subtitle, cta (via include). Tokens: colors.primary, colors.ctaBackground, colors.onBrandSecondary. Añadido 2026-07-24: gradients.heroBackground — background-image adicional sobre el bloque de texto (mismo colors.primary), degrada a bgcolor sólido si no hay soporte (ver engine/CHANGELOG.md, "gradientes bulletproof"). Añadido 2026-07-25: hero.h1Color/h1Size/h1Weight/h1LineHeight — calculados por el adaptador (lib/assemble.js) desde typography.hero.h1 del pack, con fallback a #FFFFFF/28/800/1.16 si el pack no lo declara (retrocompatible). Antes estaban hardcodeados en la plantilla e ignoraban el token aunque el pack lo declarase — ver engine/CHANGELOG.md, "El H1 de hero-imagen ignoraba typography.hero.h1". -->
+<tr>
+<td style="background-color:{{token:colors.primary}};background-image:{{token:gradients.heroBackground}};padding:0;" class="header-bg" bgcolor="{{token:colors.primary}}">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+
+    <!-- Banner de arte (decorativo; alt descriptivo por accesibilidad al bloquearse) -->
+    <tr>
+      <td style="padding:0;line-height:0;">
+        <img src="{{data:hero.bannerSrc}}" alt="{{data:hero.bannerAlt}}" width="600" style="display:block;outline:none;border:none;width:100%;max-width:600px;height:auto;" class="mobile-img">
+      </td>
+    </tr>
+
+    <!-- Marca como texto -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:26px 32px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto 10px;">
+          <tr><td width="36" height="3" style="background-color:{{token:colors.ctaBackground}};border-radius:2px;font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+        <p style="font-family:{{token:typography.displayFont}};font-size:24px;font-weight:800;color:#FFFFFF;margin:0;line-height:1.2;letter-spacing:-0.5px;text-align:center;mso-line-height-rule:exactly;">{{data:hero.brandName}}</p>
+      </td>
+    </tr>
+
+    <!-- H1 -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:16px 40px 0;">
+        <h1 class="mobile-hero-h1" style="font-family:{{token:typography.displayFont}};font-size:{{data:hero.h1Size}}px;font-weight:{{data:hero.h1Weight}};color:{{data:hero.h1Color}};margin:0;line-height:{{data:hero.h1LineHeight}};letter-spacing:-0.5px;text-align:center;mso-line-height-rule:exactly;">{{data:hero.h1}}</h1>
+      </td>
+    </tr>
+
+    <!-- Subtítulo -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:12px 40px 0;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:400;color:{{token:colors.onBrandSecondary}};margin:0;line-height:1.5;text-align:center;mso-line-height-rule:exactly;">{{data:hero.subtitle}}</p>
+      </td>
+    </tr>
+
+    <!-- CTA -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:24px 32px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="mobile-full">
+          <tr>
+            <td align="center" style="padding:0;">
+              {{include:cta-bulletproof}}
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Aire inferior -->
+    <tr>
+      <td align="center" style="padding:30px 32px 38px;">&nbsp;</td>
+    </tr>
+
+  </table>
+</td>
+</tr>

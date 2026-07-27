@@ -1,0 +1,357 @@
+{
+  "brand": "Tarífalo",
+  "version": "2.2.5",
+  "colors": {
+    "primary": "#003049",
+    "deep": "#002035",
+    "light": "#004B6B",
+    "white": "#FFFFFF",
+    "ctaBackground": "#F77F00",
+    "ctaText": "#002035",
+    "subtitleOnBrand": "#FCE4C8",
+    "eyebrowOnBrand": "#004B6B",
+    "bodySecondary": "#666666",
+    "border": "#E0D5C5",
+    "sectionLila": "#FFF1E0",
+    "global": "#FFF6E7",
+    "onBrandSecondary": "#FCE4C8",
+    "accentHaloLight": "#FFE0B0",
+    "footerSeparator": "#D4C5B5",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#FFF1E0",
+      "exterior": "#FFF6E7",
+      "trustBar": "#FFF1E0"
+    },
+    "text": {
+      "primary": "#333333",
+      "secondary": "#666666",
+      "tertiary": "#999999"
+    },
+    "borders": {
+      "card": "#E0D5C5",
+      "footer": "#E0D5C5"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "displayFont": "'Sora','Segoe UI',Arial,Helvetica,sans-serif",
+    "webFont": {
+      "family": "Sora",
+      "note": "Movido 2026-07-25 desde el @font-face que vivía hardcodeado en engine/components/_shell.html (cargándose para las 9 marcas por igual aunque solo tarifalo lo usara) — ver engine/CHANGELOG.md, 'Tipografía real por marca'. Mismas 2 URLs de fonts.gstatic.com, sin cambios: la nota histórica sobre el peso 800 (bug G8-D1, ya resuelto — cada peso apunta a su propio woff2 real) se conserva aquí.",
+      "weights": [
+        {
+          "weight": 700,
+          "url": "https://fonts.gstatic.com/s/sora/v17/xMQ9uFFYT72X5wkB_18qmnndmSdSnh2BAfO5mnuyOo1lfiQwV6-x.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 800,
+          "url": "https://fonts.gstatic.com/s/sora/v17/xMQOuFFYT72X5wkB_18qmnndmSfSmU-NKQI.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        }
+      ]
+    },
+    "eyebrow": {
+      "size": 12,
+      "weight": 700,
+      "letterSpacing": "3px",
+      "transform": "uppercase",
+      "color": "#004B6B"
+    },
+    "h1Hero": {
+      "size": 32,
+      "weight": 800,
+      "lineHeight": 1.12,
+      "color": "#333333"
+    },
+    "h1HeroOnBrand": {
+      "size": 28,
+      "weight": 800,
+      "lineHeight": 1.16,
+      "letterSpacing": "-0.5px",
+      "color": "#FFFFFF",
+      "mobile": {
+        "size": 26,
+        "lineHeight": 1.18
+      }
+    },
+    "h2Section": {
+      "size": 22,
+      "weight": 800,
+      "lineHeight": 1.2,
+      "letterSpacing": "-0.3px",
+      "color": "#003049"
+    },
+    "h2OnBrand": {
+      "size": 26,
+      "weight": 800,
+      "lineHeight": 1.18,
+      "letterSpacing": "-0.4px",
+      "color": "#FFFFFF"
+    },
+    "h3Card": {
+      "size": 16,
+      "weight": 700,
+      "lineHeight": 1.25,
+      "color": "#003049"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 400,
+      "lineHeight": 1.55,
+      "color": "#666666"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#666666"
+    },
+    "small": {
+      "size": 12,
+      "weight": 400,
+      "lineHeight": 1.4,
+      "color": "#999999"
+    },
+    "statNumber": {
+      "size": 56,
+      "weight": 800,
+      "lineHeight": 1,
+      "letterSpacing": "-1.5px",
+      "color": "#FFFFFF"
+    },
+    "statLabel": {
+      "size": 11,
+      "weight": 700,
+      "letterSpacing": "1.5px",
+      "transform": "uppercase",
+      "color": "#FCE4C8"
+    },
+    "cta": {
+      "size": 16,
+      "weight": 500,
+      "letterSpacing": "0.5px"
+    },
+    "stepNumber": {
+      "size": 20,
+      "weight": 800,
+      "color": "#FFFFFF"
+    },
+    "stepTitle": {
+      "size": 15,
+      "weight": 700,
+      "color": "#003049"
+    },
+    "cardLinkSecondary": {
+      "size": 13,
+      "weight": 700,
+      "color": "#F77F00"
+    },
+    "trustBarText": {
+      "size": 12,
+      "weight": 600,
+      "color": "#003049"
+    },
+    "footerBrand": {
+      "size": 12,
+      "weight": 600,
+      "letterSpacing": "0.2px",
+      "color": "#003049"
+    },
+    "footerTagline": {
+      "size": 12,
+      "weight": 400,
+      "color": "#666666"
+    },
+    "footerDisclosure": {
+      "size": 12,
+      "weight": 400,
+      "color": "#666666"
+    },
+    "footerLegal": {
+      "size": 11,
+      "weight": 400,
+      "color": "#666666"
+    },
+    "footerLinks": {
+      "size": 12,
+      "weight": 400,
+      "color": "#666666",
+      "textDecoration": "underline"
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "hero": 56,
+    "close": 48
+  },
+  "radius": {
+    "ctaPill": 30,
+    "card": 16,
+    "cardStripe": "16px 16px 0 0",
+    "badgeCircle": "50%",
+    "listAccent": 0,
+    "circleHalo": 4,
+    "chip": 20,
+    "statPill": 24
+  },
+  "shadows": {
+    "card": "0 14px 32px rgba(0,48,73,0.08)",
+    "cta": "0 12px 28px rgba(247,127,0,0.22)",
+    "statPill": {
+      "value": "0 18px 40px rgba(0,32,53,0.20)",
+      "verified": false,
+      "note": "No se usa en esta campaña — el hero asimétrico no usa pill alrededor de la cifra."
+    }
+  },
+  "gradients": {
+    "heroBackground": "linear-gradient(135deg, #003049 0%, #002035 100%)"
+  },
+  "surfaces": {
+    "global": "#FFF6E7",
+    "white": "#FFFFFF",
+    "sectionLila": "#FFF1E0",
+    "brandDeepClose": "#002035",
+    "brandHeader": "#003049",
+    "trustBarPill": "#FFF1E0",
+    "stepConnector": "#FFE0B0"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#003049",
+      "textColor": "#FFFFFF"
+    },
+    "cta": {
+      "backgroundColor": "#F77F00",
+      "textColor": "#002035",
+      "borderRadius": 30,
+      "padding": "12px 40px"
+    },
+    "card": {
+      "borderRadius": 16,
+      "borderColor": "#E0D5C5",
+      "iconBackground": "#FFF6E7",
+      "iconRadius": 12
+    },
+    "trustBar": {
+      "backgroundColor": "#FFF1E0",
+      "iconBackground": "#003049",
+      "iconColor": "#FFFFFF"
+    },
+    "steps": {
+      "circleBackground": "#003049",
+      "circleTextColor": "#FFFFFF",
+      "titleColor": "#003049"
+    },
+    "patterns": {
+      "closingBand": {
+        "bg": "#002035",
+        "ctaBg": "#F77F00",
+        "ctaText": "#FFFFFF",
+        "titleColor": "#FFFFFF",
+        "bodyColor": "#FCE4C8"
+      },
+      "premiumListRow": {
+        "cardBorder": "#E0D5C5",
+        "cardShadow": "card",
+        "stripeColor": "#004B6B",
+        "badgeColor": "#003049",
+        "badgeSize": 36
+      }
+    }
+  },
+  "layout": {
+    "sectionStyle": "asimetrico",
+    "reason": "Nivel 2 (2026-07-22, ver engine/CHANGELOG.md). Usa el género 'saving', no 'institutional' — el campo se declara igualmente por consistencia (mismo patrón que voice, presente en todos los packs sin importar qué género usa cada campaña), y refleja lo que patterns/saving.md §2 ya documenta como su composición real (hero-asimetrico, lista-premium alineada a la izquierda). No activa ningún componente nuevo de Nivel 2 porque saving.md no referencia los módulos de institutional."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. Las metas color-scheme están forzadas a 'light'."
+  },
+  "assets": {
+    "logo": "https://tarifalo.com/wp-content/uploads/2023/02/tarifalo-logo-svg-vf.svg",
+    "logoWidth": 176,
+    "logoHeight": 48,
+    "logoAlt": "Tarífalo — comparador de tarifas de luz y gas",
+    "headerPatternTile": ""
+  },
+  "voice": {
+    "tone": "directo, claro, informativo, tranquilizador",
+    "ctaDefault": "Comparar tarifas",
+    "ctaSecondary": "Ver ofertas"
+  },
+  "_changelog": [
+    {
+      "version": "2.2.5",
+      "date": "2026-07-24",
+      "author": "Auditoría de tamaño real de CTA (ronda 'CTAs siguen siendo enormes') — ver engine/CHANGELOG.md",
+      "changes": [
+        "typography.cta.size 19→16, weight 700→500 — OBSERVADO con Chrome real sobre el botón primario '¡Comparar y participar!' en https://tarifalo.com/ el 2026-07-24 (16px, font-weight:500, letterSpacing real 0.6px — se deja el 0.5px ya documentado, diferencia sin impacto visual). El 19px/700 anterior era el valor por defecto de plantilla, idéntico en 4 marcas del sistema — nunca fue una observación real, ver engine/CHANGELOG.md.",
+        "components.cta.padding añadido: '12px 40px' (observado del mismo botón; el motor usaba un valor fijo hardcodeado para las 8 marcas).",
+        "components.cta.borderRadius 50→30 y radius.ctaPill 50→30: el botón real de Tarífalo tiene 30px de radio, no 50 (pill completa). Contraste no afectado: colors.ctaText #002035 sobre colors.ctaBackground #F77F00 = 6.35:1, muy por encima de cualquier umbral AA sea cual sea el tamaño."
+      ]
+    },
+    {
+      "version": "2.2.4",
+      "date": "2026-07-24",
+      "author": "Gradientes bulletproof — ver engine/CHANGELOG.md",
+      "changes": [
+        "Añadido gradients.heroBackground: linear-gradient(135deg, #003049 0%, #002035 100%), construido con colors.primary y colors.deep YA verificados de esta marca (ambos observados de tarifalo.com, sin inventar ningún color nuevo). Se aplica como background-image adicional en hero-centrado/hero-asimetrico/hero-marca-tarifalo/banda-cierre/banda-cierre-asimetrico, sobre el background-color/bgcolor sólido existente (degrada a él en clientes sin soporte, ej. Outlook clásico de escritorio)."
+      ]
+    },
+    {
+      "version": "2.2.3",
+      "date": "2026-07-22",
+      "author": "Nivel 3 — ver engine/CHANGELOG.md",
+      "changes": [
+        "Corrección de un desajuste de versión heredado: el campo raíz \"version\" seguía en 2.2.1 aunque el _changelog ya tenía una entrada 2.2.2 (Nivel 1) — corregido a 2.2.3 (esta entrada) para que el campo raíz refleje siempre la última entrada del changelog, tal y como exige agents/02-brand-visual-analyst.md.",
+        "Este pack predata el estándar de investigación profunda de marca (Nivel 3, 2026-07-22): no tiene 'photography', 'iconography' ni 'voice.rhythm' investigados con Chrome real sobre tarifalo.com. Válvula de escape documentada: no se navega retroactivamente en esta ronda por decisión explícita del usuario (alcance de Nivel 3 = definir el estándar para marcas nuevas, no backfill de las 3 marcas ya en producción). Pendiente si esta marca vuelve a necesitar trabajo de brand pack."
+      ]
+    },
+    {
+      "version": "2.2.2",
+      "date": "2026-07-22",
+      "summary": "Nivel 1 de tokenización de motor: typography.displayFont, radius.* y shadows.* pasan de estar hardcodeados en engine/components/*.html (con los valores literales de paraycompara, la primera marca en construirse) a leerse via {{token:...}} (ver engine/CHANGELOG.md, entrada 'Nivel 1').",
+      "correctionsFound": [
+        {
+          "field": "typography.displayFont",
+          "before": "'Sora', Arial, Helvetica, sans-serif",
+          "resolved": "'Sora','Segoe UI',Arial,Helvetica,sans-serif",
+          "reason": "El valor hardcodeado en los componentes incluía 'Segoe UI' como fallback de Windows y no llevaba espacios tras las comas. Se normaliza el token para que coincida con lo que ya se venía renderizando — cero cambio visual en la fuente."
+        }
+      ],
+      "expectedVisualChanges": [
+        {
+          "field": "radius.card / shadows.card / shadows.cta",
+          "impact": "card-tarifa-3.html (usado en 2026-jul-comparar-luz-gas) tenía border-radius:18px y sombras hardcodeadas con los valores literales de paraycompara (radius 18, sombra rgba(94,46,145,..) para tarjeta y rgba(255,90,60,..) para CTA — o en el caso concreto de card-tarifa-3, una sombra neutra provisional rgba(0,0,0,0.08)). Ahora usan radius.card=16 y las sombras reales de tarifalo (tinte navy #003049 en tarjetas, tinte naranja #F77F00 en el CTA). Cambio visual sutil e intencional — corrige la genericidad reportada por el cliente."
+        }
+      ],
+      "duplicatePackWarning": "Se detectó durante esta ronda que existe una SEGUNDA copia de este brand pack en newsletters/2026/newsletter-system/brands/tarifalo/tokens/brand-tokens.json, desactualizada (v1.0.x, sin la corrección WCAG de ctaText ni el fix de headerPatternTile de v2.2.1) y que NO es la que consume el motor (engine/lib/tokens.js prueba primero la ruta literal 'brands/...' contra la raíz del sistema, que es donde vive ESTE archivo — la copia de newsletter-system solo se usaría como fallback si esta no existiera). Esa copia quedó igualmente actualizada con el mismo fix de displayFont por consistencia, pero es un archivo huérfano — no se ha borrado en esta ronda por no exceder el alcance de Nivel 1; queda anotado para una limpieza futura.",
+      "verifiedByteParity": "cmp byte a byte de 2026-jul-comparar-luz-gas tras el cambio — ver engine/CHANGELOG.md."
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-07-21",
+      "author": "Restauración post-incidente (pipeline de agentes)",
+      "changes": [
+        "Pack creado a partir del borrador de la sesión externa (en cuarentena: _archive/incidente-2026-07-21-tarifalo/), normalizado a la estructura estándar de brand pack.",
+        "POLÍTICA DE VERSIÓN: la versión del pack es la del CONTRATO de tokens que el motor exige (>= 2.2.0), no la antigüedad de la marca — los packs nuevos arrancan en 2.2.0.",
+        "colors.ctaText: #FFFFFF -> #002035 (navy profundo). Motivo WCAG: blanco sobre #F77F00 da 2.63:1 — falla incluso el umbral de texto grande (3:1); #002035 sobre #F77F00 da 6.34:1 (pasa AA normal). Calculado con luminancia relativa, no copiado.",
+        "Campo \"extends\" eliminado (no estándar, ningún mecanismo lo consume).",
+        "PROCEDENCIA: colores/tipografía observados de tarifalo.com (documentado en el brand-analysis de la sesión original). assets.logo es SVG — PROHIBIDO en email (regla del sistema): pendiente [Q] logo PNG del cliente; mientras tanto el hero usa la variante hero-centrado (marca como texto)."
+      ]
+    },
+    {
+      "version": "2.2.1",
+      "date": "2026-07-21",
+      "changes": [
+        "assets.headerPatternTile: la URL heredada del borrador era arrow-right-newbtn.png — una imagen de BOTÓN de flecha, no un tile sutil de marca. banda-cierre la mosaicaba como fondo tapando el texto (detectado en el primer render con red del cliente; el sandbox no carga imágenes y no pudo verlo). Sin tile de marca confirmado → cadena vacía: el atributo background queda vacío y manda el bgcolor sólido (colors.deep). Pendiente [Q]: tile sutil oficial si el cliente lo quiere."
+      ]
+    }
+  ]
+}

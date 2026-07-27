@@ -1,0 +1,77 @@
+<!-- card-tarifa.html — grid 2x2 de 4 tarjetas con franja de acento. RESTAURADO 2026-07-21 (ver engine/CHANGELOG.md). Datos: cardsSection.{eyebrow,title,subtitle} + cards[0..3].{icon,title,body,href,linkLabel}. Limitacion conocida: solo grid fijo de 4. Enlace secundario: colors.primary (2026-07-27, contraste AA sobre blanco) -->
+<tr>
+<td style="background-color:#FFFFFF;padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:56px 24px 44px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto 10px;">
+          <tr><td width="32" height="2" style="background-color:{{token:colors.light}};font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:{{token:colors.light}};margin:0 0 6px;line-height:16px;letter-spacing:3px;text-transform:uppercase;text-align:center;mso-line-height-rule:exactly;">
+          {{data:cardsSection.eyebrow}}
+        </p>
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:22px;font-weight:800;color:{{token:colors.primary}};margin:0 0 6px;line-height:1.2;letter-spacing:-0.3px;text-align:center;mso-line-height-rule:exactly;">
+          {{data:cardsSection.title}}
+        </h2>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.text.secondary}};margin:0 0 24px;line-height:1.5;text-align:center;mso-line-height-rule:exactly;">
+          {{data:cardsSection.subtitle}}
+        </p>
+        <!-- Row 1: cards[0] + cards[1] -->
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>
+            <td style="width:50%;padding:0 6px 12px;vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:#FFFFFF;border:1px solid {{token:colors.borders.card}};border-radius:{{token:radius.card}}px;box-shadow:{{token:shadows.card}};">
+                <tr><td height="4" style="background-color:{{token:colors.light}};border-radius:{{token:radius.cardStripe}};font-size:0;line-height:0;">&nbsp;</td></tr>
+                <tr><td style="padding:26px 22px 22px;">
+                  <img src="{{data:cards[0].icon}}" alt="" width="48" height="48" style="display:block;outline:none;border:none;width:48px;height:48px;">
+                  <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:{{token:colors.primary}};margin:12px 0 4px;line-height:20px;mso-line-height-rule:exactly;">{{data:cards[0].title}}</h3>
+                  <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.text.secondary}};margin:0 0 10px;line-height:1.5;mso-line-height-rule:exactly;">{{data:cards[0].body}}</p>
+                  <a href="{{data:cards[0].href}}" target="_blank" style="display:inline-block;color:{{token:colors.primary}};font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;text-decoration:none;padding:2px 0;">{{data:cards[0].linkLabel}} &#8594;</a>
+                </td></tr>
+              </table>
+            </td>
+            <td style="width:50%;padding:0 0 12px 6px;vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:#FFFFFF;border:1px solid {{token:colors.borders.card}};border-radius:{{token:radius.card}}px;box-shadow:{{token:shadows.card}};">
+                <tr><td height="4" style="background-color:{{token:colors.light}};border-radius:{{token:radius.cardStripe}};font-size:0;line-height:0;">&nbsp;</td></tr>
+                <tr><td style="padding:26px 22px 22px;">
+                  <img src="{{data:cards[1].icon}}" alt="" width="48" height="48" style="display:block;outline:none;border:none;width:48px;height:48px;">
+                  <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:{{token:colors.primary}};margin:12px 0 4px;line-height:20px;mso-line-height-rule:exactly;">{{data:cards[1].title}}</h3>
+                  <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.text.secondary}};margin:0 0 10px;line-height:1.5;mso-line-height-rule:exactly;">{{data:cards[1].body}}</p>
+                  <a href="{{data:cards[1].href}}" target="_blank" style="display:inline-block;color:{{token:colors.primary}};font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;text-decoration:none;padding:2px 0;">{{data:cards[1].linkLabel}} &#8594;</a>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+        <!-- Row 2: cards[2] + cards[3] -->
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>
+            <td style="width:50%;padding:0 6px 0;vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:#FFFFFF;border:1px solid {{token:colors.borders.card}};border-radius:{{token:radius.card}}px;box-shadow:{{token:shadows.card}};">
+                <tr><td height="4" style="background-color:{{token:colors.light}};border-radius:{{token:radius.cardStripe}};font-size:0;line-height:0;">&nbsp;</td></tr>
+                <tr><td style="padding:26px 22px 22px;">
+                  <img src="{{data:cards[2].icon}}" alt="" width="48" height="48" style="display:block;outline:none;border:none;width:48px;height:48px;">
+                  <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:{{token:colors.primary}};margin:12px 0 4px;line-height:20px;mso-line-height-rule:exactly;">{{data:cards[2].title}}</h3>
+                  <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.text.secondary}};margin:0 0 10px;line-height:1.5;mso-line-height-rule:exactly;">{{data:cards[2].body}}</p>
+                  <a href="{{data:cards[2].href}}" target="_blank" style="display:inline-block;color:{{token:colors.primary}};font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;text-decoration:none;padding:2px 0;">{{data:cards[2].linkLabel}} &#8594;</a>
+                </td></tr>
+              </table>
+            </td>
+            <td style="width:50%;padding:0 0 0 6px;vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:#FFFFFF;border:1px solid {{token:colors.borders.card}};border-radius:{{token:radius.card}}px;box-shadow:{{token:shadows.card}};">
+                <tr><td height="4" style="background-color:{{token:colors.light}};border-radius:{{token:radius.cardStripe}};font-size:0;line-height:0;">&nbsp;</td></tr>
+                <tr><td style="padding:26px 22px 22px;">
+                  <img src="{{data:cards[3].icon}}" alt="" width="48" height="48" style="display:block;outline:none;border:none;width:48px;height:48px;">
+                  <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:{{token:colors.primary}};margin:12px 0 4px;line-height:20px;mso-line-height-rule:exactly;">{{data:cards[3].title}}</h3>
+                  <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.text.secondary}};margin:0 0 10px;line-height:1.5;mso-line-height-rule:exactly;">{{data:cards[3].body}}</p>
+                  <a href="{{data:cards[3].href}}" target="_blank" style="display:inline-block;color:{{token:colors.primary}};font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;text-decoration:none;padding:2px 0;">{{data:cards[3].linkLabel}} &#8594;</a>
+                </td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

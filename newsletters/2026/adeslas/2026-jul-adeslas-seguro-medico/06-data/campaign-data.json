@@ -1,0 +1,129 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-adeslas-seguro-medico",
+    "clientName": "Adeslas — SegurCaixa Adeslas",
+    "subjectLine": "Tu salud merece una atención a tu altura",
+    "preheader": "Descubre las modalidades disponibles y encuentra una opción adaptada a ti.",
+    "fromName": "Adeslas Seguro Médico",
+    "fromEmail": "info@segurcaixaadeslas.es",
+    "version": "1.0.0",
+    "createdAt": "2026-07-22",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/adeslas/tokens/brand-tokens.json",
+  "pattern": "institutional",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://placeholder.adeslas.es/logo-adeslas.png",
+        "logoAlt": "Adeslas — Seguro Médico",
+        "logoWidth": 160,
+        "logoHeight": 48,
+        "label": "SEGURO MÉDICO"
+      }
+    },
+    {
+      "component": "hero-centrado",
+      "data": {
+        "brandName": "ADESLAS",
+        "h1": "Cuida de tu salud con la atención que mereces",
+        "subtitle": "Descubre un seguro médico pensado para darte tranquilidad, comodidad y acceso a una atención de calidad cuando lo necesites.",
+        "cta": {
+          "href": "https://placeholder.adeslas.es/seguro-medico",
+          "label": "Calcula tu precio"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Una forma más cómoda de cuidar de ti",
+        "body": "Accede a las prestaciones incluidas en la modalidad de seguro seleccionada. Consulta los profesionales y centros disponibles en el cuadro médico de tu póliza.",
+        "cta": {
+          "href": "https://placeholder.adeslas.es/seguro-medico",
+          "label": "Calcula tu precio"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios",
+      "data": {
+        "title": "Todo lo que necesitas",
+        "highlight": "Cobertura según la modalidad contratada",
+        "highlightNote": "Consulta condiciones generales en adeslas.es",
+        "items": [
+          {
+            "icon": "🏥",
+            "title": "Atención adaptada a ti",
+            "body": "Accede a las prestaciones incluidas en la modalidad de seguro seleccionada y disfruta de una atención médica pensada para tus necesidades."
+          },
+          {
+            "icon": "🏛️",
+            "title": "Profesionales y centros",
+            "body": "Consulta los profesionales y centros disponibles en el cuadro médico de tu póliza, con cobertura en toda España."
+          },
+          {
+            "icon": "📱",
+            "title": "Servicios digitales",
+            "body": "Realiza gestiones y utiliza los servicios digitales disponibles de forma sencilla, rápida y desde cualquier lugar."
+          }
+        ]
+      }
+    },
+    {
+      "component": "usp-cards",
+      "data": {
+        "eyebrow": "POR QUÉ ADESLAS",
+        "title": "Confianza que te acompaña",
+        "body": "SegurCaixa Adeslas es la aseguradora de salud líder en España, con más de 40 años de experiencia y un modelo de atención centrado en la persona.",
+        "badge": "Líderes en seguros de salud en España",
+        "items": [
+          {
+            "icon": "🛡️",
+            "title": "Experiencia y solvencia",
+            "body": "Más de 40 años de experiencia en el sector asegurador sanitario español."
+          },
+          {
+            "icon": "👥",
+            "title": "Amplio cuadro médico",
+            "body": "Acceso a una red de profesionales y centros médicos en toda España."
+          },
+          {
+            "icon": "💻",
+            "title": "Gestión online",
+            "body": "Área cliente y app para gestionar tus citas, documentos y consultas."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Empieza hoy a cuidar de tu salud",
+        "body": "Descubre qué seguro médico puede adaptarse mejor a tus necesidades.",
+        "cta": {
+          "href": "https://placeholder.adeslas.es/seguro-medico",
+          "label": "Calcula tu precio"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Adeslas",
+        "tagline": "Seguro Médico",
+        "disclosure": "Este correo es informativo y no supone compromiso contractual. Consulta las condiciones generales y particulares de cada modalidad antes de contratar.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "SegurCaixa Adeslas, S.A. de Seguros y Reaseguros — [DIRECCIÓN FÍSICA — pendiente del cliente] © 2026. Todos los derechos reservados."
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-adeslas-seguro-medico"
+  }
+}

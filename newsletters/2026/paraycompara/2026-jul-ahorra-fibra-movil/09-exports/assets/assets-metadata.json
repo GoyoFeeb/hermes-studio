@@ -1,0 +1,69 @@
+{
+  "created": "2026-07-09",
+  "tool": "Playwright",
+  "assets": [
+    {
+      "name": "logo-paraycompara",
+      "purpose": "Logo header (white)",
+      "bytes": 10292,
+      "displayW": 200,
+      "displayH": 55
+    },
+    {
+      "name": "tarifa-movil-icon",
+      "purpose": "Servicios",
+      "bytes": 1845,
+      "displayW": 48,
+      "displayH": 48
+    },
+    {
+      "name": "tarifa-fibra-icon",
+      "purpose": "Servicios",
+      "bytes": 2826,
+      "displayW": 48,
+      "displayH": 48
+    },
+    {
+      "name": "tarifa-fibra-movil-icon",
+      "purpose": "Servicios",
+      "bytes": 3910,
+      "displayW": 48,
+      "displayH": 48
+    },
+    {
+      "name": "tarifa-tv-icon",
+      "purpose": "Servicios",
+      "bytes": 2585,
+      "displayW": 48,
+      "displayH": 48
+    },
+    {
+      "name": "aspecto1",
+      "purpose": "Educativo",
+      "bytes": 2697,
+      "displayW": 40,
+      "displayH": 40
+    },
+    {
+      "name": "aspecto2",
+      "purpose": "Educativo",
+      "bytes": 6126,
+      "displayW": 40,
+      "displayH": 40
+    },
+    {
+      "name": "aspecto3",
+      "purpose": "Educativo",
+      "bytes": 3505,
+      "displayW": 40,
+      "displayH": 40
+    },
+    {
+      "name": "aspecto4",
+      "purpose": "Educativo",
+      "bytes": 2553,
+      "displayW": 40,
+      "displayH": 40
+    }
+  ]
+}

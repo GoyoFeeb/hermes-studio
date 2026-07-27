@@ -1,0 +1,18 @@
+<!-- cardTarifa.html
+  Origen: newsletters/2026/paraycompara/2026-jul-ahorra-fibra-movil/v5-premium/final-premium-v2.html líneas 252-262, bloque repetible ×4
+  Extraído: 2026-07-17 para engine/components/
+  Tokens que consume: colors.primary, colors.light, colors.ctaBackground, colors.white, colors.bodySecondary, colors.border, radius.card, typography.displayFont
+  Campos de datos: icon, title, body, link, moduleId
+  Nota: Repetible ×4 via {{#each:items}}. Soporta padding variable según posición. Usa {{#if:last}} para la última columna.
+-->
+            <td style="width:50%;padding:0 {{#if:last}}0{{/if}}{{#unless:last}}6px{{/unless}} 12px;vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:{{token:colors.white}};border:1px solid {{token:colors.border}};border-radius:{{token:radius.card}}px;box-shadow:0 14px 32px rgba(94,46,145,0.08);">
+                <tr><td height="4" style="background-color:{{token:colors.light}};border-radius:16px 16px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+                <tr><td style="padding:26px 22px 22px;">
+                  <img src="{{data:cdnBase}}/{{icon}}" alt="" width="48" height="48" style="display:block;outline:none;border:none;width:48px;height:48px;">
+                  <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:19px;font-weight:700;color:{{token:colors.primary}};margin:12px 0 4px;line-height:20px;mso-line-height-rule:exactly;">{{title}}</h3>
+                  <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.bodySecondary}};margin:0 0 10px;line-height:1.5;mso-line-height-rule:exactly;">{{body}}</p>
+                  <a href="{{link}}" target="_blank" style="display:inline-block;color:{{token:colors.ctaBackground}};font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;text-decoration:none;padding:2px 0;">Ver tarifas &#8594;</a>
+                </td></tr>
+              </table>
+            </td>

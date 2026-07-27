@@ -1,0 +1,107 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-rolex-datejust-verde",
+    "clientName": "Rolex",
+    "subjectLine": "Una fecha para recordar.",
+    "preheader": "El Datejust con esfera verde oliva, acero Oystersteel y oro Everose.",
+    "fromName": "Rolex (test)",
+    "fromEmail": "test-rolex@internal-newsletter.es",
+    "version": "1.0.0",
+    "createdAt": "2026-07-25",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "_comment": "Campaña de prueba de estrés del motor (patrón public-source-campaign-pattern.md, mismo criterio que BMW X1). Datos públicos de rolex.com, sin aprobación de cliente. fromEmail, enlaces de baja/preferencias y logo son placeholders. Hero pendiente de generación y subida a CDN.",
+  "brand": "brands/rolex/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-ROLEX-LOGO/",
+        "logoAlt": "Rolex",
+        "logoWidth": 90,
+        "logoHeight": 32,
+        "label": "OYSTER PERPETUAL"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+        "bannerAlt": "Rolex Datejust con esfera verde oliva, acero Oystersteel y oro Everose",
+        "brandName": "ROLEX",
+        "h1": "Una fecha para recordar",
+        "subtitle": "El Datejust con esfera verde oliva, acero Oystersteel y oro Everose.",
+        "cta": {
+          "href": "https://www.rolex.com/es/watches/datejust?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-rolex-datejust-verde&utm_content=hero",
+          "label": "Descubrir el Datejust"
+        }
+      }
+    },
+    {
+      "component": "intro-cta-asimetrico",
+      "data": {
+        "title": "Una ventana a las 3.",
+        "body": "Presentado en 1945, el Datejust fue el primer reloj de pulsera en mostrar la fecha en una ventana sobre la esfera. Ocho décadas después, sigue siendo el gesto que lo define.",
+        "cta": {
+          "href": "https://www.rolex.com/es/watches/datejust?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-rolex-datejust-verde&utm_content=intro",
+          "label": "Ver la colección Datejust"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Cuatro razones materiales.",
+        "highlight": "Presentado en 1945",
+        "highlightNote": "Icono constante en la relojería Rolex.",
+        "items": [
+          {
+            "title": "Oystersteel y oro Everose",
+            "body": "El bisel estriado y el brazalete combinan acero resistente a la corrosión con el tono cálido del oro Everose, la aleación de oro rosa propia de Rolex."
+          },
+          {
+            "title": "Hermeticidad Oyster",
+            "body": "La caja Oyster protege el mecanismo interior con una estanqueidad que ha definido la relojería de herramienta moderna."
+          },
+          {
+            "title": "Cronómetro Superlativo certificado",
+            "body": "Cada Datejust supera los controles de precisión, resistencia e impermeabilidad de la certificación oficial de cronómetro superlativo."
+          },
+          {
+            "title": "La lupa Cyclops",
+            "body": "Sobre la ventana de fecha, a las 3h, la lupa Cyclops amplía la lectura sin alterar el equilibrio de la esfera."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre-asimetrico",
+      "data": {
+        "title": "Descubrir el Datejust en persona.",
+        "body": "Localice un distribuidor oficial Rolex y viva el Datejust de cerca.",
+        "cta": {
+          "href": "https://www.rolex.com/es/watches/datejust?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-rolex-datejust-verde&utm_content=cierre",
+          "label": "Descubrir el Datejust"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Rolex",
+        "tagline": "Relojería suiza.",
+        "disclosure": "Esta comunicación es un borrador de campaña de prueba (isTestCampaign). El contenido procede de observación pública de rolex.com y no ha sido aprobado por Rolex.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© Rolex 2026"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-rolex-datejust-verde"
+  }
+}

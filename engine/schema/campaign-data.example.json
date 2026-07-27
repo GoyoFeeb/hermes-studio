@@ -1,0 +1,149 @@
+{
+  "_comment": "Ejemplo de campaign-data.json (prompt 12, 2026-07-20) — la campaña piloto '2026-jul-ahorra-fibra-movil' de Para y Compara expresada en el nuevo formato del motor. Copy extraído literalmente de v5-premium/final-premium-v2.html (fuente única de verdad, post-ronda-10) — no parafraseado. EXCEPCIÓN: listItems[1].title y listItems[3].title ('Cobertura' y 'Condiciones') están marcados _reconstructed=true porque el título real no existe en la fuente (bug documentado en engine/components/lista-premium.html e INVENTORY.md — 2 de los 4 <h3> de esa sección faltan en el HTML original). Se infirieron a partir del nombre del icono (icon-aspecto-cobertura.png / icon-aspecto-condiciones.png) y del cuerpo de texto ya existente — deben confirmarse con quien escribió el copy original antes de usarse en un envío real. Este es el archivo de entrada de la prueba de fuego del prompt 14.",
+  "metadata": {
+    "campaignName": "2026-jul-ahorra-fibra-movil",
+    "clientName": "Para y Compara",
+    "subjectLine": "Para y Compara — Ahorra en tu tarifa de fibra y móvil",
+    "preheader": "Compara ofertas de más de 30 compañías y encuentra la tarifa que mejor encaje contigo — Para y Compara",
+    "fromName": "Para y Compara",
+    "fromEmail": "newsletter@paraycompara.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-20",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/paraycompara/tokens/brand-tokens.json",
+  "pattern": "saving",
+  "modules": [
+    {
+      "component": "hero-asimetrico",
+      "data": {
+        "h1": "Ahorra en tu tarifa de fibra y móvil",
+        "stat": { "number": "+30", "label": "compañías" },
+        "subtitle": "Compara ofertas de más de 30 compañías y encuentra una opción que encaje mejor contigo. Gratis, rápido y sin complicaciones.",
+        "cta": {
+          "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-ahorra-fibra-movil&utm_content=hero-cta",
+          "label": "Comparar tarifas"
+        }
+      }
+    },
+    {
+      "component": "trust-bar",
+      "data": {
+        "items": [
+          { "text": "Comparador independiente" },
+          { "text": "Ahorra tiempo y dinero" },
+          { "text": "100% gratuito" }
+        ]
+      }
+    },
+    {
+      "component": "card-tarifa",
+      "data": {
+        "eyebrow": "QUÉ PUEDES COMPARAR",
+        "title": "Móvil, fibra o todo en uno",
+        "subtitle": "Cuatro tipos de tarifa y más de 30 compañías, en un solo comparador.",
+        "items": [
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-tarifa-movil.png",
+            "title": "Móvil",
+            "body": "Datos y llamadas adaptados a tu consumo.",
+            "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-ahorra-fibra-movil&utm_content=card-movil",
+            "linkLabel": "Ver tarifas"
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-tarifa-fibra.png",
+            "title": "Fibra",
+            "body": "Compara velocidad, precio y condiciones.",
+            "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-ahorra-fibra-movil&utm_content=card-fibra",
+            "linkLabel": "Ver tarifas"
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-tarifa-convergente.png",
+            "title": "Fibra + Móvil",
+            "body": "Reúne tus servicios en una sola tarifa.",
+            "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-ahorra-fibra-movil&utm_content=card-convergente",
+            "linkLabel": "Ver tarifas"
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-tarifa-tv.png",
+            "title": "Televisión",
+            "body": "Canales, plataformas y fútbol en una misma comparativa.",
+            "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-ahorra-fibra-movil&utm_content=card-tv",
+            "linkLabel": "Ver tarifas"
+          }
+        ]
+      }
+    },
+    {
+      "component": "pasos",
+      "data": {
+        "eyebrow": "EN 3 PASOS",
+        "title": "Tres pasos, sin complicaciones",
+        "items": [
+          { "number": "01", "title": "Selecciona", "body": "Elige el tipo de tarifa." },
+          { "number": "02", "title": "Compara", "body": "Revisa precio, cobertura y condiciones." },
+          { "number": "03", "title": "Decide", "body": "Escoge la opción que mejor encaja contigo." }
+        ]
+      }
+    },
+    {
+      "component": "lista-premium",
+      "data": {
+        "eyebrow": "ANTES DE DECIDIR",
+        "title": "Cuatro cosas que conviene revisar",
+        "items": [
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-aspecto-datos.png",
+            "title": "Datos móviles",
+            "body": "Elige solo los GB que realmente necesitas."
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-aspecto-cobertura.png",
+            "title": "Cobertura",
+            "_reconstructed": "Título ausente en la fuente (bug documentado, ver engine/components/lista-premium.html) — inferido del nombre del icono y del cuerpo de texto. Confirmar con el autor del copy original antes de usar en producción.",
+            "body": "Comprueba qué operadoras funcionan mejor en tu zona."
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-aspecto-paquetes.png",
+            "title": "Paquetes combinados",
+            "body": "Reunir varios servicios en una tarifa puede ayudarte a ahorrar."
+          },
+          {
+            "icon": "https://feebbodigital.com/creativities-library/paraycompara/2026/jul/icon-aspecto-condiciones.png",
+            "title": "Condiciones",
+            "_reconstructed": "Título ausente en la fuente (bug documentado, ver engine/components/lista-premium.html) — inferido del nombre del icono y del cuerpo de texto. Confirmar con el autor del copy original antes de usar en producción.",
+            "body": "Revisa permanencia y posibles costes adicionales."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Tu próxima tarifa, en menos de 5 minutos",
+        "body": "Compara tu tarifa actual y descubre si puedes pagar menos, sin compromiso.",
+        "cta": {
+          "href": "https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-ahorra-fibra-movil&utm_content=closing-cta",
+          "label": "Comparar tarifas"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Para y Compara",
+        "tagline": "Comparador independiente de tarifas de fibra, móvil y televisión.",
+        "disclosure": "Recibes este correo porque te registraste en Para y Compara.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Para y Compara. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-ahorra-fibra-movil"
+  }
+}

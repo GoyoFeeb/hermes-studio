@@ -1,0 +1,369 @@
+{
+  "brand": "audi",
+  "description": "Design tokens for Audi — ultra-premium German automotive brand. Created from real observation of audi.es on 2026-07-27.",
+  "version": "2.2.1",
+  "colors": {
+    "primary": "#000000",
+    "ctaBackground": "#000000",
+    "ctaText": "#FFFFFF",
+    "ctaHover": "#1a1a1a",
+    "textPrimary": "#000000",
+    "textBody": "#000000",
+    "textSecondary": "#67707F",
+    "textTertiary": "#999999",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "link": "#000000",
+    "lightBg": "#F5F5F5",
+    "mediumBg": "#67707F",
+    "darkBg": "#101319",
+    "deep": "#101319",
+    "light": "#67707F",
+    "lightAccent": "#FCFCFD",
+    "onBrandSecondary": "#ABB1C3",
+    "border": "#D9D9D9",
+    "borders": {
+      "card": "#D9D9D9",
+      "footer": "#D9D9D9"
+    },
+    "success": "#30D158",
+    "warning": "#FFD60A",
+    "error": "#FF453A",
+    "accentHaloLight": "#E5E5E5",
+    "footerSeparator": "#D9D9D9",
+    "footerBg": "#F5F5F5",
+    "footerText": "#67707F",
+    "heroOverlay": "rgba(0,0,0,0.3)",
+    "background": {
+      "white": "#FCFCFD",
+      "sectionAlt": "#F5F5F5",
+      "dark": "#101319"
+    },
+    "text": {
+      "primary": "#000000",
+      "body": "#000000",
+      "secondary": "#67707F",
+      "tertiary": "#999999"
+    },
+    "_note": "#FCFCFD (off-white) es la superficie clara predominante de Audi. #FFFFFF se reserva como blanco técnico para texto sobre fondos oscuros y zonas que necesiten máximo contraste o compatibilidad."
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "note": "Audi usa AudiType en su web (observado desde audi.es el 2026-07-27). No es segura en email. La cadena de fuentes de Audi ya incluye Arial como fallback primario — se usa Arial/Helvetica consistente con su identidad y segura en todos los clientes de correo.",
+    "displayFont": "'Inter', Arial, Helvetica, sans-serif",
+    "webFont": {
+      "family": "Inter",
+      "note": "Sustituto real de AudiType (2026-07-27). AudiType es la fuente propietaria de Audi AG — no se puede embeber en email. Inter es un sans-serif geométrico que comparte el carácter técnico y minimalista de AudiType: formas limpias, espaciado generoso, peso ligero disponible. Verificado HTTP 200 en fonts.gstatic.com el 2026-07-27. Pesos 300/400/700 elegidos porque el brand pack usa peso 300/400 para H1 y body.",
+      "weights": [
+        {
+          "weight": 300,
+          "url": "https://fonts.gstatic.com/s/inter/v19/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7W0Q5n-wU.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 400,
+          "url": "https://fonts.gstatic.com/s/inter/v19/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2ZL7W0Q5n-wU.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 700,
+          "url": "https://fonts.gstatic.com/s/inter/v19/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7W0Q5n-wU.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        }
+      ]
+    },
+    "headline": {
+      "hero": "32px",
+      "h1": "28px",
+      "h2": "22px",
+      "h3": "18px",
+      "h4": "16px"
+    },
+    "body": {
+      "large": "18px",
+      "normal": "16px",
+      "small": "14px",
+      "xsmall": "12px",
+      "legal": "11px"
+    },
+    "weights": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.1,
+      "hero": 1.15,
+      "normal": 1.4,
+      "relaxed": 1.6
+    },
+    "hero": {
+      "h1": {
+        "size": 32,
+        "weight": 300,
+        "lineHeight": 1.15,
+        "color": "#FFFFFF",
+        "mobile": {
+          "size": 26,
+          "lineHeight": 1.15
+        }
+      },
+      "subtitle": {
+        "size": 16,
+        "weight": 400,
+        "lineHeight": 1.4,
+        "color": "#FFFFFF",
+        "mobile": {
+          "size": 14
+        }
+      }
+    },
+    "h2Section": {
+      "size": 22,
+      "weight": 400,
+      "lineHeight": 1.25,
+      "color": "#000000"
+    },
+    "h3Card": {
+      "size": 16,
+      "weight": 500,
+      "lineHeight": 1.3,
+      "color": "#000000"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 400,
+      "lineHeight": 1.55,
+      "color": "#000000"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#000000"
+    },
+    "cta": {
+      "size": 16,
+      "weight": 500,
+      "letterSpacing": "1px"
+    },
+    "footer": {
+      "brand": {
+        "size": 12,
+        "weight": 400,
+        "color": "#000000"
+      },
+      "legal": {
+        "size": 11,
+        "weight": 400,
+        "color": "#67707F"
+      }
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 48,
+    "hero": 40,
+    "innerSection": "32px 24px",
+    "cta": "20px 0"
+  },
+  "radius": {
+    "cta": 0,
+    "ctaPill": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "Audi utiliza fondos sólidos en su identidad visual — sin degradados. La fotografía es el único adorno visual. Un degradado añadido contradiría la estética limpia, plana y técnica de la marca. Ver fotografia-primero.md §6."
+  },
+  "surfaces": {
+    "global": "#F5F5F5",
+    "white": "#FCFCFD",
+    "sectionLila": "#F5F5F5"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FCFCFD",
+      "textColor": "#000000"
+    },
+    "cta": {
+      "backgroundColor": "#000000",
+      "textColor": "#FFFFFF",
+      "borderRadius": 0,
+      "padding": "16px 36px",
+      "vml": true
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#D9D9D9",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "centrado",
+    "reason": "Audi es marca premium automotriz alemana — diseño editorial limpio, centrado, minimalista, sin decoración lateral. La web audi.es usa composición centrada y simétrica.",
+    "contentRhythm": {
+      "realSectionCount": 6,
+      "sections": [
+        { "type": "hero-fotografico", "translatable": true, "note": "Página A6 Sportback e-tron: hero con foto/video del modelo, título, CTA. Traducible directamente a hero-imagen." },
+        { "type": "stats-clave", "translatable": true, "note": "Bloque de datos técnicos: 340 kW / 4.5s / 773 km. Traducible a columns-3-beneficios-sin-icono como grid de specs." },
+        { "type": "editorial-foto-texto", "translatable": true, "note": "Destacados en carrusel: cada item es imagen + título corto + párrafo breve. Traducible a editorial-foto-texto* alternando variantes." },
+        { "type": "seccion-diseno", "translatable": true, "note": "Sección de diseño con imágenes de detalle (faros, silueta) y descripción breve. Traducible a editorial-foto-texto." },
+        { "type": "seccion-autonomia-carga", "translatable": true, "note": "Sección de autonomía y carga con datos técnicos e infografía. Traducible a editorial-foto-texto-inverso." },
+        { "type": "configurador-interactivo", "translatable": false, "note": "Configurador de producto en 3D interactivo — no se traduce a email." }
+      ],
+      "photographyWeight": "dominante",
+      "iconDensity": "nula",
+      "source": "observado en https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/ el 2026-08-01."
+    },
+    "brandStructure": {
+      "compositionArchetype": "editorial-foto-texto",
+      "signatureSections": [
+        {
+          "sourceSection": "hero de producto",
+          "visualPattern": "foto-full con capa de specs clave (potencia/aceleración/autonomía) integrada bajo la imagen",
+          "emailTranslation": "hero-imagen",
+          "why": "Audi usa hero de gran formato con el vehículo como protagonista absoluto. Las specs clave se integran sin romper la fotografía. La composición: vehículo en ángulo medio-bajo, carretera o fondo minimalista, sin texto sobre la imagen — todo el texto va debajo."
+        },
+        {
+          "sourceSection": "stats-clave (power specs strip)",
+          "visualPattern": "tres cifras destacadas con etiqueta corta debajo, sin iconos, sin decoración",
+          "emailTranslation": "columns-3-beneficios-sin-icono",
+          "why": "Audi presenta siempre 3 cifras clave del modelo en formato limpio: número grande + etiqueta corta. Es su sello estructural distintivo — aparece en la página de cada modelo como resumen aspiracional."
+        },
+        {
+          "sourceSection": "destacados / highlights carrusel",
+          "visualPattern": "bloques editoriales de imagen + título + body corto, alternando en grid (varios por fila en desktop, carrusel en mobile)",
+          "emailTranslation": "editorial-foto-texto / editorial-foto-texto-inverso",
+          "why": "Los destacados de Audi NO son tarjetas con icono — son bloques editoriales donde la fotografía explica el concepto (virtual mirrors, faros Matrix LED, interior panorámico). El email debe traducir esto como foto grande + texto breve, alternando el orden para mantener ritmo visual."
+        },
+        {
+          "sourceSection": "sección de diseño",
+          "visualPattern": "imagen de detalle (faros, parrilla, silueta) + titular de diseño + párrafo técnico breve",
+          "emailTranslation": "editorial-foto-texto",
+          "why": "Audi dedica una sección completa al diseño como argumento de compra. No es solo estética — cada línea tiene propósito aerodinámico. En email: foto del perfil del vehículo + copy sobre diseño aerodinámico."
+        },
+        {
+          "sourceSection": "sección interior y tecnología",
+          "visualPattern": "imagen del habitáculo (pantallas panorámicas, materiales) + texto sobre experiencia interior",
+          "emailTranslation": "editorial-foto-texto-inverso",
+          "why": "La sección de interior invierte la relación texto/imagen — Audi muestra el habitáculo como espacio envolvente. En email: texto a izquierda, foto interior a derecha, para variar el ritmo visual tras el bloque de diseño."
+        },
+        {
+          "sourceSection": "banda de cierre con CTA principal y configurador",
+          "visualPattern": "fondo oscuro, titular de cierre, CTA principal de conversión (Solicitar oferta / Configurar)",
+          "emailTranslation": "banda-cierre",
+          "why": "Audi cierra cada página de modelo con CTA dominante sobre fondo oscuro. La jerarquía es: titular de cierre breve + cuerpo opcional + CTA. Sin iconos ni decoración adicional — el peso está en la conversión."
+        }
+      ],
+      "mustAvoid": [
+        "No usar iconos ni emoji en ningún bloque — Audi no decora con iconos",
+        "No repetir intro-cta más de una vez — rompe el ritmo editorial que Audi construye con fotografía",
+        "No usar columns-3-beneficios con icono — usar siempre variante -sin-icono",
+        "No añadir trust-bar ni usp-cards — son bloques de servicios/institucionales, no de marca premium automotriz",
+        "No usar gradientes de fondo — Audi usa fondos sólidos (negro, blanco, gris claro #F5F5F5)"
+      ],
+      "source": "observado en https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/ el 2026-08-01"
+    }
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "Audi usa fotografía real de alta calidad editorial como elemento visual principal. Planos: gran angular para hero (coche en entorno, paisaje limpio), planos medios en detalle (faros Matrix LED, parrilla Singleframe, llantas). Iluminación: luz natural controlada — interiores con luz ambiental suave, exteriores en hora dorada con alto contraste. Composición: simétrica, centrada o con el vehículo desplazado ligeramente a la derecha siguiendo la dirección de la mirada (hacia adelante). Fondos: paisajes minimalistas, arquitectura moderna (hormigón, vidrio, acero), carreteras abiertas, entornos urbanos depurados. Color: fotografía de color natural — colores reales del vehículo destacan sin filtros ni saturaciones excesivas. Las imágenes llevan el peso visual absoluto de la comunicación — el texto es secundario y extremadamente minimalista.",
+    "source": "observado en https://www.audi.es el 2026-07-27",
+    "note": "Para hero-imagen, el prompt de generación debe pedir un Audi con tratamiento fotográfico Audi: ángulo medio-bajo, luz natural controlada, fondo limpio, carretera o paisaje minimalista, sin texto en la imagen. Transmitir precisión alemana, elegancia y tecnología."
+  },
+  "iconography": {
+    "style": "line-icon",
+    "monochrome": true,
+    "color": "#000000",
+    "source": "observado en https://www.audi.es el 2026-07-27",
+    "componentImplication": "Audi usa mínima iconografía. La fotografía es el único adorno visual de la marca. No usar emoji ni iconGlyph en beneficios — usar variante columns-3-beneficios-sin-icono. Audi confía en la fotografía como único elemento decorativo."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. Las metas color-scheme están forzadas a 'light only'."
+  },
+  "personalization": {
+    "status": "not-implemented",
+    "note": "isTestCampaign: true — sin personalización real."
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-audi-premium",
+    "content": ""
+  },
+  "assets": {
+    "logo": "",
+    "logoWidth": 138,
+    "logoHeight": 48,
+    "logoAlt": "Audi",
+    "headerPatternTile": "",
+    "note": "Logo de Audi es un SVG inline (anillos de Audi, viewBox 0 0 69 24). Para email se necesita una versión PNG del logo de Audi. Pendiente de capturar PNG desde audi.es o de fuentes oficiales. Mientras tanto, el header usará el nombre 'AUDI' como texto.",
+    "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+    "heroBannerWidth": 600,
+    "heroBannerHeight": 350
+  },
+  "voice": {
+    "tone": "editorial, premium, técnico, aspiracional, contenido, preciso",
+    "ctaDefault": "Descubrir el modelo",
+    "ctaSecondary": "Solicitar información",
+    "rhythm": {
+      "sentenceLength": "corta en titulares (4-8 palabras); párrafos breves en cuerpo (15-25 palabras). Sin retórica vacía.",
+      "mode": "afirmación elegante con imperativo suave",
+      "formality": "usted profesional (Audi España comunica en 'usted')",
+      "punctuationHabits": "Puntuación limpia. Sin exclamaciones. Uso de mayúsculas para modelos (A6 e-tron, RS 3). Sin guiones ni paréntesis innecesarios.",
+      "examples": [
+        "La referencia en innovación.",
+        "Diseñado para inspirar.",
+        "La tecnología encuentra su forma.",
+        "Precisión alemana. Emoción pura.",
+        "Nada es superfluo.",
+        "Cada detalle tiene un propósito."
+      ],
+      "source": "observado en https://www.audi.es el 2026-07-27. El titular de homepage 'Gama e-hybrid de Audi' y 'Emociones sin límite' son ejemplos del tono editorial contenido."
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.1",
+      "date": "2026-08-01",
+      "author": "02 — Brand Visual Analyst",
+      "changes": [
+        "Añadido layout.brandStructure desde observación real de https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/ — composición editorial-foto-texto con 6 signature sections mapeadas a módulos del motor.",
+        "Actualizado layout.contentRhythm.sections[] para reflejar la página del A6 Sportback e-tron (6 secciones reales, no la homepage genérica).",
+        "Añadidos mustAvoid: sin iconos/emoji, sin intro-cta repetido, sin trust-bar/usp-cards.",
+        "Brand-native requirement para validar el nuevo gate check-structural-differentiation (Gate 12)."
+      ]
+    },
+    {
+      "version": "2.2.1",
+      "date": "2026-07-27",
+      "author": "02 — Brand Visual Analyst",
+      "changes": [
+        "Pack CREADO desde cero con investigación de marca desde audi.es.",
+        "Versión 2.2.0 para compatibilidad con motor (requiere >= v2.2.0).",
+        "Colores y tipografía INFERIDOS de getComputedStyle sobre https://www.audi.es — colores exactos extraídos: #000000 (primary/text), #FCFCFD (surface white), #101319 (deep/dark), #67707F (secondary text), #ABB1C3 (onBrandSecondary).",
+        "Tipografía AudiType observada en web — no disponible para email. Se elige Inter como webFont alternativo (geométrico, técnico, minimalista).",
+        "Logo de Audi es SVG (anillos) — pendiente obtener PNG para email.",
+        "CTA: negro #000000 sobre blanco — estilo minimalista sin bordes redondeados (border-radius: 0).",
+        "photography.treatment, iconography.componentImplication y voice.rhythm observados directamente del sitio.",
+        "Layout: centrado, simétrico — alineado con la identidad visual de Audi España.",
+        "Fotografía como elemento dominante — patrón fotografia-primero."
+      ]
+    }
+  ]
+}

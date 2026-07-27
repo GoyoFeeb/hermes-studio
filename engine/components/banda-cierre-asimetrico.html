@@ -1,0 +1,52 @@
+<!-- banda-cierre-asimetrico.html — VARIANTE asimétrica de banda-cierre.html. Mismo contrato de
+     datos (closing.{title,body} + cta.href/cta.label via include). REDISEÑADO 2026-07-24 (ronda
+     "romper composiciones repetidas" — ver engine/CHANGELOG.md/patterns/institutional.md §9):
+     hasta esta fecha era título+cuerpo a la izquierda (62%) + CTA a la derecha (38%), vertical-
+     align:middle — el mismo esqueleto exacto que intro-cta-asimetrico.html (texto+caja en la
+     misma fila), solo con la caja más grande. Como banda de CIERRE (el último mensaje del email,
+     no uno de tránsito como intro-cta), ahora tiene ritmo propio: título+cuerpo a todo el ancho
+     arriba (como una firma editorial, no una columna de 62%) y el CTA suelto debajo, alineado a
+     la IZQUIERDA (no centrado como el hero, no en columna como intro-cta) — shrink-to-fit, no
+     `width:100%`, para que lea como una acción puntual al final del mensaje, no como un botón
+     de ancho completo repitiendo el hero. Alineación izquierda (no centrada) es lo que la
+     mantiene dentro de la familia "asimétrico" pese a ya no tener 2 columnas. En mobile no hay
+     nada que apilar (ya es todo una columna) — se simplifica también el CSS responsive de este
+     componente respecto a la versión anterior. Elegir esta variante frente a la centrada es una
+     decisión de marca — ver brand-tokens.json → layout.sectionStyle y patterns/institutional.md
+     §7. gradients.heroBackground — background-image adicional sobre colors.deep, degrada a
+     bgcolor sólido si no hay soporte (ver engine/CHANGELOG.md, "gradientes bulletproof"). -->
+<tr>
+<td style="background-color:{{token:colors.deep}};background-image:{{token:gradients.heroBackground}};padding:0;" class="header-bg" background="{{token:assets.headerPatternTile}}" bgcolor="{{token:colors.deep}}">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="left" class="mobile-pad-sm" style="padding:52px 40px 0;">
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:26px;font-weight:800;color:#FFFFFF;margin:0 0 10px;line-height:1.18;letter-spacing:-0.4px;text-align:left;mso-line-height-rule:exactly;">
+          {{data:closing.title}}
+        </h2>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:400;color:{{token:colors.onBrandSecondary}};margin:0;line-height:1.5;text-align:left;mso-line-height-rule:exactly;">
+          {{data:closing.body}}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td align="left" class="mobile-pad-sm" style="padding:24px 40px 0;">
+        <!-- width="280" fija el ancho de la envoltura para que el width:100% interno de
+             cta-bulletproof.html resuelva a 280px (mismo valor que ya usa su propio fallback
+             VML para MSO) en vez de expandirse a todo el ancho disponible — así el CTA queda
+             de verdad shrink-to-fit y alineado a la izquierda, no una pastilla de ancho completo. -->
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+          <tr>
+            <td align="center" width="280" class="mobile-full" style="padding:0;">
+              {{include:cta-bulletproof}}
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 40px 48px;">&nbsp;</td>
+    </tr>
+  </table>
+</td>
+</tr>

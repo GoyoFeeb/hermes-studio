@@ -1,0 +1,142 @@
+{
+  "_comment": "Tarífalo — 2026-ago-tarifalo-revision-factura-luz-gas. Campaña estacional: revisión de factura de luz y gas antes de fin de verano. Hero: hero-marca-tarifalo (sin cifra, sin imagen CDN). Trust-bar omitido (sin 3 claims confirmados). card-tarifa-3 con Luz/Gas/Luz+Gas. lista-premium con 4 puntos de revisión.",
+  "metadata": {
+    "campaignName": "2026-ago-tarifalo-revision-factura-luz-gas",
+    "clientName": "Tarífalo",
+    "subjectLine": "¿Has revisado tu factura de luz y gas este verano?",
+    "preheader": "Compara tarifas de luz y gas y comprueba si tu contrato sigue siendo la mejor opción. Gratis y sin compromiso — Tarífalo",
+    "fromName": "Tarífalo",
+    "fromEmail": "newsletter@tarifalo.com",
+    "version": "1.0.0",
+    "createdAt": "2026-08-01",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/tarifalo/tokens/brand-tokens.json",
+  "pattern": "saving",
+  "modules": [
+    {
+      "component": "hero-marca-tarifalo",
+      "data": {
+        "brandName": "Tarífalo",
+        "h1": "Revisa tu factura de luz y gas antes de que acabe el verano",
+        "subtitle": "Los contratos se renuevan, los precios cambian. Compara tu tarifa actual con otras opciones y comprueba si sigues pagando un precio ajustado a tu consumo.",
+        "cta": {
+          "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-tarifalo-revision-factura-luz-gas&utm_content=hero-cta",
+          "label": "Comparar ahora"
+        }
+      }
+    },
+    {
+      "component": "card-tarifa-3",
+      "data": {
+        "eyebrow": "QUÉ PUEDES COMPARAR",
+        "title": "Luz, gas o ambas: tú eliges",
+        "subtitle": "Compara tus tarifas actuales con otras comercializadoras en menos de 2 minutos.",
+        "items": [
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luz-hd.png",
+            "title": "Luz",
+            "body": "Compara tarifas de electricidad y descubre si tu tarifa actual sigue siendo la más ventajosa para tu consumo.",
+            "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-tarifalo-revision-factura-luz-gas&utm_content=card-luz",
+            "linkLabel": "Comparar tarifas de luz"
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-gas-hd.png",
+            "title": "Gas",
+            "body": "Encuentra una tarifa de gas natural que se adapte mejor a tu hogar y a tu consumo real.",
+            "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-tarifalo-revision-factura-luz-gas&utm_content=card-gas",
+            "linkLabel": "Comparar tarifas de gas"
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luzgas-hd.png",
+            "title": "Luz + Gas",
+            "body": "Combina ambas en una misma comercializadora: menos facturas y más sencillez en un solo proveedor.",
+            "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-tarifalo-revision-factura-luz-gas&utm_content=card-luzgas",
+            "linkLabel": "Comparar tarifas combinadas"
+          }
+        ]
+      }
+    },
+    {
+      "component": "pasos",
+      "data": {
+        "eyebrow": "EN 3 PASOS",
+        "title": "Revisar y comparar es muy sencillo",
+        "items": [
+          {
+            "number": "01",
+            "title": "Indica tu consumo",
+            "body": "Dinos cuánto consumes de luz y gas para que podamos buscar tarifas ajustadas a tu perfil."
+          },
+          {
+            "number": "02",
+            "title": "Compara ofertas",
+            "body": "Revisa las tarifas disponibles de múltiples comercializadoras y compáralas con tu contrato actual."
+          },
+          {
+            "number": "03",
+            "title": "Decide con tranquilidad",
+            "body": "Elige la opción que mejor encaje contigo. Sin prisas, sin compromiso, sin permanencia."
+          }
+        ]
+      }
+    },
+    {
+      "component": "lista-premium",
+      "data": {
+        "eyebrow": "REVISIÓN DE FACTURA",
+        "title": "Qué mirar antes de comparar",
+        "items": [
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luz-hd.png",
+            "title": "Consumo",
+            "body": "Revisa cuántos kWh has consumido los últimos meses. Tu tarifa debería ajustarse a tu consumo real, no al de hace un año."
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-gas-hd.png",
+            "title": "Precio por kWh",
+            "body": "El precio que pagas por cada kWh es el factor que más influye en tu factura. Compara precios entre comercializadoras y comprueba si el tuyo está en línea con el mercado."
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luzgas-hd.png",
+            "title": "Permanencia y condiciones",
+            "body": "Revisa si tienos permanencia, cómo son las condiciones de renovación y si el precio sube pasado el primer año."
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luz-hd.png",
+            "title": "Servicios y revisiones",
+            "body": "Algunas tarifas incluyen servicios extra (mantenimiento, seguros) que quizá no necesitas. Revisa si puedes simplificar."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Comprueba si tu tarifa sigue compensando",
+        "body": "Revisar tus facturas de luz y gas te lleva menos de 2 minutos y puede ayudarte a encontrar una opción mejor para tu hogar.",
+        "cta": {
+          "href": "https://tarifalo.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-tarifalo-revision-factura-luz-gas&utm_content=closing-cta",
+          "label": "Comparar ahora"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Tarífalo",
+        "tagline": "Comparador de tarifas de luz y gas — encuentra la tarifa que mejor se adapta a tu hogar",
+        "disclosure": "Recibes este correo porque te registraste en Tarífalo.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Tarífalo. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-ago-tarifalo-revision-factura-luz-gas"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "hermes-newsletter-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema multiagente para automatizar newsletters HTML premium (engine/, motor HTML+juice) con Hermes Agent. El pipeline React Email se archivó en F4 — ver _archive/f4-react-email-pipeline/README.md",
+  "scripts": {
+    "create-campaign": "npx tsx scripts/create-campaign.ts",
+    "preview-html": "npx tsx scripts/preview-html.ts",
+    "build-newsletter": "node engine/build-newsletter.js",
+    "production-gate": "npm run production-gate-motor --",
+    "check-parity": "npx tsx scripts/check-parity.ts",
+    "check-control-files": "npx tsx scripts/check-control-files.ts",
+    "production-gate-motor": "npx tsx scripts/production-gate-motor.ts",
+    "check-engine": "npx tsx scripts/check-engine-integrity.ts",
+    "capture-brand-site": "npx tsx scripts/capture-brand-site.ts",
+    "generate-hero": "npx tsx scripts/generate-hero.ts",
+    "validate-hero": "npx tsx scripts/validate-hero-component.ts",
+    "generate-hero-image": "npx tsx scripts/generate-hero-image.ts",
+    "check-column-balance": "npx tsx scripts/check-column-balance.ts",
+    "check-brand-pack-completeness": "npx tsx scripts/check-brand-pack-completeness.ts",
+    "check-contrast": "npx tsx scripts/check-contrast.ts",
+    "check-production-readiness": "npx tsx scripts/check-production-readiness.ts",
+    "check-hero-decision": "npx tsx scripts/check-hero-decision.ts",
+    "check-structural-differentiation": "npx tsx scripts/check-structural-differentiation.ts",
+    "test": "node --test",
+    "legacy:validate-newsletter": "npx tsx scripts/validate-newsletter.ts",
+    "legacy:check-links": "npx tsx scripts/check-links.ts",
+    "legacy:validate-claims": "npx tsx scripts/validate-claims.ts",
+    "legacy:production-gate-react-email": "npx tsx scripts/production-gate.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "juice": "^12.1.1",
+    "playwright": "^1.61.1",
+    "sharp": "^0.35.3",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3"
+  }
+}

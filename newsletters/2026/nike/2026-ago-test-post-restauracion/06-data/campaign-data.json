@@ -1,0 +1,92 @@
+{
+  "_comment": "TEST POST-RESTAURACIÓN — 2026-08-01. Verifica que el motor completo (engine + componentes + patrones + schema) funciona tras la restauración de CHANGELOG.md.",
+  "metadata": {
+    "campaignName": "2026-ago-test-post-restauracion",
+    "clientName": "Nike",
+    "subjectLine": "Nike — Test de verificación post-restauración",
+    "preheader": "Verificación completa del sistema de newsletters tras restauración del changelog del motor.",
+    "fromName": "Nike",
+    "fromEmail": "noreply@newsletter.nike.com",
+    "version": "1.0.0",
+    "createdAt": "2026-08-01",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/nike/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://placeholder.invalid/nike/swoosh.png",
+        "logoAlt": "Nike",
+        "logoWidth": 80,
+        "logoHeight": 28,
+        "label": "NIKE"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+        "bannerAlt": "Nike — test de verificación del motor post-restauración",
+        "brandName": "Nike",
+        "h1": "Sistema verificado",
+        "subtitle": "El motor de newsletters funciona correctamente tras la restauración del changelog. 31 tests pasan, 12 brands disponibles, 22 campañas intactas.",
+        "cta": {
+          "href": "https://nike.com/es/",
+          "label": "Ver estado"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Componentes verificados",
+        "highlight": "Motor completo operativo post-restauración",
+        "highlightNote": "Test ejecutado el 2026-08-01 — todos los componentes, adaptadores y patrones funcionan correctamente",
+        "items": [
+          {
+            "title": "Engine íntegro",
+            "body": "38 archivos del motor coinciden con el lockfile. check-engine, build-newsletter y todos los gates de verificación operativos."
+          },
+          {
+            "title": "31 tests pasan",
+            "body": "19 tests de gramática de patrón + 12 tests unitarios. Cobertura de schema, adaptadores, brand tokens y montaje completo."
+          },
+          {
+            "title": "12 brands activas",
+            "body": "Nike, BMW, Audi, Spotify, Aesop, Rolex, Tarífalo, UAX, Adeslas, Óptica2000, Worn Wear, Apple. 22 campañas históricas intactas."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Sistema listo para producción",
+        "body": "El pipeline completo de 10 agentes, el motor de renderizado HTML+juice, y los 12 gates de verificación operan sin errores tras la restauración.",
+        "cta": {
+          "href": "https://nike.com/es/",
+          "label": "Campañas activas"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Nike",
+        "tagline": "Just Do It",
+        "disclosure": "Este es un test interno de verificación post-restauración del sistema de newsletters.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Nike, Inc. [DIRECCIÓN FÍSICA — pendiente del cliente]. Todos los derechos reservados."
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-ago-test-post-restauracion"
+  }
+}

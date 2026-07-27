@@ -1,0 +1,125 @@
+{
+  "_comment": "Campaña Tarífalo — Compara Luz (Julio 2026). Sigue el schema de engine/campaign-data.schema.json para el patrón 'saving'.",
+  "metadata": {
+    "campaignName": "2026-jul-tarifalo-compara-luz",
+    "clientName": "Tarífalo",
+    "subjectLine": "¿Pagas demasiado por la luz? — Compara y descubre opciones para ti",
+    "preheader": "Compara tarifas de luz en menos de un minuto. Gratis, rápido y sin compromiso. — Tarífalo",
+    "fromName": "Tarífalo",
+    "fromEmail": "newsletter@tarifalo.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-22",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/tarifalo/tokens/brand-tokens.json",
+  "pattern": "saving",
+  "modules": [
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/tarifalo/hero-banner.png",
+        "bannerAlt": "Ilustración abstracta en tonos azules de Tarífalo, sin texto, con composición cargada a la derecha para dejar espacio al titular",
+        "brandName": "Tarífalo",
+        "h1": "¿Pagas demasiado por la luz?",
+        "subtitle": "Compara ofertas de compañías líderes y encuentra una tarifa adaptada a tu consumo.",
+        "cta": {
+          "href": "https://tarifalo.com/comparador/luz/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-tarifalo-compara-luz&utm_content=hero-cta",
+          "label": "Comparar tarifas"
+        }
+      }
+    },
+    {
+      "component": "trust-bar",
+      "data": {
+        "items": [
+          { "text": "Comparación entre diferentes comercializadoras" },
+          { "text": "Información clara para decidir" },
+          { "text": "Cambio sin interrupción del suministro*" }
+        ]
+      }
+    },
+    {
+      "component": "card-tarifa-3",
+      "data": {
+        "eyebrow": "POR QUÉ TARÍFALO",
+        "title": "Comparar nunca fue tan fácil",
+        "subtitle": "Descubre por qué miles de usuarios confían en Tarífalo para encontrar la mejor tarifa de luz.",
+        "items": [
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luz-hd.png",
+            "title": "Gratis y sin compromiso",
+            "body": "Compara diferentes opciones sin coste.",
+            "href": "https://tarifalo.com/comparador/luz/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-tarifalo-compara-luz&utm_content=card-1",
+            "linkLabel": "Ver ofertas"
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-gas-hd.png",
+            "title": "Resultados personalizados",
+            "body": "Las ofertas se ajustan a tu perfil y consumo.",
+            "href": "https://tarifalo.com/comparador/luz/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-tarifalo-compara-luz&utm_content=card-2",
+            "linkLabel": "Ver ofertas"
+          },
+          {
+            "icon": "https://tarifalo.com/wp-content/uploads/2023/03/icono-luzgas-hd.png",
+            "title": "Rápido y sencillo",
+            "body": "El proceso puede completarse en pocos pasos.",
+            "href": "https://tarifalo.com/comparador/luz/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-tarifalo-compara-luz&utm_content=card-3",
+            "linkLabel": "Ver ofertas"
+          }
+        ]
+      }
+    },
+    {
+      "component": "pasos",
+      "data": {
+        "eyebrow": "CÓMO FUNCIONA",
+        "title": "Tres pasos, sin complicaciones",
+        "items": [
+          {
+            "number": "01",
+            "title": "Cuéntanos cómo consumes",
+            "body": "Selecciona algunos datos básicos sobre tu vivienda, perfil y consumo."
+          },
+          {
+            "number": "02",
+            "title": "Comparamos las opciones",
+            "body": "Analizamos las diferentes ofertas disponibles para ti."
+          },
+          {
+            "number": "03",
+            "title": "Elige tu tarifa",
+            "body": "Revisa las alternativas y selecciona la que mejor encaje contigo."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Descubre si puedes pagar menos por la luz",
+        "body": "Completa el comparador y encuentra ofertas ajustadas a tu perfil.",
+        "cta": {
+          "href": "https://tarifalo.com/comparador/luz/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-tarifalo-compara-luz&utm_content=closing-cta",
+          "label": "Empezar a comparar"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Tarífalo",
+        "tagline": "Comparador de tarifas de luz",
+        "disclosure": "Recibes este correo porque te registraste en Tarífalo.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Tarífalo. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-tarifalo-compara-luz"
+  }
+}

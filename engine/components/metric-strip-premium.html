@@ -1,0 +1,58 @@
+<!-- metric-strip-premium.html — tira de métricas premium para marcas automotrices/de lujo (2026-08-01,
+    campaña Audi A6 Sportback e-tron). Motivo real, no aspiracional: el brand pack de Audi documenta
+    que la marca presenta SIEMPRE 3 cifras clave del modelo en formato limpio (número grande +
+    etiqueta corta) como sello estructural distintivo (brandStructure.signatureSections[1]
+    "stats-clave"). El componente existente columns-3-beneficios-sin-icono añade una caja highlight
+    inferior con "100% eléctrica" y usa un layout de tarjeta con fondo surfaces.sectionLila que
+    contradice el diseño editorial limpio de Audi. Este componente es la representación correcta
+    de una stats strip premium: sin caja highlight, sin iconos, sin cards — solo números grandes,
+    labels breves, y divisores finos entre métricas. Diseñado para marcas donde las métricas son
+    el contenido, no un adorno.
+
+    Contrato de datos:
+      - title (opcional): título de la sección
+      - items[]: { value, label }
+        value: número/cifra grande, ej. "340 kW"
+        label: descripción breve, ej. "Potencia Launch Control"
+
+    Tokens: surfaces.white/global para fondo, colors.primary para values,
+            colors.text.secondary para labels.
+    Mobile: apila las métricas en una columna con separadores horizontales.
+    Email compatible: tablas puras, dimensiones relativas.
+    Adaptador: metricItems -> withCellGeometry(items, items.length) para colWidth/cellPad.
+    Notas: no tiene caja highlight, ni iconos, ni cards — es solo una tira de datos limpia. -->
+<tr>
+<td style="background-color:{{token:surfaces.white}};padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <!-- Título opcional de la sección -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:48px 24px 0;">
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:22px;font-weight:400;color:{{token:colors.primary}};margin:0;line-height:1.25;letter-spacing:-0.3px;text-align:center;mso-line-height-rule:exactly;">{{data:metricSection.title}}</h2>
+      </td>
+    </tr>
+    <!-- Tira de métricas: números grandes + labels breves -->
+    <tr>
+      <td class="mobile-pad-sm" style="padding:32px 24px 48px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>{{#each:metricItems}}
+            <td style="width:{{data:colWidth}};padding:{{data:cellPad}};vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
+                <tr>
+                  <td align="center" style="padding:0 0 4px;">
+                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:{{token:colors.primary}};line-height:1.1;mso-line-height-rule:exactly;">{{data:value}}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:0;">
+                    <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:400;color:{{token:colors.text.secondary}};margin:0;line-height:1.4;text-align:center;mso-line-height-rule:exactly;">{{data:label}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>{{/each}}
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

@@ -1,0 +1,92 @@
+{
+  "system": "Para y Compara Email Design System",
+  "version": "1.0.0",
+  "colors": {
+    "purple": {
+      "primary": "#5E2E91",
+      "deep": "#3E244D",
+      "light": "#7B1FA2",
+      "function": "Marca — header, títulos, iconos, trust bar"
+    },
+    "coral": {
+      "cta": "#FF5A3C",
+      "function": "Acción — solo CTA principal"
+    },
+    "neutral": {
+      "white": "#FFFFFF",
+      "lila": "#F8F5FC",
+      "exterior": "#F4F3F9",
+      "textPrimary": "#29262D",
+      "textSecondary": "#66616A",
+      "textTertiary": "#99939B",
+      "border": "#EDE7F3",
+      "borderFooter": "#DCCBD9",
+      "trustBar": "#EAE0EA"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "scale": {
+      "h1": { "desktop": 30, "mobile": 26, "weight": 800, "lineHeight": 1.15 },
+      "h2": { "desktop": 22, "mobile": 20, "weight": 800, "lineHeight": 1.2 },
+      "h3": { "desktop": 16, "mobile": 15, "weight": 700, "lineHeight": 1.25 },
+      "body": { "desktop": 16, "mobile": 15, "weight": 400, "lineHeight": 1.55 },
+      "bodySmall": { "desktop": 13, "mobile": 13, "weight": 400, "lineHeight": 1.45 },
+      "micro": { "desktop": 12, "mobile": 11, "weight": 400, "lineHeight": 1.4 },
+      "eyebrow": { "desktop": 12, "mobile": 12, "weight": 700, "lineHeight": 1.3, "letterSpacing": 2.5 },
+      "cta": { "desktop": 16, "mobile": 15, "weight": 700, "lineHeight": 1.4, "letterSpacing": 0.5 }
+    }
+  },
+  "spacing": {
+    "scale": [4, 8, 12, 16, 24, 32, 40, 48],
+    "padding": {
+      "lateralDesktop": 24,
+      "lateralMobile": 16,
+      "moduleTop": 40,
+      "moduleBottom": 36,
+      "ctaFinalTop": 44,
+      "ctaFinalBottom": 40,
+      "footerTop": 28,
+      "footerBottom": 24
+    },
+    "card": {
+      "padding": "22px 18px 18px",
+      "iconTitleGap": 12,
+      "titleBodyGap": 6
+    }
+  },
+  "components": {
+    "cta": {
+      "primary": {
+        "backgroundColor": "#FF5A3C",
+        "textColor": "#FFFFFF",
+        "borderRadius": 50,
+        "padding": "14px 32px",
+        "fontSize": 16,
+        "fontWeight": 700
+      }
+    },
+    "card": {
+      "borderRadius": 16,
+      "borderColor": "#EDE7F3",
+      "iconRadius": 12,
+      "iconBackground": "#F3E5F5"
+    },
+    "trustBar": {
+      "backgroundColor": "#EAE0EA",
+      "borderRadius": 50,
+      "iconRadius": 50,
+      "iconBackground": "#5E2E91",
+      "iconColor": "#FFFFFF"
+    }
+  },
+  "responsive": {
+    "breakpoints": {
+      "desktop": 600,
+      "tablet": 480,
+      "mobile": 375,
+      "mobileSmall": 320
+    },
+    "classes": ["mobile-stack", "mobile-full", "mobile-hide", "mobile-img", "mobile-padding"]
+  }
+}

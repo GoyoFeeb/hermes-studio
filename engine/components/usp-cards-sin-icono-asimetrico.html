@@ -1,0 +1,72 @@
+<!-- usp-cards-sin-icono-asimetrico.html — variante SIN icono de usp-cards-asimetrico.html
+     (2026-07-24, campaña Spotify). Mismo motivo que usp-cards-sin-icono.html (ver ese archivo):
+     el schema exigía icon en usp[] y Spotify prohíbe explícitamente forzar emoji genérico. Esta
+     variante combina la cabecera asimétrica REDISEÑADA de usp-cards-asimetrico.html (2026-07-24,
+     ronda "romper composiciones repetidas" — eyebrow en su fila, título+insignia-chip shrink-to-
+     fit en la siguiente, cuerpo a todo el ancho debajo — ya NO texto 68%/insignia 32% en 2
+     columnas de igual peso, ver ese archivo para el razonamiento completo) con las 3 tarjetas sin
+     icono (barrita de color en vez de glifo, igual que usp-cards-sin-icono.html). Elegir esta
+     frente a la centrada sin-icono es una decisión de marca — ver brand-tokens.json →
+     layout.sectionStyle. Datos: uspSection.{eyebrow,title,body,badge} + usp[0..2].{title,body}
+     (SIN icon). -->
+<tr>
+<td style="background-color:{{token:surfaces.sectionLila}};padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td class="mobile-pad-sm" style="padding:52px 32px 4px;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:{{token:colors.light}};margin:0;line-height:16px;letter-spacing:3px;text-transform:uppercase;text-align:left;mso-line-height-rule:exactly;">
+          {{data:uspSection.eyebrow}}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td class="mobile-pad-sm" style="padding:4px 32px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>
+            <td align="left" style="vertical-align:top;" class="mobile-stack">
+              <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:22px;font-weight:800;color:{{token:colors.primary}};margin:0;line-height:1.25;letter-spacing:-0.3px;text-align:left;mso-line-height-rule:exactly;">
+                {{data:uspSection.title}}
+              </h2>
+            </td>
+            <td align="right" width="1" style="white-space:nowrap;padding:3px 0 0 16px;vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="background-color:{{token:colors.primary}};border-radius:6px;">
+                <tr>
+                  <td align="center" style="padding:7px 12px;">
+                    <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;color:#FFFFFF;margin:0;line-height:1.3;letter-spacing:0.2px;white-space:nowrap;text-align:center;mso-line-height-rule:exactly;">&#9733; {{data:uspSection.badge}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td class="mobile-pad-sm" style="padding:10px 32px 28px;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.text.secondary}};margin:0;line-height:1.6;text-align:left;mso-line-height-rule:exactly;">
+          {{data:uspSection.body}}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td class="mobile-pad-sm" style="padding:0 24px 52px;">{{#each:uspRows}}
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>{{#each:items}}
+            <td style="width:{{data:colWidth}};padding:{{data:cellPad}};vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:#FFFFFF;border:1px solid {{token:colors.borders.card}};border-radius:{{token:radius.card}}px;box-shadow:{{token:shadows.card}};">
+                <tr><td align="center" style="padding:22px 14px;">
+                  <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto 12px;">
+                    <tr><td width="24" height="2" style="background-color:{{token:colors.light}};border-radius:1px;font-size:0;line-height:0;">&nbsp;</td></tr>
+                  </table>
+                  <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:{{token:colors.primary}};margin:0 0 4px;line-height:1.3;text-align:center;mso-line-height-rule:exactly;">{{data:title}}</h3>
+                  <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;color:{{token:colors.text.secondary}};margin:0;line-height:1.45;text-align:center;mso-line-height-rule:exactly;">{{data:body}}</p>
+                </td></tr>
+              </table>
+            </td>{{/each}}
+          </tr>
+        </table>{{/each}}
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

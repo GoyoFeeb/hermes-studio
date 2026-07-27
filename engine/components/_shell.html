@@ -1,0 +1,66 @@
+<!-- _shell.html — envoltorio de pagina (doctype/head/preheader/tabla exterior). RESTAURADO 2026-07-21 (ver engine/CHANGELOG.md). Datos: subject, preheader. Tokens: surfaces.global, colors.background.white. Contiene {{slot:body}}.
+     {{slot:fontface}} añadido 2026-07-25 (ronda "vocabulario visual" — ver engine/CHANGELOG.md,
+     "Tipografía real por marca: de un hardcode global a un mecanismo de verdad"): antes el
+     @font-face de 'Sora' (la única fuente web real del sistema, usada solo por tarifalo) estaba
+     escrito aquí a pelo, cargándose para las 9 marcas por igual aunque solo una lo usara. Ahora
+     se calcula en lib/assemble.js desde tokens.typography.webFont (si el pack lo declara) y se
+     inyecta con el mismo mecanismo que {{slot:body}} — reemplazo de texto plano ANTES de
+     renderTemplate, para que las URLs de fuente (con posibles "&") no pasen por el escapado HTML
+     de {{data:}}. Marcas sin typography.webFont no cargan ningún @font-face — nada que hacer,
+     siguen con su fallback de sistema tal cual. -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" dir="ltr" lang="es">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="x-apple-disable-message-reformatting" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="color-scheme" content="light" />
+<meta name="supported-color-schemes" content="light" />
+<title>{{data:subject}}</title>
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+<![endif]-->
+<style type="text/css">
+{{slot:fontface}}
+.hidden-preheader {
+  display:none !important; overflow:hidden !important; line-height:1px !important;
+  opacity:0 !important; max-height:0 !important; max-width:0 !important;
+  font-size:1px !important; font-family:Arial,Helvetica,sans-serif !important;
+  color:#FFFFFF !important; mso-hide:all !important;
+  /* color aquí es irrelevante (texto oculto), se deja literal como en la fuente */
+}
+@media only screen and (max-width:599px) {
+  .mobile-stack { display:block !important; width:100% !important; }
+  .mobile-full { width:100% !important; }
+  .mobile-hide { display:none !important; }
+  .mobile-img { width:100% !important; height:auto !important; }
+  .mobile-pad-sm { padding-left:24px !important; padding-right:24px !important; }
+  .mobile-hero-h1 { font-size:26px !important; line-height:1.18 !important; }
+  .mobile-hero-stat { font-size:32px !important; }
+  .mobile-section-title { font-size:20px !important; }
+}
+.yshortcuts a { border-bottom:none !important; }
+a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
+</style>
+</head>
+<body style="margin:0;padding:0;background-color:{{token:surfaces.global}};font-family:Arial,Helvetica,sans-serif;">
+<!--[if mso]><style type="text/css">body,table,td,p,a,li,blockquote{font-family:Arial,Helvetica,sans-serif!important;}</style><![endif]-->
+
+<!-- PREHEADER -->
+<div class="hidden-preheader" style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0;font-size:1px;font-family:Arial,Helvetica,sans-serif;color:#FFFFFF;mso-hide:all;">
+  {{data:preheader}}
+</div>
+
+<!-- OUTER -->
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:{{token:surfaces.global}};min-width:100%;">
+<tr><td align="center" style="padding:0;">
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="max-width:600px;background-color:{{token:colors.background.white}};margin:0 auto;">
+
+{{slot:body}}
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>

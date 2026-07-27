@@ -1,0 +1,151 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-uax-fp-online",
+    "clientName": "UAX — Universidad Alfonso X el Sabio",
+    "subjectLine": "Transforma tu futuro con la FP Online de UAX",
+    "preheader": "Descubre la FP Oficial Online que se adapta a ti.",
+    "fromName": "UAX Formación Profesional",
+    "fromEmail": "info@uax.com",
+    "version": "2.0.0",
+    "createdAt": "2026-07-22",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/uax/tokens/brand-tokens.json",
+  "pattern": "institutional",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://www.uax.com/assets/uax/images/uax_fp.png",
+        "logoAlt": "UAX Universidad Alfonso X el Sabio — FP Oficial Online",
+        "logoWidth": 160,
+        "logoHeight": 59,
+        "label": "FP Oficial Online"
+      }
+    },
+    {
+      "component": "hero-centrado",
+      "data": {
+        "brandName": "FP OFICIAL ONLINE · UAX",
+        "h1": "Transforma tu futuro",
+        "subtitle": "Formación que te acerca a lo que quieres ser. FP Oficial Online con la calidad académica de UAX y la flexibilidad que tu vida necesita.",
+        "cta": {
+          "href": "https://www.uax.com/fps/online?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-uax-fp-online&utm_content=hero-cta",
+          "label": "Descubre tu titulación"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Estudia a tu ritmo. Avanza hacia tu futuro.",
+        "body": "Da el siguiente paso con una formación oficial, flexible y orientada al mundo laboral. Estudia online con el respaldo académico y la experiencia universitaria de UAX.",
+        "cta": {
+          "href": "https://www.uax.com/fps/online?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-uax-fp-online&utm_content=intro-cta",
+          "label": "Descubre tu titulación"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios",
+      "data": {
+        "title": "¿Por qué elegir UAX FP Online?",
+        "highlight": "50% de la matrícula* en tu primera modalidad",
+        "highlightNote": "*Consultar condiciones en uax.com",
+        "items": [
+          {
+            "icon": "📋",
+            "title": "Garantía de prácticas 100%",
+            "body": "Realiza tus prácticas en empresas reales y da el salto al mundo laboral con total confianza."
+          },
+          {
+            "icon": "💻",
+            "title": "Modalidad online con ventajas",
+            "body": "Compagina tu vida personal y profesional con una metodología online flexible y acompañamiento docente cercano."
+          },
+          {
+            "icon": "🎯",
+            "title": "Nuevos cursos formativos sin coste",
+            "body": "Amplía tu perfil con cursos y microcredenciales incluidos, especializándote en las áreas con más demanda laboral."
+          }
+        ]
+      }
+    },
+    {
+      "component": "category-grid",
+      "data": {
+        "title": "Elige tu camino profesional",
+        "intro": "Más de 19 titulaciones de FP online en áreas clave.",
+        "categories": [
+          { "icon": "🏥", "title": "Salud", "subtitle": "Higiene Bucodental, Laboratorio Clínico, Dietética..." },
+          { "icon": "💼", "title": "Business & Tech", "subtitle": "Marketing, Administración y Finanzas" },
+          { "icon": "⚙️", "title": "Ingeniería", "subtitle": "DAM, DAW, ASIR" },
+          { "icon": "📚", "title": "Educación", "subtitle": "Integración Social" },
+          { "icon": "🏃", "title": "Deporte", "subtitle": "Acondicionamiento Físico" }
+        ],
+        "cta": {
+          "href": "https://www.uax.com/fps/online?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-uax-fp-online&utm_content=grid-cta",
+          "label": "Ver todas las titulaciones"
+        }
+      }
+    },
+    {
+      "component": "usp-cards",
+      "data": {
+        "eyebrow": "Respaldo UAX",
+        "title": "Más que formación online",
+        "body": "Detrás de cada titulación FP de UAX hay una universidad con más de 30 años de historia, reconocida por las empresas y comprometida con tu éxito profesional.",
+        "badge": "TOP 2 Forbes — Universidades privadas más valoradas por las empresas",
+        "items": [
+          {
+            "icon": "🎓",
+            "title": "Titulación oficial",
+            "body": "Títulos oficiales con validez en todo el territorio nacional."
+          },
+          {
+            "icon": "🏛️",
+            "title": "Experiencia universitaria",
+            "body": "Acceso a instalaciones, recursos y servicios del campus UAX."
+          },
+          {
+            "icon": "💼",
+            "title": "Orientación profesional",
+            "body": "Bolsa de empleo y orientación laboral personalizada."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Tu futuro empieza hoy",
+        "body": "No esperes más para dar el paso. Descubre la titulación que te llevará hasta donde quieres llegar.",
+        "cta": {
+          "href": "https://www.uax.com/fps/online?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-uax-fp-online&utm_content=closing-cta",
+          "label": "Descubre tu titulación"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "UAX — Universidad Alfonso X el Sabio",
+        "tagline": "FP Oficial Online",
+        "disclosure": "Recibes este correo porque solicitaste información sobre la FP Online de UAX.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 UAX — Universidad Alfonso X el Sabio. Todos los derechos reservados. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-uax-fp-online"
+  },
+  "_migration": {
+    "date": "2026-07-22",
+    "note": "Reemplaza la versión 1.0.0 (forma {type,content} antigua, fuera del motor — ver engine/CHANGELOG.md entrada 2026-07-22). El final.html anterior estaba escrito a mano; este archivo se reconstruye con node engine/build-newsletter.js."
+  }
+}

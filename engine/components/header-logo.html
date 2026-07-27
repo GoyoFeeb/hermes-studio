@@ -1,0 +1,20 @@
+<!-- header-logo.html — cabecera simple: logo centrado + etiqueta, sobre blanco. Añadido 2026-07-22 (patrón institutional, campaña UAX — ver engine/CHANGELOG.md). A diferencia de hero-asimetrico (donde el logo vive dentro del hero), este género separa cabecera y hero en dos bandas (logo sobre blanco / eyebrow+H1+CTA sobre color). Datos: header.{logoSrc,logoAlt,logoWidth,logoHeight,label}. Tokens: colors.light, colors.borders.card -->
+<tr>
+<td style="background-color:#FFFFFF;padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="center" style="padding:28px 24px 14px;">
+        <img src="{{data:header.logoSrc}}" alt="{{data:header.logoAlt}}" width="{{data:header.logoWidth}}" height="{{data:header.logoHeight}}" style="display:block;outline:none;border:none;margin:0 auto;">
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="padding:0 24px 22px;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:{{token:colors.light}};margin:0;line-height:16px;letter-spacing:2px;text-transform:uppercase;text-align:center;mso-line-height-rule:exactly;">{{data:header.label}}</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0;border-top:1px solid {{token:colors.borders.card}};font-size:0;line-height:0;">&nbsp;</td>
+    </tr>
+  </table>
+</td>
+</tr>

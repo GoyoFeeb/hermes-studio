@@ -1,0 +1,54 @@
+<!-- hero-marca-tarifalo.html — hero de marca generado con Claude design. Origen: identidad visual de tarifalo.com (navy #003049 + naranja de acción + cremas cálidos, formas redondeadas). Fecha: 2026-07-21. Datos: hero.brandName, hero.h1, hero.subtitle, cta (via include). Tokens: colors.primary, colors.ctaBackground, colors.onBrandSecondary, colors.accentHaloLight. Composición: kicker naranja sobre la marca (eco del acento de acción), H1 centrado, franja inferior de acento que enlaza el hero con el cuerpo. Añadido 2026-07-24: gradients.heroBackground — background-image adicional, degrada a bgcolor sólido si no hay soporte (ver engine/CHANGELOG.md, "gradientes bulletproof") -->
+<tr>
+<td style="background-color:{{token:colors.primary}};background-image:{{token:gradients.heroBackground}};padding:0;" class="header-bg" bgcolor="{{token:colors.primary}}">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+
+    <!-- Kicker de acento + marca como texto -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:34px 32px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto 10px;">
+          <tr><td width="36" height="3" style="background-color:{{token:colors.ctaBackground}};border-radius:2px;font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+        <p style="font-family:{{token:typography.displayFont}};font-size:24px;font-weight:800;color:#FFFFFF;margin:0;line-height:1.2;letter-spacing:-0.5px;text-align:center;mso-line-height-rule:exactly;">{{data:hero.brandName}}</p>
+      </td>
+    </tr>
+
+    <!-- H1 centrado -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:18px 40px 0;">
+        <h1 class="mobile-hero-h1" style="font-family:{{token:typography.displayFont}};font-size:28px;font-weight:800;color:#FFFFFF;margin:0;line-height:1.16;letter-spacing:-0.5px;text-align:center;mso-line-height-rule:exactly;">{{data:hero.h1}}</h1>
+      </td>
+    </tr>
+
+    <!-- Subtitulo -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:12px 40px 0;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:400;color:{{token:colors.onBrandSecondary}};margin:0;line-height:1.5;text-align:center;mso-line-height-rule:exactly;">{{data:hero.subtitle}}</p>
+      </td>
+    </tr>
+
+    <!-- CTA -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:24px 32px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="mobile-full">
+          <tr>
+            <td align="center" style="padding:0;">
+              {{include:cta-bulletproof}}
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Aire inferior + franja de acento que enlaza con el cuerpo -->
+    <tr>
+      <td align="center" style="padding:30px 32px 34px;">&nbsp;</td>
+    </tr>
+    <tr>
+      <td height="4" style="background-color:{{token:colors.ctaBackground}};font-size:0;line-height:0;">&nbsp;</td>
+    </tr>
+
+  </table>
+</td>
+</tr>

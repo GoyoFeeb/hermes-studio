@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-audi-premium",
+    "clientName": "Audi",
+    "subjectLine": "Audi A6 Sportback e-tron. El progreso adopta una nueva silueta.",
+    "preheader": "Diseño aerodinámico, tecnología de 800 V y una experiencia de conducción puramente eléctrica.",
+    "fromName": "Audi",
+    "fromEmail": "test@example.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-27",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/audi/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-AUDI-LOGO-PNG/",
+        "logoAlt": "Audi",
+        "logoWidth": 96,
+        "logoHeight": 33,
+        "label": "100 % eléctrico"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/audi/hero-banner.png",
+        "bannerAlt": "Audi A6 Sportback e-tron — berlina eléctrica premium",
+        "brandName": "Audi A6 Sportback e-tron",
+        "h1": "El progreso adopta una nueva silueta.",
+        "subtitle": "Diseño aerodinámico, tecnología avanzada y hasta 773 km de autonomía para avanzar sin renunciar a nada.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/",
+          "label": "Solicitar oferta"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Elegancia eléctrica, sin concesiones.",
+        "body": "El Audi A6 Sportback e-tron une la elegancia de una silueta coupé con la funcionalidad de una carrocería Sportback. Cada línea responde a la aerodinámica; cada detalle, a la precisión técnica. Un vehículo diseñado para quienes entienden el progreso como una experiencia, no como una promesa.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/",
+          "label": "Descubrir el modelo"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Tecnología que impulsa el futuro.",
+        "highlight": "100 % eléctrica",
+        "highlightNote": "0 g/km de CO₂ en conducción",
+        "items": [
+          {
+            "title": "773 km",
+            "body": "Autonomía WLTP"
+          },
+          {
+            "title": "270 kW",
+            "body": "Carga rápida DC"
+          },
+          {
+            "title": "800 V",
+            "body": "Arquitectura eléctrica"
+          }
+        ]
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Diseñado para avanzar.",
+        "body": "La silueta Sportback no solo define su personalidad: optimiza cada flujo de aire. Faros Matrix LED, proporciones tensas y una presencia que convierte cualquier carretera en el escenario que merece.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/",
+          "label": "Descubrir su diseño"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Un espacio que piensa contigo.",
+        "body": "Cada elemento del habitáculo responde a una lógica de claridad y confianza. Pantallas curvas, materiales seleccionados y una interfaz que anticipa tus necesidades. La tecnología se vuelve invisible. Solo queda la experiencia.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/",
+          "label": "Descubrir el interior"
+        }
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Tu próximo Audi empieza aquí.",
+        "body": "Descubre todas las posibilidades del Audi A6 Sportback e-tron y crea una configuración a tu medida.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/configurador/",
+          "label": "Configurar mi Audi"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "AUDI",
+        "tagline": "El progreso adopta una nueva silueta.",
+        "disclosure": "Valores WLTP. Las cifras de autonomía y energía indicadas dependen de la configuración del vehículo, del estilo de conducción y de las condiciones ambientales. Emisiones de CO₂ en conducción: 0 g/km.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© AUDI AG 2026"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-audi-premium"
+  }
+}

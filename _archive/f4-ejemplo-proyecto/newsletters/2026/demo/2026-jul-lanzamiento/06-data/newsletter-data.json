@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "campaignName": "[CAMPAÑA]",
+    "clientName": "[CLIENTE]",
+    "subjectLine": "[ASUNTO_SELECCIONADO]",
+    "preheader": "[PREHEADER_SELECCIONADO]",
+    "fromName": "[NOMBRE_REMITENTE]",
+    "fromEmail": "[EMAIL_REMITENTE]",
+    "version": "1.0.0",
+    "createdAt": "[FECHA]"
+  },
+  "settings": {
+    "containerWidth": 600,
+    "backgroundColor": "#FFFFFF",
+    "containerBackgroundColor": "#FFFFFF",
+    "fontFamily": "'Open Sans', Arial, sans-serif",
+    "fontSize": 16,
+    "textColor": "#333333",
+    "linkColor": "#0066CC",
+    "borderRadius": 0
+  },
+  "modules": []
+}

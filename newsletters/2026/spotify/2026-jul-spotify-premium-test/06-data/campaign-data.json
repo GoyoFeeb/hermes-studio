@@ -1,0 +1,125 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-spotify-premium-test",
+    "clientName": "Spotify",
+    "subjectLine": "1 mes de Premium gratis. Sin límites.",
+    "preheader": "Sin anuncios, audio lossless, escucha offline y control total. Descúbrelo gratis.",
+    "fromName": "Spotify",
+    "fromEmail": "info@spotify.com",
+    "version": "1.0.1",
+    "createdAt": "2026-07-24",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/spotify/tokens/brand-tokens.json",
+  "pattern": "institutional",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://placeholder.brand.es/spotify-logo.png",
+        "logoAlt": "Spotify",
+        "logoWidth": 110,
+        "logoHeight": 32,
+        "label": "SPOTIFY"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+        "bannerAlt": "Fotografía de alto contraste de manos sobre un instrumento en un fondo oscuro, iluminación dramática de estudio, atmósfera premium de música",
+        "brandName": "SPOTIFY",
+        "h1": "1 mes de Premium gratis",
+        "subtitle": "Descubre la música sin límites. Sin anuncios, sin compromiso.",
+        "cta": {
+          "label": "Prueba Premium gratis",
+          "href": "https://www.spotify.com/us/premium/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-spotify-premium-test"
+        }
+      }
+    },
+    {
+      "component": "intro-cta-asimetrico",
+      "data": {
+        "title": "Todo lo que amas de la música, sin interrupciones",
+        "body": "Con Premium, tu música suena como debe ser: sin anuncios, con la mejor calidad y en cualquier momento. Durante un mes, descubre lo que es escuchar sin límites.",
+        "cta": {
+          "label": "Empieza tu mes gratis",
+          "href": "https://www.spotify.com/us/premium/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-spotify-premium-test"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Así suena Premium",
+        "highlight": "Oferta exclusiva para nuevos usuarios de Premium",
+        "highlightNote": "Solo si no has probado Premium antes. Después, $12.99/mes.",
+        "items": [
+          {
+            "title": "Música sin anuncios",
+            "body": "Disfruta de toda tu música favorita sin un solo corte publicitario. Escucha sin pausas, sin interrupciones."
+          },
+          {
+            "title": "Calidad sin pérdida",
+            "body": "Escucha cada detalle con audio lossless. Descarga tus canciones y podcasts favoritos para llevarlos siempre contigo."
+          },
+          {
+            "title": "Control total",
+            "body": "Salta las canciones que quieras, reproduce cualquier tema en cualquier momento. Tú decides qué suena."
+          }
+        ]
+      }
+    },
+    {
+      "component": "usp-cards-sin-icono-asimetrico",
+      "data": {
+        "eyebrow": "Por qué Spotify",
+        "title": "La música, sin límites",
+        "body": "Miles de millones de horas de música, podcasts y audiolibros te esperan. Y ahora puedes probarlo todo gratis.",
+        "badge": "Música sin límites",
+        "items": [
+          {
+            "title": "Referente global del audio",
+            "body": "La plataforma donde artistas y oyentes se encuentran. Donde la música cobra vida."
+          },
+          {
+            "title": "En todos tus dispositivos",
+            "body": "Móvil, tablet, ordenador, altavoz, TV, coche. Tu música te sigue a todas partes."
+          },
+          {
+            "title": "Cancela cuando quieras",
+            "body": "Sin permanencia, sin compromiso. Disfruta del mes gratis y decide después."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre-asimetrico",
+      "data": {
+        "title": "Prueba Premium gratis",
+        "body": "1 mes gratis. Sin compromiso. Descubre por qué millones de personas ya escuchan sin límites.",
+        "cta": {
+          "label": "Prueba Premium gratis",
+          "href": "https://www.spotify.com/us/premium/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-spotify-premium-test"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Spotify",
+        "tagline": "Premium Individual",
+        "disclosure": "Recibes este correo porque has solicitado información sobre Spotify Premium.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "2026 Spotify USA Inc. [DIRECCIÓN FÍSICA - PENDIENTE DEL CLIENTE]. Oferta válida solo para usuarios que no hayan probado Premium antes. Después del mes gratis, $12.99/mes."
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-spotify-premium-test"
+  }
+}

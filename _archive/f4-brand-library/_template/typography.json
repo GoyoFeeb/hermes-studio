@@ -1,0 +1,6 @@
+{
+  "brand": "[CLIENTE]",
+  "headings": { "family": "font-family", "weight": "700", "size": "24px" },
+  "body": { "family": "font-family", "weight": "400", "size": "16px" },
+  "cta": { "family": "font-family", "weight": "700", "size": "16px" }
+}

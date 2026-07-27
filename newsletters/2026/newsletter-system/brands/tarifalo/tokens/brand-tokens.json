@@ -1,0 +1,187 @@
+{
+  "brand": "Tarífalo",
+  "version": "1.0.0",
+  "extends": "core",
+  "colors": {
+    "primary": "#003049",
+    "deep": "#002035",
+    "light": "#004B6B",
+    "white": "#FFFFFF",
+    "ctaBackground": "#F77F00",
+    "ctaText": "#FFFFFF",
+    "subtitleOnBrand": "#FCE4C8",
+    "eyebrowOnBrand": "#004B6B",
+    "bodySecondary": "#666666",
+    "border": "#E0D5C5",
+    "sectionLila": "#FFF1E0",
+    "global": "#FFF6E7",
+    "onBrandSecondary": "#FCE4C8",
+    "accentHaloLight": "#FFE0B0",
+    "footerSeparator": "#D4C5B5",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#FFF1E0",
+      "exterior": "#FFF6E7",
+      "trustBar": "#FFF1E0"
+    },
+    "text": {
+      "primary": "#333333",
+      "secondary": "#666666",
+      "tertiary": "#999999"
+    },
+    "borders": {
+      "card": "#E0D5C5",
+      "footer": "#E0D5C5"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "displayFont": "'Sora','Segoe UI',Arial,Helvetica,sans-serif",
+    "eyebrow": { "size": 12, "weight": 700, "letterSpacing": "3px", "transform": "uppercase", "color": "#004B6B" },
+    "h1Hero": { "size": 32, "weight": 800, "lineHeight": 1.12, "color": "#333333" },
+    "h1HeroOnBrand": { "size": 28, "weight": 800, "lineHeight": 1.16, "letterSpacing": "-0.5px", "color": "#FFFFFF", "mobile": { "size": 26, "lineHeight": 1.18 } },
+    "h2Section": { "size": 22, "weight": 800, "lineHeight": 1.2, "letterSpacing": "-0.3px", "color": "#003049" },
+    "h2OnBrand": { "size": 26, "weight": 800, "lineHeight": 1.18, "letterSpacing": "-0.4px", "color": "#FFFFFF" },
+    "h3Card": { "size": 16, "weight": 700, "lineHeight": 1.25, "color": "#003049" },
+    "bodyLarge": { "size": 16, "weight": 400, "lineHeight": 1.55, "color": "#666666" },
+    "body": { "size": 14, "weight": 400, "lineHeight": 1.5, "color": "#666666" },
+    "small": { "size": 12, "weight": 400, "lineHeight": 1.4, "color": "#999999" },
+    "statNumber": { "size": 56, "weight": 800, "lineHeight": 1, "letterSpacing": "-1.5px", "color": "#FFFFFF" },
+    "statLabel": { "size": 11, "weight": 700, "letterSpacing": "1.5px", "transform": "uppercase", "color": "#FCE4C8" },
+    "cta": { "size": 19, "weight": 700, "letterSpacing": "0.5px" },
+    "stepNumber": { "size": 20, "weight": 800, "color": "#FFFFFF" },
+    "stepTitle": { "size": 15, "weight": 700, "color": "#003049" },
+    "cardLinkSecondary": { "size": 13, "weight": 700, "color": "#F77F00" },
+    "trustBarText": { "size": 12, "weight": 600, "color": "#003049" },
+    "footerBrand": { "size": 12, "weight": 600, "letterSpacing": "0.2px", "color": "#003049" },
+    "footerTagline": { "size": 12, "weight": 400, "color": "#666666" },
+    "footerDisclosure": { "size": 12, "weight": 400, "color": "#666666" },
+    "footerLegal": { "size": 11, "weight": 400, "color": "#666666" },
+    "footerLinks": { "size": 12, "weight": 400, "color": "#666666", "textDecoration": "underline" }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "hero": 56,
+    "close": 48
+  },
+  "radius": {
+    "ctaPill": 50,
+    "card": 16,
+    "cardStripe": "16px 16px 0 0",
+    "badgeCircle": "50%",
+    "listAccent": 0,
+    "circleHalo": 4,
+    "chip": 20,
+    "statPill": 24
+  },
+  "shadows": {
+    "card": "0 14px 32px rgba(0,48,73,0.08)",
+    "cta": "0 12px 28px rgba(247,127,0,0.22)",
+    "statPill": { "value": "0 18px 40px rgba(0,32,53,0.20)", "verified": false, "note": "No se usa en esta campaña — el hero asimétrico no usa pill alrededor de la cifra." }
+  },
+  "surfaces": {
+    "global": "#FFF6E7",
+    "white": "#FFFFFF",
+    "sectionLila": "#FFF1E0",
+    "brandDeepClose": "#002035",
+    "brandHeader": "#003049",
+    "trustBarPill": "#FFF1E0",
+    "stepConnector": "#FFE0B0"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#003049",
+      "textColor": "#FFFFFF"
+    },
+    "cta": {
+      "backgroundColor": "#F77F00",
+      "textColor": "#FFFFFF",
+      "borderRadius": 50
+    },
+    "card": {
+      "borderRadius": 16,
+      "borderColor": "#E0D5C5",
+      "iconBackground": "#FFF6E7",
+      "iconRadius": 12
+    },
+    "trustBar": {
+      "backgroundColor": "#FFF1E0",
+      "iconBackground": "#003049",
+      "iconColor": "#FFFFFF"
+    },
+    "steps": {
+      "circleBackground": "#003049",
+      "circleTextColor": "#FFFFFF",
+      "titleColor": "#003049"
+    },
+    "patterns": {
+      "closingBand": {
+        "bg": "#002035",
+        "ctaBg": "#F77F00",
+        "ctaText": "#FFFFFF",
+        "titleColor": "#FFFFFF",
+        "bodyColor": "#FCE4C8"
+      },
+      "premiumListRow": {
+        "cardBorder": "#E0D5C5",
+        "cardShadow": "card",
+        "stripeColor": "#004B6B",
+        "badgeColor": "#003049",
+        "badgeSize": 36
+      }
+    }
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. Las metas color-scheme están forzadas a 'light'."
+  },
+  "assets": {
+    "logo": "https://tarifalo.com/wp-content/uploads/2023/02/tarifalo-logo-svg-vf.svg",
+    "logoWidth": 176,
+    "logoHeight": 48,
+    "logoAlt": "Tarífalo — comparador de tarifas de luz y gas",
+    "headerPatternTile": "https://tarifalo.com/wp-content/uploads/2023/03/arrow-right-newbtn.png"
+  },
+  "voice": {
+    "tone": "directo, claro, informativo, tranquilizador",
+    "ctaDefault": "Comparar tarifas",
+    "ctaSecondary": "Ver ofertas"
+  },
+  "_changelog": [
+    {
+      "version": "1.0.1",
+      "date": "2026-07-22",
+      "summary": "Nivel 1 de tokenización de motor: typography.displayFont, radius.* y shadows.* pasan de estar hardcodeados en engine/components/*.html (con los valores literales de paraycompara, la primera marca) a leerse via {{token:...}} (ver engine/CHANGELOG.md, entrada 'Nivel 1').",
+      "correctionsFound": [
+        {
+          "field": "typography.displayFont",
+          "before": "'Sora', Arial, Helvetica, sans-serif",
+          "resolved": "'Sora','Segoe UI',Arial,Helvetica,sans-serif",
+          "reason": "Mismo ajuste de formato que en paraycompara (añade el fallback 'Segoe UI' y normaliza espacios) — sin cambio visual, tarifalo ya usa Sora como paraycompara."
+        }
+      ],
+      "expectedVisualChanges": [
+        {
+          "field": "radius.card",
+          "value": 16,
+          "impact": "Las tarjetas de tarifa (card-tarifa-3, usadas en 2026-jul-comparar-luz-gas) tenían border-radius:18px hardcodeado (valor de paraycompara, no de tarifalo). Ahora usan 16px, el valor real de este pack. Cambio visual sutil e intencional — corrige la 'genericidad' reportada por el cliente (ver conversación 2026-07-22 'subir al siguiente nivel')."
+        },
+        {
+          "field": "shadows.card",
+          "value": "0 14px 32px rgba(0,48,73,0.08)",
+          "impact": "card-tarifa-3.html tenía una sombra neutra hardcodeada (rgba(0,0,0,0.08), ni de paraycompara ni de tarifalo — un valor provisional al crear el componente el 2026-07-21). Ahora usa la sombra real de tarifalo (tinte navy, coherente con colors.primary #003049). Cambio visual intencional."
+        },
+        {
+          "field": "shadows.cta",
+          "value": "0 12px 28px rgba(247,127,0,0.22)",
+          "impact": "El botón CTA de tarifalo (cta-bulletproof.html) tenía la sombra de paraycompara hardcodeada (tinte naranja rgba(255,90,60,0.22), el naranja DE paraycompara, no el de tarifalo). Ahora usa el tinte del naranja real de tarifalo (#F77F00). Cambio visual intencional — bug real corregido (antes todas las marcas no-paraycompara mostraban el tinte de sombra de paraycompara en su CTA)."
+        }
+      ],
+      "verifiedByteParity": "cmp byte a byte de 2026-jul-comparar-luz-gas tras el cambio muestra diffs esperados en los 3 campos de arriba, cero diffs en cualquier otro campo — ver engine/CHANGELOG.md."
+    }
+  ]
+}

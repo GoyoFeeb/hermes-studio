@@ -1,0 +1,141 @@
+# Project Memory
+
+## Critical Decisions (and why)
+
+<!-- Updated 2026-07-27: brand-native evolution — editorial-foto-texto*, brandStructure,
+     structural differentiation gate added. -->
+
+- **Migración completa de React Email a un motor propio (`engine/`), F0-F5, cerrada
+  2026-07-21** — decisión tomada porque el pipeline React Email no garantizaba paridad entre el
+  HTML fuente y el HTML con CSS inline (el que realmente se envía). El motor nuevo genera ambos
+  en la misma ejecución a partir de la misma fuente en memoria, con verificación automática de
+  que los conteos de `<img>`/UTM/`v:roundrect` coinciden entre los dos. Ver
+  `docs/auditoria-total-y-plan-transformacion-2026-07-17.md` y `docs/f1-motor-cerrado.md` a
+  `docs/f5-prueba-real-cerrada.md`.
+- **Brand-native newsletters como objetivo (2026-07-27)**: se añaden componentes editoriales
+  (`editorial-foto-texto*`), campo `brandStructure` en brand packs, y gate de diferenciación
+  estructural (Gate 12) para que las newsletters dejen de ser plantillas genéricas con colores
+  cambiados y pasen a traducir la estructura real de la página de la marca. El brand pack ya no
+  solo captura tokens visuales; debe capturar estructura traducible de la página real.
+- **`engine/build-newsletter.js` nunca escribe outputs parciales** — en vez de "escribir y
+  borrar si falla", todo el ensamblado vive en memoria y `writeFileSync` solo se llama tras 6
+  fases de verificación. Motivo: es más simple y más difícil de romper por accidente.
+- **Prohibido marcar datos de fuente pública como "verificados"** sin aprobación explícita del
+  cliente — evita exposición legal por specs de producto desactualizadas o de una variante
+  distinta a la que la campaña usa (patrón detectado en la campaña BMW Serie 1).
+- **QA con dos niveles de aprobación** (prueba interna vs producción) en vez de un "aprobado"
+  binario — permite avanzar campañas de prueba sin bloquear el pipeline, pero deja explícito qué
+  falta para producción real (`09-exports/production-blockers.md`).
+- **Cierre operativo del motor = `production-gate-motor`** — `npm run production-gate` es solo
+  el alias cómodo y debe apuntar siempre al motor. Los comandos React Email quedan bajo
+  `legacy:*` en `package.json`.
+- **Tests con Node nativo (`node --test`)** — no se añadió Vitest ni otra dependencia nueva. La
+  suite cubre tokens, patrones, adaptadores de módulos y un smoke test end-to-end del ejemplo.
+- **`AGENTS.md` sigue siendo la constitución; `.agent/*` es adaptador común** — se aplicó
+  `common-init` el 2026-07-27 sin sobrescribir el contrato Hermes. `CLAUDE.md` y `.agent/`
+  conectan Claude Code/Codex con las reglas existentes.
+- **`generate-hero-image` debe sanitizar y trazar prompts con landing real** — decisión de
+  2026-07-27 tras el test BMW. La visión de OpenAI puede describir elementos accidentales de una
+  landing (p. ej. referencias a superhéroes/personajes promocionales) y contaminar el prompt de
+  imagen hasta provocar `moderation_blocked`. El script ahora guarda prompt attempt, descripción
+  visual raw/sanitized y error JSON antes de fallar, y sanitiza referencias a personajes, logos,
+  emblemas, modelos/matrículas, URLs, precios y lenguaje de copia literal de landing.
+
+## Known Gotchas
+
+- **`task-log.md`, `handoff.md` y `next-steps.md` se pueden sobrescribir por accidente**: al
+  actualizarlos hay que leer el archivo existente y APPEND, nunca `write_file` de golpe. Ya
+  pasó dos veces en la campaña DemoSolar (se perdieron 4 entradas acumuladas).
+- **`campaign-status.md` puede perder secciones al reescribirse** — debe conservar siempre las 6
+  secciones (Campaign, Current Phase, Completed Phases, Open Issues, Production Gate Status,
+  Next Step) aunque una quede vacía; no eliminar la sección, solo su contenido si se resuelve.
+- **`[PENDIENTE]` en `campaign-data.json` rompe la validación** — los scripts lo tratan
+  explícitamente como marcador de invalidez. Si un campo obligatorio no tiene valor real, usar
+  `""` (si el tipo lo permite) u omitir el campo si es opcional. Nunca escribir `[PENDIENTE]`.
+- **`create-campaign.ts` tiene fallback para `EACCES`** en carpetas montadas en sesiones tipo
+  Cowork: intenta `fs.cpSync` y, si falla por permisos, copia archivo por archivo antes de
+  sustituir placeholders. Ya no hace falta el scaffold manual salvo fallo externo del filesystem.
+- **`render()` de `@react-email/render` devuelve una Promise** — solo relevante si se toca el
+  pipeline React Email archivado; requiere `await`. No aplica al motor actual.
+- **`juice` es un módulo ESM-only** — `require('juice')` devuelve `{ default: fn }` en vez de la
+  función directa; hay que hacer `require('juice').default || require('juice')`.
+- **Row/Column de tablas de email no apilan solas en mobile** — cualquier layout de 2+ columnas
+  necesita una media query explícita (`min-width: 481px`) para pasar de 1 columna (baseline) a
+  2, porque Outlook/Gmail web ignoran media queries y ven siempre el baseline.
+- **`card-tarifa` soporta 4 y 3 tarjetas** (`card-tarifa.html` y `card-tarifa-3.html`) — el
+  pendiente real es solo la variante de 2 tarjetas, y sigue condicionado a que una campaña real
+  la necesite.
+- **Contraste de enlace secundario de `card-tarifa*` resuelto 2026-07-27**: el componente usa
+  `colors.primary` en vez de `colors.ctaBackground`, y `check-contrast.ts` lo gatea como
+  "Enlace secundario de tarjeta sobre blanco".
+- **Safety de OpenAI no siempre significa que el brief sea inválido** — en la campaña BMW
+  `2026-ago-bmw-experiencia-premium`, el rechazo venía de una descripción visual contaminada
+  por elementos de la landing ("superhero"/"costumed figure"), no de la fotografía automotriz.
+  Al depurar `hero-imagen`, revisar primero `brands/{brand}/design-input/hero-banner-error.json`,
+  `hero-banner-prompt-attempt.txt`, `hero-banner-visual-description.txt` y
+  `hero-banner-visual-description-sanitized.txt`.
+
+## Patterns to Follow
+
+- **Cada agente es un archivo `agents/NN-nombre.md`** con estructura fija: Rol, Objetivo
+  principal, Inputs aceptados, Archivos que puede leer/escribir, Reglas de trabajo, Proceso paso
+  a paso, Criterios de salida/bloqueo, Formatos de archivo, Handoff, Output final.
+- **Convención de nombres de campaña**: `newsletters/{año}/{cliente}/{año-mes-cliente-descriptor}/`
+  — cliente en minúsculas sin espacios (guiones permitidos).
+- **Adaptadores de módulo** (`engine/lib/assemble.js`, `MODULE_ADAPTERS`): `campaign-data.json`
+  usa una forma uniforme por módulo (`{eyebrow, title, items: [...]}`), pero cada plantilla de
+  componente espera nombres de placeholder específicos ya existentes — el adaptador traduce
+  entre ambas formas. Al añadir un componente nuevo, hay que añadir también su adaptador y su
+  línea en `PATTERN_SEQUENCE` del patrón correspondiente (mantenido a mano, no autogenerado).
+  Ver `engine/README.md` § "Cómo añadir un componente nuevo".
+- **Título de cierre**: tratar 45 caracteres como límite duro para que quepa en 1 línea a 600px
+  (una campaña con 46 caracteres partió en 2 líneas). Desde 2026-07-27,
+  `check-column-balance.ts` falla si `banda-cierre*.data.title` supera 45 caracteres.
+- **Hero con imagen generada desde landing real**: usar la descripción sanitizada como dirección
+  de arte, no como copia literal de la página. El prompt final debe evitar logos, texto,
+  personajes protegidos, modelos identificables, matrículas y lenguaje tipo "copiar/recrear la
+  landing"; `hero-imagen` mantiene el copy accesible en HTML.
+
+## Current Focus
+
+Confirmado por el usuario (2026-07-27): tras el cierre de F5 (transformación completa,
+2026-07-21), el foco actual es **probar el motor (`engine/`) contra campañas reales de múltiples
+marcas** para detectar gaps antes de producción real. Evidencia en el propio repo: campañas en
+`newsletters/2026/` para Apple, BMW, Nike, Adeslas, Aesop, Rolex, Spotify, Wornwear, UAX,
+Optica2000, Tarifalo y Para y Compara, más prompts de test dedicados en la raíz
+(`PROMPT-*-TEST-MOTOR-HERMES.md`, `PROMPT-BMW-HERMES.md`, `PROMPT-NIKE-HERMES.md`, etc.,
+fechados 22-25 jul). Ninguna de estas campañas tiene `productionReady: true` — son validaciones
+del motor y de los brand packs, no envíos reales.
+
+Actualización 2026-07-27: el template base ya crea `06-data/campaign-data.json`, el paquete
+entregable no debe incluir `.env`, `node_modules`, `.DS_Store`, binarios sueltos ni outputs de
+test, y `npm test` existe como suite real de regresión del motor.
+
+Actualización 2026-07-27 (skills aplicados): añadidos `CLAUDE.md`, `.agent/*`,
+`docs/hermes-newsletter-system-context.md` y `docs/hermes-newsletter-system-report.md`. El
+roadmap existente se conserva como fuente activa; no se crea un roadmap duplicado desde cero.
+
+Actualización 2026-07-27 (deuda F2): cerrados F2.1, F2.2, F2.3 y F2.4 del roadmap técnico. El
+único pendiente de esa tanda queda `card-tarifa-2.html`, bloqueado hasta que una campaña real
+necesite exactamente 2 tarjetas.
+
+## Do NOT
+
+- **No borrar nada** al modificar campañas existentes sin `--force` o confirmación explícita —
+  mover a `_archive/` en caso de duda.
+- **No dejar que el Orchestrator corrija el trabajo de un especialista** — si un entregable está
+  mal, se devuelve al agente responsable con el motivo.
+- **No marcar copy como `Estado: Final` en campañas de test** (`isTestCampaign: true` o bloqueos
+  de producción sin resolver) — usar `Estado: Aprobado para prueba interna / pendiente
+  validación cliente`.
+- **No escribir `[PENDIENTE]` en `campaign-data.json`** — ver Known Gotchas.
+- **No crear un patrón nuevo (`patterns/*.md`) especulativamente** — solo cuando una campaña real
+  lo necesite.
+- **No usar el pipeline React Email archivado** (`_archive/f4-react-email-pipeline/`) como
+  referencia para desarrollo nuevo — está superseded por `engine/`.
+- **No confiar en `README.md`, `GUIA_NUEVO_PROYECTO.md`, `INFORME_FINAL.md`,
+  `CAMBIOS_REALIZADOS.md`, `INVENTARIO_ORIGEN.md` o `RIESGOS_Y_PENDIENTES.md`** para el estado
+  actual del sistema — describen el empaquetado original (2026-07-09) y quedan marcados como
+  históricos. Usar `context.md` + `AGENTS.md` + este archivo.
+
+_Last updated: 2026-07-27_

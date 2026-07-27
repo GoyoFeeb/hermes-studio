@@ -1,0 +1,240 @@
+{
+  "brand": "UAX FP Online",
+  "version": "2.2.3",
+  "colors": {
+    "primary": "#003F6F",
+    "deep": "#003F6F",
+    "light": "#0060AB",
+    "white": "#FFFFFF",
+    "ctaBackground": "#0060AB",
+    "ctaText": "#FFFFFF",
+    "subtitleOnBrand": "#C7DEF0",
+    "eyebrowOnBrand": "#C7DEF0",
+    "bodySecondary": "#666666",
+    "border": "#D9E7F4",
+    "sectionLila": "#D9E7F4",
+    "global": "#F5F5F5",
+    "onBrandSecondary": "#C7DEF0",
+    "accentHaloLight": "#D9E7F4",
+    "footerSeparator": "#D9E7F4",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#D9E7F4",
+      "exterior": "#F5F5F5",
+      "trustBar": "#D9E7F4"
+    },
+    "text": {
+      "primary": "#161616",
+      "secondary": "#666666",
+      "tertiary": "#999999"
+    },
+    "borders": {
+      "card": "#D9E7F4",
+      "footer": "#D9E7F4"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "displayFont": "Arial, Helvetica, sans-serif",
+    "eyebrow": {
+      "size": 12,
+      "weight": 700,
+      "letterSpacing": "3px",
+      "transform": "uppercase",
+      "color": "#0060AB"
+    },
+    "h1Hero": {
+      "size": 28,
+      "weight": 800,
+      "lineHeight": 1.16,
+      "color": "#FFFFFF"
+    },
+    "h1HeroOnBrand": {
+      "size": 28,
+      "weight": 800,
+      "lineHeight": 1.16,
+      "letterSpacing": "-0.5px",
+      "color": "#FFFFFF",
+      "mobile": {
+        "size": 26,
+        "lineHeight": 1.18
+      }
+    },
+    "h2Section": {
+      "size": 22,
+      "weight": 800,
+      "lineHeight": 1.25,
+      "letterSpacing": "-0.3px",
+      "color": "#003F6F"
+    },
+    "h2OnBrand": {
+      "size": 26,
+      "weight": 800,
+      "lineHeight": 1.18,
+      "letterSpacing": "-0.4px",
+      "color": "#FFFFFF"
+    },
+    "h3Card": {
+      "size": 15,
+      "weight": 700,
+      "lineHeight": 1.3,
+      "color": "#003F6F"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 400,
+      "lineHeight": 1.55,
+      "color": "#666666"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#666666"
+    },
+    "small": {
+      "size": 12,
+      "weight": 400,
+      "lineHeight": 1.4,
+      "color": "#999999"
+    },
+    "cta": {
+      "size": 16,
+      "weight": 700,
+      "letterSpacing": "normal"
+    },
+    "footerBrand": {
+      "size": 12,
+      "weight": 600,
+      "letterSpacing": "0.2px",
+      "color": "#003F6F"
+    },
+    "footerTagline": {
+      "size": 12,
+      "weight": 400,
+      "color": "#666666"
+    },
+    "footerDisclosure": {
+      "size": 12,
+      "weight": 400,
+      "color": "#666666"
+    },
+    "footerLegal": {
+      "size": 11,
+      "weight": 400,
+      "color": "#666666"
+    },
+    "footerLinks": {
+      "size": 12,
+      "weight": 400,
+      "color": "#666666",
+      "textDecoration": "underline"
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "hero": 56,
+    "close": 48
+  },
+  "radius": {
+    "ctaPill": 60,
+    "card": 10,
+    "cardStripe": "10px 10px 0 0",
+    "badgeCircle": "50%",
+    "chip": 20
+  },
+  "shadows": {
+    "card": "0 8px 20px rgba(0,63,111,0.08)",
+    "cta": "0 12px 28px rgba(0,140,247,0.22)"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "colors.primary y colors.deep son idénticos (#003F6F) en este pack — no hay un segundo tono real observado del que construir un degradado sin inventar un color nuevo. Ver engine/CHANGELOG.md, entrada 'gradientes bulletproof'."
+  },
+  "surfaces": {
+    "global": "#F5F5F5",
+    "white": "#FFFFFF",
+    "sectionLila": "#D9E7F4"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#003F6F"
+    },
+    "cta": {
+      "backgroundColor": "#0060AB",
+      "textColor": "#FFFFFF",
+      "borderRadius": 60,
+      "padding": "14px 30px"
+    },
+    "card": {
+      "borderRadius": 10,
+      "borderColor": "#D9E7F4"
+    }
+  },
+  "layout": {
+    "sectionStyle": "centrado",
+    "reason": "Nivel 2 (2026-07-22, ver engine/CHANGELOG.md). La única campaña real de esta marca (2026-jul-uax-fp-online) ya está construida, aprobada y pasando gates en centrado; cambiarla ahora no tiene motivo de negocio y rompería su verificación visual/QA existente (ver 08-qa/visual-qa.md de esa campaña). Coherente además con voice.tone: 'institucional, cercano, orientado a resultados' — registro serio/corporativo."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. Las metas color-scheme están forzadas a 'light'."
+  },
+  "assets": {
+    "logo": "https://www.uax.com/assets/uax/images/uax_fp.png",
+    "logoWidth": 160,
+    "logoHeight": 59,
+    "logoAlt": "UAX Universidad Alfonso X el Sabio — FP Oficial Online",
+    "headerPatternTile": ""
+  },
+  "voice": {
+    "tone": "institucional, cercano, orientado a resultados",
+    "ctaDefault": "Descubre tu titulación",
+    "ctaSecondary": "Ver todas las titulaciones"
+  },
+  "_changelog": [
+    {
+      "version": "2.2.3",
+      "date": "2026-07-24",
+      "author": "Auditoría de tamaño real de CTA (ronda 'CTAs siguen siendo enormes') — ver engine/CHANGELOG.md",
+      "changes": [
+        "typography.cta.size 19→16, letterSpacing '0.5px'→'normal' (weight se mantiene 700) — OBSERVADO con Chrome real sobre los botones pill primarios ('Realizar Automatrícula', 'Solicitar visita', 'Más información', repetidos 4 veces con estilo idéntico) en https://www.uax.com/ el 2026-07-24. El 19px/700 anterior era el valor por defecto de plantilla, idéntico en 4 marcas del sistema — nunca fue una observación real.",
+        "colors.ctaBackground #008CF7→#0060AB — CORRECCIÓN, no solo ajuste de tamaño: el botón real observado usa rgb(0,96,171)=#0060AB, no el #008CF7 documentado (que resultó ser el mismo tono ya usado en el pack para 'colors.light', reservado para eyebrows). Esto además RESUELVE un riesgo de contraste latente: #008CF7 sobre blanco solo da 3.45:1 — pasaba el gate únicamente porque el CTA se forzaba a 19px/700 ('texto grande', umbral 3:1); al bajar a 16px/700 (ya NO califica como texto grande, exige 4.5:1) habría fallado. #0060AB da 6.44:1 — pasa con margen a cualquier tamaño. components.cta.backgroundColor actualizado igual.",
+        "components.cta.padding añadido: '14px 30px' (observado). components.cta.borderRadius y radius.ctaPill 50→60 (radio real observado en el botón)."
+      ]
+    },
+    {
+      "version": "2.2.2",
+      "date": "2026-07-24",
+      "author": "Gradientes bulletproof — ver engine/CHANGELOG.md",
+      "changes": [
+        "Añadido gradients.heroBackground = \"none\": colors.primary y colors.deep son el mismo hex (#003F6F) en este pack, así que no hay un segundo tono real del que partir para un degradado sin inventarlo."
+      ]
+    },
+    {
+      "version": "2.2.1",
+      "date": "2026-07-22",
+      "author": "Nivel 3 — ver engine/CHANGELOG.md",
+      "changes": [
+        "Este pack predata el estándar de investigación profunda de marca (Nivel 3, 2026-07-22): no tiene 'photography', 'iconography' ni 'voice.rhythm' investigados con Chrome real sobre uax.com. Válvula de escape documentada (agents/02-brand-visual-analyst.md): no se navega retroactivamente en esta ronda por decisión explícita del usuario (alcance de Nivel 3 = definir el estándar para marcas nuevas, no backfill de las 3 marcas ya en producción). Pendiente si esta marca vuelve a necesitar trabajo de brand pack."
+      ]
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-07-22",
+      "author": "Migración a schema real (pipeline de agentes) — ver engine/CHANGELOG.md",
+      "changes": [
+        "Pack creado desde cero: hasta esta fecha la campaña UAX no tenía brand pack — su campaign-data.json llevaba brand/settings inline en un formato antiguo y su final.html estaba escrito a mano, fuera del motor (ver engine/CHANGELOG.md, entrada 2026-07-22).",
+        "PROCEDENCIA: colores y logo OBSERVADOS del campaign-data.json inline original de la campaña (brand.primary/medium/cta/lightAccent/bgLight/textDark/secondaryText/lightGray, assets.logoUrl/logoWidth/logoHeight) — no inventados.",
+        "colors.light = #0060AB (el 'medium' original), NO el cta #008CF7 más claro: verificado que #008CF7 sobre blanco da solo 3.45:1 (falla el umbral 4.5:1 de texto normal) mientras #0060AB da 6.43:1 (pasa) — #0060AB es el color correcto para eyebrows/kickers de 12px, #008CF7 se reserva para el fondo del botón CTA (aceptable ahí porque el texto es 19px/700, 'grande' según la regla WCAG del sistema, y da 3.45:1 que sí alcanza el umbral de texto grande 3:1).",
+        "colors.onBrandSecondary = #C7DEF0 (no confirmado por el cliente, calculado para pasar 4.5:1 sobre colors.primary #003F6F — dio 7.82:1). lightAccent original (#59A9F3) NO se usa para texto: verificado que da solo 4.33:1 sobre #003F6F, insuficiente.",
+        "typography.displayFont = Arial/Helvetica (igual que family): el cliente no confirmó una fuente de display propia. NOTA heredada del sistema: hero-centrado.html tiene 'Sora' hardcodeado en su plantilla (no tokenizado) — limitación conocida del motor compartida por todas las marcas que usan ese componente (tarifalo también), no específica de este pack.",
+        "radius.card = 10 (no el 16/18 de otros packs): honra brand.settings.borderRadius=8 del original, redondeado ligeramente al alza por legibilidad visual. cta-bulletproof.html sigue con su border-radius:50px hardcodeado (no tokenizado, decisión de sistema compartida por todas las marcas)."
+      ]
+    }
+  ]
+}

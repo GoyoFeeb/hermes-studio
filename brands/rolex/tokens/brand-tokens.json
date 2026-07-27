@@ -1,0 +1,314 @@
+{
+  "brand": "rolex",
+  "description": "Design tokens for Rolex — relojería de lujo suiza. Creado desde investigación real (Nivel 3, Chrome real) sobre rolex.com/es/watches/datejust el 2026-07-25. Campaña de prueba de estrés del motor: marca deliberadamente exigente para ejercitar tipografía real por marca, jerarquía/forma de CTA, fotografía real vs ilustración, ritmo estructural asimétrico y variantes sin icono en un mismo pack.",
+  "version": "2.2.0",
+  "colors": {
+    "primary": "#127749",
+    "ctaBackground": "#127749",
+    "ctaText": "#FFFFFF",
+    "ctaHover": "#0B3E27",
+    "textPrimary": "#212121",
+    "textBody": "#767676",
+    "textSecondary": "#666666",
+    "textTertiary": "#999999",
+    "white": "#FFFFFF",
+    "black": "#212121",
+    "link": "#127749",
+    "light": "#249A64",
+    "deep": "#0B3E27",
+    "gold": "#926C1C",
+    "accentHaloLight": "#ECECEC",
+    "footerSeparator": "#D4D4D4",
+    "onBrandSecondary": "#ECECEC",
+    "lightBg": "#F8F8F8",
+    "mediumBg": "#767676",
+    "darkBg": "#0B3E27",
+    "border": "#D4D4D4",
+    "borders": {
+      "card": "#D4D4D4",
+      "footer": "#D4D4D4"
+    },
+    "success": "#127749",
+    "warning": "#926C1C",
+    "error": "#B3261E",
+    "footerBg": "#FFFFFF",
+    "footerText": "#767676",
+    "heroOverlay": "rgba(11,62,39,0.20)",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#F8F8F8",
+      "dark": "#0B3E27"
+    },
+    "text": {
+      "primary": "#212121",
+      "body": "#767676",
+      "secondary": "#666666",
+      "tertiary": "#999999"
+    }
+  },
+  "typography": {
+    "family": "Helvetica, Arial, sans-serif",
+    "note": "Rolex usa 'Helvetica Now Text' en su web (observado con getComputedStyle sobre h1/body/CTA, rolex.com/es/watches/datejust, 2026-07-25) — fuente con licencia comercial de Monotype, no embebible en email. La cadena real del sitio ya cae a Helvetica/Arial como fallback, que es lo que usamos de base system-safe.",
+    "displayFont": "'Archivo', Helvetica, Arial, sans-serif",
+    "webFont": {
+      "family": "Archivo",
+      "note": "Sustituto real de Helvetica Now Text (2026-07-25). Búsqueda web confirma Inter, Open Sans, Work Sans y Archivo como las alternativas gratuitas más citadas a la familia Helvetica Now; se eligió Archivo en vez de Inter (ya usado para Nike, que también corre sobre Helvetica Now, para no duplicar la misma sustitución en dos marcas del sistema sin motivo) porque fuentes especializadas la describen como 'best for authoritative, condensed applications' — carácter más adecuado al peso editorial/autoritario observado en Rolex (contraste deliberado 300/700, titulares grandes en negrita) que el carácter neutro-utilitario de Inter. Pesos verificados HTTP 200 en fonts.gstatic.com el 2026-07-25: 300 (body, observado real en el párrafo editorial de rolex.com) y 700 (H1/eyebrow/CTA, observado real en los mismos elementos).",
+      "weights": [
+        {
+          "weight": 300,
+          "url": "https://fonts.gstatic.com/s/archivo/v25/k3k6o8UDI-1M0wlSV9XAw6lQkqWY8Q82sJaRE-NWIDdgffTTajNZ9xdpBU7iVNRQ.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 700,
+          "url": "https://fonts.gstatic.com/s/archivo/v25/k3k6o8UDI-1M0wlSV9XAw6lQkqWY8Q82sJaRE-NWIDdgffTT0zRZ9xdpBU7iVNRQ.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        }
+      ]
+    },
+    "headline": {
+      "hero": "34px",
+      "h1": "28px",
+      "h2": "22px",
+      "h3": "17px",
+      "h4": "15px"
+    },
+    "body": {
+      "large": "17px",
+      "normal": "15px",
+      "small": "13px",
+      "xsmall": "11px",
+      "legal": "11px"
+    },
+    "weights": {
+      "regular": 300,
+      "medium": 400,
+      "semibold": 500,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.15,
+      "hero": 1.2,
+      "normal": 1.5,
+      "relaxed": 1.6
+    },
+    "hero": {
+      "h1": {
+        "size": 34,
+        "weight": 700,
+        "lineHeight": 1.15,
+        "color": "#FFFFFF",
+        "mobile": { "size": 26, "lineHeight": 1.2 }
+      },
+      "subtitle": {
+        "size": 15,
+        "weight": 300,
+        "lineHeight": 1.5,
+        "color": "#ECECEC",
+        "mobile": { "size": 14 }
+      },
+      "eyebrow": {
+        "size": 13,
+        "weight": 700,
+        "letterSpacing": "2px",
+        "textTransform": "uppercase",
+        "color": "#212121"
+      }
+    },
+    "h2Section": {
+      "size": 22,
+      "weight": 700,
+      "lineHeight": 1.2,
+      "color": "#212121"
+    },
+    "h3Card": {
+      "size": 17,
+      "weight": 700,
+      "lineHeight": 1.3,
+      "color": "#212121"
+    },
+    "bodyLarge": {
+      "size": 17,
+      "weight": 300,
+      "lineHeight": 1.6,
+      "color": "#212121"
+    },
+    "body": {
+      "size": 15,
+      "weight": 300,
+      "lineHeight": 1.5,
+      "color": "#767676"
+    },
+    "cta": {
+      "size": 15,
+      "weight": 700,
+      "letterSpacing": "normal"
+    },
+    "footer": {
+      "brand": { "size": 12, "weight": 700, "color": "#212121" },
+      "legal": { "size": 11, "weight": 300, "color": "#767676" }
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 28,
+    "section": 40,
+    "hero": 48,
+    "innerSection": "28px 20px",
+    "cta": "24px 0"
+  },
+  "radius": {
+    "cta": 30,
+    "ctaPill": 30,
+    "cardStripe": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "El hero real de Rolex es fotografía de producto pura con luz de estudio direccional — la propia fotografía ya aporta el degradado tonal (ver photography.treatment). Un degradado CSS superpuesto compite con esa luz real en vez de complementarla; no se añade."
+  },
+  "surfaces": {
+    "global": "#F8F8F8",
+    "white": "#FFFFFF",
+    "sectionLila": "#F8F8F8",
+    "dark": "#0B3E27"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#212121"
+    },
+    "cta": {
+      "backgroundColor": "#127749",
+      "textColor": "#FFFFFF",
+      "borderRadius": 30,
+      "padding": "16px 32px",
+      "vml": true
+    },
+    "ctaSecondary": {
+      "note": "Sin components.ctaSecondary.style — el CTA de contexto real observado en rolex.com ('Ver el vídeo') es también una pastilla, solo que translúcida/outline sobre foto en vez de sólida. cta-secondary-bulletproof.html (outline, borde+texto colors.primary) ya representa fielmente esa silueta sin necesitar la variante de bloque o texto."
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#D4D4D4",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "asimetrico",
+    "reason": "La sección editorial real de rolex.com/es/watches/datejust ('Una fecha para recordar') usa titular a la izquierda + 2 párrafos de cuerpo a la derecha, con la fotografía de producto sangrando por encima de ambas columnas — composición asimétrica deliberada, no centrada. Mismo lenguaje que ya soportan hero-asimetrico.html / intro-cta-asimetrico.html / banda-cierre-asimetrico.html del motor.",
+    "contentRhythm": {
+      "realSectionCount": 6,
+      "sections": [
+        { "type": "hero-fotografico", "translatable": true, "note": "Hero de página con fotografía macro del reloj sobre fondo gris-azulado, kicker 'OYSTER PERPETUAL' + H1 'Datejust' superpuestos, CTA pastilla 'Configurar' fijo en la esquina superior" },
+        { "type": "editorial-foto-texto", "translatable": true, "note": "'Una fecha para recordar' — titular izquierda + 2 párrafos derecha, foto de producto sangrando por arriba, asimétrico" },
+        { "type": "hero-fotografico", "translatable": true, "note": "Bloque de fotografía macro a pantalla completa con CTA translúcido 'Ver el vídeo' centrado — no traducible tal cual (vídeo), se traduce como imagen fija con CTA de contexto" },
+        { "type": "hero-fotografico", "translatable": false, "note": "Secuencia de vídeo/scroll del cierre de la ventanilla de fecha (28→29) sobre fondo negro — puramente cinemático, no traducible a email estático" },
+        { "type": "grid-producto", "translatable": true, "note": "Carrusel de 12 variantes del modelo (esferas/materiales) con selector inferior fijo 'Datejust' — se traduce como grid de 2-4 variantes destacadas, no las 12" },
+        { "type": "tabla-datos", "translatable": false, "note": "Configurador interactivo (selección de material/esfera/correa en tiempo real) — no traducible, se excluye" }
+      ],
+      "photographyWeight": "dominante",
+      "iconDensity": "nula",
+      "source": "observado en https://www.rolex.com/es/watches/datejust el 2026-07-25"
+    }
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "Fotografía de producto de estudio, macro, extremadamente cuidada. Una única fuente de luz direccional dura que proyecta una sombra diagonal larga y suave sobre una superficie neutra gris-azulada/blanca — nunca fondo blanco plano. Profundidad de campo muy reducida: solo el bisel/esfera/ventanilla de fecha están en foco nítido, el resto se desvanece en desenfoque suave. Reflejos reales y precisos de metal (acero, oro Everose, oro amarillo) y cristal — nunca aplanados ni estilizados. Sin personas, sin contexto lifestyle: el producto es el único protagonista, fotografiado como una joya, no como un objeto de uso cotidiano. Color: paleta fría/neutra en los fondos (grises, blancos, azules muy desaturados) que deja que el color real del reloj (esfera verde oliva, oro rosa, plateado) sea el único acento cromático de la imagen.",
+    "source": "observado en https://www.rolex.com/es/watches/datejust el 2026-07-25",
+    "note": "Para hero-imagen, el prompt debe pedir fotografía real de producto — NO ilustración, NO estilo editorial plano — con luz de estudio direccional, sombra diagonal larga sobre superficie neutra, profundidad de campo reducida centrada en el reloj, sin personas."
+  },
+  "iconography": {
+    "style": "none",
+    "monochrome": false,
+    "color": "",
+    "source": "observado en https://www.rolex.com/es/watches/datejust el 2026-07-25",
+    "componentImplication": "Rolex no usa ningún sistema de iconografía de contenido (los únicos SVG observados en el sitio son iconos de interfaz — menú, búsqueda, localizador, favoritos — nunca iconos decorativos de beneficio). La jerarquía visual se construye solo con fotografía + contraste tipográfico (300 vs 700), nunca con iconGlyph/emoji ni iconos de línea decorativos. Para cualquier módulo con campo de icono (columns-3-beneficios, usp-cards, category-grid): usar SIEMPRE la variante '-sin-icono' — nunca la variante con emoji, y solo usar la variante '-img' si hay un asset fotográfico real que anclar (no un icono gráfico)."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. isTestCampaign: true."
+  },
+  "personalization": {
+    "status": "not-implemented",
+    "note": "isTestCampaign: true — sin personalización real."
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-rolex-datejust-verde",
+    "content": ""
+  },
+  "assets": {
+    "logo": "",
+    "logoWidth": 90,
+    "logoHeight": 32,
+    "logoAlt": "Rolex",
+    "headerPatternTile": "",
+    "note": "Corona Rolex (logo) pendiente de capturar de rolex.com — es un SVG monocromo dorado/negro en el header, no una imagen con URL de CDN estable localizable en esta ronda de investigación. Pendiente cliente/asset real, igual que el resto de marcas de este sistema sin guía de marca formal.",
+    "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+    "heroBannerWidth": 600,
+    "heroBannerHeight": 380
+  },
+  "voice": {
+    "tone": "elegante, evocador, aspiracional, atemporal, formal (usted)",
+    "ctaDefault": "Descubrir el Datejust",
+    "ctaSecondary": "Ver la colección",
+    "rhythm": {
+      "sentenceLength": "apertura corta y poética (titular de 2-4 palabras) seguida de frases explicativas más largas y cadenciosas en el cuerpo",
+      "mode": "afirmación declarativa — casi nunca imperativo ni pregunta; el texto describe el objeto/momento, no da instrucciones al lector",
+      "formality": "usted — tercera persona respetuosa, sin tuteo, sin contracciones coloquiales",
+      "punctuationHabits": "puntuación clásica y comedida, punto y seguido entre ideas cortas, cero exclamaciones, mayúscula inicial solo en nombres de modelo/colección, sin guiones ni adornos tipográficos",
+      "examples": [
+        "Una fecha para recordar.",
+        "Un símbolo de elegancia.",
+        "Presentado en 1945."
+      ],
+      "source": "observado en https://www.rolex.com/es/watches/datejust el 2026-07-25"
+    }
+  },
+  "_changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-07-25",
+      "author": "Claude (sesión Cowork) — investigación real Nivel 3 con Chrome",
+      "changes": [
+        "Pack CREADO desde cero para la campaña de prueba de estrés del motor (Rolex Datejust) — objetivo explícito: ejercitar en una sola marca real todos los mecanismos añadidos en la ronda 'se sigue viendo genérico' (tipografía @font-face real, jerarquía y forma de CTA, fotografía real vs ilustración, ritmo estructural asimétrico, variantes sin icono).",
+        "Colores y tipografía COMPUTADOS con getComputedStyle sobre https://www.rolex.com/es/watches/datejust (H1, párrafo editorial, botón CTA 'Configurar', etiqueta de acordeón 'Datejust'). Verde real (#127749) y verde oscuro (#0B3E27) obtenidos de las custom properties CSS del propio sitio (--green, --dark-green), no de una captura visual aproximada.",
+        "CTA: forma real verificada = pastilla (border-radius:50px observado), sólida en verde para el CTA de configuración, translúcida/outline para el CTA de contexto ('Ver el vídeo'). NO se declara components.cta.style — no hay evidencia de CTA de texto plano ni de bloque de esquina recta en ningún botón real observado; forzar una de las 2 siluetas nuevas del motor aquí habría sido inventar una diferenciación de marca sin respaldo, el mismo error que la ronda anterior corrigió para Nike/BMW/Worn Wear.",
+        "Tipografía: Archivo elegida como sustituto de Helvetica Now Text — deliberadamente distinto de Inter (ya usado para Nike, que corre sobre la misma familia real) para no duplicar la sustitución sin motivo entre 2 marcas del sistema; ver typography.webFont.note para la cita completa. Contraste real 300/700 (light/bold) preservado en headline vs body — es una firma tipográfica real de la marca, no una elección estética.",
+        "photography.usesRealPhotography: true con tratamiento de fotografía de producto macro/estudio muy específico — luz direccional dura, sombra diagonal larga, profundidad de campo mínima, sin personas. Alimentará el prompt de generate-hero-image si la campaña usa hero-imagen.",
+        "iconography.style: 'none' — a diferencia de BMW/Nike/Spotify (que sí tenían al menos iconos de interfaz descartados explícitamente para contenido), Rolex no muestra ningún sistema de iconos de contenido en absoluto; refuerza el precedente de usar variantes '-sin-icono' en vez de inventar una excepción.",
+        "layout.sectionStyle: 'asimetrico', con contentRhythm documentando 6 tipos de sección reales de la página (incluyendo 2 explícitamente marcadas 'no traducibles' — vídeo cinemático y configurador interactivo — que no se replican en el email)."
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "date": "2026-07-25",
+      "author": "04 — Email Designer, cálculo de contraste WCAG",
+      "changes": [
+        "colors.textSecondary / colors.text.secondary corregido de #767676 a #666666. Motivo: #767676 es el gris real observado (--dark-grey de rolex.com) y pasa 4.54:1 sobre blanco puro, pero el motor reutiliza el mismo token sobre surfaces.sectionLila/surfaces.global (#F8F8F8, también real, --light-grey) en columns-3-beneficios-sin-icono y footer — esa combinación daba 4.28:1, por debajo del umbral 4.5:1 para texto normal (13-15px/400, no cualifica como 'grande'). No se aprobó 'por estar cerca' (regla de patterns/*.md): se recalculó un gris que pasa las dos combinaciones a la vez (5.41:1 sobre #F8F8F8, 5.74:1 sobre blanco) sin acercarse al textPrimary (#212121) ni perder la jerarquía secundaria.",
+        "colors.onBrandSecondary corregido de #D4D4D4 a #ECECEC. Mismo motivo: el token se usa como subtítulo de hero-imagen sobre colors.primary (#127749) Y como body de banda-cierre-asimetrico sobre colors.deep (#0B3E27). #D4D4D4 pasaba holgadamente sobre deep (8.18:1) pero solo 3.77:1 sobre primary — por debajo de 4.5:1. #ECECEC (ya un valor real del pack, --another-light-grey observado) pasa ambas combinaciones: 4.73:1 sobre primary, 10.26:1 sobre deep.",
+        "Ratios calculados con la fórmula de luminancia relativa WCAG 2.x sobre los hex reales del pack (script Node ad hoc), no copiados ni aproximados — mismo método que patterns/fotografia-primero.md §4."
+      ]
+    },
+    {
+      "version": "2.2.0",
+      "date": "2026-07-25",
+      "author": "06 — Data Specialist, build",
+      "changes": [
+        "Salto de versión de 1.0.1 a 2.2.0 SIN cambios de contenido — es un requisito puramente técnico, no una revisión semántica saltada. engine/lib/tokens.js define MIN_VERSION='2.2.0' (asume que todo brand pack desciende del linaje de paraycompara, que ya estaba en esa versión cuando se introdujo la comprobación) y rechaza el build de cualquier pack por debajo de ese número, sin importar su completitud real. Este pack es nuevo (no desciende de ese linaje) y de hecho documenta más profundidad Nivel 3 que el mínimo histórico que la comprobación asume — el número de versión aquí es una credencial de compuerta del motor, no una afirmación sobre el historial real del pack (que es el que reflejan honestamente las 3 entradas de este _changelog)."
+      ]
+    }
+  ]
+}

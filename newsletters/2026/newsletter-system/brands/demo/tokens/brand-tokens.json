@@ -1,0 +1,107 @@
+{
+  "brand": "Demo Brand",
+  "version": "2.0.0",
+  "extends": "core",
+  "colors": {
+    "primary": "#1A5276",
+    "deep": "#0D2E4A",
+    "light": "#2980B9",
+    "ctaBackground": "#E67E22",
+    "ctaText": "#FFFFFF",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#EBF5FB",
+      "exterior": "#EBF5FB",
+      "trustBar": "#D6EAF8"
+    },
+    "text": {
+      "primary": "#1B2631",
+      "secondary": "#5D6D7E",
+      "tertiary": "#85929E"
+    },
+    "borders": {
+      "card": "#D4E6F1",
+      "footer": "#D4E6F1"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "eyebrow": { "size": 12, "weight": 700, "letterSpacing": "2.5px", "transform": "uppercase", "color": "#2980B9" },
+    "h1Hero": { "size": 32, "weight": 800, "lineHeight": 1.12, "color": "#1B2631" },
+    "h1HeroOnBrand": { "size": 30, "weight": 800, "lineHeight": 1.15, "color": "#FFFFFF" },
+    "h2Section": { "size": 22, "weight": 800, "lineHeight": 1.2, "color": "#1A5276" },
+    "h3Card": { "size": 16, "weight": 700, "lineHeight": 1.25, "color": "#1A5276" },
+    "bodyLarge": { "size": 16, "weight": 400, "lineHeight": 1.55, "color": "#5D6D7E" },
+    "body": { "size": 14, "weight": 400, "lineHeight": 1.5, "color": "#5D6D7E" },
+    "small": { "size": 12, "weight": 400, "lineHeight": 1.4, "color": "#85929E" },
+    "statNumber": { "size": 40, "weight": 800, "lineHeight": 1, "color": "#FFFFFF" },
+    "cta": { "size": 16, "weight": 700, "letterSpacing": "0.5px" }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "hero": 56,
+    "close": 48
+  },
+  "radius": {
+    "ctaPill": 50,
+    "card": 12,
+    "badgeCircle": "50%",
+    "listAccent": 0
+  },
+  "surfaces": {
+    "global": "#EBF5FB",
+    "sectionWhite": "#FFFFFF",
+    "sectionLila": "#EBF5FB",
+    "brandDeepClose": "#0D2E4A",
+    "brandHeader": "#1A5276",
+    "trustBarPill": "#D6EAF8"
+  },
+  "components": {
+    "header": { "backgroundColor": "#1A5276", "textColor": "#FFFFFF" },
+    "cta": { "backgroundColor": "#E67E22", "textColor": "#FFFFFF", "borderRadius": 50 },
+    "card": { "borderRadius": 12, "borderColor": "#D4E6F1" },
+    "trustBar": { "backgroundColor": "#D6EAF8", "iconBackground": "#1A5276", "iconColor": "#FFFFFF" },
+    "steps": { "circleBackground": "#1A5276", "circleTextColor": "#FFFFFF", "titleColor": "#1A5276" },
+    "patterns": {
+      "heroEditorialNoPhoto": {
+        "statBackground": "#1A5276",
+        "statTextColor": "#FFFFFF",
+        "statRadius": 16,
+        "statPadding": "16px 28px"
+      },
+      "trustCheckmark": {
+        "bg": "#D6EAF8",
+        "iconBg": "#1A5276",
+        "iconColor": "#FFFFFF",
+        "textColor": "#1A5276"
+      },
+      "closingBand": {
+        "bg": "#0D2E4A",
+        "ctaBg": "#E67E22",
+        "ctaText": "#FFFFFF",
+        "titleColor": "#FFFFFF",
+        "bodyColor": "rgba(255,255,255,0.85)"
+      },
+      "listAccentBar": {
+        "accentColor": "#E67E22",
+        "bg": "#EBF5FB",
+        "items": 4,
+        "itemRadius": 4
+      }
+    }
+  },
+  "assets": {
+    "logo": "[LOGO_DEMO]",
+    "logoWidth": 200,
+    "logoHeight": 55,
+    "heroPlaceholder": "[HERO_DEMO]"
+  },
+  "voice": {
+    "tone": "profesional, claro, cercano",
+    "ctaDefault": "GET STARTED"
+  }
+}

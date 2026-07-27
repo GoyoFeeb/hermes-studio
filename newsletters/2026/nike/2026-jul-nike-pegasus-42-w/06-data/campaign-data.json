@@ -1,0 +1,91 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-nike-pegasus-42-w",
+    "clientName": "Nike",
+    "subjectLine": "Nike Pegasus 42. Máxima respuesta en cada zancada.",
+    "preheader": "La nueva generación del icono del running, ahora con full-length Air Zoom y ReactX foam.",
+    "fromName": "Nike",
+    "fromEmail": "noreply@newsletter.nike.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-24",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/nike/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://placeholder.nike.com/swoosh.png",
+        "logoAlt": "Nike",
+        "logoWidth": 80,
+        "logoHeight": 28,
+        "label": "NIKE"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+        "bannerAlt": "Nike Pegasus 42 — zapatilla de running para mujer, perfil lateral sobre fondo blanco",
+        "brandName": "Nike Pegasus 42",
+        "h1": "Máxima respuesta en cada zancada",
+        "subtitle": "La amortiguación full-length Air Zoom y la espuma ReactX se combinan para ofrecer una zancada con energía. El icono del running, ahora para mujer.",
+        "cta": {
+          "href": "https://www.nike.com/t/pegasus-42-womens-road-running-shoes-VCB6baKU/IB1881-602",
+          "label": "Comprar el Pegasus 42"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Ingeniería que impulsa cada zancada",
+        "highlight": "Tecnología probada por atletas de todo el mundo",
+        "highlightNote": "Basado en las especificaciones oficiales de Nike para el Pegasus 42",
+        "items": [
+          {
+            "title": "Air Zoom Completo",
+            "body": "Una unidad Air Zoom de longitud completa ofrece una sensación propulsiva y la máxima devolución de energía de Nike, desde el talón hasta el despegue."
+          },
+          {
+            "title": "ReactX Foam",
+            "body": "La espuma ReactX es un 13% más responsive que la tecnología React anterior, proporcionando una respuesta energética en cada paso."
+          },
+          {
+            "title": "Upper Transpirable",
+            "body": "La malla ligera es más suave y transpirable que en versiones anteriores, ayudando a mantener tus pies cómodos durante toda la carrera."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Da el siguiente paso",
+        "body": "El Pegasus 42 te espera. Descubre la zancada que ha convertido a este modelo en un icono del running.",
+        "cta": {
+          "href": "https://www.nike.com/t/pegasus-42-womens-road-running-shoes-VCB6baKU/IB1881-602",
+          "label": "Comprar el Pegasus 42"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Nike",
+        "tagline": "Just Do It",
+        "disclosure": "Recibes este correo porque formas parte de la comunidad Nike.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Nike, Inc. [DIRECCIÓN FÍSICA — pendiente del cliente]. Todos los derechos reservados."
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-nike-pegasus-42-w"
+  }
+}

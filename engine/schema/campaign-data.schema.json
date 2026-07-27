@@ -1,0 +1,1308 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sistema-final/engine/schema/campaign-data.schema.json",
+  "title": "campaign-data.json",
+  "description": "Schema del archivo que cada campaña guarda en 06-data/campaign-data.json. Derivado el 2026-07-20 (prompt 12) directamente de los campos {{data:...}} que consumen los componentes reales en engine/components/ — ver engine/components/INVENTORY.md para la verificación cruzada campo a campo. build-newsletter.js (prompt 13) lee este archivo + brands/{cliente}/tokens/brand-tokens.json + patterns/{pattern}.md para ensamblar el HTML final.",
+  "type": "object",
+  "required": [
+    "metadata",
+    "brand",
+    "pattern",
+    "modules",
+    "utm"
+  ],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^_": {}
+  },
+  "$comment": "patternProperties '^_' permite campos de anotación tipo _comment/_changelog a nivel raíz, siguiendo la misma convención ya usada en brand-tokens.json. additionalProperties:false sigue bloqueando cualquier otro campo no declarado.",
+  "$defs": {
+    "nonPendingString": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "\\[PENDIENTE\\]"
+      },
+      "description": "Regla heredada del sistema actual: prohibido dejar el placeholder [PENDIENTE] como valor. Si un dato no está confirmado, se omite el campo (o el módulo entero, según la regla de obligatoriedad de patterns/saving.md) en vez de rellenarlo con un placeholder de texto."
+    },
+    "httpsUrl": {
+      "type": "string",
+      "pattern": "^https://",
+      "description": "Regla heredada: todo src/href debe ser una URL absoluta https. Nada de rutas relativas, file:// ni SVG (ver next-steps.md de la campaña piloto, sección 'Assets CDN completado')."
+    },
+    "espResolvedUrl": {
+      "type": "string",
+      "pattern": "^(https://|\\[[A-Z_]+\\]$)",
+      "description": "Para unsubscribeUrl/preferencesUrl EXCLUSIVAMENTE. Acepta una URL https real O un merge-tag de plataforma de envío entre corchetes en mayúsculas (ej. '[UNSUBSCRIBE_LINK]', '[PREFERENCES_LINK]') — estos NO son datos pendientes: son tokens que el ESP resuelve en el momento del envío, un patrón estándar (Mailchimp y similares). Distinto de un valor realmente incompleto: por eso tiene su propio $def en vez de relajar httpsUrl de forma genérica para todos los campos."
+    },
+    "hexColor": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "description": "Regla heredada del sistema actual (patrón hex de 6 dígitos). Reservado para uso futuro: ningún campo de campaign-data.json usa color hoy — los colores viven exclusivamente en brand-tokens.json (los componentes solo consumen {{token:...}}, nunca {{data:...}} para color). Si un patrón de género futuro necesita un acento de color específico de campaña, debe validarse contra este $def."
+    },
+    "ctaBlock": {
+      "type": "object",
+      "required": [
+        "href",
+        "label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "href": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "label": {
+          "$ref": "#/$defs/nonPendingString"
+        }
+      }
+    },
+    "iconGlyph": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8,
+      "description": "Añadido 2026-07-22 (patrón institutional): icono como CARÁCTER de texto (emoji), no imagen — a diferencia de card-tarifa/lista-premium (icon: httpsUrl). Decisión deliberada: cero dependencia de CDN/assets para un icono decorativo, cero riesgo de imagen rota. maxLength:8 cubre emoji compuestos (ej. banderas, secuencias con variation selector) sin permitir que se cuele texto largo por error."
+    }
+  },
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Datos de campaña y control de envío. campaignName/clientName no los consume ningún componente directamente — son metadatos operativos (nombre de carpeta, tracking interno).",
+      "required": [
+        "campaignName",
+        "clientName",
+        "subjectLine",
+        "preheader",
+        "fromName",
+        "fromEmail",
+        "version",
+        "createdAt",
+        "isTestCampaign",
+        "productionReady"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "campaignName": {
+          "$ref": "#/$defs/nonPendingString",
+          "description": "Ej. '2026-jul-ahorra-fibra-movil'"
+        },
+        "clientName": {
+          "$ref": "#/$defs/nonPendingString"
+        },
+        "subjectLine": {
+          "$ref": "#/$defs/nonPendingString",
+          "description": "Alimenta {{data:subject}} en _shell.html (<title> y asunto del envío)"
+        },
+        "preheader": {
+          "$ref": "#/$defs/nonPendingString",
+          "description": "Alimenta {{data:preheader}} en _shell.html"
+        },
+        "fromName": {
+          "$ref": "#/$defs/nonPendingString"
+        },
+        "fromEmail": {
+          "type": "string",
+          "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+          "description": "Validación ligera con 'pattern' (no 'format') a propósito: ajv puro (sin ajv-formats, prohibido por el prompt 13 — 'sin dependencias más allá de juice y ajv') no valida 'format:email' de verdad, solo emite un aviso ignorándolo. 'pattern' sí lo valida con ajv puro."
+        },
+        "version": {
+          "type": "string",
+          "description": "Versión del campaign-data, ej. '1.0.0'"
+        },
+        "createdAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "YYYY-MM-DD. Mismo motivo que fromEmail: 'pattern' en vez de 'format:date' para que ajv puro lo valide de verdad."
+        },
+        "isTestCampaign": {
+          "type": "boolean"
+        },
+        "productionReady": {
+          "type": "boolean"
+        }
+      }
+    },
+    "brand": {
+      "type": "string",
+      "pattern": "^brands/[a-z0-9-]+/tokens/brand-tokens\\.json$",
+      "description": "Ruta al brand pack. El motor lee TODOS los {{token:...}} de aquí — campaign-data.json nunca lleva colores, radios, sombras ni tipografía. Ej. 'brands/paraycompara/tokens/brand-tokens.json'."
+    },
+    "pattern": {
+      "type": "string",
+      "enum": [
+        "saving",
+        "institutional",
+        "fotografia-primero"
+      ],
+      "description": "Nombre del patrón de género en patterns/{pattern}.md. 'saving' es el original (prompt 12). 'institutional' se añadió el 2026-07-22 para la campaña UAX (FP Online). 'fotografia-primero' se añadió el 2026-07-24 para la campaña BMW (X1 Descubre) — regla anti-aspiracional del plan de transformación respetada: cada uno se añadió porque había una campaña real que lo necesitaba (ver patterns/{pattern}.md y engine/CHANGELOG.md), no antes."
+    },
+    "modules": {
+      "type": "array",
+      "description": "Secuencia ORDENADA de módulos — el orden del array ES el orden de renderizado del email. Cada entrada referencia un componente de engine/components/ y los datos que necesita. build-newsletter.js resuelve component→archivo .html y data→placeholders {{data:...}} de ese archivo (ver mapeo campo a campo en cada oneOf de items más abajo, y la tabla de mapeo en patterns/saving.md). El patrón 'saving' fija la secuencia y las reglas de obligatorio/opcional/mínimo-máximo — este schema solo valida la FORMA de los datos de cada módulo posible, no la secuencia (eso lo valida production-gate contra patterns/saving.md, no este schema).",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "hero-asimetrico"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "h1",
+                  "stat",
+                  "subtitle",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "h1": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:hero.h1}}"
+                  },
+                  "stat": {
+                    "type": "object",
+                    "required": [
+                      "number",
+                      "label"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "number": {
+                        "$ref": "#/$defs/nonPendingString",
+                        "description": "{{data:hero.stat.number}}, ej. '+30'"
+                      },
+                      "label": {
+                        "$ref": "#/$defs/nonPendingString",
+                        "description": "{{data:hero.stat.label}}, ej. 'compañías'"
+                      }
+                    }
+                  },
+                  "subtitle": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:hero.subtitle}}"
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock",
+                    "description": "Resuelto por {{include:cta-bulletproof}} en el ámbito hero.cta"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "hero-centrado"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "brandName",
+                  "h1",
+                  "subtitle",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "brandName": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:hero.brandName}} — nombre de marca como texto (variante para marcas sin logo PNG confirmado; SVG prohibido en email)"
+                  },
+                  "h1": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:hero.h1}}"
+                  },
+                  "subtitle": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:hero.subtitle}}"
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock",
+                    "description": "Resuelto por {{include:cta-bulletproof}}"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "type": "string",
+                "pattern": "^hero-marca-[a-z0-9-]+$",
+                "description": "Hero de marca generado (Claude design) — mismo contrato de datos que hero-centrado. El componente debe existir en engine/components/ (aceptado via validate-hero --accept)."
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "brandName",
+                  "h1",
+                  "subtitle",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "brandName": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "h1": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "subtitle": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "hero-imagen"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "bannerSrc",
+                  "bannerAlt",
+                  "brandName",
+                  "h1",
+                  "subtitle",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "bannerSrc": {
+                    "$ref": "#/$defs/httpsUrl",
+                    "description": "URL https del arte generado (gpt-image), ya subido al CDN — el arte NO contiene texto (híbrido)"
+                  },
+                  "bannerAlt": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Descripción del arte para imágenes bloqueadas/lectores"
+                  },
+                  "brandName": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "h1": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "subtitle": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "trust-bar"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "Exactamente 3 — el layout de trust-bar.html es fijo a 33%/33%/33%. {{data:trustItems[0..2].text}}",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "text"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "text": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "card-tarifa"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "eyebrow",
+                  "title",
+                  "subtitle",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "eyebrow": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:cardsSection.eyebrow}}"
+                  },
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:cardsSection.title}}"
+                  },
+                  "subtitle": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:cardsSection.subtitle}}"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 4,
+                    "description": "2 a 4 tarjetas (regla de patterns/saving.md — el componente card-tarifa.html tal cual solo soporta el grid 2x2 fijo de 4; para 2 o 3 hace falta una variante de layout, documentada como pendiente en patterns/saving.md). {{data:cards[n].*}}",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "icon",
+                        "title",
+                        "body",
+                        "href",
+                        "linkLabel"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "icon": {
+                          "$ref": "#/$defs/httpsUrl"
+                        },
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "body": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "href": {
+                          "$ref": "#/$defs/httpsUrl",
+                          "description": "URL completa, con UTM ya incluida"
+                        },
+                        "linkLabel": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "card-tarifa-3"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "eyebrow",
+                  "title",
+                  "subtitle",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "eyebrow": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "subtitle": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "Exactamente 3 — fila 33/33/33 (variante añadida 2026-07-21; para 4 usar card-tarifa)",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "icon",
+                        "title",
+                        "body",
+                        "href",
+                        "linkLabel"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "icon": {
+                          "$ref": "#/$defs/httpsUrl"
+                        },
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "body": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "href": {
+                          "$ref": "#/$defs/httpsUrl"
+                        },
+                        "linkLabel": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "pasos"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "eyebrow",
+                  "title",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "eyebrow": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:stepsSection.eyebrow}}"
+                  },
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:stepsSection.title}}"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 4,
+                    "description": "Exactamente 3 — layout fijo a 33%/33%/33%, igual que trust-bar. {{data:steps[0..2].*}}",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "number",
+                        "title",
+                        "body"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "number": {
+                          "type": "string",
+                          "pattern": "^[0-9]{2}$",
+                          "description": "Ej. '01'"
+                        },
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "body": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "lista-premium"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "eyebrow",
+                  "title",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "eyebrow": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:listSection.eyebrow}}"
+                  },
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:listSection.title}}"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 4,
+                    "description": "3 a 4 ítems (regla de patterns/saving.md). Repetible con {{#each:listItems}} — a diferencia de card-tarifa/pasos, este componente SÍ admite un número variable de ítems sin cambiar el layout.",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "icon",
+                        "title",
+                        "body"
+                      ],
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^_": {}
+                      },
+                      "$comment": "patternProperties '^_' permite anotar un ítem como _reconstructed cuando su copy no viene literal de la fuente (ver campaign-data.example.json, ítems 'Cobertura'/'Condiciones' — bug documentado en engine/components/lista-premium.html).",
+                      "properties": {
+                        "icon": {
+                          "$ref": "#/$defs/httpsUrl"
+                        },
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "body": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "'banda-cierre-asimetrico' añadido 2026-07-22 (Nivel 2, ver engine/CHANGELOG.md) — misma forma de datos, layout distinto (título/cuerpo izq + CTA der en vez de centrado). Cuál usa cada marca: brand-tokens.json → layout.sectionStyle.",
+            "properties": {
+              "component": {
+                "enum": [
+                  "banda-cierre",
+                  "banda-cierre-asimetrico"
+                ]
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "body",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:closing.title}}"
+                  },
+                  "body": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:closing.body}}"
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock",
+                    "description": "Resuelto por {{include:cta-bulletproof}} en el ámbito closing.cta"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "component": {
+                "const": "footer"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "brandName",
+                  "tagline",
+                  "disclosure",
+                  "unsubscribeUrl",
+                  "preferencesUrl",
+                  "legalLine"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "brandName": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "tagline": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "disclosure": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Línea 'recibes este correo porque...'"
+                  },
+                  "unsubscribeUrl": {
+                    "$ref": "#/$defs/espResolvedUrl"
+                  },
+                  "preferencesUrl": {
+                    "$ref": "#/$defs/espResolvedUrl"
+                  },
+                  "legalLine": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Copyright + dirección física. Puede contener el placeholder textual '[DIRECCIÓN FÍSICA — pendiente del cliente]' SOLO si metadata.isTestCampaign es true — ver bloqueo en patterns/saving.md, no se valida aquí porque el schema no puede hacer validación cruzada entre campos de esa forma sin JSON Schema 2019-09 (if/then). Documentado como limitación conocida."
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX).",
+            "properties": {
+              "component": {
+                "const": "header-logo"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "logoSrc",
+                  "logoAlt",
+                  "logoWidth",
+                  "logoHeight",
+                  "label"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "logoSrc": {
+                    "$ref": "#/$defs/httpsUrl"
+                  },
+                  "logoAlt": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "logoWidth": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "logoHeight": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "label": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "{{data:header.label}}, ej. 'FP OFICIAL ONLINE'"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX). 'intro-cta-asimetrico' añadido 2026-07-22 (Nivel 2, ver engine/CHANGELOG.md) — misma forma de datos, layout distinto (título/cuerpo izq + CTA der). Cuál usa cada marca: brand-tokens.json → layout.sectionStyle.",
+            "properties": {
+              "component": {
+                "enum": [
+                  "intro-cta",
+                  "intro-cta-asimetrico"
+                ]
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "body",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "body": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX). Exactamente 3 columnas iguales — el highlight es a nivel de SECCIÓN, no por columna, precisamente para que sea estructuralmente imposible repetir el desalineamiento que motivó este componente (ver columns-3-beneficios.html). scripts/check-column-balance.ts además bloquea si items[].body se desequilibra >1.6x en palabras entre columnas. 'columns-3-beneficios-asimetrico' añadido 2026-07-22 (Nivel 2, ver engine/CHANGELOG.md) — misma forma de datos, 3 filas icono-izq/texto-der en vez de 3 columnas centradas. Cuál usa cada marca: brand-tokens.json → layout.sectionStyle.",
+            "properties": {
+              "component": {
+                "enum": [
+                  "columns-3-beneficios",
+                  "columns-3-beneficios-asimetrico"
+                ]
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "highlight",
+                  "highlightNote",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "highlight": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Aviso/promo a todo el ancho, DEBAJO de las 3 columnas — nunca dentro de una."
+                  },
+                  "highlightNote": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Nota pequeña bajo el highlight, ej. '*Consultar condiciones'"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 4,
+                    "description": "Exactamente 3 — layout fijo 33/33/33, igual que trust-bar/pasos.",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "icon",
+                        "title",
+                        "body"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "icon": {
+                          "$ref": "#/$defs/iconGlyph"
+                        },
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "body": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-07-24, campaña BMW: variante SIN icono de columns-3-beneficios. Motivo real: brand-tokens.json de BMW (iconography, observado con Chrome real sobre bmw.es) documenta que la marca usa iconos de línea monocromos de baja densidad y prioriza la fotografía como único adorno visual — el motor no tenía ninguna forma de omitir el campo icon (obligatorio en columns-3-beneficios/-asimetrico), y rellenarlo con un emoji contradice ese análisis de marca explícitamente ('no emoji ni iconGlyph', ver brand pack). Mismo layout 33/33/33 y mismo check-column-balance que su contraparte con icono; items[] solo requiere title+body.",
+            "properties": {
+              "component": {
+                "const": "columns-3-beneficios-sin-icono"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "highlight",
+                  "highlightNote",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "highlight": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Aviso/promo a todo el ancho, DEBAJO de las 3 columnas — nunca dentro de una."
+                  },
+                  "highlightNote": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Nota pequeña bajo el highlight, ej. '*Consultar condiciones'"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 4,
+                    "description": "Exactamente 3 — layout fijo 33/33/33, igual que trust-bar/pasos. Sin campo icon (a diferencia de columns-3-beneficios).",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "title",
+                        "body"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "body": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX). 'categories' es plano (2-8 ítems); lib/assemble.js lo agrupa en filas de 3 antes de renderizar — ver category-grid.html.",
+            "properties": {
+              "component": {
+                "const": "category-grid"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "intro",
+                  "categories",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "intro": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "categories": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 8,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "icon",
+                        "title",
+                        "subtitle"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "icon": {
+                          "$ref": "#/$defs/iconGlyph"
+                        },
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "subtitle": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "VARIANTE de category-grid con icono como <img> (no emoji). Creada para Óptica 2000. Los datos son idénticos a category-grid pero icon es httpsUrl en vez de iconGlyph.",
+            "properties": {
+              "component": {
+                "const": "category-grid-img"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "intro",
+                  "categories",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "intro": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "categories": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 8,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "icon",
+                        "title",
+                        "subtitle"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "icon": {
+                          "$ref": "#/$defs/httpsUrl"
+                        },
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "subtitle": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX). Exactamente 3 tarjetas de credibilidad, sin CTA propio, más una insignia final a todo el ancho. 'usp-cards-asimetrico' añadido 2026-07-22 (Nivel 2, ver engine/CHANGELOG.md) — misma forma de datos, insignia como chip junto a la cabecera en vez de bloque a todo el ancho debajo de las tarjetas. Cuál usa cada marca: brand-tokens.json → layout.sectionStyle.",
+            "properties": {
+              "component": {
+                "enum": [
+                  "usp-cards",
+                  "usp-cards-asimetrico"
+                ]
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "eyebrow",
+                  "title",
+                  "body",
+                  "badge",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "eyebrow": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "body": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "badge": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 4,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "icon",
+                        "title",
+                        "body"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "icon": {
+                          "$ref": "#/$defs/iconGlyph"
+                        },
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "body": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-07-24, campaña Spotify: variante SIN icono de usp-cards/-asimetrico. Motivo real: brands/spotify/tokens/brand-tokens.json → iconography (observado con Chrome real sobre spotify.com/us/premium/) documenta que el único elemento icónico real de Spotify es su isotipo de barras de sonido usado como máscara sobre fotografía, no un set de iconos de beneficio — y desaconseja explícitamente forzar iconGlyph de emoji genérico. El motor no tenía ninguna forma de omitir el campo icon (obligatorio en usp-cards/-asimetrico) — mismo hueco que columns-3-beneficios ya resolvió para BMW con columns-3-beneficios-sin-icono. Mismo contrato de datos que usp-cards EXCEPTO que items[] solo requiere title+body. 'usp-cards-sin-icono-asimetrico' combina esto con la cabecera asimétrica (texto+insignia) de usp-cards-asimetrico.",
+            "properties": {
+              "component": {
+                "enum": [
+                  "usp-cards-sin-icono",
+                  "usp-cards-sin-icono-asimetrico"
+                ]
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "eyebrow",
+                  "title",
+                  "body",
+                  "badge",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "eyebrow": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "body": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "badge": {
+                    "$ref": "#/$defs/nonPendingString"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 4,
+                    "description": "Exactamente 3. Sin campo icon (a diferencia de usp-cards).",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "title",
+                        "body"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "title": {
+                          "$ref": "#/$defs/nonPendingString"
+                        },
+                        "body": {
+                          "$ref": "#/$defs/nonPendingString"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-07-27 (evolución brand-native): bloque editorial imagen-izquierda/texto-derecha. Inspirado en las secciones de foto+texto breve de marcas como Worn Wear, Apple y Nike. 'editorial-foto-texto-inverso' usa el mismo contrato de datos pero cambia el orden de columnas (texto izquierda, imagen derecha) — mismo adaptador compartido via MODULE_ADAPTERS. Mobile: apila imagen arriba (editorial-foto-texto) o abajo (editorial-foto-texto-inverso). CTA contextual via cta-secondary-bulletproof (outline, no el ask principal).",
+            "properties": {
+              "component": {
+                "enum": [
+                  "editorial-foto-texto",
+                  "editorial-foto-texto-inverso"
+                ]
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "imageSrc",
+                  "imageAlt",
+                  "eyebrow",
+                  "title",
+                  "body",
+                  "cta"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "imageSrc": {
+                    "$ref": "#/$defs/httpsUrl",
+                    "description": "URL https de la imagen editorial — puede ser PENDING-CDN-UPLOAD si metadata.isTestCampaign es true (ver validación en Gate 10 / Gate 12 de production-gate-motor)."
+                  },
+                  "imageAlt": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Descripción de la imagen para accesibilidad / imágenes bloqueadas. {{data:edImgAlt}}"
+                  },
+                  "eyebrow": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Etiqueta pequeña en mayúsculas sobre el título, ej. 'DISEÑO' o 'SOSTENIBILIDAD'. {{data:edEyebrow}}"
+                  },
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Título editorial breve (máx. ~60 caracteres recomendado para 1 línea a 324px). {{data:edTitle}}"
+                  },
+                  "body": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Párrafo editorial corto alineado al ritmo de la marca. {{data:edBody}}"
+                  },
+                  "cta": {
+                    "$ref": "#/$defs/ctaBlock",
+                    "description": "CTA contextual (resuelto por {{include:cta-secondary-bulletproof}} en el ámbito raíz del módulo)."
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "component",
+              "data"
+            ],
+            "additionalProperties": false,
+            "description": "Añadido 2026-08-01, campaña Audi A6 Sportback e-tron: tira de métricas premium sin iconos, sin cards, sin highlight. Para marcas automotrices/de lujo que presentan métricas como contenido editorial (números grandes + labels breves). Inspirado en la stats strip de audi.es (340 kW / 4.5 s / 773 km). No usa surfaces.sectionLila ni caja highlight — fondo limpio, mucha separación.",
+            "properties": {
+              "component": {
+                "const": "metric-strip-premium"
+              },
+              "data": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "items"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "$ref": "#/$defs/nonPendingString",
+                    "description": "Título de la sección de métricas, ej. 'Tecnología que impulsa el futuro.'"
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 5,
+                    "description": "Métricas en tira limpia (flexible 2-5, recomendado 3). Cada item: value (número grande) + label (descripción breve). Sin iconos, sin highlight box.",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "value",
+                        "label"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "value": {
+                          "$ref": "#/$defs/nonPendingString",
+                          "description": "Cifra/número grande, ej. '340 kW', '4,5 s', '773 km'"
+                        },
+                        "label": {
+                          "$ref": "#/$defs/nonPendingString",
+                          "description": "Descripción breve bajo la cifra, ej. 'Potencia Launch Control', 'Aceleración 0-100 km/h'"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "utm": {
+      "type": "object",
+      "description": "Convención en docs/naming-conventions.md (ver también brand-tokens.json → utm.convention). source/medium/campaign son fijos por campaña y se combinan con content (por módulo/enlace) para formar cada href completo que ya viaja armado dentro de cards[n].href y cta.href — este bloque documenta la convención usada, no la reconstruye.",
+      "required": [
+        "source",
+        "medium",
+        "campaign"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "const": "newsletter"
+        },
+        "medium": {
+          "type": "string",
+          "const": "email"
+        },
+        "campaign": {
+          "$ref": "#/$defs/nonPendingString",
+          "description": "Debe coincidir con metadata.campaignName"
+        }
+      }
+    }
+  }
+}

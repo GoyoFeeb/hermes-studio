@@ -1,0 +1,25 @@
+<!-- banda-cierre.html — closing band con CTA. RESTAURADO 2026-07-21 (ver engine/CHANGELOG.md). Datos: closing.{title,body} + cta.href/cta.label (via include). Tokens añadidos 2026-07-24: gradients.heroBackground — background-image adicional sobre colors.deep, degrada a bgcolor sólido si no hay soporte (ver engine/CHANGELOG.md, "gradientes bulletproof") -->
+<tr>
+<td style="background-color:{{token:colors.deep}};background-image:{{token:gradients.heroBackground}};padding:0;" class="header-bg" background="{{token:assets.headerPatternTile}}" bgcolor="{{token:colors.deep}}">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:60px 32px 52px;">
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:26px;font-weight:800;color:#FFFFFF;margin:0 0 10px;line-height:1.18;letter-spacing:-0.4px;text-align:center;mso-line-height-rule:exactly;">
+          {{data:closing.title}}
+        </h2>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:400;color:{{token:colors.onBrandSecondary}};margin:0 0 28px;line-height:1.5;text-align:center;mso-line-height-rule:exactly;">
+          {{data:closing.body}}
+        </p>
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="mobile-full">
+          <tr>
+            <td align="center" style="padding:0;">
+              {{include:cta-bulletproof}}
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

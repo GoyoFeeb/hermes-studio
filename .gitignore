@@ -1,0 +1,9 @@
+node_modules/
+.env
+.DS_Store
+*.log
+.hermes/
+dist/
+newsletters/*/*/*/09-exports/*.png
+newsletters/*/*/*/09-exports/final.html
+newsletters/*/*/*/09-exports/final-inline.html

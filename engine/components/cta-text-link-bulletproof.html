@@ -1,0 +1,24 @@
+<!-- cta-text-link-bulletproof.html — CTA de TEXTO PURO, sin cápsula de color ni contorno (2026-07-25,
+     ronda "vocabulario visual" — ver engine/CHANGELOG.md). Tercera silueta de CTA del motor, junto a
+     cta-bulletproof.html (píldora sólida) y cta-secondary-bulletproof.html (píldora outline). Para
+     marcas cuya identidad real usa enlaces de texto subrayado en vez de botones — NUNCA se aplica
+     por defecto ni por preferencia estética: solo cuando la investigación real de marca (agente 02,
+     con Chrome) verifica que el sitio real de la marca usa este tratamiento para sus CTA, no solo
+     para hipervínculos genéricos dentro de un párrafo (un enlace suelto en un texto no es evidencia
+     de un patrón de CTA deliberado — ver agents/04-email-designer.md antes de elegir esta variante).
+     Estructura mínima a propósito: sin tabla de fondo/padding de cápsula, solo el link con una
+     flecha "→" pegada al texto (glifo de sistema, no imagen — sobrevive al bloqueo de imágenes).
+     Tokens: colors.primary (texto — mismo criterio que cta-secondary-bulletproof.html: ya es el
+     tono oscuro/de texto verificado de cada marca, ratio mínimo verificado con check-contrast.ts),
+     typography.displayFont, typography.cta.size/weight. Placeholders {{data:cta.href}}/
+     {{data:cta.label}} resueltos en el scope del PADRE vía {{include:}}, igual que las otras 2
+     variantes de CTA. Sin bloque VML: un enlace de texto no necesita el parche de Outlook clásico
+     que sí hace falta para simular border-radius en una tabla con relleno de color. -->
+<table border="0" cellpadding="0" cellspacing="0" role="presentation">
+  <tr>
+    <td align="center" style="padding:0;">
+      <a href="{{data:cta.href}}" target="_blank"
+         style="display:inline-block;color:{{token:colors.primary}};font-family:{{token:typography.displayFont}};font-size:{{token:typography.cta.size}}px;font-weight:{{token:typography.cta.weight}};letter-spacing:{{token:typography.cta.letterSpacing}};text-decoration:underline;text-underline-offset:3px;line-height:1.3;mso-line-height-rule:exactly;">{{data:cta.label}} &rarr;</a>
+    </td>
+  </tr>
+</table>

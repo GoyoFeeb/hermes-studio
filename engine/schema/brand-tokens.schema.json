@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sistema-final/engine/schema/brand-tokens.schema.json",
+  "title": "brand-tokens.json (schema estructural ligero)",
+  "description": "Añadido 2026-07-24 (auditoría profunda del motor, a petición del usuario). A diferencia de campaign-data.schema.json, este schema NO intenta fijar cada valor exacto — brand-tokens.json es deliberadamente más flexible entre marcas (Nike/BMW añaden secciones propias como 'personalization'/'utm' que otras marcas no tienen). Su único objetivo es atrapar errores ESTRUCTURALES silenciosos: un campo anidado en el sitio equivocado, un tipo incorrecto (objeto donde se esperaba string, o viceversa), o una sección entera ausente que el motor asume que existe. Antes de este cambio, brand-tokens.json no tenía NINGÚN schema — un typo como 'graident' en vez de 'gradients', o anidar shadows.card dentro de components en vez de en la raíz, solo se detectaba (si acaso) cuando build-newsletter.js intentaba resolver ese {{token:...}} exacto en un componente real, y nunca si ningún componente lo referenciaba. additionalProperties:true en casi todo el árbol a propósito: no bloquea campos nuevos legítimos por marca.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["brand", "version", "colors", "typography", "radius", "shadows", "surfaces", "assets", "voice"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver estricto x.y.z — engine/lib/tokens.js lo compara contra MIN_VERSION con esta forma exacta."
+    },
+    "colors": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["primary", "ctaBackground", "ctaText"],
+      "properties": {
+        "primary": { "type": "string", "minLength": 1 },
+        "deep": { "type": "string", "minLength": 1 },
+        "ctaBackground": { "type": "string", "minLength": 1 },
+        "ctaText": { "type": "string", "minLength": 1 },
+        "borders": { "type": "object", "additionalProperties": { "type": "string" } },
+        "text": { "type": "object", "additionalProperties": { "type": "string" } },
+        "background": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "typography": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["family", "displayFont"],
+      "properties": {
+        "family": { "type": "string", "minLength": 1 },
+        "displayFont": { "type": "string", "minLength": 1 }
+      }
+    },
+    "radius": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number"] },
+      "description": "Cada valor de radius debe ser número o string (ej. '16px 16px 0 0') — nunca objeto/array."
+    },
+    "shadows": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "object"] },
+      "description": "Cada sombra es un string CSS literal ('none' incluido) o un objeto {value, verified, note} (convención statPill ya usada en varios packs reales) — nunca número/array."
+    },
+    "gradients": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Añadido 2026-07-24 junto con gradients.heroBackground (ver engine/CHANGELOG.md, 'gradientes bulletproof'). No es required todavía — packs anteriores a esa fecha pueden no tenerlo; check-brand-pack-completeness.ts ya avisa (no bloquea) si falta."
+    },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "sectionStyle": { "type": "string", "enum": ["centrado", "asimetrico"] }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["logo"],
+      "properties": {
+        "logo": { "type": "string" },
+        "logoWidth": { "type": "number" },
+        "logoHeight": { "type": "number" }
+      }
+    },
+    "voice": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "rhythm": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "photography": { "type": "object", "additionalProperties": true },
+    "iconography": { "type": "object", "additionalProperties": true },
+    "_changelog": {
+      "type": "array",
+      "items": { "type": "object" }
+    }
+  }
+}

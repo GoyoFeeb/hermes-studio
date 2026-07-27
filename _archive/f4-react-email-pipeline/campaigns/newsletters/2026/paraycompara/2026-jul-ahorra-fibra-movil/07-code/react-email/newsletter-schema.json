@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Hermes Newsletter Data Schema",
+  "description": "Schema de validacion para newsletter-data.json del sistema Hermes Newsletter System",
+  "type": "object",
+  "required": ["metadata", "settings", "modules"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "description": "Metadatos de la campana",
+      "required": ["campaignName", "clientName", "subjectLine", "preheader", "version", "createdAt"],
+      "properties": {
+        "campaignName": { "type": "string", "description": "Nombre de la campana" },
+        "clientName": { "type": "string", "description": "Nombre del cliente" },
+        "subjectLine": { "type": "string", "description": "Asunto del email" },
+        "preheader": { "type": "string", "description": "Preheader del email" },
+        "fromName": { "type": "string", "description": "Nombre del remitente" },
+        "fromEmail": { "type": "string", "format": "email", "description": "Email del remitente" },
+        "version": { "type": "string", "description": "Version del JSON" },
+        "createdAt": { "type": "string", "description": "Fecha de creacion (YYYY-MM-DD)" }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "description": "Configuracion global de la newsletter",
+      "required": ["containerWidth", "backgroundColor", "containerBackgroundColor", "fontFamily"],
+      "properties": {
+        "containerWidth": { "type": "integer", "minimum": 320, "maximum": 640, "description": "Ancho del contenedor en px" },
+        "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "Color de fondo general" },
+        "containerBackgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "fontFamily": { "type": "string", "description": "Font stack principal" },
+        "fontSize": { "type": "integer", "minimum": 12, "maximum": 24 },
+        "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "linkColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "borderRadius": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "description": "Array de modulos que componen la newsletter",
+      "items": {
+        "type": "object",
+        "required": ["type", "id", "order"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Tipo de modulo (header, hero, text-block, cta-block, etc.)",
+            "enum": ["header", "hero", "text-block", "cta-block", "image-block", "social-proof", "two-columns", "image-text", "cards-grid", "benefits-grid", "divider", "legal", "footer"]
+          },
+          "id": { "type": "string", "description": "Identificador unico del modulo" },
+          "order": { "type": "integer", "minimum": 1, "description": "Posicion del modulo en la newsletter" },
+          "visible": { "type": "boolean", "default": true },
+          "content": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "subtitle": { "type": "string" },
+              "body": { "type": "string" },
+              "bullets": { "type": "array", "items": { "type": "string" } },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": { "type": "string" },
+                    "title": { "type": "string" },
+                    "author": { "type": "string" },
+                    "role": { "type": "string" },
+                    "image": { "$ref": "#/definitions/image" },
+                    "cta": { "$ref": "#/definitions/cta" }
+                  }
+                }
+              }
+            }
+          },
+          "image": { "$ref": "#/definitions/image" },
+          "cta": { "$ref": "#/definitions/cta" },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["text", "href"],
+              "properties": {
+                "text": { "type": "string" },
+                "href": { "type": "string" }
+              }
+            }
+          },
+          "settings": { "$ref": "#/definitions/moduleSettings" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "image": {
+      "type": "object",
+      "required": ["src", "alt"],
+      "properties": {
+        "src": { "type": "string", "description": "URL absoluta de la imagen" },
+        "alt": { "type": "string", "description": "Texto alternativo" },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 },
+        "borderRadius": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "cta": {
+      "type": "object",
+      "required": ["text", "href"],
+      "properties": {
+        "text": { "type": "string", "description": "Texto del boton CTA" },
+        "href": { "type": "string", "description": "URL de destino" },
+        "variant": { "type": "string", "enum": ["primary", "secondary", "outline", "text"] },
+        "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "borderRadius": { "type": "integer", "minimum": 0 },
+        "fontSize": { "type": "integer", "minimum": 12 },
+        "fullWidth": { "type": "boolean" }
+      }
+    },
+    "moduleSettings": {
+      "type": "object",
+      "properties": {
+        "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "padding": { "type": "string", "description": "CSS padding shorthand (ej: 24px 32px)" },
+        "textColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "titleColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "alignment": { "type": "string", "enum": ["left", "center", "right"] },
+        "borderRadius": { "type": "integer", "minimum": 0 },
+        "border": { "type": "string" },
+        "fontSize": { "type": "integer", "minimum": 10 },
+        "columns": { "type": "integer", "minimum": 2, "maximum": 3, "description": "Número de columnas (2 o 3)" },
+        "imagePosition": { "type": "string", "enum": ["left", "right"], "description": "Posición de la imagen en image-text" },
+        "gap": { "type": "string", "description": "Espaciado entre elementos (ej: 8px)" },
+        "cardBackgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "Color de fondo de cada card" },
+        "cardBorder": { "type": "string", "description": "Borde de cada card (ej: 1px solid #E0E0E0)" },
+        "cardPadding": { "type": "string", "description": "Padding de cada card (ej: 16px)" }
+      }
+    }
+  }
+}

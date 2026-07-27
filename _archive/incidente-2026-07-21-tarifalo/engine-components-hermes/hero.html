@@ -1,0 +1,105 @@
+<!-- hero.html
+  Origen: newsletters/2026/paraycompara/2026-jul-ahorra-fibra-movil/v5-premium/final-premium-v2.html líneas 69-167
+  Extraído: 2026-07-17 para engine/components/
+  Tokens que consume: colors.primary, colors.ctaBackground, colors.white, colors.subtitleOnBrand, colors.eyebrowOnBrand, typography.displayFont, radius.ctaPill, surfaces.brandPatternTile
+  Campos de datos: brand.logoUrl, brand.logoAlt, brand.logoWidth, brand.logoHeight, title, stat.number, stat.label, cta.href, cta.text
+  Nota: El CTA usa {{data:cta.href}} y {{data:cta.text}}. El background tile es {{data:cdnBase}}/brand-pattern-tile.png
+-->
+<!-- ════════════════════════════════════════════════════════════
+     HERO REDISEÑADO — ronda hero 2026-07-15
+     Asimétrico: H1 a la izquierda + "+30" como elemento gráfico
+     tipográfico masivo a la derecha. Sin eyebrow, sin subtítulo
+     independiente — el microcopy se fusiona con el subtítulo.
+     ════════════════════════════════════════════════════════════ -->
+<tr>
+<td style="background-color:{{token:colors.primary}};padding:0;" class="header-bg"
+    background="{{data:cdnBase}}/brand-pattern-tile.png"
+    bgcolor="{{token:colors.primary}}">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+
+    <!-- Logo -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:28px 32px 12px;">
+        <img src="{{data:cdnBase}}/logo-paraycompara.png"
+             alt="Para y Compara — comparador de tarifas"
+             width="176" height="48"
+             style="display:block;outline:none;border:none;text-decoration:none;width:176px;height:48px;max-width:100%;">
+      </td>
+    </tr>
+
+    <!-- Fila principal: H1 (izquierda) + Stat (derecha) 56/44 -->
+    <tr>
+      <td align="center" style="padding:16px 0 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>
+            <td align="left" style="width:56%;padding:0 12px 16px 32px;vertical-align:middle;" class="mobile-stack">
+              <h1 class="mobile-hero-h1" style="font-family:{{token:typography.displayFont}};font-size:28px;font-weight:800;color:{{token:colors.white}};margin:0;line-height:1.16;letter-spacing:-0.5px;text-align:left;mso-line-height-rule:exactly;">
+                Ahorra en tu tarifa de fibra y móvil
+              </h1>
+            </td>
+            <td align="center" style="width:44%;padding:0 32px 16px 12px;vertical-align:middle;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
+                <tr>
+                  <td align="center">
+                    <p class="mobile-hero-stat" style="font-family:{{token:typography.displayFont}};font-size:56px;font-weight:800;color:{{token:colors.white}};margin:0;line-height:1;letter-spacing:-1.5px;text-align:center;mso-line-height-rule:exactly;">
+                      +30
+                    </p>
+                    <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;color:{{token:colors.subtitleOnBrand}};margin:6px 0 0;line-height:15px;letter-spacing:1.5px;text-transform:uppercase;text-align:center;mso-line-height-rule:exactly;">
+                      compañías
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Subtítulo unificado (fusión del antiguo subtítulo + microcopy) -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:0 40px 0;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:400;color:{{token:colors.subtitleOnBrand}};margin:0;line-height:1.5;text-align:center;mso-line-height-rule:exactly;">
+          Compara ofertas de más de 30 compañías y encuentra una opción que encaje mejor contigo. Gratis, rápido y sin complicaciones.
+        </p>
+      </td>
+    </tr>
+
+    <!-- CTA -->
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:24px 32px 0;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="mobile-full">
+          <tr>
+            <td align="center" style="padding:0;">
+              <!--[if mso]>
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+                href="https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-ahorra-fibra-movil&utm_content=hero-cta" style="height:52px;v-text-anchor:middle;width:280px;"
+                arcsize="50%" strokecolor="{{token:colors.ctaBackground}}" fillcolor="{{token:colors.ctaBackground}}">
+                <w:anchorlock/>
+                <center style="color:{{token:colors.white}};font-family:{{token:typography.displayFont}};font-size:19px;font-weight:700;">Comparar tarifas</center>
+              </v:roundrect>
+              <![endif]-->
+              <!--[if !mso]><!-->
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;" class="mobile-full">
+                <tr>
+                  <td align="center" class="mobile-full" style="background-color:{{token:colors.ctaBackground}};border-radius:{{token:radius.ctaPill}}px;padding:17px 36px;box-shadow:0 12px 28px rgba(255,90,60,0.22);">
+                    <a href="https://paraycompara.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-ahorra-fibra-movil&utm_content=hero-cta" target="_blank"
+                       style="display:block;color:{{token:colors.white}};font-family:{{token:typography.displayFont}};font-size:19px;font-weight:700;letter-spacing:0.5px;text-decoration:none;text-align:center;line-height:22px;mso-line-height-rule:exactly;">Comparar tarifas</a>
+                  </td>
+                </tr>
+              </table>
+              <!--<![endif]-->
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Cierre -->
+    <tr>
+      <td align="center" style="padding:32px 32px 40px;">&nbsp;</td>
+    </tr>
+
+  </table>
+</td>
+</tr>

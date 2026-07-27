@@ -1,0 +1,39 @@
+<!-- columns-3-beneficios.html — 3 columnas iguales (33/33/33, vertical-align:top => misma altura de fila aunque el contenido difiera) con icono+título+cuerpo, y UNA franja de aviso a todo el ancho DEBAJO de las 3 — nunca dentro de una sola columna. Añadido 2026-07-22 (patrón institutional): la causa raíz del desalineamiento reportado en la newsletter de UAX (2026-07-22, ver engine/CHANGELOG.md) era exactamente esto en la versión escrita a mano — un badge de promoción solo bajo la columna 1, más textos de longitud muy distinta entre columnas. Aquí el badge es estructuralmente imposible de anidar en una columna (no existe ese campo en el contrato de datos), y scripts/check-column-balance.ts bloquea el build si las 3 columnas de "beneficios[].body" se desequilibran más de 1.6x en nº de palabras. Datos: beneficiosSection.{title,highlight,highlightNote} + beneficios[0..2].{icon,title,body}. Exactamente 3 (igual que trust-bar/pasos: layout fijo, no repetible). Tokens: surfaces.sectionLila, colors.primary, colors.text.secondary, colors.borders.card -->
+<tr>
+<td style="background-color:{{token:surfaces.sectionLila}};padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:52px 24px 28px;">
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:22px;font-weight:800;color:{{token:colors.primary}};margin:0;line-height:1.25;letter-spacing:-0.3px;text-align:center;mso-line-height-rule:exactly;">
+          {{data:beneficiosSection.title}}
+        </h2>
+      </td>
+    </tr>
+    <tr>
+      <td class="mobile-pad-sm" style="padding:0 24px 8px;">{{#each:beneficiosRows}}
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>{{#each:items}}
+            <td style="width:{{data:colWidth}};padding:{{data:cellPad}};vertical-align:top;" class="mobile-stack">
+              <p style="font-size:28px;line-height:1;margin:0 0 10px;text-align:center;">{{data:icon}}</p>
+              <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:{{token:colors.primary}};margin:0 0 6px;line-height:1.3;text-align:center;mso-line-height-rule:exactly;">{{data:title}}</h3>
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:400;color:{{token:colors.text.secondary}};margin:0;line-height:1.5;text-align:center;mso-line-height-rule:exactly;">{{data:body}}</p>
+            </td>{{/each}}
+          </tr>
+        </table>{{/each}}
+      </td>
+    </tr>
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:28px 24px 52px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#FFFFFF;border:1px solid {{token:colors.borders.card}};border-radius:{{token:radius.card}}px;box-shadow:{{token:shadows.card}};margin:0 auto;">
+          <tr>
+            <td align="center" style="padding:14px 22px;">
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:{{token:colors.primary}};margin:0;line-height:1.4;text-align:center;mso-line-height-rule:exactly;">{{data:beneficiosSection.highlight}}</p>
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:400;color:{{token:colors.text.secondary}};margin:2px 0 0;line-height:1.4;text-align:center;mso-line-height-rule:exactly;">{{data:beneficiosSection.highlightNote}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

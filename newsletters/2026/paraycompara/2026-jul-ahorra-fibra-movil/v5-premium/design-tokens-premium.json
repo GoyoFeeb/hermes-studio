@@ -1,0 +1,144 @@
+{
+  "_superseded": "Fusionado en brands/paraycompara/tokens/brand-tokens.json v2.2.0 el 2026-07-17 (prompt 09). Este archivo queda como registro histórico de las rondas G1-G8.1, no se debe seguir editando ni usar como fuente de valores — algunos campos (statNumber, body.size, radius.card, eyebrow.letterSpacing) estaban desactualizados frente a la pieza real y fueron corregidos durante la fusión; ver _changelog en brand-tokens.json v2.2.0 para el detalle de cada corrección.",
+  "_comment": "Extensión premium de brand-tokens.json (newsletters/2026/newsletter-system/brands/paraycompara/tokens/brand-tokens.json). No sustituye ese archivo: lo referencia y añade lo que faltaba (escala tipográfica completa, espaciado ampliado, patrón de hero sin foto). Vive dentro de la campaña piloto para no tocar el core ni el theme compartido hasta validarse.",
+  "extends": "newsletters/2026/newsletter-system/brands/paraycompara/tokens/brand-tokens.json",
+  "brand": "Para y Compara",
+  "version": "premium-1.0.0",
+  "reusedFromBrandTokens": {
+    "primary": "#5E2E91",
+    "deep": "#3E244D",
+    "light": "#7B1FA2",
+    "ctaBackground": "#FF5A3C",
+    "ctaText": "#FFFFFF",
+    "backgroundLila": "#F8F5FC",
+    "backgroundExterior": "#F4F3F9",
+    "backgroundTrustBar": "#EAE0EA",
+    "textPrimary": "#29262D",
+    "textSecondary": "#66616A",
+    "cardBorder": "#EDE7F3"
+  },
+  "typography": {
+    "_g8": "D1: el peso 800 de Sora NO carga como fuente real — el @font-face 800 apuntaba al mismo woff2 que el 700 y fue retirado en G8. Los weight:800 se sintetizan desde el 700. Actualizar cuando exista la URL real del woff2 800 (verificar HTTP 200).",
+    "family": "Arial, Helvetica, sans-serif",
+    "eyebrow": { "size": 12, "weight": 700, "letterSpacing": "3px", "transform": "uppercase", "color": "primary_light", "_g6": "letterSpacing 2.5px→3px, más aire en las etiquetas pequeñas, estilo Apple" },
+    "h1Hero": { "size": 32, "weight": 800, "lineHeight": 1.14, "letterSpacing": "-0.5px", "color": "#FFFFFF", "_g6": "tracking negativo en titular grande — rasgo característico de la tipografía de Apple en headlines grandes" },
+    "h2Section": { "size": 22, "weight": 800, "lineHeight": 1.2, "letterSpacing": "-0.3px", "color": "primary" },
+    "h2OnBrand": { "size": 26, "weight": 800, "lineHeight": 1.18, "letterSpacing": "-0.4px", "color": "#FFFFFF" },
+    "h3Card": { "size": 16, "weight": 700, "lineHeight": 1.25, "color": "primary" },
+    "bodyLarge": { "size": 16, "weight": 400, "lineHeight": 1.55, "color": "textSecondary" },
+    "body": { "size": 13, "weight": 400, "lineHeight": 1.5, "color": "textSecondary", "_g6": "lineHeight 1.45→1.5 en todos los cuerpos de texto de tarjetas/pasos/lista" },
+    "small": { "size": 12, "weight": 400, "lineHeight": 1.4, "color": "#999999" },
+    "statNumber": { "size": 40, "weight": 800, "lineHeight": 1, "letterSpacing": "-1px", "color": "#FFFFFF" },
+    "cta": { "size": 16, "weight": 700, "letterSpacing": "0.5px" }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "sectionVertical": { "top": 56, "bottom": 44, "_g6": "antes 44/36 — más aire entre secciones, ritmo vertical más generoso" },
+    "hero": 56,
+    "close": 48
+  },
+  "radius": {
+    "ctaPill": 50,
+    "card": 18,
+    "cardStripe": "16px 16px 0 0",
+    "badgeCircle": "50%",
+    "listAccent": 0,
+    "circleHalo": 4,
+    "chip": 20,
+    "statPill": 24,
+    "_g6": "card 16→18, statPill 20→24 — curvas más generosas, coherente con el lenguaje de esquinas suaves de Apple"
+  },
+  "shadows": {
+    "card": "0 14px 32px rgba(94,46,145,0.08)",
+    "cta": "0 12px 28px rgba(255,90,60,0.22)",
+    "statPill": "0 18px 40px rgba(62,36,77,0.20)",
+    "_g6": "ronda G6: sombras difusas (blur grande, offset mayor, alpha bajo) en vez de marcadas. Outlook las ignora; el fallback sólido no cambia.",
+    "_g7": "ronda G7 (auditoría contra prompt maestro): disciplina de sombras — 'no añadas sombras a todos los módulos'. Eliminadas trustBar, badgeStep, badgeCheck y badgeCheckLarge; la elevación queda reservada a los elementos con función de foco (tarjetas, CTAs, stat pill). La jerarquía de elevación ahora es significativa: sombra = clicable o protagonista."
+  },
+  "surfaces": {
+    "global": "#F4F3F9",
+    "sectionWhite": "#FFFFFF",
+    "sectionLila": "#F8F5FC",
+    "brandDeepClose": "#3E244D",
+    "brandHeader": "#5E2E91",
+    "trustBarPill": "#EAE0EA"
+  },
+  "darkMode": {
+    "_g8_1": "RETIRADO en G8.1 tras verificación con render real: el dark mode de G8 oscurecía los fondos dejando los iconos PNG (trazo morado para tarjeta blanca) ilegibles — fue la causa del feedback 'has deformado los iconos'. Las metas color-scheme están ahora en 'light' para pedir explícitamente a los clientes que no inviertan. Reintroducir SOLO cuando exista el set de assets dark-ready (iconos + logo) especificado en icon-system-spec.md, y siempre con captura real en oscuro antes de aprobar.",
+    "status": "retired-g8.1",
+    "paletteForFuture": {
+      "background": "#171420",
+      "surface": "#211C2A",
+      "card": "#2A2437",
+      "cardBorder": "#3D3450",
+      "title": "#D9C2E6",
+      "body": "#B9B3C2"
+    }
+  },
+  "personalization": {
+    "_g8_1": "El merge tag NO vive en el HTML (en G8 se insertó y aparecía como texto crudo en previsualización — corregido en G8.1). Es un snippet a aplicar en la fase de carga al ESP, sobre el subtítulo del hero.",
+    "snippet_mailchimp": "Hola*|IF:FNAME|* *|FNAME|**|END:IF|*, compara ofertas de más de 30 compañías y encuentra una opción que encaje mejor contigo.",
+    "target": "subtítulo del hero (sustituye a la frase sin saludo)",
+    "rule": "el fallback sin nombre es obligatorio; adaptar sintaxis si el ESP no es Mailchimp",
+    "esp": "pendiente de definir"
+  },
+  "utm": {
+    "_g8": "Convención definida en docs/naming-conventions.md. Ningún enlace comercial sin UTM pasa el production gate.",
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-ahorra-fibra-movil",
+    "content": ["hero-cta", "card-movil", "card-fibra", "card-convergente", "card-tv", "closing-cta"]
+  },
+  "patterns": {
+    "heroEditorialNoPhoto": {
+      "description": "Hero de emergencia/permanente cuando no hay fotografía de marca disponible. Sustituye al placeholder gris. Fondo de marca sólido (primary o deep), titular grande en blanco, una cifra de marca como foco visual tipográfico en vez de imagen.",
+      "background": "primary",
+      "statSource": "brief.md → '+30 compañías' (dato ya confirmado, no requiere aprobación de precios)",
+      "fallbackForOtherBrands": "Sustituir 'primary' por el color primary de cada brand-tokens.json; la cifra debe ser un dato propio de esa marca, nunca inventado"
+    },
+    "trustCheckmark": {
+      "description": "Sustituye a los glifos de texto (%, $, OK) por un check consistente (✓) en círculo de marca, mismo tamaño en los 3 items",
+      "glyph": "check-unicode-2713-fallback-text",
+      "note": "Sigue siendo tipografía, no icono vectorial real — placeholder intencional documentado, sustituible por PNG cuando exista asset"
+    },
+    "listAccentBar": {
+      "description": "Reemplaza tarjetas circulares repetidas por una lista con celda de color estrecha a la izquierda (no border-left CSS, por compatibilidad Outlook)",
+      "accentWidth": 4,
+      "accentColor": "ctaBackground"
+    },
+    "closingBand": {
+      "description": "CTA final sobre fondo brandDeepClose en vez de repetir sectionLila del hero, para crear un cierre con más peso visual",
+      "background": "brandDeepClose",
+      "textColor": "#FFFFFF"
+    },
+    "accentSignature": {
+      "description": "Sistema de acento premium (ronda G4): el mismo color 'light' (#7B1FA2) aplicado en 3 orientaciones distintas para dar coherencia visual sin introducir un color nuevo — línea kicker centrada (32×2px) sobre cada eyebrow de sección, franja superior (4px) en las tarjetas de tarifa, y barra lateral (4px) ya existente en listAccentBar (esa usa ctaBackground, no light — ver nota en el patrón). Reutiliza el mismo token ya usado en los eyebrows, no un color inventado.",
+      "color": "light",
+      "orientations": ["kickerRule (center, 32x2px, above eyebrow)", "cardTopStripe (top, 4px, on tarifa cards)", "listAccentBar (left, 4px, uses ctaBackground — distinto por diseño, ver component-patterns.md §4)"]
+    },
+    "statPill": {
+      "description": "Fondo tipo 'chip' (color 'light' #7B1FA2, radius 20px, shadow statPill) detrás de la cifra de marca '+30' del hero, para que la cifra se lea como un elemento elevado/badge en vez de texto flotando sobre el fondo de marca. El label bajo la cifra cambia de color (de #C9A8DB a #E4CDF0, token ya usado en el eyebrow del hero) para mantener contraste ≥4.5:1 (WCAG AA) sobre el nuevo fondo #7B1FA2 — verificado: 5.59:1.",
+      "background": "light",
+      "labelColor": "#E4CDF0",
+      "contrastLabelOnPill": "5.59:1 (AA pass)"
+    },
+    "badgeElevation": {
+      "description": "RETIRADO en G7. Introducido en G4 (sombra en halos de pasos y círculos de check), eliminado en la auditoría contra el prompt maestro: 'no añadas sombras a todos los módulos'. La elevación queda reservada a tarjetas, CTAs y stat pill. Se conserva la entrada como registro histórico.",
+      "status": "retired-g7"
+    },
+    "premiumListRow": {
+      "description": "Ronda G5 (2026-07-16): sustituye a listAccentBar en la sección 'Antes de decidir' — era la única sección sin tarjeta/sombra/icono de toda la pieza. Combina tarjeta (border+radius+shadow 'card'), franja superior de accentSignature (color 'light') y badge circular de trustCheckmark (36px, color 'primary', sombra 'badgeCheck'). Ver component-patterns.md §12.",
+      "cardBorder": "cardBorder",
+      "cardShadow": "card",
+      "stripeColor": "light",
+      "badgeColor": "primary",
+      "badgeShadow": "none (retirada en G7 — el badge vive dentro de una tarjeta ya elevada)",
+      "badgeSize": 36,
+      "contrastNote": "Badge en 'primary' (#5E2E91), no 'ctaBackground' (#FF5A3C): check blanco sobre primary = 9.23:1, sobre ctaBackground solo 3.10:1 (falla AA-normal)"
+    }
+  }
+}

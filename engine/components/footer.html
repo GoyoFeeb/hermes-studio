@@ -1,0 +1,37 @@
+<!-- footer.html — legal + baja/preferencias. RESTAURADO 2026-07-21 (ver engine/CHANGELOG.md). Datos: footer.{brandName,tagline,disclosure,unsubscribeUrl,preferencesUrl,legalLine} -->
+<tr>
+<td style="background-color:{{token:surfaces.global}};padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="center" style="padding:40px 24px 8px;border-top:2px solid {{token:colors.accentHaloLight}};">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:600;color:{{token:colors.primary}};margin:0;line-height:1.4;letter-spacing:0.2px;text-align:center;mso-line-height-rule:exactly;">
+          {{data:footer.brandName}}
+        </p>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;color:{{token:colors.text.secondary}};margin:2px 0 0;line-height:1.4;text-align:center;mso-line-height-rule:exactly;">
+          {{data:footer.tagline}}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" style="padding:16px 24px 24px;">
+        <hr style="border:none;border-top:1px solid {{token:colors.borders.footer}};margin:0 0 16px;width:100%;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;color:{{token:colors.text.secondary}};margin:0 0 12px;line-height:1.45;text-align:center;mso-line-height-rule:exactly;">
+          {{data:footer.disclosure}}
+        </p>
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+          <tr>
+            <td align="center" style="padding:0 0 12px;">
+              <a href="{{data:footer.unsubscribeUrl}}" target="_blank" style="color:{{token:colors.text.secondary}};font-family:Arial,Helvetica,sans-serif;font-size:12px;text-decoration:underline;margin:0 5px;">Darse de baja</a>
+              <span style="color:{{token:colors.footerSeparator}};font-size:12px;">|</span>
+              <a href="{{data:footer.preferencesUrl}}" target="_blank" style="color:{{token:colors.text.secondary}};font-family:Arial,Helvetica,sans-serif;font-size:12px;text-decoration:underline;margin:0 5px;">Preferencias</a>
+            </td>
+          </tr>
+        </table>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:400;color:{{token:colors.text.secondary}};margin:0;line-height:1.4;text-align:center;mso-line-height-rule:exactly;">
+          {{data:footer.legalLine}}
+        </p>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

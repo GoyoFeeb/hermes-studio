@@ -1,0 +1,33 @@
+<!-- cta-block-bulletproof.html — CTA de BLOQUE SÓLIDO, esquinas rectas (2026-07-25, ronda
+     "vocabulario visual" — ver engine/CHANGELOG.md). Cuarta silueta de CTA del motor (junto a
+     cta-bulletproof.html/píldora, cta-secondary-bulletproof.html/outline,
+     cta-text-link-bulletproof.html/texto). border-radius fijo en 0 — a propósito NO lee
+     radius.ctaPill: el punto de esta variante es una silueta arquitectónica distinta a la píldora,
+     no una píldora con radio pequeño (eso ya lo cubre cta-bulletproof.html con el radius real de
+     cada marca, ej. BMW radius.ctaPill:3). Solo usarla cuando la investigación real de marca
+     (agente 02, con Chrome) verifica botones de esquina recta como tratamiento deliberado en el
+     sitio real — no como sustituto genérico de la píldora. Misma flecha "→" que
+     cta-text-link-bulletproof.html, aquí dentro del bloque de color, para reforzar el carácter
+     gráfico/editorial de la silueta. Tokens: colors.ctaBackground/ctaText, typography.displayFont,
+     typography.cta.size/weight/letterSpacing, components.cta.padding, shadows.cta. Placeholders
+     {{data:cta.href}}/{{data:cta.label}} resueltos en el scope del PADRE vía {{include:}}. Mismo
+     bloque VML que cta-bulletproof.html pero con arcsize 0% (rectángulo, no píldora) para Outlook
+     de escritorio clásico. -->
+<!--[if mso]>
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+  href="{{data:cta.href}}" style="height:52px;v-text-anchor:middle;width:280px;"
+  arcsize="0%" strokecolor="{{token:colors.ctaBackground}}" fillcolor="{{token:colors.ctaBackground}}">
+  <w:anchorlock/>
+  <center style="color:{{token:colors.ctaText}};font-family:{{token:typography.displayFont}};font-size:{{token:typography.cta.size}}px;font-weight:{{token:typography.cta.weight}};">{{data:cta.label}}</center>
+</v:roundrect>
+<![endif]-->
+<!--[if !mso]><!-->
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" class="mobile-full">
+  <tr>
+    <td align="center" class="mobile-full" style="background-color:{{token:colors.ctaBackground}};border-radius:0;padding:{{token:components.cta.padding}};box-shadow:{{token:shadows.cta}};">
+      <a href="{{data:cta.href}}" target="_blank"
+         style="display:block;color:{{token:colors.ctaText}};font-family:{{token:typography.displayFont}};font-size:{{token:typography.cta.size}}px;font-weight:{{token:typography.cta.weight}};letter-spacing:{{token:typography.cta.letterSpacing}};text-decoration:none;text-align:center;line-height:1.3;mso-line-height-rule:exactly;">{{data:cta.label}} &rarr;</a>
+    </td>
+  </tr>
+</table>
+<!--<![endif]-->

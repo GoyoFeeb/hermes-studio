@@ -1,0 +1,41 @@
+<!-- closing-band.html
+  Patrón: Banda de cierre sobre [BRAND_COLOR_DEEP] con CTA bulletproof 280px
+  Placeholders: [BRAND_COLOR_DEEP], [CTA_COLOR], [CTA_TEXT], [CTA_URL], [FINAL_TITLE], [FINAL_BODY]
+  Fuente: v5-premium/final-premium.html (líneas 459-502)
+  Diferencia respecto a lo inventado: texto #D9C2E6 en vez de rgba; VML width 280px; display:block en CTA
+-->
+<tr>
+<td style="background-color:[BRAND_COLOR_DEEP];padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:48px 32px 44px;">
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:800;color:#FFFFFF;margin:0 0 10px;line-height:1.18;text-align:center;mso-line-height-rule:exactly;">[FINAL_TITLE]</p>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:400;color:[BRAND_CLOSING_SUBTITLE_COLOR];margin:0 0 28px;line-height:1.5;text-align:center;mso-line-height-rule:exactly;">[FINAL_BODY]</p>
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" class="mobile-full">
+          <tr>
+            <td align="center" style="padding:0;">
+              <!--[if mso]>
+              <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+                href="[CTA_URL]" style="height:52px;v-text-anchor:middle;width:280px;"
+                arcsize="50%" strokecolor="[CTA_COLOR]" fillcolor="[CTA_COLOR]">
+                <w:anchorlock/>
+                <center style="color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;">[CTA_TEXT]</center>
+              </v:roundrect>
+              <![endif]-->
+              <!--[if !mso]><!-->
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="width:100%;" class="mobile-full">
+                <tr>
+                  <td align="center" class="mobile-full" style="background-color:[CTA_COLOR];border-radius:50px;padding:14px 32px;">
+                    <a href="[CTA_URL]" target="_blank" style="display:block;color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;letter-spacing:0.5px;text-decoration:none;text-align:center;line-height:22px;mso-line-height-rule:exactly;">[CTA_TEXT]</a>
+                  </td>
+                </tr>
+              </table>
+              <!--<![endif]-->
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

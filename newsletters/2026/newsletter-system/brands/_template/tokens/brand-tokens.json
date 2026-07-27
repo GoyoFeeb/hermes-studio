@@ -1,0 +1,136 @@
+{
+  "_comment": "Plantilla de brand pack. Actualizada 2026-07-22 (Nivel 3, ver engine/CHANGELOG.md) a la estructura real v2.2.0 (antes: v1.0.0, incompleta — le faltaban typography/spacing/radius/shadows/layout/photography/iconography, y esa version habría fallado el MIN_VERSION check de engine/lib/tokens.js). Todo valor entre [CORCHETES] es un placeholder a rellenar por el agente 02 con datos OBSERVADOS/DOCUMENTADOS de la marca real — nunca inventados. Ver agents/02-brand-visual-analyst.md, sección 'Investigación profunda de marca (OBLIGATORIA)', para el procedimiento completo. Referencia de pack real más reciente: brands/uax/tokens/brand-tokens.json.",
+  "brand": "[NOMBRE DE LA MARCA]",
+  "version": "2.2.0",
+  "colors": {
+    "primary": "[#HEX — observado, color principal de marca]",
+    "deep": "[#HEX — fondo oscuro, hero/banda de cierre]",
+    "light": "[#HEX — acento, eyebrows/decoración]",
+    "white": "#FFFFFF",
+    "ctaBackground": "[#HEX — fondo del botón CTA]",
+    "ctaText": "[#HEX — verificar contraste WCAG contra ctaBackground antes de fijar]",
+    "subtitleOnBrand": "[#HEX — texto secundario sobre colors.primary/deep, verificar 4.5:1]",
+    "eyebrowOnBrand": "[#HEX]",
+    "bodySecondary": "[#HEX]",
+    "border": "[#HEX]",
+    "sectionLila": "[#HEX — fondo de secciones alternas]",
+    "global": "[#HEX — fondo exterior del email]",
+    "onBrandSecondary": "[#HEX]",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "[#HEX]",
+      "exterior": "[#HEX]",
+      "trustBar": "[#HEX]"
+    },
+    "text": {
+      "primary": "[#HEX]",
+      "secondary": "[#HEX]",
+      "tertiary": "[#HEX]"
+    },
+    "borders": {
+      "card": "[#HEX]",
+      "footer": "[#HEX]"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "displayFont": "[fuente de titulares OBSERVADA + fallback system-safe, ej. \"'Sora','Segoe UI',Arial,Helvetica,sans-serif\" — si la fuente observada en el sitio real no es email-safe (no es Arial/Helvetica/Georgia/Times/Verdana/Trebuchet/Courier), anotar cuál se observó en _changelog y usar aquí solo el fallback seguro, igual que se hizo con Óptica 2000 (Futura/Roboto observadas, Arial usada)]",
+    "eyebrow": { "size": 12, "weight": 700, "letterSpacing": "3px", "transform": "uppercase", "color": "[#HEX]" },
+    "h1Hero": { "size": 28, "weight": 800, "lineHeight": 1.16, "color": "[#HEX]" },
+    "h2Section": { "size": 22, "weight": 800, "lineHeight": 1.2, "letterSpacing": "-0.3px", "color": "[#HEX]" },
+    "body": { "size": 14, "weight": 400, "lineHeight": 1.5, "color": "[#HEX]" },
+    "cta": { "size": 19, "weight": 700, "letterSpacing": "0.5px" }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "hero": 56,
+    "close": 48
+  },
+  "radius": {
+    "ctaPill": 50,
+    "card": "[número, ej. 16 — observado del sitio real o decisión de marca]",
+    "cardStripe": "[ej. \"16px 16px 0 0\"]",
+    "badgeCircle": "50%",
+    "chip": 20
+  },
+  "shadows": {
+    "card": "[ej. \"0 14px 32px rgba(R,G,B,0.08)\" — usar el color primario de marca tintado, no un neutro genérico]",
+    "cta": "[ej. \"0 12px 28px rgba(R,G,B,0.22)\" — tintado con colors.ctaBackground de ESTA marca, no copiado de otra]"
+  },
+  "gradients": {
+    "heroBackground": "[literal CSS background-image, ej. \"linear-gradient(135deg, #HEXPRIMARY 0%, #HEXDEEP 100%)\" construido SOLO con colors.primary y colors.deep YA verificados de esta marca — nunca un color nuevo inventado. Usar \"none\" si colors.primary==colors.deep (no hay un segundo tono real del que partir) o si la marca documenta identidad plana/fotografía-primero (ver photography.treatment/iconography) donde un degradado añadido contradiría esa decisión de marca ya tomada. Se aplica como CSS puro (background-image, sin VML) sobre el background-color/bgcolor existente — en clientes sin soporte (ej. Outlook clásico de escritorio) degrada de forma segura al color sólido ya declarado, mismo principio que shadows.cta en cta-bulletproof.html. Ver engine/CHANGELOG.md, entrada 'gradientes bulletproof']"
+  },
+  "surfaces": {
+    "global": "[#HEX]",
+    "white": "#FFFFFF",
+    "sectionLila": "[#HEX]"
+  },
+  "layout": {
+    "sectionStyle": "centrado | asimetrico",
+    "reason": "[Nivel 2 — ver engine/CHANGELOG.md y patterns/institutional.md §7. Decisión de marca: registro serio/corporativo → centrado; registro editorial/dinámico → asimetrico. Documentar el porqué, no dejarlo en blanco.]",
+    "contentRhythm": {
+      "realSectionCount": "[nº de secciones de CONTENIDO reales de la página de referencia — no navegación/footer]",
+      "sections": [
+        { "type": "[hero-fotografico | editorial-foto-texto | grid-producto | tabla-datos | testimonios | formulario]", "translatable": "[true | false]", "note": "[qué hay realmente y si se traduce al email o se excluye]" }
+      ],
+      "photographyWeight": "[dominante | equilibrada | secundaria | nula — observado]",
+      "iconDensity": "[nula | baja | media | alta — observado]",
+      "source": "[observado en {URL} el {fecha}, o válvula de escape documentada en _changelog. Ver agents/02-brand-visual-analyst.md §5 y patterns/fotografia-primero.md §6 para cómo esto alimenta la elección de patrón de 03.]"
+    }
+  },
+  "photography": {
+    "usesRealPhotography": "[true | false — observado del sitio real]",
+    "treatment": "[Nivel 3 — descripción OBSERVADA: cálido/frío, saturado/desaturado, con o sin personas, primeros planos vs. planos abiertos, con o sin texto superpuesto. Si la marca no usa fotografía (solo ilustración/color plano), decirlo aquí explícitamente — es un hecho de marca, no un hueco.]",
+    "source": "[observado en {URL} el {fecha}, o válvula de escape documentada en _changelog]"
+  },
+  "iconography": {
+    "style": "[Nivel 3 — line-icon | filled-icon | illustration | emoji | none — observado del sitio real]",
+    "monochrome": "[true | false]",
+    "source": "[observado en {URL} el {fecha}, o válvula de escape documentada en _changelog]",
+    "componentImplication": "[qué variante de componente usar — ver engine/components/INVENTORY.md, sufijo -img vs iconGlyph]"
+  },
+  "components": {
+    "header": { "backgroundColor": "[#HEX]", "textColor": "[#HEX]" },
+    "cta": { "backgroundColor": "[#HEX]", "textColor": "[#HEX]", "borderRadius": 50 },
+    "card": { "borderRadius": 16, "borderColor": "[#HEX]" }
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado por defecto. Las metas color-scheme se fuerzan a 'light' salvo que la marca lo pida explícitamente."
+  },
+  "assets": {
+    "logo": "[URL_DEL_LOGO — https:// real, PNG/JPG. SVG PROHIBIDO inline en email, ver engine/CHANGELOG.md]",
+    "logoWidth": 200,
+    "logoHeight": 55,
+    "logoAlt": "[texto alternativo real de marca]",
+    "headerPatternTile": ""
+  },
+  "voice": {
+    "tone": "[adjetivos observados/documentados, ej. 'cercano, profesional, directo']",
+    "ctaDefault": "[CTA principal real de la marca, observado del sitio si es posible]",
+    "ctaSecondary": "[CTA secundario]",
+    "rhythm": {
+      "sentenceLength": "[Nivel 3 — corta/directa | larga/explicativa, observado]",
+      "mode": "[imperativo | pregunta | afirmación]",
+      "formality": "[tú | usted]",
+      "punctuationHabits": "[observado: uso de exclamaciones, guiones, mayúsculas de énfasis...]",
+      "examples": ["[frase REAL 1 del sitio/redes de la marca — nunca inventada]", "[frase REAL 2]"],
+      "source": "[observado en {URL} el {fecha}, o válvula de escape documentada en _changelog]"
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.0",
+      "date": "[fecha]",
+      "author": "[agente/persona que creó el pack]",
+      "changes": [
+        "Pack creado desde la plantilla (newsletters/2026/newsletter-system/brands/_template/tokens/brand-tokens.json, actualizada 2026-07-22).",
+        "[Listar aquí cada valor con su procedencia: documentado/observado (indicando fuente y fecha)/inferido (candidato a [Q-NNN]).]"
+      ]
+    }
+  ]
+}

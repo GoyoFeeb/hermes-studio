@@ -1,0 +1,102 @@
+{
+  "metadata": {
+    "campaignName": "2026-ago-bmw-experiencia-premium",
+    "clientName": "BMW",
+    "subjectLine": "BMW. Ingeniería para emocionar.",
+    "preheader": "Descubre el universo BMW: diseño, tecnología y la deportividad que solo la ingeniería alemana puede ofrecer.",
+    "fromName": "BMW",
+    "fromEmail": "test@example.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-27",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/bmw/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-BMW-LOGO/",
+        "logoAlt": "BMW",
+        "logoWidth": 120,
+        "logoHeight": 36,
+        "label": "Experiencia Premium"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/bmw-experiencia-premium/hero-banner.png",
+        "bannerAlt": "BMW — Experiencia premium de conducción",
+        "brandName": "BMW",
+        "h1": "Donde la ingeniería cobra vida.",
+        "subtitle": "Cada línea, cada curva, cada detalle está diseñado para una experiencia de conducción dinámica.",
+        "cta": {
+          "href": "https://www.bmw.es/es/home.html?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-bmw-experiencia-premium&utm_content=hero-cta",
+          "label": "Descubre BMW"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Diseño que trasciende. Tecnología que anticipa.",
+        "body": "En BMW, cada vehículo nace de una idea: ofrecer algo más que un medio de transporte. Es la precisión de la ingeniería alemana aplicada a cada componente. Es la respuesta instantánea del motor cuando pisas el acelerador. Es la confianza de saber que cada sistema trabaja en armonía para que tú solo tengas que preocuparte de disfrutar la carretera.",
+        "cta": {
+          "href": "https://www.bmw.es/es/home.html?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-bmw-experiencia-premium&utm_content=intro-cta",
+          "label": "Saber más"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Tres pilares de la experiencia BMW.",
+        "highlight": "Ingeniería, diseño y emoción.",
+        "highlightNote": "*Cada modelo BMW expresa estos valores de forma única.",
+        "items": [
+          {
+            "title": "Diseño atemporal",
+            "body": "Líneas puras que desafían el paso del tiempo. Cada superficie responde a una función, cada proporción está calculada al milímetro."
+          },
+          {
+            "title": "Tecnología intuitiva",
+            "body": "Sistemas que te entienden. El BMW Curved Display y el control por voz integran información y entretenimiento en una experiencia fluida."
+          },
+          {
+            "title": "Emoción al volante",
+            "body": "Cada curva es una invitación. La respuesta inmediata, el equilibrio perfecto entre confort y dinamismo. Una conexión auténtica entre el conductor y la máquina."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "¿Listo para vivir la experiencia BMW?",
+        "body": "Descubre toda la gama BMW y encuentra el vehículo que refleja tu forma de entender la conducción.",
+        "cta": {
+          "href": "https://www.bmw.es/es/home.html?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-bmw-experiencia-premium&utm_content=closing-cta",
+          "label": "Descubre BMW"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "BMW",
+        "tagline": "El placer de conducir.",
+        "disclosure": "Esta comunicación es un borrador de campaña de prueba. Los datos de producto mostrados son meramente ilustrativos.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© BMW AG 2026. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-ago-bmw-experiencia-premium"
+  }
+}

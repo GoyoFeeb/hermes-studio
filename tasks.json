@@ -1,0 +1,462 @@
+{
+  "project": {
+    "name": "Hermes Newsletter System — Deuda técnica y marco multiagente",
+    "description": "Plan ejecutable derivado del roadmap activo docs/roadmap-deuda-tecnica.md y del estado real del repositorio tras aplicar project-context, project-docs, common-init, common-update, case-to-report, report-to-roadmap y roadmap-to-plan.",
+    "stack": {
+      "frontend": null,
+      "backend": "Node.js 18+ / TypeScript ejecutado con tsx; CommonJS en engine/",
+      "database": null,
+      "infra": "Motor propio HTML+juice, ajv, Playwright/Sharp, node --test"
+    },
+    "total_phases": 2,
+    "generated_at": "2026-07-27T00:00:00+02:00",
+    "generated_from": "roadmap-to-plan skill"
+  },
+  "execution": {
+    "mode": "sequential_phases",
+    "current_phase": 1,
+    "instructions": "Implementa en orden de fases. La fase 0 queda cerrada. En phase_1 ya estan cerradas task_1_1, task_1_3, task_1_4 y task_1_5; queda bloqueada task_1_2 hasta que una campaña real necesite exactamente 2 tarjetas. Antes de marcar una tarea como done, ejecuta verification_command desde la raiz del proyecto. Si node_modules fue eliminado del entregable, ejecuta npm install antes de npm test o scripts npm."
+  },
+  "phases": [
+    {
+      "id": "phase_0",
+      "number": 0,
+      "name": "Fiabilidad del pipeline y aplicacion de skills",
+      "objective": "Cerrar el fallo operativo EACCES, migrar el template a campaign-data.json, crear suite de tests real y aplicar el marco documental multiagente.",
+      "entry_criteria": "Repositorio Hermes existente con motor engine/ cerrado en F5.",
+      "exit_criteria": "create-campaign valida campaign-data.json, npm test existe, legacy queda separado, artefactos de entrega estan limpios y .agent/ queda inicializado.",
+      "estimated_size": "L",
+      "task_ids": [
+        "task_0_1",
+        "task_0_2",
+        "task_0_3",
+        "task_0_4",
+        "task_0_5",
+        "task_0_6",
+        "task_0_7"
+      ]
+    },
+    {
+      "id": "phase_1",
+      "number": 1,
+      "name": "Refinamiento pendiente del motor",
+      "objective": "Cerrar los hallazgos restantes de diseño, contenido y validacion del roadmap activo.",
+      "entry_criteria": "Fase 0 completada y documentada.",
+      "exit_criteria": "Documentacion de card-tarifa sincronizada, contraste resuelto, bug piloto reclasificado como historico/no accionable en motor y validacion de titulo de cierre implementada.",
+      "estimated_size": "M",
+      "task_ids": [
+        "task_1_1",
+        "task_1_2",
+        "task_1_3",
+        "task_1_4",
+        "task_1_5"
+      ]
+    },
+    {
+      "id": "phase_2",
+      "number": 2,
+      "name": "Prevencion de perdida de historial del motor",
+      "objective": "Implementar mecanismos que eviten la perdida del changelog historico del motor y otros documentos operativos.",
+      "entry_criteria": "Incidente 2026-08-01 documentado en docs/.",
+      "exit_criteria": "Existe script de backup de CHANGELOG, backup previo es obligatorio antes de modificaciones, y la regla esta documentada en memory.md y docs/incidente.",
+      "estimated_size": "S",
+      "task_ids": [
+        "task_changelog_backup"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_0_1",
+      "phase": 0,
+      "phase_id": "phase_0",
+      "order": 1,
+      "type": "logic",
+      "title": "Implementar fallback EACCES en create-campaign",
+      "description": "scripts/create-campaign.ts debe intentar fs.cpSync y caer a copia recursiva manual si aparece EACCES en filesystems montados.",
+      "acceptance_criteria": [
+        "create-campaign crea una campaña valida desde newsletters/_campaign-template/",
+        "La salida indica si se uso copia rapida o fallback",
+        "06-data/campaign-data.json valida contra engine/schema/campaign-data.schema.json"
+      ],
+      "verification_command": "node scripts/create-campaign.ts --year 2099 --client test-motor --campaign 2099-jan-test --date 2099-01-01 --force && node -e \"require('fs').rmSync('newsletters/2099',{recursive:true,force:true})\"",
+      "context": {
+        "files": [
+          "scripts/create-campaign.ts"
+        ],
+        "functions": [
+          "copyTemplate",
+          "copyRecursiveManual",
+          "validateJson"
+        ],
+        "env_vars": [],
+        "notes": "Verificado en la sesion del 2026-07-27; borrar newsletters/2099 despues de la prueba."
+      },
+      "dependencies": [],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_0_2",
+      "phase": 0,
+      "phase_id": "phase_0",
+      "order": 2,
+      "type": "config",
+      "title": "Migrar template base a campaign-data.json",
+      "description": "newsletters/_campaign-template/ debe crear 06-data/campaign-data.json y retirar newsletter-data.json/newsletter-data.ts del flujo vigente.",
+      "acceptance_criteria": [
+        "newsletters/_campaign-template/06-data/campaign-data.json existe",
+        "El template no contiene newsletter-data.json ni newsletter-data.ts",
+        "README y QA del template mencionan campaign-data.json"
+      ],
+      "verification_command": "test -f newsletters/_campaign-template/06-data/campaign-data.json && test ! -f newsletters/_campaign-template/06-data/newsletter-data.json && test ! -f newsletters/_campaign-template/06-data/newsletter-data.ts",
+      "context": {
+        "files": [
+          "newsletters/_campaign-template/06-data/campaign-data.json",
+          "newsletters/_campaign-template/README.md",
+          "newsletters/_campaign-template/08-qa/links-qa.md"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "El formato viejo solo puede aparecer como referencia historica o legacy."
+      },
+      "dependencies": [
+        "task_0_1"
+      ],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_0_3",
+      "phase": 0,
+      "phase_id": "phase_0",
+      "order": 3,
+      "type": "config",
+      "title": "Separar comandos legacy y dejar production-gate como alias del motor",
+      "description": "package.json debe dejar claro que production-gate apunta a production-gate-motor y que validate-newsletter/check-links/production-gate React Email son legacy.",
+      "acceptance_criteria": [
+        "package.json contiene production-gate: npm run production-gate-motor --",
+        "Los comandos React Email estan bajo legacy:*",
+        "AGENTS.md y PROMPT-CONTEXTO-HERMES.md nombran production-gate-motor como cierre real"
+      ],
+      "verification_command": "node -e \"const p=require('./package.json'); if(p.scripts['production-gate']!=='npm run production-gate-motor --') process.exit(1); console.log(Object.keys(p.scripts).filter(k=>k.startsWith('legacy:')).join(','))\"",
+      "context": {
+        "files": [
+          "package.json",
+          "AGENTS.md",
+          "PROMPT-CONTEXTO-HERMES.md",
+          "pipeline-skill/references/script-usage.md"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "No usar legacy:* como cierre de produccion del motor."
+      },
+      "dependencies": [],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_0_4",
+      "phase": 0,
+      "phase_id": "phase_0",
+      "order": 4,
+      "type": "test",
+      "title": "Crear suite npm test con node --test",
+      "description": "Añadir tests unitarios de tokens, patrones, adaptadores y smoke end-to-end sin incorporar Vitest.",
+      "acceptance_criteria": [
+        "package.json contiene test: node --test",
+        "engine/lib/tokens.test.js, pattern.test.js y assemble.test.js existen",
+        "engine/smoke.test.js existe y valida build del ejemplo"
+      ],
+      "verification_command": "npm test",
+      "context": {
+        "files": [
+          "engine/lib/tokens.test.js",
+          "engine/lib/pattern.test.js",
+          "engine/lib/assemble.test.js",
+          "engine/smoke.test.js",
+          "package.json"
+        ],
+        "functions": [
+          "loadBrandTokens",
+          "parsePatternSequence",
+          "validatePatternSequence",
+          "MODULE_ADAPTERS"
+        ],
+        "env_vars": [],
+        "notes": "Requiere npm install si node_modules fue eliminado del paquete entregable."
+      },
+      "dependencies": [],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_0_5",
+      "phase": 0,
+      "phase_id": "phase_0",
+      "order": 5,
+      "type": "setup",
+      "title": "Limpiar artefactos del paquete entregable",
+      "description": "Eliminar .env, node_modules, .DS_Store, npx, hermes-newsletter-system@0.1.0, engine/_test-output y campañas temporales de prueba.",
+      "acceptance_criteria": [
+        "find no devuelve artefactos prohibidos",
+        "engine/_test-output no existe",
+        "newsletters/2099 no existe"
+      ],
+      "verification_command": "test -z \"$(find . \\( -name '.env' -o -name 'node_modules' -o -name '.DS_Store' -o -name 'npx' -o -name 'hermes-newsletter-system@0.1.0' -o -name '_test-output' \\) -print -quit)\"",
+      "context": {
+        "files": [
+          ".env",
+          "node_modules",
+          "engine/_test-output",
+          "newsletters/2099"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "La salida esperada del verification_command es vacia."
+      },
+      "dependencies": [
+        "task_0_4"
+      ],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_0_6",
+      "phase": 0,
+      "phase_id": "phase_0",
+      "order": 6,
+      "type": "config",
+      "title": "Aplicar framework multiagente comun",
+      "description": "Crear CLAUDE.md y .agent/* sin sobrescribir AGENTS.md, que sigue siendo la constitucion Hermes.",
+      "acceptance_criteria": [
+        "CLAUDE.md existe y remite a AGENTS.md",
+        ".agent/project.md, workflows.md, skills.md, roles.md y done-definition.md existen",
+        "AGENTS.md referencia el marco comun como adaptador secundario"
+      ],
+      "verification_command": "test -f CLAUDE.md && test -f .agent/project.md && test -f .agent/workflows.md && test -f .agent/skills.md && test -f .agent/roles.md && test -f .agent/done-definition.md",
+      "context": {
+        "files": [
+          "CLAUDE.md",
+          ".agent/project.md",
+          ".agent/workflows.md",
+          ".agent/skills.md",
+          ".agent/roles.md",
+          ".agent/done-definition.md",
+          "AGENTS.md"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "Aplicacion de common-init en repo existente."
+      },
+      "dependencies": [],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_0_7",
+      "phase": 0,
+      "phase_id": "phase_0",
+      "order": 7,
+      "type": "config",
+      "title": "Generar contexto e informe tecnico de Hermes",
+      "description": "Aplicar project-context y case-to-report creando docs de onboarding y analisis tecnico del sistema actual.",
+      "acceptance_criteria": [
+        "docs/hermes-newsletter-system-context.md existe",
+        "docs/hermes-newsletter-system-report.md existe",
+        "context.md y memory.md referencian los nuevos artefactos"
+      ],
+      "verification_command": "test -f docs/hermes-newsletter-system-context.md && test -f docs/hermes-newsletter-system-report.md",
+      "context": {
+        "files": [
+          "docs/hermes-newsletter-system-context.md",
+          "docs/hermes-newsletter-system-report.md",
+          "context.md",
+          "memory.md"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "Generado desde el estado real del repo; no se hizo entrevista porque la informacion necesaria estaba en los docs existentes."
+      },
+      "dependencies": [
+        "task_0_6"
+      ],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_1_1",
+      "phase": 1,
+      "phase_id": "phase_1",
+      "order": 1,
+      "type": "config",
+      "title": "Sincronizar documentacion de card-tarifa",
+      "description": "Revisar engine/README.md y patterns/saving.md para que indiquen que card-tarifa soporta 4 y 3 tarjetas, y que el pendiente real es solo la variante de 2 tarjetas.",
+      "acceptance_criteria": [
+        "engine/README.md no afirma que falte la variante de 3 tarjetas",
+        "patterns/saving.md no contradice la existencia de card-tarifa-3.html"
+      ],
+      "verification_command": "bash -lc \"! rg -n '2 o 3|2-3|falta.*3' engine/README.md patterns/saving.md\"",
+      "context": {
+        "files": [
+          "engine/README.md",
+          "patterns/saving.md",
+          "engine/components/card-tarifa-3.html"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "Si rg no devuelve nada relevante, revisar manualmente que el texto positivo existe."
+      },
+      "dependencies": [],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_1_2",
+      "phase": 1,
+      "phase_id": "phase_1",
+      "order": 2,
+      "type": "ui",
+      "title": "Construir card-tarifa-2.html solo si hay campaña real",
+      "description": "Crear variante de 2 tarjetas unicamente si el usuario confirma una campaña real que la necesita. Incluir componente, adaptador, schema, pattern y changelog.",
+      "acceptance_criteria": [
+        "Existe necesidad real documentada",
+        "card-tarifa-2.html valida con el contrato de componentes",
+        "schema y pattern admiten el nuevo componente",
+        "engine lock actualizado solo si el cambio se acepta"
+      ],
+      "verification_command": "node scripts/check-engine-integrity.ts",
+      "context": {
+        "files": [
+          "engine/components/card-tarifa-2.html",
+          "engine/lib/assemble.js",
+          "engine/schema/campaign-data.schema.json",
+          "patterns/saving.md",
+          "engine/CHANGELOG.md"
+        ],
+        "functions": [
+          "MODULE_ADAPTERS"
+        ],
+        "env_vars": [],
+        "notes": "Bloqueada por regla anti-aspiracional."
+      },
+      "dependencies": [
+        "task_1_1"
+      ],
+      "status": "blocked",
+      "blocked_reason": "Condicional a campaña real que necesite 2 tarjetas."
+    },
+    {
+      "id": "task_1_3",
+      "phase": 1,
+      "phase_id": "phase_1",
+      "order": 3,
+      "type": "ui",
+      "title": "Resolver contraste del enlace secundario de card-tarifa",
+      "description": "Usar colors.primary en los enlaces secundarios de card-tarifa/card-tarifa-3 y cubrir la combinacion en check-contrast.ts.",
+      "acceptance_criteria": [
+        "check-contrast no reporta error para cardLinkSecondary",
+        "patterns/saving.md documenta la decision y fecha",
+        "La solucion no altera claims ni datos de campaña"
+      ],
+      "verification_command": "for f in newsletters/2026/*/*/06-data/campaign-data.json; do c=${f%/06-data/campaign-data.json}; node scripts/check-contrast.ts --campaign \"$c\" >/tmp/contrast-one.log 2>&1 || { cat /tmp/contrast-one.log; exit 1; }; done",
+      "context": {
+        "files": [
+          "engine/components/card-tarifa.html",
+          "engine/components/card-tarifa-3.html",
+          "patterns/saving.md"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "Puede requerir npm install si node_modules fue eliminado."
+      },
+      "dependencies": [],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_1_4",
+      "phase": 1,
+      "phase_id": "phase_1",
+      "order": 4,
+      "type": "logic",
+      "title": "Corregir bug piloto 'Antes de decidir'",
+      "description": "Reclasificar el bug historico de la campaña piloto: el HTML viejo tenia 2 titulos ausentes, pero lista-premium.html y campaign-data.example.json ya contienen la estructura correcta del motor.",
+      "acceptance_criteria": [
+        "Causa raiz documentada como HTML historico, no bug vigente del motor",
+        "lista-premium.html contiene {{data:title}} dentro del each",
+        "campaign-data.example.json contiene los titulos reconstruidos con _reconstructed"
+      ],
+      "verification_command": "rg -n \"_reconstructed\" engine/schema/campaign-data.example.json && rg -n \"\\{\\{data:title\\}\\}\" engine/components/lista-premium.html",
+      "context": {
+        "files": [
+          "newsletters/2026/paraycompara/2026-jul-ahorra-fibra-movil/06-data/campaign-data.json",
+          "engine/components/"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "No editar final.html/final-inline.html a mano. Si la pieza vieja se reenvia, regenerarla con el motor."
+      },
+      "dependencies": [],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_1_5",
+      "phase": 1,
+      "phase_id": "phase_1",
+      "order": 5,
+      "type": "logic",
+      "title": "Validar limite de 45 caracteres en banda-cierre",
+      "description": "Añadir warning o error para titulos de banda-cierre de mas de 45 caracteres, segun el hallazgo F5.",
+      "acceptance_criteria": [
+        "Un titulo de 46+ caracteres dispara aviso o error",
+        "Un titulo de 45 caracteres no dispara aviso",
+        "La convencion queda documentada"
+      ],
+      "verification_command": "node scripts/check-column-balance.ts --campaign newsletters/2026/paraycompara/2026-jul-revision-verano && if node scripts/check-column-balance.ts --campaign newsletters/2026/paraycompara/2026-jul-comparar-tv >/tmp/column-fail.log 2>&1; then cat /tmp/column-fail.log; exit 1; else cat /tmp/column-fail.log; fi",
+      "context": {
+        "files": [
+          "scripts/check-column-balance.ts",
+          "docs/naming-conventions.md",
+          "patterns/saving.md"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "check-column-balance se eligio para mantener validate-newsletter como legacy React Email. revision-verano valida el caso <=45; comparar-tv conserva el hallazgo de 46 caracteres y debe fallar."
+      },
+      "dependencies": [],
+      "status": "done",
+      "blocked_reason": null
+    },
+    {
+      "id": "task_changelog_backup",
+      "phase": 2,
+      "phase_id": "phase_2",
+      "order": 1,
+      "type": "logic",
+      "title": "Crear mecanismo de backup previo de engine/CHANGELOG.md",
+      "description": "Crear script scripts/backup-changelog.ts que copie engine/CHANGELOG.md a _archive/changelog-backups/ con timestamp antes de cualquier modificacion. Alternativa manual: copiar antes de cambios de motor.",
+      "acceptance_criteria": [
+        "scripts/backup-changelog.ts existe o el mecanismo manual esta documentado",
+        "Antes de cualquier modificacion de engine/CHANGELOG.md se hace copia timestamped a _archive/changelog-backups/",
+        "La regla esta documentada en memory.md y docs/incidente-changelog-engine-2026-08-01.md"
+      ],
+      "verification_command": "test -d _archive/changelog-backups && grep -q 'solo append' memory.md",
+      "context": {
+        "files": [
+          "scripts/backup-changelog.ts",
+          "engine/CHANGELOG.md",
+          "_archive/changelog-backups/",
+          "memory.md"
+        ],
+        "functions": [],
+        "env_vars": [],
+        "notes": "Incidente 2026-08-01: write_file accidental sobrescribio CHANGELOG.md (~2777 lineas -> 148). Reconstruccion parcial desde docs+archive. Ver docs/incidente-changelog-engine-2026-08-01.md."
+      },
+      "dependencies": [],
+      "status": "pending",
+      "blocked_reason": null
+    }
+  ]
+}

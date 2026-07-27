@@ -1,0 +1,296 @@
+{
+  "brand": "nike",
+  "description": "Design tokens for Nike — global athletic brand. Created from real observation of nike.com (Pegasus 42 product page) on 2026-07-24.",
+  "version": "2.2.2",
+  "colors": {
+    "primary": "#111111",
+    "ctaBackground": "#111111",
+    "ctaText": "#FFFFFF",
+    "ctaHover": "#333333",
+    "textPrimary": "#111111",
+    "textBody": "#707072",
+    "textSecondary": "#707072",
+    "textTertiary": "#999999",
+    "white": "#FFFFFF",
+    "black": "#111111",
+    "link": "#111111",
+    "light": "#111111",
+    "deep": "#111111",
+    "accentHaloLight": "#E0E0E0",
+    "footerSeparator": "#D2D2D7",
+    "onBrandSecondary": "#A0A0A0",
+    "lightBg": "#F5F5F5",
+    "mediumBg": "#707072",
+    "darkBg": "#111111",
+    "border": "#D2D2D7",
+    "borders": {
+      "card": "#E0E0E0",
+      "footer": "#E0E0E0"
+    },
+    "success": "#2E7D32",
+    "warning": "#FFD60A",
+    "error": "#D32F2F",
+    "footerBg": "#FFFFFF",
+    "footerText": "#707072",
+    "heroOverlay": "rgba(17,17,17,0.25)",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#F5F5F5",
+      "dark": "#111111"
+    },
+    "text": {
+      "primary": "#111111",
+      "body": "#707072",
+      "secondary": "#707072",
+      "tertiary": "#999999"
+    }
+  },
+  "typography": {
+    "family": "Helvetica, Arial, sans-serif",
+    "note": "Nike usa Helvetica Now Display/Text en su web (observado). No son seguras en email. La cadena de fuentes de Nike ya incluye Helvetica y Arial como fallback primario.",
+    "displayFont": "'Inter', Helvetica, Arial, sans-serif",
+    "webFont": {
+      "family": "Inter",
+      "note": "Sustituto real de Helvetica Now Display/Text (2026-07-25 — ver engine/CHANGELOG.md, 'Tipografía real por marca'). Helvetica Now es la fuente que Nike usa en su web (observada), con licencia comercial de Monotype — no se puede embeber en email. Inter tiene un 88% de similitud citada con Helvetica Now (fontalternatives.com/compare/inter-vs-helvetica-now, 2026-07-25): mismo carácter neo-grotesco neutro, aperturas cerradas y color uniforme; la diferencia principal es que los terminales de Helvetica son más estrictamente horizontales/verticales y el x-height de Inter es algo mayor (optimizado para pantalla). Pesos verificados HTTP 200 en fonts.gstatic.com el 2026-07-25.",
+      "weights": [
+        {
+          "weight": 400,
+          "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 500,
+          "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 700,
+          "url": "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeA.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        }
+      ]
+    },
+    "headline": {
+      "hero": "28px",
+      "h1": "24px",
+      "h2": "20px",
+      "h3": "16px",
+      "h4": "14px"
+    },
+    "body": {
+      "large": "16px",
+      "normal": "14px",
+      "small": "12px",
+      "xsmall": "11px",
+      "legal": "11px"
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.1,
+      "hero": 1.2,
+      "normal": 1.4,
+      "relaxed": 1.5
+    },
+    "hero": {
+      "h1": {
+        "size": 28,
+        "weight": 500,
+        "lineHeight": 1.2,
+        "color": "#FFFFFF",
+        "mobile": { "size": 22, "lineHeight": 1.2 }
+      },
+      "subtitle": {
+        "size": 16,
+        "weight": 400,
+        "lineHeight": 1.4,
+        "color": "#707072",
+        "mobile": { "size": 14 }
+      }
+    },
+    "h2Section": {
+      "size": 20,
+      "weight": 500,
+      "lineHeight": 1.25,
+      "color": "#111111"
+    },
+    "h3Card": {
+      "size": 16,
+      "weight": 500,
+      "lineHeight": 1.3,
+      "color": "#111111"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#707072"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#707072"
+    },
+    "cta": {
+      "size": 16,
+      "weight": 500,
+      "letterSpacing": "0px"
+    },
+    "footer": {
+      "brand": { "size": 12, "weight": 500, "color": "#111111" },
+      "legal": { "size": 11, "weight": 400, "color": "#707072" }
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 36,
+    "hero": 40,
+    "innerSection": "24px 20px",
+    "cta": "20px 0"
+  },
+  "radius": {
+    "cta": 30,
+    "ctaPill": 30,
+    "cardStripe": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "colors.primary y colors.deep son idénticos (#111111) y photography.treatment/iconography.componentImplication documentan que la fotografía es el único adorno visual de esta marca ('demasiado aspiracional para emojis... omitir iconos y usar solo fotografía + texto') — un degradado añadido a un bloque de color sólido contradiría esa decisión de marca ya tomada, no la refuerza. Ver engine/CHANGELOG.md, entrada 'gradientes bulletproof'."
+  },
+  "surfaces": {
+    "global": "#F5F5F5",
+    "white": "#FFFFFF",
+    "sectionLila": "#F5F5F5"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#111111"
+    },
+    "cta": {
+      "backgroundColor": "#111111",
+      "textColor": "#FFFFFF",
+      "borderRadius": 30,
+      "padding": "12px 24px",
+      "vml": true
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#E0E0E0",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "centrado",
+    "reason": "Nike usa composición limpia y centrada en su comunicación de producto — el foco está en la fotografía, no en la asimetría del layout.",
+    "contentRhythm": "La página de producto de Nike (Pegasus 42) tiene esta estructura: 1) Header + navegación (texto), 2) Galería de imágenes (peso visual dominante — 10 fotos + 1 video), 3) Título + categoría (texto mínimo), 4) Precio + badge (texto pequeño), 5) Selector de color + fit (interacción), 6) CTA principal, 7) Descripción técnica + iconos de especificaciones, 8) What's New (bullets de texto), 9) Features That Perform (3 tarjetas imagen+texto), 10) Complete the Look (carrusel de outfits), 11) Reviews, 12) Footer. Conclusión para email: fotografía domina absolutamente. Texto mínimo, seguro, directo. Sin iconos decorativos. Las tarjetas de características deben priorizar imagen sobre icono."
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "Nike utiliza fotografía real de alta calidad como elemento visual dominante. Para producto (zapatillas): iluminación high-key de estudio, fondo blanco infinito, perfil lateral (plano clásico para running), producto aislado sin modelo ('ghost shoe'), centrado y ligeramente girado. Luz difusa y uniforme sin sombras duras. También primeros planos técnicos de detalle (entresuela, malla, suela). Estilo minimalista y técnico — el foco está en la ingeniería del producto. Fotografía con color preciso del producto, sin filtros agresivos.",
+    "source": "observado en https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702 el 2026-07-24",
+    "note": "Para hero-imagen, el prompt debe pedir una imagen del Nike Pegasus 42 con tratamiento fotográfico Nike: fondo blanco, perfil lateral, iluminación high-key, sin texto en la imagen."
+  },
+  "iconography": {
+    "style": "line-icon",
+    "monochrome": true,
+    "color": "#111111",
+    "source": "observado en https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702 el 2026-07-24",
+    "componentImplication": "Nike usa iconos de línea monocromos funcionales (búsqueda, favoritos, carrito, especificaciones técnicas). NO usa iconos decorativos de beneficio — la fotografía es el único adorno visual. Para componentes del motor: NO usar emoji (iconGlyph) en ningún módulo — Nike es una marca demasiado aspiracional para emojis en comunicación de producto. Si se necesitan iconos, deben ser imágenes PNG reales (variante -img) o, mejor aún, omitir iconos y usar solo fotografía + texto. La implicación para columns-3-beneficios es crítica: los iconos de beneficio (iconGlyph) no encajan con Nike — este módulo debería replantearse o usarse con iconos reales como imagen."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. isTestCampaign: true."
+  },
+  "personalization": {
+    "status": "not-implemented",
+    "note": "isTestCampaign: true — sin personalización real."
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-nike-pegasus-42",
+    "content": ""
+  },
+  "assets": {
+    "logo": "",
+    "logoWidth": 80,
+    "logoHeight": 28,
+    "logoAlt": "Nike",
+    "headerPatternTile": "",
+    "note": "Logo de Nike (swoosh) pendiente de capturar de nike.com. Se obtendrá PNG del swoosh durante el build.",
+    "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+    "heroBannerWidth": 600,
+    "heroBannerHeight": 350
+  },
+  "voice": {
+    "tone": "seguro, directo, técnico, motivacional",
+    "ctaDefault": "Comprar el Pegasus 42",
+    "ctaSecondary": "Más información",
+    "rhythm": {
+      "sentenceLength": "media-explicativa en beneficios; titulares cortos y contundentes",
+      "mode": "afirmación técnica en primera persona del plural ('we sculpted...') + segunda persona directa ('your feet', 'you')",
+      "formality": "tú directo",
+      "punctuationHabits": "Puntuación limpia. Puntos y seguido. Sin exclamaciones en body copy. Mayúsculas iniciales normales. Sin guiones ni adornos tipográficos.",
+      "examples": [
+        "Responsive full-length cushioning sculpted to energize an icon.",
+        "We sculpted our full-length Air Zoom unit to deliver a propulsive feel and Nike's highest energy return from heel to toe-off.",
+        "We updated the fit to give you a little extra room at the toes and forefoot compared to the 41.",
+        "Lightweight mesh is softer and more breathable than earlier iterations, helping your feet stay comfortable.",
+        "Greater toe spring than previous model due to an updated silhouette that increases the curve of the toe box.",
+        "Nike Pegasus 42 — Men's Road Running Shoes."
+      ],
+      "source": "observado en https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702 el 2026-07-24"
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.0",
+      "date": "2026-07-24",
+      "author": "02 — Brand Visual Analyst",
+      "changes": [
+        "Pack CREADO desde cero con investigación profunda de marca (Nivel 3 completo — 5 dimensiones).",
+        "Colores y tipografía COMPUTADOS con getComputedStyle sobre https://www.nike.com/t/pegasus-42-mens-road-running-shoes-S1bYkOza/IB1873-702.",
+        "CTA #111111 observado del botón 'Write a Review' (pill 30px border-radius).",
+        "Body text #707072 observado de texto secundario sobre fondo blanco.",
+        "photography.treatment, iconography.style/componentImplication y voice.rhythm observados directamente del sitio con ejemplos reales.",
+        "layout.contentRhythm documentado en brand-analysis.md — la fotografía domina absolutamente la página.",
+        "NOTA: 'Just Do It' NO se incluye como claim fijo — no se observó en la página de producto. El copy real de Nike en ficha de producto es técnico y explicativo, no imperativo-eslogan."
+      ]
+    },
+    {
+      "version": "2.2.1",
+      "date": "2026-07-24",
+      "author": "Gradientes bulletproof — ver engine/CHANGELOG.md",
+      "changes": [
+        "Añadido gradients.heroBackground = \"none\": colors.primary==colors.deep (#111111) y la propia marca ya documenta identidad plana/fotografía-primero (iconDensity nula, fotografía como único adorno) — un degradado contradiría esa decisión, no la refuerza."
+      ]
+    },
+    {
+      "version": "2.2.2",
+      "date": "2026-07-25",
+      "author": "Claude (sesión Cowork) — hallazgo cruzado durante el test de Worn Wear",
+      "changes": [
+        "typography.hero.h1.color corregido de #111111 a #FFFFFF. Motivo: hero-imagen.html renderiza el H1 sobre colors.primary (#111111 en este pack) — el valor declarado habría dejado el titular prácticamente invisible (casi negro sobre casi negro) si el motor lo hubiera leído. #111111 fue observado en la ficha de producto (título sobre fondo blanco), un contexto distinto al del hero de email (fondo oscuro) — nunca se verificó contra ese fondo.",
+        "Verificado con Chrome el 2026-07-24/25: nike.com no tiene actualmente ningún headline real sobre fondo oscuro que sirva de precedente directo, pero todo texto encontrado sobre superficies oscuras (overlays de reproductor de vídeo, rgb(0,0,0)/rgba(17,17,17,·)) usa blanco, nunca negro — mismo patrón que el resto de marcas del sistema con fondo oscuro (BMW, Spotify). Se usa blanco por ser el valor consistente con la convención ya establecida y no fabricar un color sin respaldo; el subtítulo mantiene su propio tono (#A0A0A0, colors.onBrandSecondary) para conservar jerarquía entre H1 y subtítulo."
+      ]
+    }
+  ]
+}

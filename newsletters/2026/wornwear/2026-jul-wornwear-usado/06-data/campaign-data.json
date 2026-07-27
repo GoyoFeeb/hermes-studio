@@ -1,0 +1,102 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-wornwear-usado",
+    "clientName": "Patagonia Worn Wear",
+    "subjectLine": "Worn Wear. Tu Patagonia de segunda mano.",
+    "preheader": "El mismo equipo Patagonia que conoces, a un precio más justo. Respaldado por Patagonia.",
+    "fromName": "Patagonia Worn Wear (test)",
+    "fromEmail": "test-wornwear@internal-newsletter.es",
+    "version": "1.0.0",
+    "createdAt": "2026-07-24",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/wornwear/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://wornwear.patagonia.com/cdn/shop/files/WW_Logo_Website.png?v=1745518005&width=500",
+        "logoAlt": "Patagonia Worn Wear®",
+        "logoWidth": 150,
+        "logoHeight": 42,
+        "label": "WORN WEAR"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+        "bannerAlt": "Equipo Patagonia de segunda mano — outdoor lifestyle",
+        "brandName": "Patagonia Worn Wear",
+        "h1": "Segunda vida. Primera calidad.",
+        "subtitle": "El equipo Patagonia que ya conoces, verificado y listo para seguir acompañándote. Por menos de lo que imaginas.",
+        "cta": {
+          "href": "https://wornwear.patagonia.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-wornwear-usado&utm_content=hero",
+          "label": "Descubrir novedades"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Worn Wear existe para que tu equipo favorito tenga más de una vida.",
+        "body": "En Worn Wear encuentras ropa y equipamiento Patagonia de segunda mano, revisado y listo para seguir en uso. La misma calidad que conoces, a un precio más bajo. Y con el respaldo de siempre.",
+        "cta": {
+          "href": "https://wornwear.patagonia.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-wornwear-usado&utm_content=intro",
+          "label": "Saber más"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Por qué comprar usado en Worn Wear",
+        "highlight": "Envío disponible a toda la península",
+        "highlightNote": "Consulta plazos y condiciones en wornwear.patagonia.com",
+        "items": [
+          {
+            "title": "Equipo revisado",
+            "body": "Cada pieza pasa una inspección antes de volver a la venta. Solo lo que está en buen estado llega hasta ti."
+          },
+          {
+            "title": "Menos precio, misma esencia",
+            "body": "El mismo equipo Patagonia que comprarías nuevo, a un coste más bajo. Sin sorpresas."
+          },
+          {
+            "title": "Con el respaldo de Patagonia",
+            "body": "Worn Wear está respaldado por la misma marca que garantiza tu equipo nuevo. Compra con confianza."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre-asimetrico",
+      "data": {
+        "title": "Tu equipo vale más de una vida.",
+        "body": "Cada día entran nuevas piezas en Worn Wear. Chaquetas, mochilas, sudaderas, pantalones... El equipo Patagonia que ya conoces, a un precio más justo. Entra a ver qué hay hoy.",
+        "cta": {
+          "href": "https://wornwear.patagonia.com/?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-wornwear-usado&utm_content=cierre",
+          "label": "Descubrir novedades"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Patagonia Worn Wear",
+        "tagline": "Used Patagonia® Clothing & Gear",
+        "disclosure": "Esta es una comunicación de prueba para la campaña 2026-jul-wornwear-usado. Los datos legales, la dirección física y los textos de footer son placeholders hasta recibir confirmación del cliente.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "[DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-wornwear-usado"
+  }
+}

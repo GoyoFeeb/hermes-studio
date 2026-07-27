@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-07-24T22:17:38.022Z",
+  "campaignDataPath": "/sessions/practical-laughing-cori/mnt/newsletter-system-reutilizable/sistema-final/newsletters/2026/paraycompara/2026-jul-comparar-tv/06-data/campaign-data.json",
+  "campaignDataSha256": "c851248a5456bf1285b28181a67b85fd281a78835e9e9b2b095b6b21ee276e32",
+  "sourceSha256": "0fcd0b9a6874596dc3e6277150e5aa1758c0198cad81474bfe1495a7d2b9b94d",
+  "inlineSha256": "942c7f82c35181b9b0f29e31bac480f7c1fb301477ed931765cfb0413ea8d395",
+  "brandPack": "/sessions/practical-laughing-cori/mnt/newsletter-system-reutilizable/sistema-final/newsletters/2026/newsletter-system/brands/paraycompara/tokens/brand-tokens.json",
+  "brandVersion": "2.2.6",
+  "pattern": "saving",
+  "modules": [
+    "hero-asimetrico",
+    "trust-bar",
+    "card-tarifa",
+    "pasos",
+    "lista-premium",
+    "banda-cierre",
+    "footer"
+  ],
+  "counts": {
+    "<img": {
+      "source": 8,
+      "inline": 8
+    },
+    "utm_source": {
+      "source": 8,
+      "inline": 8
+    },
+    "v:roundrect": {
+      "source": 4,
+      "inline": 4
+    },
+    "tableBalance": {
+      "source": {
+        "open": 48,
+        "close": 48
+      },
+      "inline": {
+        "open": 48,
+        "close": 48
+      }
+    },
+    "inlineBytes": 37731
+  },
+  "inlineBytes": 37731,
+  "warnings": []
+}

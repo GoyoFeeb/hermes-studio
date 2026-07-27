@@ -1,0 +1,117 @@
+{
+  "metadata": {
+    "campaignName": "2026-ago-audi-brand-native-a6-etron-test",
+    "clientName": "Audi",
+    "subjectLine": "Audi A6 Sportback e-tron. El progreso adopta una nueva silueta.",
+    "preheader": "Diseño aerodinámico, tecnología de 800 V y una experiencia de conducción puramente eléctrica.",
+    "fromName": "Audi",
+    "fromEmail": "newsletter@example.com",
+    "version": "1.0.0",
+    "createdAt": "2026-08-01",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/audi/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-CDN-UPLOAD/audi/logo.png",
+        "logoAlt": "AUDI",
+        "logoWidth": 96,
+        "logoHeight": 33,
+        "label": "100 % eléctrico"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/audi/hero-banner.png",
+        "bannerAlt": "Audi A6 Sportback e-tron — berlina eléctrica premium en carretera abierta",
+        "brandName": "Audi A6 Sportback e-tron",
+        "h1": "El progreso adopta una nueva silueta.",
+        "subtitle": "Diseño aerodinámico, tecnología avanzada y hasta 773 km de autonomía para avanzar sin renunciar a nada.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/",
+          "label": "Solicitar información"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/audi/a6-etron-diseno.jpg",
+        "imageAlt": "Audi A6 Sportback e-tron — perfil aerodinámico en carretera",
+        "eyebrow": "DISEÑO",
+        "title": "Cada línea tiene un propósito.",
+        "body": "El A6 Sportback e-tron no es solo un vehículo eléctrico. Es la expresión más depurada del lenguaje de diseño de Audi. Cada línea responde a la aerodinámica; cada superficie, a la eficiencia. Con un coeficiente de 0,22 Cd, su silueta coupé atraviesa el aire con la precisión de un objeto diseñado para moverse.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/",
+          "label": "Descubrir su diseño"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto-inverso",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/audi/a6-etron-interior.jpg",
+        "imageAlt": "Audi A6 Sportback e-tron — interior con pantalla panorámica OLED",
+        "eyebrow": "INTERIOR",
+        "title": "La tecnología encuentra su forma.",
+        "body": "A bordo, el A6 Sportback e-tron ofrece un espacio donde la tecnología se vuelve intuitiva. La doble pantalla panorámica con tecnología OLED coloca la información justo donde la necesitas. Cada detalle, desde los materiales hasta la luz ambiental, está pensado para que la experiencia de conducción sea tan envolvente como el propio desplazamiento.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/",
+          "label": "Ver el interior"
+        }
+      }
+    },
+    {
+      "component": "metric-strip-premium",
+      "data": {
+        "title": "Tecnología que impulsa el futuro.",
+        "items": [
+          {
+            "value": "340 kW",
+            "label": "Potencia Launch Control"
+          },
+          {
+            "value": "4,5 s",
+            "label": "Aceleración 0-100 km/h"
+          },
+          {
+            "value": "773 km",
+            "label": "Autonomía WLTP estimada"
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Tu próximo Audi empieza aquí.",
+        "body": "Descubre todas las posibilidades del Audi A6 Sportback e-tron. Solicita información personalizada o configura tu modelo ideal.",
+        "cta": {
+          "href": "https://www.audi.es/es/modelos/a6-e-tron/a6-sportback-e-tron/configurador/",
+          "label": "Solicitar información"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "AUDI",
+        "tagline": "El progreso adopta una nueva silueta.",
+        "disclosure": "Consumo eléctrico combinado (WLTP): 16,6–13,4 kWh/100 km. Emisiones combinadas de CO₂: 0 g/km. Las cifras de autonomía y consumo indicadas dependen de la configuración del vehículo, del estilo de conducción y de las condiciones ambientales.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© AUDI AG 2026"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-ago-audi-brand-native-a6-etron-test"
+  }
+}

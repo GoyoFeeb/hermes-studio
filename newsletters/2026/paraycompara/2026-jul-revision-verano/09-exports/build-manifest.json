@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-07-27T11:14:19.806Z",
+  "campaignDataPath": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/newsletters/2026/paraycompara/2026-jul-revision-verano/06-data/campaign-data.json",
+  "campaignDataSha256": "b8ca97b65ef6d92b07020d9563e941b16cda911e586f99d103ef63d659394857",
+  "sourceSha256": "d8697b086e447936f29568d29c164a6958463dead52df4f8e09f6cf7315c6de8",
+  "inlineSha256": "a6913187fdbfb900a3eabe9de32dd2ba857f71758d0045e2f7181826ee9bf605",
+  "brandPack": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/newsletters/2026/newsletter-system/brands/paraycompara/tokens/brand-tokens.json",
+  "brandVersion": "2.2.6",
+  "pattern": "saving",
+  "modules": [
+    "hero-asimetrico",
+    "trust-bar",
+    "card-tarifa",
+    "pasos",
+    "lista-premium",
+    "banda-cierre",
+    "footer"
+  ],
+  "counts": {
+    "<img": {
+      "source": 9,
+      "inline": 9
+    },
+    "utm_source": {
+      "source": 8,
+      "inline": 8
+    },
+    "v:roundrect": {
+      "source": 4,
+      "inline": 4
+    },
+    "tableBalance": {
+      "source": {
+        "open": 51,
+        "close": 51
+      },
+      "inline": {
+        "open": 51,
+        "close": 51
+      }
+    },
+    "inlineBytes": 38823
+  },
+  "inlineBytes": 38823,
+  "warnings": []
+}

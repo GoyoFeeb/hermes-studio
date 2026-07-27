@@ -1,0 +1,52 @@
+{
+  "system": "Newsletter Email Design System — Core Universal",
+  "version": "2.0.0",
+  "core": {
+    "layout": {
+      "containerWidth": 600,
+      "outerBackground": "#F4F4F4",
+      "innerBackground": "#FFFFFF"
+    },
+    "spacing": {
+      "scale": [4, 8, 12, 16, 24, 32, 40, 48],
+      "lateralDesktop": 24,
+      "lateralMobile": 16,
+      "moduleTop": 40,
+      "moduleBottom": 36
+    },
+    "typography": {
+      "family": "Arial, Helvetica, sans-serif",
+      "h1Desktop": 30,
+      "h1Mobile": 26,
+      "bodyDesktop": 16,
+      "bodyMobile": 15,
+      "microDesktop": 12,
+      "microMobile": 11
+    },
+    "responsive": {
+      "breakpoints": {
+        "desktop": 600,
+        "tablet": 480,
+        "mobile": 375,
+        "mobileSmall": 320
+      }
+    },
+    "components": {
+      "cta": {
+        "minHeight": 52,
+        "borderRadius": 50,
+        "padding": "14px 32px",
+        "vml": true
+      },
+      "card": {
+        "borderRadius": 16,
+        "iconRadius": 12
+      },
+      "trustBar": {
+        "borderRadius": 50,
+        "iconRadius": 50
+      }
+    }
+  },
+  "brands": {}
+}

@@ -1,0 +1,37 @@
+<!-- cta-secondary-bulletproof.html — parcial VML+fallback para CTA SECUNDARIO (2026-07-24,
+     ronda "jerarquía de CTA" — ver engine/CHANGELOG.md). Hasta esta ronda, TODOS los CTA del
+     email (principal en hero/banda-cierre Y contextual en intro-cta/category-grid) compartían
+     el mismo {{include:cta-bulletproof}} — misma pastilla sólida, mismo tamaño, mismo peso
+     visual, sin importar si era "el ask" del email o un enlace de paso. Esta variante da al CTA
+     contextual/secundario un tratamiento realmente distinto: outline (transparente + borde, sin
+     relleno), más pequeño, sin sombra. Usa {{token:colors.primary}} para borde y texto — NO es
+     un color inventado por marca: colors.primary ya es, en las 8 marcas reales del sistema, el
+     tono oscuro/de texto verificado (ratio mínimo 8.91:1 sobre blanco, ver check-contrast.ts) —
+     reutilizarlo aquí mantiene coherencia con los H2 de sección (mismo color) sin fabricar un
+     token nuevo. Placeholders {{data:cta.href}}/{{data:cta.label}} resueltos en el scope del
+     PADRE vía {{include:}}, igual que cta-bulletproof.html. Usado por: intro-cta.html,
+     intro-cta-asimetrico.html, category-grid.html, category-grid-img.html — módulos cuyo CTA es
+     un enlace de contexto, no el ask principal del email (ver patterns/institutional.md §8).
+     REESCRITO 2026-07-25 (mismo hallazgo que cta-bulletproof.html — ver engine/CHANGELOG.md,
+     "por qué se sigue viendo genérico"): la tabla exterior tenía `style="width:100%"` literal
+     además de `class="mobile-full"`, así que el CTA outline era ancho completo también en
+     desktop, no solo en móvil. Quitado — ahora se ajusta al texto en desktop, `.mobile-full`
+     sigue forzando el ancho completo en móvil. -->
+<!--[if mso]>
+<v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word"
+  href="{{data:cta.href}}" style="height:40px;v-text-anchor:middle;width:200px;"
+  arcsize="50%" filled="f" fillcolor="{{token:colors.primary}}" stroked="t" strokecolor="{{token:colors.primary}}" strokeweight="1.5pt">
+  <w:anchorlock/>
+  <center style="color:{{token:colors.primary}};font-family:{{token:typography.displayFont}};font-size:14px;font-weight:700;">{{data:cta.label}}</center>
+</v:roundrect>
+<![endif]-->
+<!--[if !mso]><!-->
+<table border="0" cellpadding="0" cellspacing="0" role="presentation" class="mobile-full">
+  <tr>
+    <td align="center" class="mobile-full" style="background-color:transparent;border:1.5px solid {{token:colors.primary}};border-radius:{{token:radius.ctaPill}}px;padding:12px 28px;">
+      <a href="{{data:cta.href}}" target="_blank"
+         style="display:block;color:{{token:colors.primary}};font-family:{{token:typography.displayFont}};font-size:14px;font-weight:700;letter-spacing:0.3px;text-decoration:none;text-align:center;line-height:18px;mso-line-height-rule:exactly;">{{data:cta.label}}</a>
+    </td>
+  </tr>
+</table>
+<!--<![endif]-->

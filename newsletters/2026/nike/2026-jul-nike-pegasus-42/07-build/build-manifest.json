@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-07-25T00:39:38.391Z",
+  "campaignDataPath": "/sessions/practical-laughing-cori/mnt/newsletter-system-reutilizable/sistema-final/newsletters/2026/nike/2026-jul-nike-pegasus-42/06-data/campaign-data.json",
+  "campaignDataSha256": "e46b41e8be88a44864a19409d51a7e952202bf06dac6c2462e55d98e92ae499a",
+  "sourceSha256": "b1d572663fb3872c7154cbb7bab655fed9705d84d6ba198c783a6406492c3f6d",
+  "inlineSha256": "ea3c0251fbe729a565e2eeaabadfe486bdc49e8a08f102abc612369b3b19ca93",
+  "brandPack": "/sessions/practical-laughing-cori/mnt/newsletter-system-reutilizable/sistema-final/brands/nike/tokens/brand-tokens.json",
+  "brandVersion": "2.2.2",
+  "pattern": "institutional",
+  "modules": [
+    "header-logo",
+    "hero-imagen",
+    "intro-cta",
+    "card-tarifa-3",
+    "banda-cierre",
+    "footer"
+  ],
+  "counts": {
+    "<img": {
+      "source": 5,
+      "inline": 5
+    },
+    "utm_source": {
+      "source": 0,
+      "inline": 0
+    },
+    "v:roundrect": {
+      "source": 6,
+      "inline": 6
+    },
+    "tableBalance": {
+      "source": {
+        "open": 21,
+        "close": 21
+      },
+      "inline": {
+        "open": 21,
+        "close": 21
+      }
+    },
+    "inlineBytes": 21043
+  },
+  "inlineBytes": 21043,
+  "warnings": []
+}

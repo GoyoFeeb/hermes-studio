@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-07-27T18:51:08.072Z",
+  "campaignDataPath": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/newsletters/2026/audi/2026-ago-audi-brand-native-a6-etron-test/06-data/campaign-data.json",
+  "campaignDataSha256": "8bc533db7c1f29c5ae75e4df26e3fd668f9b7a259cb71130278fcf813767e460",
+  "sourceSha256": "d724d1981c7768458c5593ce71f77cf903274d1589d47684c4f57e4382cf98bc",
+  "inlineSha256": "324957eec2dca492be8f483a0fab7e7923faada3f9648540bc075ae66db73f48",
+  "brandPack": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/brands/audi/tokens/brand-tokens.json",
+  "brandVersion": "2.2.1",
+  "pattern": "fotografia-primero",
+  "modules": [
+    "header-logo",
+    "hero-imagen",
+    "editorial-foto-texto",
+    "editorial-foto-texto-inverso",
+    "metric-strip-premium",
+    "banda-cierre",
+    "footer"
+  ],
+  "counts": {
+    "<img": {
+      "source": 4,
+      "inline": 4
+    },
+    "utm_source": {
+      "source": 0,
+      "inline": 0
+    },
+    "v:roundrect": {
+      "source": 8,
+      "inline": 8
+    },
+    "tableBalance": {
+      "source": {
+        "open": 23,
+        "close": 23
+      },
+      "inline": {
+        "open": 23,
+        "close": 23
+      }
+    },
+    "inlineBytes": 23106
+  },
+  "inlineBytes": 23106,
+  "warnings": []
+}

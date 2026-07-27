@@ -1,0 +1,320 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-ahorra-fibra-movil",
+    "clientName": "Para y Compara",
+    "subjectLine": "¿Sigues pagando de más por tu fibra y móvil?",
+    "preheader": "Compara tarifas de más de 30 compañías y encuentra la que mejor encaje contigo.",
+    "fromName": "[PENDIENTE — solicitar al cliente]",
+    "fromEmail": "[PENDIENTE — solicitar al cliente]",
+    "isTestCampaign": true,
+    "productionReady": false,
+    "version": "3.0.0",
+    "createdAt": "2026-07-09"
+  },
+  "settings": {
+    "containerWidth": 600,
+    "backgroundColor": "#F7F0F7",
+    "containerBackgroundColor": "#FFFFFF",
+    "fontFamily": "Arial, Helvetica, sans-serif",
+    "fontSize": 16,
+    "textColor": "#333333",
+    "linkColor": "#F85842",
+    "borderRadius": 0
+  },
+  "modules": [
+    {
+      "id": "header",
+      "type": "header",
+      "order": 1,
+      "visible": true,
+      "content": {
+        "title": "Para y Compara"
+      },
+      "image": {
+        "src": "assets/logo-paraycompara.png",
+        "alt": "Para y Compara — comparador de tarifas",
+        "width": 200,
+        "height": 55
+      },
+      "settings": {
+        "backgroundColor": "#792771",
+        "padding": "18px 24px",
+        "textColor": "#FFFFFF",
+        "alignment": "center"
+      }
+    },
+    {
+      "id": "hero",
+      "type": "hero",
+      "order": 2,
+      "visible": true,
+      "content": {
+        "title": "¿Sigues pagando de más por tu fibra y móvil?",
+        "subtitle": "Compara tarifas de más de 30 compañías y encuentra una opción que encaje mejor contigo.",
+        "bullets": [
+          "FIBRA Y MÓVIL"
+        ]
+      },
+      "cta": {
+        "text": "COMPARAR TARIFAS",
+        "href": "https://paraycompara.com/",
+        "backgroundColor": "#F85842",
+        "textColor": "#FFFFFF",
+        "borderRadius": 30,
+        "fontSize": 17,
+        "fullWidth": true
+      },
+      "settings": {
+        "backgroundColor": "#FFFFFF",
+        "padding": "44px 32px",
+        "textColor": "#792771",
+        "titleColor": "#792771",
+        "alignment": "center"
+      }
+    },
+    {
+      "id": "servicios",
+      "type": "cards-grid",
+      "order": 3,
+      "visible": true,
+      "content": {
+        "title": "Compara todo tipo de tarifas",
+        "items": [
+          {
+            "title": "Móvil",
+            "text": "Datos y llamadas. Encuentra una tarifa que se ajuste a tu consumo real.",
+            "image": {
+              "src": "assets/tarifa-movil-icon.png",
+              "alt": "",
+              "width": 48,
+              "height": 48
+            }
+          },
+          {
+            "title": "Fibra",
+            "text": "Internet en casa. Compara velocidad, precio y condiciones.",
+            "image": {
+              "src": "assets/tarifa-fibra-icon.png",
+              "alt": "",
+              "width": 48,
+              "height": 48
+            }
+          },
+          {
+            "title": "Fibra + Móvil",
+            "text": "Paquetes combinados para centralizar tus servicios en una sola tarifa.",
+            "image": {
+              "src": "assets/tarifa-fibra-movil-icon.png",
+              "alt": "",
+              "width": 48,
+              "height": 48
+            }
+          },
+          {
+            "title": "Televisión",
+            "text": "Canales, plataformas y fútbol. Elige el contenido que quieres ver.",
+            "image": {
+              "src": "assets/tarifa-tv-icon.png",
+              "alt": "",
+              "width": 48,
+              "height": 48
+            }
+          }
+        ]
+      },
+      "settings": {
+        "backgroundColor": "#F7F0F7",
+        "padding": "32px 24px",
+        "textColor": "#4A4A4A",
+        "titleColor": "#792771",
+        "columns": 2,
+        "cardBackgroundColor": "#FFFFFF",
+        "cardBorder": "1px solid #E8D5E7",
+        "cardPadding": "20px 16px 16px",
+        "gap": "8px",
+        "imagePosition": "top"
+      }
+    },
+    {
+      "id": "pasos",
+      "type": "cards-grid",
+      "order": 4,
+      "visible": true,
+      "content": {
+        "title": "Comparar es muy sencillo",
+        "items": [
+          {
+            "title": "Selecciona",
+            "text": "Elige móvil, fibra o una tarifa combinada.",
+            "image": {
+              "src": "assets/paso-01.png",
+              "alt": "Paso 1",
+              "width": 60,
+              "height": 60
+            }
+          },
+          {
+            "title": "Compara",
+            "text": "Revisa precio, cobertura, datos y permanencia.",
+            "image": {
+              "src": "assets/paso-02.png",
+              "alt": "Paso 2",
+              "width": 60,
+              "height": 60
+            }
+          },
+          {
+            "title": "Decide",
+            "text": "Escoge la opción que mejor encaje contigo.",
+            "image": {
+              "src": "assets/paso-03.png",
+              "alt": "Paso 3",
+              "width": 60,
+              "height": 60
+            }
+          }
+        ]
+      },
+      "settings": {
+        "backgroundColor": "#FFFFFF",
+        "padding": "32px 24px",
+        "textColor": "#4A4A4A",
+        "titleColor": "#792771",
+        "columns": 3,
+        "cardBackgroundColor": "transparent",
+        "cardBorder": "none",
+        "cardPadding": "12px 8px",
+        "gap": "4px",
+        "imagePosition": "top",
+        "alignment": "center"
+      }
+    },
+    {
+      "id": "educativo",
+      "type": "benefits-grid",
+      "order": 5,
+      "visible": true,
+      "content": {
+        "title": "¿Qué tener en cuenta al comparar?",
+        "items": [
+          {
+            "title": "Datos móviles",
+            "text": "Revisa cuántos GB necesitas al mes para no pagar por datos que no usas.",
+            "image": {
+              "src": "assets/aspecto1.png",
+              "alt": "",
+              "width": 40,
+              "height": 40
+            }
+          },
+          {
+            "title": "Cobertura",
+            "text": "Comprueba qué operadoras ofrecen buena cobertura en tu zona.",
+            "image": {
+              "src": "assets/aspecto2.png",
+              "alt": "",
+              "width": 40,
+              "height": 40
+            }
+          },
+          {
+            "title": "Paquetes combinados",
+            "text": "Valora si reunir móvil e Internet en una sola tarifa te compensa.",
+            "image": {
+              "src": "assets/aspecto3.png",
+              "alt": "",
+              "width": 40,
+              "height": 40
+            }
+          },
+          {
+            "title": "Precio y condiciones",
+            "text": "Revisa la cuota mensual, la permanencia y los posibles costes adicionales.",
+            "image": {
+              "src": "assets/aspecto4.png",
+              "alt": "",
+              "width": 40,
+              "height": 40
+            }
+          }
+        ]
+      },
+      "settings": {
+        "backgroundColor": "#F7F0F7",
+        "padding": "32px 24px",
+        "textColor": "#4A4A4A",
+        "titleColor": "#792771",
+        "columns": 2,
+        "cardBackgroundColor": "#FFFFFF",
+        "cardBorder": "1px solid #E8D5E7",
+        "cardPadding": "16px 12px",
+        "gap": "8px",
+        "alignment": "center"
+      }
+    },
+    {
+      "id": "cta-final",
+      "type": "cta-block",
+      "order": 6,
+      "visible": true,
+      "content": {
+        "title": "Empieza ahora.",
+        "subtitle": "Compara tu tarifa actual y descubre si puedes pagar menos."
+      },
+      "cta": {
+        "text": "COMPARAR TARIFAS",
+        "href": "https://paraycompara.com/",
+        "backgroundColor": "#F85842",
+        "textColor": "#FFFFFF",
+        "borderRadius": 30,
+        "fontSize": 17,
+        "fullWidth": true
+      },
+      "settings": {
+        "backgroundColor": "#FFFFFF",
+        "padding": "40px 32px",
+        "textColor": "#4A4A4A",
+        "titleColor": "#792771",
+        "alignment": "center"
+      }
+    },
+    {
+      "id": "footer",
+      "type": "footer",
+      "order": 7,
+      "visible": true,
+      "content": {
+        "body": "Recibes este correo porque te registraste en Para y Compara. Si lo prefieres, puedes darte de baja o gestionar tus preferencias de comunicación."
+      },
+      "links": [
+        {
+          "text": "Darse de baja",
+          "href": "[UNSUBSCRIBE_LINK]"
+        },
+        {
+          "text": "Preferencias",
+          "href": "[PREFERENCES_LINK]"
+        }
+      ],
+      "settings": {
+        "backgroundColor": "#F7F0F7",
+        "padding": "24px 24px 8px",
+        "textColor": "#A38EA1"
+      }
+    },
+    {
+      "id": "legal",
+      "type": "legal",
+      "order": 8,
+      "visible": true,
+      "content": {
+        "body": "© 2026 Para y Compara. [DIRECCIÓN FÍSICA — pendiente del cliente]. Puedes darte de baja o actualizar tus preferencias usando los enlaces anteriores."
+      },
+      "settings": {
+        "backgroundColor": "#F7F0F7",
+        "padding": "4px 24px 24px",
+        "textColor": "#A38EA1"
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+<!-- columns-3-beneficios-asimetrico.html — VARIANTE asimétrica de columns-3-beneficios.html.
+     Nivel 2 (2026-07-22, ver engine/CHANGELOG.md "Nivel 2"). Mismo contrato de datos
+     (beneficiosSection.{title,highlight,highlightNote} + beneficios[0..2].{icon,title,body},
+     vía el mismo adaptador que la versión centrada) — SOLO cambia la composición: en vez de 3
+     columnas iguales centradas lado a lado, los 3 beneficios se apilan como 3 FILAS, cada una
+     con el icono en un círculo a la izquierda (ancho fijo) y título+cuerpo alineados a la
+     izquierda a la derecha del icono — mismo lenguaje visual que lista-premium.html/pasos.html
+     (icono en halo), pero en fila en vez de columna. El highlight sigue siendo una franja
+     aparte a todo el ancho, DEBAJO de las 3 filas — mismo motivo estructural que la versión
+     centrada (ver cabecera de columns-3-beneficios.html): un aviso de longitud variable no
+     puede vivir dentro de un bloque de N elementos iguales. Elegir esta variante frente a la
+     centrada es una decisión de marca — ver brand-tokens.json → layout.sectionStyle y
+     patterns/institutional.md §7. -->
+<tr>
+<td style="background-color:{{token:surfaces.sectionLila}};padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="left" class="mobile-pad-sm" style="padding:52px 32px 28px;">
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:22px;font-weight:800;color:{{token:colors.primary}};margin:0;line-height:1.25;letter-spacing:-0.3px;text-align:left;mso-line-height-rule:exactly;">
+          {{data:beneficiosSection.title}}
+        </h2>
+      </td>
+    </tr>
+    <tr>
+      <td class="mobile-pad-sm" style="padding:0 32px 8px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%"{{#each:beneficios}}>
+          <tr>
+            <td width="64" valign="top" style="padding:{{data:padIcon}};">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                <tr>
+                  <td align="center" style="background-color:#FFFFFF;border-radius:50%;width:56px;height:56px;line-height:0;">
+                    <p style="font-size:26px;line-height:56px;margin:0;text-align:center;">{{data:icon}}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+            <td valign="top" style="padding:{{data:padText}};">
+              <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:{{token:colors.primary}};margin:6px 0 4px;line-height:1.3;text-align:left;mso-line-height-rule:exactly;">{{data:title}}</h3>
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:400;color:{{token:colors.text.secondary}};margin:0;line-height:1.5;text-align:left;mso-line-height-rule:exactly;">{{data:body}}</p>
+            </td>
+          </tr{{/each}}>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:28px 24px 52px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#FFFFFF;border:1px solid {{token:colors.borders.card}};border-radius:{{token:radius.card}}px;box-shadow:{{token:shadows.card}};margin:0 auto;">
+          <tr>
+            <td align="center" style="padding:14px 22px;">
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:{{token:colors.primary}};margin:0;line-height:1.4;text-align:center;mso-line-height-rule:exactly;">{{data:beneficiosSection.highlight}}</p>
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:400;color:{{token:colors.text.secondary}};margin:2px 0 0;line-height:1.4;text-align:center;mso-line-height-rule:exactly;">{{data:beneficiosSection.highlightNote}}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>
