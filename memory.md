@@ -238,7 +238,18 @@ Actualización 2026-07-28 (Fase F3, commits `ed06b8d`/`9e67bc1`/`9f1c429`, 3 blo
 Detalle completo, incluida la corrección de un incidente evitado a tiempo (ver Do NOT: nunca usar
 `json.loads()`/`json.dumps()` para mutar JSON en bloque — colapsa duplicados en silencio y
 reformatea el archivo entero), en `docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md`.
-Fase F4 (arreglos mecánicos de `card-tarifa`/`category-grid`) y F5 (patrones nuevos por tipo de
-newsletter, sin fecha) quedan pendientes.
+
+Actualización 2026-07-28 (Fase F4, commit `96d5841`): los 2 arreglos "mecánicos" de
+`card-tarifa`/`category-grid` resultaron ser bugs YA activos en producción al investigarlos
+contra campañas reales, no solo deuda teórica. `category-grid` migrado de un bucle propio a
+`balancedRows` — `optica2000/2026-jul-optica2000-cuida-tu-mirada` (4 categorías) tenía una fila
+huérfana real ("Protección infantil" sola a 33% de ancho); investigar esto reveló además un
+SEGUNDO bug no anticipado en `uax/2026-jul-uax-fp-online` (fila de 2 ítems también a 33% cada
+uno en vez de 50%, por `width:33%` hardcodeado sin condicionar al tamaño de fila). Ambos
+verificados con capturas antes/después, corregidos. `card-tarifa.items` corregido de
+`minItems:2` a `minItems:4` (el schema mentía desde Fase 1 — la plantilla nunca soportó menos de
+4; la única campaña real con 3 ítems ya estaba rota por un motivo no relacionado, sin demostrar
+demanda real). Fase F5 (patrones nuevos por tipo de newsletter, sin fecha) queda pendiente,
+documentada en el mismo informe de diagnóstico.
 
 _Last updated: 2026-07-28_
