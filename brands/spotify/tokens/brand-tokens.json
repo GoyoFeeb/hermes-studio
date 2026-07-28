@@ -1,7 +1,7 @@
 {
   "brand": "spotify",
   "description": "Design tokens for Spotify — marca global de streaming musical. Creado desde observación real de spotify.com/us/premium/ (Chrome, getComputedStyle) el 2026-07-24, más investigación secundaria citada para el lenguaje de diseño de campañas Wrapped. Marca elegida como test 'exigente' del motor: identidad real es dark-mode-first con acento verde muy saturado — este pack la ADAPTA deliberadamente a fondo claro (decisión del usuario, ver _changelog) en vez de replicar el fondo negro real, precisamente para forzar el máximo uso de gradients.heroBackground, shadows.card y el gate de contraste (9) con una combinación de color que ningún otro brand pack del sistema tiene (CTA con texto NEGRO sobre verde, no blanco sobre color).",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "colors": {
     "primary": "#000000",
     "ctaBackground": "#1ED760",
@@ -132,6 +132,7 @@
     "large": 24,
     "section": 36,
     "hero": 40,
+    "close": 32,
     "innerSection": "24px 20px",
     "cta": "20px 0"
   },
@@ -287,6 +288,15 @@
       "changes": [
         "typography.hero.h1.color corregido de #000000 a #FFFFFF. Motivo: hero-imagen.html renderiza el H1 sobre colors.primary (#000000 en este pack) — negro sobre negro habría sido invisible. El valor #000000 databa de la pasada original (2.2.0) y quedó sin revisar en fix1/fix2, que sí corrigieron onBrandSecondary a #FFFFFF para el mismo fondo pero no tocaron typography.hero.h1.color — el motor tampoco leía este campo hasta ahora (ver engine/CHANGELOG.md, 'El H1 de hero-imagen ignoraba typography.hero.h1'), así que el error nunca se manifestó en el render.",
         "Verificado con Chrome el 2026-07-24/25 sobre spotify.com/us/premium/: todo headline real sobre fondo oscuro (rgb(18,18,18)) usa color:#FFFFFF, nunca negro — mismo criterio ya aplicado a onBrandSecondary. No se fabrica un color nuevo: se alinea con el blanco ya verificado y already-used por el propio pack para el mismo contexto (fondo oscuro)."
+      ]
+    }
+,
+    {
+      "version": "2.2.2",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 32px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
       ]
     }
   ]

@@ -57,8 +57,17 @@
     "spacing": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Escala semántica (micro/small/medium/large/section/hero/close/innerSection/cta, ya usada en los 12 packs reales) — hoy no consumida por ningún {{token:...}}, es documentación para 04/07. 'webObserved' (añadido 2026-07-28, ver pipeline-skill/references/brand-visual-analysis-methodology.md §04) es opcional: la escala numérica cruda del sitio real, antes de mapearla a los nombres semánticos.",
+      "description": "Forma canónica desde Fase F3 (2026-07-28, docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md, Bloque 1) — unificada en los 13 brand packs reales tras coexistir 3 formas incompatibles. micro/small/medium/large/section/hero/close son número (px); innerSection/cta son shorthand CSS ('Npx Mpx'). 'small' es la ÚNICA de estas 7 realmente consumida hoy por el motor (gutter/gap de los 8 componentes con geometría adaptativa, ver Bloque 2) — el resto sigue siendo documentación para 04/07 hasta que se decida homogeneizar el padding de sección/hero de cada componente (fuera de alcance de F3, requiere tooling de QA visual real, ver docs/roadmap-qa-visual-2026-07-28.md). 'webObserved' (añadido 2026-07-28) es opcional: la escala numérica cruda del sitio real, antes de mapearla a los nombres semánticos.",
       "properties": {
+        "micro": { "type": "number" },
+        "small": { "type": "number", "description": "Único campo de spacing consumido por el motor hoy — gutter/gap de columns-3-beneficios*/usp-cards*/pasos/metric-strip-premium (Fase F3, Bloque 2)." },
+        "medium": { "type": "number" },
+        "large": { "type": "number" },
+        "section": { "type": "number" },
+        "hero": { "type": "number" },
+        "close": { "type": "number" },
+        "innerSection": { "type": "string" },
+        "cta": { "type": "string" },
         "webObserved": { "type": "object", "additionalProperties": true }
       }
     },

@@ -1,7 +1,7 @@
 {
   "brand": "wornwear",
   "description": "Design tokens for Patagonia Worn Wear — submarca independiente de segunda mano de Patagonia. Identidad visual PROPIA, distinta de patagonia.com. Creado desde observación real de wornwear.patagonia.com (Chrome, getComputedStyle) el 2026-07-24. NO hereda paleta, tipografía ni estilo de botón de la marca madre.",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "colors": {
     "primary": "#000000",
     "ctaBackground": "#FA4616",
@@ -166,6 +166,7 @@
     "large": 24,
     "section": 40,
     "hero": 48,
+    "close": 40,
     "innerSection": "24px 20px",
     "cta": "20px 0"
   },
@@ -301,6 +302,15 @@
         "iconography documenta que la marca NO usa iconos decorativos — implicación directa para la selección de variante de módulo de beneficios. CORREGIDO EN v2.2.1: la implicación inicial apuntaba a card-tarifa-3 (erróneo).",
         "contentRhythm describe las 7 secciones observadas con peso visual asignado a cada una.",
         "photography documenta los dos tratamientos (lifestyle outdoor + producto aislado) según el contexto."
+      ]
+    }
+,
+    {
+      "version": "2.2.2",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 40px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
       ]
     }
   ]

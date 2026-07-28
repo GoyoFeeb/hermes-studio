@@ -1,7 +1,7 @@
 {
   "brand": "apple",
   "description": "Design tokens for Apple — premium, minimalist, ecosystem-focused campaigns",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "colors": {
     "primary": "#1D1D1F",
     "ctaBackground": "#0071E3",
@@ -48,11 +48,16 @@
     }
   },
   "spacing": {
-    "section": "48px 0",
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 48,
+    "hero": 56,
+    "close": 48,
     "innerSection": "32px 20px",
-    "hero": "56px 0",
-    "paragraph": "20px 0",
-    "cta": "24px 0"
+    "cta": "24px 0",
+    "paragraph": "20px 0"
   },
   "radius": {
     "ctaPill": 50,
@@ -88,5 +93,15 @@
     "No structured card layouts — just text + image alternating",
     "Single CTA per section, clean bulletproof button",
     "Minimal color palette — primary #1D1D1F, secondary #6E6E73, cta blue #0071E3"
+  ],
+  "_changelog": [
+    {
+      "version": "1.0.1",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.{micro,small,medium,large,close} añadidos (forma canónica) con los valores por defecto del sistema (4/8/16/24, close=hero-8=48) — este pack no tenía ninguna escala numérica antes. section/hero convertidos de shorthand CSS ('48px 0'/'56px 0') a número (48/56), extrayendo el valor vertical líder. 'paragraph' se conserva sin cambios. Este pack tampoco tenía _changelog — se crea aquí por primera vez, mismo formato {version,date,author,changes} usado por el resto de brand packs reales."
+      ]
+    }
   ]
 }

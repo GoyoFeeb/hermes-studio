@@ -1,7 +1,7 @@
 {
   "brand": "nike",
   "description": "Design tokens for Nike — global athletic brand. Created from real observation of nike.com (Pegasus 42 product page) on 2026-07-24.",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "colors": {
     "primary": "#111111",
     "ctaBackground": "#111111",
@@ -153,6 +153,7 @@
     "large": 24,
     "section": 36,
     "hero": 40,
+    "close": 32,
     "innerSection": "24px 20px",
     "cta": "20px 0"
   },
@@ -290,6 +291,15 @@
       "changes": [
         "typography.hero.h1.color corregido de #111111 a #FFFFFF. Motivo: hero-imagen.html renderiza el H1 sobre colors.primary (#111111 en este pack) — el valor declarado habría dejado el titular prácticamente invisible (casi negro sobre casi negro) si el motor lo hubiera leído. #111111 fue observado en la ficha de producto (título sobre fondo blanco), un contexto distinto al del hero de email (fondo oscuro) — nunca se verificó contra ese fondo.",
         "Verificado con Chrome el 2026-07-24/25: nike.com no tiene actualmente ningún headline real sobre fondo oscuro que sirva de precedente directo, pero todo texto encontrado sobre superficies oscuras (overlays de reproductor de vídeo, rgb(0,0,0)/rgba(17,17,17,·)) usa blanco, nunca negro — mismo patrón que el resto de marcas del sistema con fondo oscuro (BMW, Spotify). Se usa blanco por ser el valor consistente con la convención ya establecida y no fabricar un color sin respaldo; el subtítulo mantiene su propio tono (#A0A0A0, colors.onBrandSecondary) para conservar jerarquía entre H1 y subtítulo."
+      ]
+    }
+,
+    {
+      "version": "2.2.3",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 32px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
       ]
     }
   ]

@@ -1,7 +1,7 @@
 {
   "brand": "aesop",
   "description": "Design tokens for Aesop — casa australiana de cosmética y cuidado de la piel. Identidad visual extremadamente minimalista: sin bordes redondeados, sin sombras, sin iconos decorativos, sin modelos humanos, sin promesas de transformación. Dos familias tipográficas (SuisseIntl para cuerpo, Zapf-Humanist para display). Fondo crema #FFFEF2 en lugar de blanco puro. CTAs siempre outline (borde sin relleno), con border-radius: 0. Creado desde observación real de aesop.com y aesop.com/skin-care.html (Chrome, getComputedStyle) el 2026-07-24.",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "colors": {
     "primary": "#333333",
     "ctaBackground": "#252525",
@@ -159,6 +159,7 @@
     "large": 24,
     "section": 44,
     "hero": 44,
+    "close": 36,
     "innerSection": "24px 20px",
     "cta": "20px 0"
   },
@@ -287,6 +288,15 @@
         "contentRhythm documenta 7 secciones observadas en la página de Skin Care, con peso visual asignado a cada una.",
         "layout.sectionStyle se fija en 'centrado' porque la composición real de Aesop es simétrica/centrada, no asimétrica (a diferencia de Worn Wear).",
         "cta.style no tiene token específico en el brand pack, pero se documenta que el CTA real de Aesop es OUTLINE (transparente con borde de 1px, sin relleno sólido). El motor actual solo genera CTA sólido (cta-bulletproof). La aproximación más cercana es usar cta-secondary-bulletproof (outline) o aceptar la limitación. Ver risks.md."
+      ]
+    }
+,
+    {
+      "version": "2.2.2",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 36px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
       ]
     }
   ]

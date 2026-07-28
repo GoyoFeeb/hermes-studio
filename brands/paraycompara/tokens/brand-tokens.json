@@ -1,6 +1,6 @@
 {
   "brand": "Para y Compara",
-  "version": "2.2.6",
+  "version": "2.2.7",
   "extends": "core",
   "colors": {
     "primary": "#5E2E91",
@@ -59,7 +59,9 @@
     "large": 24,
     "section": 40,
     "hero": 56,
-    "close": 48
+    "close": 48,
+    "innerSection": "24px 20px",
+    "cta": "20px 0"
   },
   "radius": {
     "ctaPill": 50,
@@ -364,6 +366,15 @@
         "contrast": "3.10:1 — falla AA-normal (4.5:1). El mismo color SÍ pasa en el CTA principal (19px/700 = ≥18.66px bold, califica como 'texto grande', umbral 3:1) pero a 13px/700 NO califica como texto grande (umbral WCAG: ≥24px normal o ≥18.66px bold) y necesita 4.5:1.",
         "reason_not_fixed": "Corregirlo implica o bien agrandar el enlace 'Ver tarifas →' a ≥18.66px (cambio de diseño, no de token) o bien oscurecer el naranja de marca (cambio de color de marca, requiere aprobación de quien la posea) — ninguna de las dos es una corrección técnica de bajo riesgo como la de footerTagline. Se documenta como hallazgo pendiente de decisión, no se improvisa un valor."
       }
+    }
+,
+    {
+      "version": "2.2.7",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.innerSection/cta añadidos (Fase F3, forma canónica) — inferidos del valor por defecto mayoritario (24px 20px / 20px 0, usado por la mayoría de packs del key-set B), no observados directamente para esta marca."
+      ]
     }
   ]
 }

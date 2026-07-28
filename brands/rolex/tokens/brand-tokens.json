@@ -1,7 +1,7 @@
 {
   "brand": "rolex",
   "description": "Design tokens for Rolex — relojería de lujo suiza. Creado desde investigación real (Nivel 3, Chrome real) sobre rolex.com/es/watches/datejust el 2026-07-25. Campaña de prueba de estrés del motor: marca deliberadamente exigente para ejercitar tipografía real por marca, jerarquía/forma de CTA, fotografía real vs ilustración, ritmo estructural asimétrico y variantes sin icono en un mismo pack.",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "colors": {
     "primary": "#127749",
     "ctaBackground": "#127749",
@@ -156,6 +156,7 @@
     "large": 28,
     "section": 40,
     "hero": 48,
+    "close": 40,
     "innerSection": "28px 20px",
     "cta": "24px 0"
   },
@@ -308,6 +309,15 @@
       "author": "06 — Data Specialist, build",
       "changes": [
         "Salto de versión de 1.0.1 a 2.2.0 SIN cambios de contenido — es un requisito puramente técnico, no una revisión semántica saltada. engine/lib/tokens.js define MIN_VERSION='2.2.0' (asume que todo brand pack desciende del linaje de paraycompara, que ya estaba en esa versión cuando se introdujo la comprobación) y rechaza el build de cualquier pack por debajo de ese número, sin importar su completitud real. Este pack es nuevo (no desciende de ese linaje) y de hecho documenta más profundidad Nivel 3 que el mínimo histórico que la comprobación asume — el número de versión aquí es una credencial de compuerta del motor, no una afirmación sobre el historial real del pack (que es el que reflejan honestamente las 3 entradas de este _changelog)."
+      ]
+    }
+,
+    {
+      "version": "2.2.1",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 40px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
       ]
     }
   ]

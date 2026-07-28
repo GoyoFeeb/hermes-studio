@@ -1,7 +1,7 @@
 {
   "brand": "audi",
   "description": "Design tokens for Audi — ultra-premium German automotive brand. Created from real observation of audi.es on 2026-07-27.",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "colors": {
     "primary": "#000000",
     "ctaBackground": "#000000",
@@ -169,6 +169,7 @@
     "large": 24,
     "section": 48,
     "hero": 40,
+    "close": 32,
     "innerSection": "32px 24px",
     "cta": "20px 0"
   },
@@ -363,6 +364,15 @@
         "photography.treatment, iconography.componentImplication y voice.rhythm observados directamente del sitio.",
         "Layout: centrado, simétrico — alineado con la identidad visual de Audi España.",
         "Fotografía como elemento dominante — patrón fotografia-primero."
+      ]
+    }
+,
+    {
+      "version": "2.2.2",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 32px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
       ]
     }
   ]

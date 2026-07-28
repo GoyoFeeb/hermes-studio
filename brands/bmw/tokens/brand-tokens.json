@@ -1,7 +1,7 @@
 {
   "brand": "bmw",
   "description": "Design tokens for BMW — ultra-premium automotive brand. Created from real observation of bmw.es on 2026-07-24.",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "colors": {
     "primary": "#000000",
     "ctaBackground": "#1C69D4",
@@ -167,6 +167,7 @@
     "large": 24,
     "section": 40,
     "hero": 48,
+    "close": 40,
     "innerSection": "28px 20px",
     "cta": "20px 0"
   },
@@ -317,6 +318,15 @@
       "author": "Gradientes bulletproof — ver engine/CHANGELOG.md",
       "changes": [
         "Añadido gradients.heroBackground = \"none\": colors.primary==colors.deep (#000000) y layout.contentRhythm ya documenta photographyWeight:dominante/iconDensity:nula — un degradado contradiría la identidad plana/fotografía-primero de esta marca, no la refuerza."
+      ]
+    }
+,
+    {
+      "version": "2.3.2",
+      "date": "2026-07-28",
+      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "changes": [
+        "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 40px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
       ]
     }
   ]
