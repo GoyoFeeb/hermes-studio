@@ -188,9 +188,24 @@ decisión real). Fase F1 implementada: `compositionProfile` (`personality`/`dens
 `agents/03-newsletter-architect.md` (no solo documentado — precedente exacto de por qué
 `brandStructure` fracasó). `alignmentBias:"alternado"` es la pieza nueva: por primera vez el
 sistema puede mezclar centrado/asimétrico módulo a módulo en la misma campaña. Ningún brand pack
-real tiene el campo todavía — sin efecto hasta que 02 lo escriba por marca. Fases F2-F5 (Gate 12
-con comparación cruzada real, generalizar variantes de alineación a los 13 componentes que no
-tienen ninguna, activar `spacing.*`, patrones nuevos por tipo de newsletter) quedan pendientes,
-documentadas en el mismo informe.
+real tiene el campo todavía — sin efecto hasta que 02 lo escriba por marca.
+
+Actualización 2026-07-28 (Fase F2, commit `d4f60d5`): `check-structural-differentiation.ts`
+(Gate 12) ahora compara la huella estructural de una campaña contra TODAS las demás campañas
+reales del mismo patrón (antes solo contra una constante hardcodeada, y solo para
+fotografia-primero). Verificado contra datos reales: detecta la colisión Audi/BMW "brand-native"
+(100%, la prueba directa que motivó el diagnóstico) y también new-balance/new-balance-premium
+(80%). Aviso, no bloqueante todavía. Además se generalizó el check de "secuencia comodín" a los
+3 patrones (antes solo fotografia-primero) — esto reveló un hallazgo real no relacionado con el
+cambio en sí: `paraycompara/2026-jul-revision-verano` usa la secuencia comodín exacta de
+`saving` sin ningún `brand-structure-translation.md`, invisible hasta ahora porque `saving` nunca
+tuvo comodín que lo detectara (el mismo tipo de bloqueo ya afectaba a campañas reales de
+`fotografia-primero` desde 2026-07-27, ej. `bmw/2026-jul-bmw-x1-descubre` — no es un criterio
+nuevo, es cobertura nueva del mismo criterio). Pendiente: si esta campaña de paraycompara necesita
+su propio `brand-structure-translation.md` o si el orden comodín es en efecto correcto para esa
+marca (en cuyo caso solo falta documentarlo) — no se tocó, fuera del alcance de F2 (ver
+`docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md`). Fases F3-F5 (generalizar
+variantes de alineación a los 13 componentes que no tienen ninguna, activar `spacing.*`, patrones
+nuevos por tipo de newsletter) quedan pendientes.
 
 _Last updated: 2026-07-28_
