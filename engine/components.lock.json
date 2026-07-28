@@ -1,14 +1,14 @@
 {
   "_comment": "Lockfile de integridad del motor. Regenerar SOLO tras un cambio legítimo documentado en engine/CHANGELOG.md, con: npm run check-engine -- --update",
-  "generatedAt": "2026-07-28T15:50:57.064Z",
+  "generatedAt": "2026-07-28T16:20:48.411Z",
   "files": {
     "engine/components/_shell.html": "658b5caa352e6af57411e3d5ee5c888d98e87316733bd6640e7333490c58493d",
     "engine/components/banda-cierre-asimetrico.html": "59a59a0e307e937ae233a4eaed98ad11696a88204f338b05aac4fb6f3e1ebebb",
     "engine/components/banda-cierre.html": "05491a3edeadf3310f811eb23c8aa9ddd39da6c846acd5a05ed8899cf45bc4ce",
     "engine/components/card-tarifa-3.html": "d09bc3d998b99a8afc4fcc0d23cc222e99463c2014c6c825d587aaf030ac89db",
     "engine/components/card-tarifa.html": "432ef9f84cb99e31fabdc303937b91c4dcbb6c9e797cf7e4af9d85f67443003e",
-    "engine/components/category-grid-img.html": "f65b6403332d0f9f543bec5b45cf78958922a207218d235a9c4fed5ce0b4c949",
-    "engine/components/category-grid.html": "53b8f3ffab7aa70270c21c5fa1721c6048885f3794abea8c3f8a139ebb18561c",
+    "engine/components/category-grid-img.html": "05c7fffda6f6eb52da31850b05bcb5e61e48a473338efa1c3462338f96f3e7ab",
+    "engine/components/category-grid.html": "65f9388dd5960a653928b4303bf71199cdda6220c6e64f5407857453bc65750f",
     "engine/components/columns-3-beneficios-asimetrico.html": "6fbbbbcc43a67313cf2583a41a0fecc60bad999a2e54d919a0b596b9a57854a1",
     "engine/components/columns-3-beneficios-sin-icono.html": "7327c7c70538c1839dea0ad6bfe86a53391ac276485b5c67c0fb6b10373c0def",
     "engine/components/columns-3-beneficios.html": "6535d8b238299f844c612a7ebbf63df09a4abab05eecf03b5cf60db3b231af05",
@@ -39,9 +39,9 @@
     "engine/components/usp-cards.html": "6d1ff95e866e4ceb6b49cf9480c7f3bcdf832ca003f7fc54a7c512739c5a4673",
     "engine/lib/tokens.js": "5f6c6b9980316764efe9ad2156b9944f14579042ae5f70fbe0dc2c59f8ed2304",
     "engine/lib/pattern.js": "1557452698cf4252c6aef2dacd965e14d55ea1cc461ea273a7fcc18d7261b874",
-    "engine/lib/assemble.js": "5c6ca14df49fb94658f962d89c9cf5944a15b3d959bb0273a018076e685d6dd2",
+    "engine/lib/assemble.js": "99b2c09fb071ebd0789435c13f5ee1907e008036dcb8cacf90eb4e85f0e877bf",
     "engine/lib/verify.js": "30a11464bf281f2a2b6df72579e357fd3555dadc82bcfca890fdac071baa2bc3",
     "engine/build-newsletter.js": "27a11692e5f2d48ca5e10154a0d31fad89067a681055b3c6fbbc0c37f101b057",
-    "engine/schema/campaign-data.schema.json": "13c15c9dcfb35c60c79b18b4777ad025c5dc2c893d17b63585022a332877f062"
+    "engine/schema/campaign-data.schema.json": "fbe771c7345df904fda6ff39b2c6c28b574edbb76199494c85415fb1eca06568"
   }
 }

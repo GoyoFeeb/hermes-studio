@@ -1,5 +1,42 @@
 # Changelog — engine/
 
+## 2026-07-28 — Fase F4 (flexibilidad estructural): 2 bugs reales de arreglos mecánicos
+
+A partir de docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md §3.5 — dos
+arreglos "mecánicos" que, al investigarlos contra campañas reales antes de tocar nada, resultaron
+ser bugs YA activos en producción, no solo deuda teórica:
+
+- **`engine/lib/assemble.js` — `category-grid` migrado de un bucle propio a `balancedRows`**
+  (el mismo helper que ya usan 7 componentes hermanos). El bucle propio (`for (i+=3)
+  slice(i,i+3)`) podía dejar una fila huérfana de un solo ítem — confirmado NO hipotético:
+  `optica2000/2026-jul-optica2000-cuida-tu-mirada` (4 categorías) tenía "Protección infantil"
+  sola en su propia fila, a 33% de ancho con 67% de hueco vacío a la derecha, en producción, hoy.
+  Además, al investigar reveló un SEGUNDO bug no anticipado: `uax/2026-jul-uax-fp-online` (5
+  categorías → filas [3,2]) tenía su fila de 2 ítems TAMBIÉN a 33% de ancho cada uno (33%+33%=66%
+  de la fila, 34% de hueco vacío) porque la plantilla hardcodeaba `width:33%` sin condicionar al
+  tamaño real de la fila. `engine/components/category-grid.html` y `category-grid-img.html`
+  ahora consumen `{{data:colWidth}}`/`{{data:cellPad}}` calculados por el adaptador (antes
+  `width:33%;padding:0 6px` fijos) — verificado con capturas antes/después: optica2000 pasa a
+  grid 2×2 equilibrado, uax mantiene su fila de 3 sin cambio y su fila de 2 pasa a 50%/50%
+  llenando el ancho real.
+- **`engine/schema/campaign-data.schema.json` — `card-tarifa.items` corregido de `minItems:2` a
+  `minItems:4`** (`maxItems` ya era 4). El schema llevaba desde Fase 1 declarando que 2-3
+  tarjetas eran válidas, pero `card-tarifa.html` siempre ha tenido un grid 2×2 fijo con índices
+  `cards[0..3]` hardcodeados en la plantilla — nunca soportó menos de 4 de verdad. La única
+  campaña real con 3 ítems (`tarifalo/2026-jul-tarifalo-compara-energia`) ya estaba rota por un
+  motivo completamente distinto y no relacionado (JSON de campaña con formato de módulo
+  obsoleto, confirmado no construible incluso ANTES de este cambio) — no es una campaña real
+  funcionando con 3 tarjetas, así que la barra anti-aspiracional ("¿hay ya una campaña real que
+  lo necesite?") no está superada; se corrige el schema para que deje de mentir en vez de
+  construir una variante de 2-3 sin demanda confirmada. Para exactamente 3, sigue existiendo
+  `card-tarifa-3` (sin cambios).
+
+Verificación: `npm test`, rebuild de las 2 campañas reales afectadas por category-grid con
+comparación antes/después (capturas revisadas manualmente, ambas mejoras confirmadas visualmente,
+cero regresión), `check-component-inventory.ts` sin deriva, `production-gate-motor` contra una
+campaña real sin cambio de resultado salvo los 2 hallazgos preexistentes ya conocidos y no
+relacionados (assets/CDN externo, structural-differentiation de Fase F2).
+
 ## 2026-07-28 — Fase F3 Bloque 3 (flexibilidad estructural): 3 variantes de layout nuevas
 
 A partir de docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md — 13 de los 27

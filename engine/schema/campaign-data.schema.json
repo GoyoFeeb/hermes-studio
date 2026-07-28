@@ -399,9 +399,9 @@
                   },
                   "items": {
                     "type": "array",
-                    "minItems": 2,
+                    "minItems": 4,
                     "maxItems": 4,
-                    "description": "2 a 4 tarjetas (regla de patterns/saving.md — el componente card-tarifa.html tal cual solo soporta el grid 2x2 fijo de 4; para 2 o 3 hace falta una variante de layout, documentada como pendiente en patterns/saving.md). {{data:cards[n].*}}",
+                    "description": "Exactamente 4 (corregido 2026-07-28 — Fase F4, docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md §3.5: el schema decía minItems:2 desde F1, pero card-tarifa.html siempre ha tenido un grid 2x2 fijo con índices cards[0..3] hardcodeados en la plantilla — nunca soportó menos de 4 de verdad, y la única campaña real con 3 ítems (tarifalo/2026-jul-tarifalo-compara-energia) ya estaba rota por un motivo no relacionado, sin construir nunca con éxito). Para exactamente 3, usar card-tarifa-3 (ver su propia entrada). No existe variante de 2 — se construye cuando una campaña real lo necesite, no antes. {{data:cards[0..3].*}}",
                     "items": {
                       "type": "object",
                       "required": [

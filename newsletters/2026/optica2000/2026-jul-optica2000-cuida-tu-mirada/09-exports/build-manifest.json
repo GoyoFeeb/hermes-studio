@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-07-25T00:32:53.276Z",
-  "campaignDataPath": "/sessions/practical-laughing-cori/mnt/newsletter-system-reutilizable/sistema-final/newsletters/2026/optica2000/2026-jul-optica2000-cuida-tu-mirada/06-data/campaign-data.json",
+  "generatedAt": "2026-07-28T16:18:53.778Z",
+  "campaignDataPath": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/newsletters/2026/optica2000/2026-jul-optica2000-cuida-tu-mirada/06-data/campaign-data.json",
   "campaignDataSha256": "5d9534519627688af41e8ef9847dda81282e56c3469537da64d0d3bbbde3936f",
-  "sourceSha256": "07606a9fc0ee12f80c9107f152f537d66faafd84481c65a13f91c71f64766808",
-  "inlineSha256": "a35983d2489c07cd2e73a1835e91fff6f6f51ccca1263886fa364292c7ff080f",
-  "brandPack": "/sessions/practical-laughing-cori/mnt/newsletter-system-reutilizable/sistema-final/brands/optica2000/tokens/brand-tokens.json",
-  "brandVersion": "2.2.4",
+  "sourceSha256": "3db10cdd6ec6e79af2808ae3a940f4f0b7bfb687fb49155d54815dd8e9fe0ea4",
+  "inlineSha256": "f4f08a9c9ed0d812a370d22ea1c2bc0c8a0d8f4b4c10542944b4d4261e82c8ba",
+  "brandPack": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/brands/optica2000/tokens/brand-tokens.json",
+  "brandVersion": "2.2.5",
   "pattern": "institutional",
   "modules": [
     "header-logo",
@@ -39,8 +39,8 @@
         "close": 29
       }
     },
-    "inlineBytes": 27487
+    "inlineBytes": 27503
   },
-  "inlineBytes": 27487,
+  "inlineBytes": 27503,
   "warnings": []
 }

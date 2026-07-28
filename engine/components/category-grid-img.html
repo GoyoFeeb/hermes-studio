@@ -3,9 +3,14 @@
      Mismo layout y datos que category-grid.html, pero {{data:icon}} se renderiza como
      <img src="{{data:icon}}" ...> en vez de texto emoji. Adaptador en lib/assemble.js
      añadido como 'category-grid-img' (misma lógica que 'category-grid').
-     Datos: gridSection.{title,intro} + rows[].items[].{icon,title,subtitle} (generado por
-     el adaptador — en campaign-data.json se escribe "categories" plano) + cta.href/cta.label
-     (via include). Tokens: colors.primary, colors.text.secondary, surfaces.sectionLila -->
+     Fix 2026-07-28 (Fase F4, docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md
+     §3.5): colWidth/cellPad ahora vienen de balancedRows/withCellGeometry (antes width:33% y
+     padding:0 6px hardcodeados) — evita la fila huérfana que esta campaña (Óptica 2000, 4
+     categorías) tenía en producción con "Protección infantil" sola en su propia fila a 33%.
+     Datos: gridSection.{title,intro} + rows[].items[].{icon,title,subtitle,colWidth,cellPad}
+     (generado por el adaptador — en campaign-data.json se escribe "categories" plano) +
+     cta.href/cta.label (via include). Tokens: colors.primary, colors.text.secondary,
+     surfaces.sectionLila -->
 <tr>
 <td style="background-color:#FFFFFF;padding:0;">
   <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
@@ -25,7 +30,7 @@
         <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="margin:0 0 12px;">
           <tr>
 {{#each:items}}
-            <td style="width:33%;padding:0 6px;vertical-align:top;" class="mobile-stack">
+            <td style="width:{{data:colWidth}};padding:{{data:cellPad}};vertical-align:top;" class="mobile-stack">
               <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:{{token:surfaces.sectionLila}};border-radius:{{token:radius.card}}px;">
                 <tr>
                   <td align="center" style="padding:20px 12px;">

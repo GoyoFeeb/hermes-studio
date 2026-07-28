@@ -1,4 +1,4 @@
-<!-- category-grid.html — grid de categorías, 3 por fila, envuelve a la fila siguiente para CUALQUIER número de ítems (2-8). Añadido 2026-07-22 (patrón institutional). El adaptador de lib/assemble.js agrupa "categories[]" en "rows[].items[]" en JS ANTES de renderizar — así cada fila solo emite tantas <td> como ítems tenga (nunca celdas vacías fantasma), y todas las filas comparten el mismo ancho de columna (33%), que es justo lo que faltaba en la versión escrita a mano de UAX (2026-07-22, ver engine/CHANGELOG.md): la fila 2 tenía menos tarjetas que la fila 1 y no eran comparables visualmente. Datos: gridSection.{title,intro} + rows[].items[].{icon,title,subtitle} (generado por el adaptador — en campaign-data.json NO se escriben "rows", solo "categories" plano) + cta.href/cta.label (via include). Tokens: colors.primary, colors.text.secondary, surfaces.sectionLila -->
+<!-- category-grid.html — grid de categorías, hasta 3 por fila (balancedRows evita filas huérfanas — fix 2026-07-28, Fase F4: antes un bucle propio podía dejar un ítem solo en su fila a 33% de ancho, ver engine/CHANGELOG.md), envuelve a la fila siguiente para CUALQUIER número de ítems (2-8). Añadido 2026-07-22 (patrón institutional). El adaptador de lib/assemble.js agrupa "categories[]" en "rows[].items[]" en JS ANTES de renderizar, con colWidth/cellPad por celda (balancedRows/withCellGeometry, igual que columns-3-beneficios/usp-cards). Datos: gridSection.{title,intro} + rows[].items[].{icon,title,subtitle,colWidth,cellPad} (generado por el adaptador — en campaign-data.json NO se escriben "rows", solo "categories" plano) + cta.href/cta.label (via include). Tokens: colors.primary, colors.text.secondary, surfaces.sectionLila -->
 <tr>
 <td style="background-color:#FFFFFF;padding:0;">
   <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
@@ -18,7 +18,7 @@
         <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="margin:0 0 12px;">
           <tr>
 {{#each:items}}
-            <td style="width:33%;padding:0 6px;vertical-align:top;" class="mobile-stack">
+            <td style="width:{{data:colWidth}};padding:{{data:cellPad}};vertical-align:top;" class="mobile-stack">
               <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:{{token:surfaces.sectionLila}};border-radius:{{token:radius.card}}px;">
                 <tr>
                   <td align="center" style="padding:20px 12px;">

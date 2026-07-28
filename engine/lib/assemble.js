@@ -217,13 +217,17 @@ const MODULE_ADAPTERS = {
     beneficiosRows: balancedRows(data.items, 3, gutterFromTokens(tokens, 10)),
     beneficios: withStackGeometry(data.items, stackGapFromTokens(tokens, 20))
   }),
-  // category-grid agrupa "categories" (plano en campaign-data.json) en filas de 3 AQUÍ, en JS —
-  // así la plantilla nunca emite una fila con menos <td> "vacíos" que otra: cada fila solo
-  // itera sobre los ítems que realmente tiene (ver cabecera de category-grid.html).
-  'category-grid': (data) => {
-    const items = data.categories;
-    const rows = [];
-    for (let i = 0; i < items.length; i += 3) rows.push({ items: items.slice(i, i + 3) });
+  // category-grid agrupa "categories" (plano en campaign-data.json) en filas AQUÍ, en JS — así la
+  // plantilla nunca emite una fila con menos <td> "vacíos" que otra: cada fila solo itera sobre
+  // los ítems que realmente tiene (ver cabecera de category-grid.html). Fix 2026-07-28 (Fase F4,
+  // docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md §3.5): antes agrupaba con
+  // un bucle propio (`for (i+=3) slice(i,i+3)`) en vez de `balancedRows` — el mismo helper que ya
+  // usan 7 componentes hermanos precisamente para evitar filas huérfanas. Con 4 ítems, el bucle
+  // propio producía [3,1] (una tarjeta sola, a 33% de ancho, flotando en su propia fila) — no
+  // hipotético: es el bug real que optica2000/2026-jul-optica2000-cuida-tu-mirada tenía en
+  // producción con "Protección infantil" como cuarta categoría. `balancedRows` da [2,2].
+  'category-grid': (data, tokens) => {
+    const rows = balancedRows(data.categories, 3, gutterFromTokens(tokens, 6));
     return {
       gridSection: { title: data.title, intro: data.intro },
       rows,
