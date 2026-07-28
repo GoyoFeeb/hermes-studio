@@ -122,3 +122,56 @@ test('withStackGeometry defaults the gap to 20px when not specified', () => {
   const [first] = withStackGeometry([{ title: 'A' }, { title: 'B' }]);
   assert.equal(first.padText, '0 0 20px');
 });
+
+// ── Fase F3 Bloque 2: spacing.* real (gutter/gap desde tokens) ──
+
+test('pasos adapter preserves the literal 10px gutter when tokens has no spacing.small (all real packs today)', () => {
+  const items = [{ number: '01', title: 'A', body: '' }, { number: '02', title: 'B', body: '' }, { number: '03', title: 'C', body: '' }];
+  const scope = MODULE_ADAPTERS['pasos']({ eyebrow: 'E', title: 'T', items }, { spacing: { medium: 16 } });
+  assert.equal(scope.steps[0].cellPad, '0 10px 0 0');
+});
+
+test('pasos adapter uses tokens.spacing.small as gutter when declared', () => {
+  const items = [{ number: '01', title: 'A', body: '' }, { number: '02', title: 'B', body: '' }, { number: '03', title: 'C', body: '' }];
+  const scope = MODULE_ADAPTERS['pasos']({ eyebrow: 'E', title: 'T', items }, { spacing: { small: 8 } });
+  assert.equal(scope.steps[0].cellPad, '0 8px 0 0');
+});
+
+test('pasos adapter falls back to 10px when tokens/spacing is entirely absent (undefined tokens)', () => {
+  const items = [{ number: '01', title: 'A', body: '' }, { number: '02', title: 'B', body: '' }];
+  const scope = MODULE_ADAPTERS['pasos']({ eyebrow: 'E', title: 'T', items });
+  assert.equal(scope.steps[0].cellPad, '0 10px 0 0');
+});
+
+test('columns-3-beneficios adapter: beneficiosRows gutter from spacing.small, beneficios gap from spacing.medium (not small)', () => {
+  const items = [{ icon: 'i', title: 'A', body: '' }, { icon: 'i', title: 'B', body: '' }, { icon: 'i', title: 'C', body: '' }];
+  const scope = MODULE_ADAPTERS['columns-3-beneficios'](
+    { title: 'T', highlight: 'H', highlightNote: 'N', items },
+    { spacing: { small: 8, medium: 16 } }
+  );
+  assert.equal(scope.beneficiosRows[0].items[0].cellPad, '0 8px 0 0');
+  assert.equal(scope.beneficios[0].padIcon, '0 16px 16px 0'); // gap = spacing.medium = 16, no spacing.small
+});
+
+test('columns-3-beneficios adapter keeps its original 10/20 defaults when spacing is absent', () => {
+  const items = [{ icon: 'i', title: 'A', body: '' }, { icon: 'i', title: 'B', body: '' }, { icon: 'i', title: 'C', body: '' }];
+  const scope = MODULE_ADAPTERS['columns-3-beneficios']({ title: 'T', highlight: 'H', highlightNote: 'N', items });
+  assert.equal(scope.beneficiosRows[0].items[0].cellPad, '0 10px 0 0');
+  assert.equal(scope.beneficios[0].padIcon, '0 16px 20px 0');
+});
+
+test('usp-cards adapter uses tokens.spacing.small in place of its own 6px default', () => {
+  const items = [{ icon: 'i', title: 'A', body: '' }, { icon: 'i', title: 'B', body: '' }, { icon: 'i', title: 'C', body: '' }];
+  const withTokens = MODULE_ADAPTERS['usp-cards']({ eyebrow: 'E', title: 'T', body: 'B', badge: 'G', items }, { spacing: { small: 8 } });
+  const withoutTokens = MODULE_ADAPTERS['usp-cards']({ eyebrow: 'E', title: 'T', body: 'B', badge: 'G', items });
+  assert.equal(withTokens.uspRows[0].items[0].cellPad, '0 8px 0 0');
+  assert.equal(withoutTokens.uspRows[0].items[0].cellPad, '0 6px 0 0');
+});
+
+test('metric-strip-premium adapter uses tokens.spacing.small in place of its own 10px default', () => {
+  const items = [{ value: '1', label: 'A' }, { value: '2', label: 'B' }];
+  const withTokens = MODULE_ADAPTERS['metric-strip-premium']({ title: 'T', items }, { spacing: { small: 8 } });
+  const withoutTokens = MODULE_ADAPTERS['metric-strip-premium']({ title: 'T', items });
+  assert.equal(withTokens.metricItems[0].cellPad, '0 8px 0 0');
+  assert.equal(withoutTokens.metricItems[0].cellPad, '0 10px 0 0');
+});

@@ -103,6 +103,34 @@ function withCellGeometry(items, perRow, gutter = 10) {
   }));
 }
 
+// ── Densidad real desde brand-tokens.json (Fase F3, 2026-07-28 — ver
+// docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md, Bloque 2) ───────────
+//
+// `spacing.*` vive en los 13 brand packs reales desde siempre pero, hasta esta fecha, ningún
+// {{token:...}} lo resolvía nunca — el gutter/gap de estas funciones estaba siempre hardcodeado
+// por componente (10, 6, 20), sin relación con lo que la marca declara. Estas 2 funciones lo
+// conectan: si el pack declara `spacing.small`/`spacing.medium`, se usa ese valor real; si no
+// (todos los packs reales hasta que 02 los actualice campaña a campaña), se preserva el literal
+// exacto que cada componente ya usaba — cero cambio de output por defecto.
+//
+// `spacing.small` alimenta el gutter de `withCellGeometry`/`balancedRows` (10/6 hoy — misma
+// familia semántica: canalón estrecho entre celdas de una fila). `spacing.medium`, no
+// `spacing.small`, alimenta el `gap` de `withStackGeometry` (20 hoy) — es un salto mayor, más
+// cercano a la separación entre bloques de contenido apilados que al canalón fino entre columnas;
+// usar `small` (8) ahí habría sido un recorte mucho más brusco (20→8) que el que sufre el gutter
+// columnar (10→8 o 6→8) para el mismo cambio de marca, sin que hubiera una razón de diseño para
+// esa magnitud — es un ajuste de criterio tomado durante la implementación, no un requisito
+// explícito de la propuesta original.
+function gutterFromTokens(tokens, fallback) {
+  const small = tokens && tokens.spacing && tokens.spacing.small;
+  return typeof small === 'number' ? small : fallback;
+}
+
+function stackGapFromTokens(tokens, fallback) {
+  const medium = tokens && tokens.spacing && tokens.spacing.medium;
+  return typeof medium === 'number' ? medium : fallback;
+}
+
 /**
  * Adaptadores: component name -> (moduleData) => scope object que la plantilla espera.
  * `cta` se duplica a nivel raíz en hero-asimetrico/banda-cierre para que
@@ -146,9 +174,9 @@ const MODULE_ADAPTERS = {
     cardsSection: { eyebrow: data.eyebrow, title: data.title, subtitle: data.subtitle },
     cards: data.items
   }),
-  'pasos': (data) => ({
+  'pasos': (data, tokens) => ({
     stepsSection: { eyebrow: data.eyebrow, title: data.title },
-    steps: withCellGeometry(data.items, data.items.length)
+    steps: withCellGeometry(data.items, data.items.length, gutterFromTokens(tokens, 10))
   }),
   'lista-premium': (data) => ({
     listSection: { eyebrow: data.eyebrow, title: data.title },
@@ -165,14 +193,14 @@ const MODULE_ADAPTERS = {
     intro: { title: data.title, body: data.body },
     cta: data.cta
   }),
-  'columns-3-beneficios': (data) => ({
+  'columns-3-beneficios': (data, tokens) => ({
     beneficiosSection: { title: data.title, highlight: data.highlight, highlightNote: data.highlightNote },
     // Dos formas del mismo dato, para las dos familias de layout que comparten este adaptador:
     // `beneficiosRows` (con geometría de celda) para las variantes EN COLUMNAS, y `beneficios`
     // (lista plana) para las variantes APILADAS (-asimetrico), donde cada ítem es su propia fila
     // y por tanto el conteo variable ya funcionaba sin necesidad de calcular anchos.
-    beneficiosRows: balancedRows(data.items, 3),
-    beneficios: withStackGeometry(data.items)
+    beneficiosRows: balancedRows(data.items, 3, gutterFromTokens(tokens, 10)),
+    beneficios: withStackGeometry(data.items, stackGapFromTokens(tokens, 20))
   }),
   // category-grid agrupa "categories" (plano en campaign-data.json) en filas de 3 AQUÍ, en JS —
   // así la plantilla nunca emite una fila con menos <td> "vacíos" que otra: cada fila solo
@@ -187,10 +215,10 @@ const MODULE_ADAPTERS = {
       cta: data.cta
     };
   },
-  'usp-cards': (data) => ({
+  'usp-cards': (data, tokens) => ({
     uspSection: { eyebrow: data.eyebrow, title: data.title, body: data.body, badge: data.badge },
-    uspRows: balancedRows(data.items, 3, 6), // variantes en columnas
-    usp: data.items                          // variantes apiladas
+    uspRows: balancedRows(data.items, 3, gutterFromTokens(tokens, 6)), // variantes en columnas
+    usp: data.items                                                    // variantes apiladas
   }),
   // editorial-foto-texto* (2026-07-27, evolución brand-native — ver engine/CHANGELOG.md):
   // ambos comparten el mismo contrato de datos, solo cambia el layout de las columnas.
@@ -204,9 +232,9 @@ const MODULE_ADAPTERS = {
   }),
   // metric-strip-premium (2026-08-01, campaña Audi A6 e-tron — ver engine/CHANGELOG.md):
   // tira de métricas premium sin iconos, sin cards, sin highlight. Números grandes + labels.
-  'metric-strip-premium': (data) => ({
+  'metric-strip-premium': (data, tokens) => ({
     metricSection: { title: data.title },
-    metricItems: withCellGeometry(data.items, data.items.length)
+    metricItems: withCellGeometry(data.items, data.items.length, gutterFromTokens(tokens, 10))
   })
 };
 

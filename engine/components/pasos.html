@@ -1,4 +1,4 @@
-<!-- pasos.html — 3 pasos numerados con halo. RESTAURADO 2026-07-21 (ver engine/CHANGELOG.md). Datos: stepsSection.{eyebrow,title} + steps[0..2].{number,title,body} -->
+<!-- pasos.html — 2-4 pasos numerados con halo. RESTAURADO 2026-07-21 (ver engine/CHANGELOG.md). Datos: stepsSection.{eyebrow,title} + steps[].{number,title,body,colWidth,cellPad}. Fix 2026-07-28 (Fase F3, docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md, Bloque 2): antes hardcodeaba "padding:0 10px" ignorando el cellPad que su propio adaptador ya calculaba desde 2026-07-24 — ahora consume {{data:cellPad}} como los demás componentes de geometría adaptativa, con el mismo criterio de "primera/última celda sin padding exterior" ya usado en columns-3-beneficios/usp-cards. -->
 <tr>
 <td style="background-color:#FFFFFF;padding:0;">
   <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
@@ -15,7 +15,7 @@
         </h2>
         <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
           <tr>{{#each:steps}}
-            <td align="center" style="width:{{data:colWidth}};padding:0 10px;vertical-align:top;" class="mobile-stack">
+            <td align="center" style="width:{{data:colWidth}};padding:{{data:cellPad}};vertical-align:top;" class="mobile-stack">
               <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
                 <tr><td align="center" style="padding:0 0 12px;">
                   <table border="0" cellpadding="0" cellspacing="0" role="presentation">

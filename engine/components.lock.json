@@ -1,6 +1,6 @@
 {
   "_comment": "Lockfile de integridad del motor. Regenerar SOLO tras un cambio legítimo documentado en engine/CHANGELOG.md, con: npm run check-engine -- --update",
-  "generatedAt": "2026-07-28T08:01:43.440Z",
+  "generatedAt": "2026-07-28T15:43:05.610Z",
   "files": {
     "engine/components/_shell.html": "658b5caa352e6af57411e3d5ee5c888d98e87316733bd6640e7333490c58493d",
     "engine/components/banda-cierre-asimetrico.html": "59a59a0e307e937ae233a4eaed98ad11696a88204f338b05aac4fb6f3e1ebebb",
@@ -28,7 +28,7 @@
     "engine/components/intro-cta.html": "f5383503b724ba75c97036a396bac54cbf210e9a54d49c9a727ff801bb51e25e",
     "engine/components/lista-premium.html": "5476d96362d60fb9e864db04f1730d4ba470f7c2faff04887690918279f33842",
     "engine/components/metric-strip-premium.html": "a297c8659468b0014a8c5bc93626d67a2310434adcf81c0b588ff0c74de541df",
-    "engine/components/pasos.html": "687d332216cc3e439323fcdc8cca646011a7763ebe017f2b4538eb2e40852914",
+    "engine/components/pasos.html": "bb377b3fff707e6c43722f3ad29b13cfa162af22313f6699445e93b15de33256",
     "engine/components/trust-bar.html": "eb6faed53dea07b91df5eb93ba915497e3efbc137cc03dd9f6a586740eaa0407",
     "engine/components/usp-cards-asimetrico.html": "07f16fb99dc4dea226af1ec22177c68d600cb87ebc822bcb29fd2cbaa51eec5c",
     "engine/components/usp-cards-sin-icono-asimetrico.html": "4549d4fcea0f35f3b7f4f1a816a8bf0381cc461d0c0d4e65e844d2217b6a4e74",
@@ -36,7 +36,7 @@
     "engine/components/usp-cards.html": "6d1ff95e866e4ceb6b49cf9480c7f3bcdf832ca003f7fc54a7c512739c5a4673",
     "engine/lib/tokens.js": "5f6c6b9980316764efe9ad2156b9944f14579042ae5f70fbe0dc2c59f8ed2304",
     "engine/lib/pattern.js": "1557452698cf4252c6aef2dacd965e14d55ea1cc461ea273a7fcc18d7261b874",
-    "engine/lib/assemble.js": "b6b29090ea8af5ccc3517eb2656f39d4c3896d0afd7d19ccfa1ed59868192784",
+    "engine/lib/assemble.js": "c219b998b069a87675af8dd2c8305e1e0b8b04e777d6246ab26688e85106fd71",
     "engine/lib/verify.js": "30a11464bf281f2a2b6df72579e357fd3555dadc82bcfca890fdac071baa2bc3",
     "engine/build-newsletter.js": "27a11692e5f2d48ca5e10154a0d31fad89067a681055b3c6fbbc0c37f101b057",
     "engine/schema/campaign-data.schema.json": "7757d33a8b16207c395ec801cdacfea084c190a16271322f2622c2e57b61f349"

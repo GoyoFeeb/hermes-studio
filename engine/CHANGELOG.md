@@ -1,5 +1,36 @@
 # Changelog — engine/
 
+## 2026-07-28 — Fase F3 Bloque 2 (flexibilidad estructural): spacing.* real en gutter/gap
+
+A partir de docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md — `spacing.*`
+vivía en los 13 brand packs reales (unificado en Bloque 1, mismo día) sin que ningún
+`{{token:...}}` lo resolviera nunca. `engine/lib/assemble.js` gana `gutterFromTokens()`/
+`stackGapFromTokens()`: los 4 adaptadores con geometría adaptativa (`pasos`, que cubre también su
+alias `pasos-vertical` cuando exista; `columns-3-beneficios`, que cubre sus 3 alias `-asimetrico`/
+`-sin-icono`; `usp-cards`, que cubre sus 3 alias; `metric-strip-premium`) ahora leen
+`tokens.spacing.small` como gutter (en vez del literal fijo 10 o 6 que cada uno tenía) y
+`tokens.spacing.medium` como gap de la variante apilada (en vez del literal fijo 20) — `medium`,
+no `small`, para el gap apilado: usar `small` (8) ahí habría sido un recorte mucho más brusco
+(20→8) que el que sufre el gutter columnar (10→8 o 6→8) para el mismo cambio de marca, sin
+justificación de diseño para esa magnitud. El call site (`assembleNewsletter()`) ya pasaba
+`tokens` como segundo argumento a todo adaptador desde antes de esta sesión — no fue necesario
+tocarlo, solo los 4 adaptadores que ahora lo usan.
+
+Fallback preservado exactamente cuando `spacing.small`/`spacing.medium` no están declarados
+(ningún brand pack real lo declara todavía, ya que este es su primer consumo) — cero cambio de
+comportamiento por defecto. Para los 13 packs reales, que ya declaran `spacing.small: 8` desde
+Bloque 1, el gutter SÍ cambia (10→8px o 6→8px según el componente) — verificado con rebuild de 5
+campañas reales y 2 capturas de `preview-html.ts` revisadas manualmente, sin regresión visual.
+
+`engine/components/pasos.html`: fix del bug latente encontrado en la investigación de esta
+fase — la plantilla hardcodeaba `padding:0 10px` para las 2-4 celdas ignorando por completo el
+`cellPad` que su propio adaptador ya calculaba desde 2026-07-24 (posición-consciente: primera/
+última celda sin padding exterior, igual que `columns-3-beneficios`/`usp-cards`). Ahora consume
+`{{data:cellPad}}` — esto cambia el padding renderizado de `pasos` en las 6 campañas reales que lo
+usan incluso sin densidad custom (de uniforme `0 10px` en las 3 celdas a `0 10px 0 0`/`0 5px`/
+`0 0 0 10px`), verificado visualmente sin regresión (ver captura de paraycompara/
+2026-jul-revision-verano).
+
 ## 2026-07-28 — Fase C (auditoría técnica): cobertura de test para geometría de celdas
 
 `engine/lib/assemble.js` exporta ahora `balancedRows`, `withCellGeometry` y `withStackGeometry`
