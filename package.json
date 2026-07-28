@@ -23,6 +23,7 @@
     "check-hero-decision": "npx tsx scripts/check-hero-decision.ts",
     "check-structural-differentiation": "npx tsx scripts/check-structural-differentiation.ts",
     "check-component-inventory": "npx tsx scripts/check-component-inventory.ts",
+    "check-brand-visual-report-completeness": "npx tsx scripts/check-brand-visual-report-completeness.ts",
     "changelog:backup": "npx tsx scripts/backup-changelog.ts",
     "test": "node --test",
     "legacy:validate-newsletter": "npx tsx scripts/validate-newsletter.ts",

@@ -456,6 +456,27 @@ function gate12StructuralDifferentiation(campaignDir: string): GateResult {
   return { name: 'structural-differentiation', passed: errors.length === 0, errors, warnings: [] };
 }
 
+// ── Gate 13: completitud del informe visual de marca (check-brand-visual-report-completeness.ts) ──
+//
+// Añadido 2026-07-28 (evolución "Nivel 5" del agente 02 — ver
+// pipeline-skill/references/brand-visual-analysis-methodology.md). Deliberadamente NO bloqueante
+// todavía: hoy ningún brand pack real tiene ninguno de los 9 artefactos nuevos (CSS extraído,
+// inventario de componentes del sitio real, guías de adaptación a email), así que bloquear
+// producción por su ausencia el día que se introduce el gate fallaría retroactivamente toda
+// campaña real existente — mismo criterio de rollout que "Nivel 4" (layout.contentRhythm,
+// 2026-07-24). Sí bloquea si un archivo existe pero es un placeholder sin resolver (misma
+// disciplina anti-fabricación del resto del sistema).
+
+function gate13BrandVisualReportCompleteness(campaignDir: string): GateResult {
+  runGateHeader(13, 'completitud del informe visual de marca (check-brand-visual-report-completeness.ts)');
+  const errors = runChildGate(
+    'check-brand-visual-report-completeness.ts',
+    ['--campaign', campaignDir],
+    'check-brand-visual-report-completeness.ts detectó un placeholder sin resolver en un artefacto ya declarado — ver el mensaje exacto arriba.'
+  );
+  return { name: 'brand-visual-report-completeness', passed: errors.length === 0, errors, warnings: [] };
+}
+
 // ── Main ───────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -556,6 +577,7 @@ async function main(): Promise<void> {
   gates.push(gate10ProductionReadiness(campaignDir));
   gates.push(gate11HeroDecision(campaignDir));
   gates.push(gate12StructuralDifferentiation(campaignDir));
+  gates.push(gate13BrandVisualReportCompleteness(campaignDir));
 
   // ── Resultados ─────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(60)}`);

@@ -242,3 +242,57 @@ test('check-hero-decision: pasa si el motivo para no usar hero-imagen está docu
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ── Gate 13: check-brand-visual-report-completeness.ts ("Nivel 5", evolución del agente 02) ──
+
+test('check-brand-visual-report-completeness: los 9 artefactos ausentes solo avisan, nunca fallan', () => {
+  const campaignData = {
+    brand: 'brands/paraycompara/tokens/brand-tokens.json',
+    modules: []
+  };
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify(campaignData)
+  });
+  try {
+    const { exitCode, output } = runGateScript('check-brand-visual-report-completeness.ts', dir);
+    assert.equal(exitCode, 0);
+    assert.match(output, /visual-identity-report\.md ausente/);
+    assert.match(output, /styles\/reference\.css ausente/);
+    assert.match(output, /Nivel 5, no bloqueante/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('check-brand-visual-report-completeness: un artefacto presente con contenido placeholder falla', () => {
+  const campaignData = { brand: 'brands/no-existe-esta-marca/tokens/brand-tokens.json', modules: [] };
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify(campaignData),
+    '02-analysis/visual-identity-report.md': '[PENDIENTE]'
+  });
+  try {
+    const { exitCode, output } = runGateScript('check-brand-visual-report-completeness.ts', dir);
+    assert.equal(exitCode, 1);
+    assert.match(output, /contenido es un placeholder sin resolver/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('check-brand-visual-report-completeness: pasa limpio (sin avisos) cuando los artefactos de campaña están poblados', () => {
+  const campaignData = { brand: 'brands/no-existe-esta-marca/tokens/brand-tokens.json', modules: [] };
+  const realContent = 'Contenido real observado en el sitio de la marca, con suficiente longitud para no contar como placeholder.';
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify(campaignData),
+    '02-analysis/visual-identity-report.md': realContent,
+    '02-analysis/source-inventory.md': realContent,
+    '02-analysis/open-questions.md': realContent
+  });
+  try {
+    const { exitCode, output } = runGateScript('check-brand-visual-report-completeness.ts', dir);
+    assert.equal(exitCode, 0);
+    assert.doesNotMatch(output, /02-analysis\/(visual-identity-report|source-inventory|open-questions)\.md ausente/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

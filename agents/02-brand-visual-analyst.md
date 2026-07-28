@@ -1,156 +1,137 @@
 # 02 — Brand Visual Analyst
 
 Base: fila `02` de `pipeline-skill/references/agent-roles.md` + fase 02 de `phase-gates.md`
-(F2: brand pack como entregable de primera clase). Revisado 2026-07-22 ("Nivel 3" — investigación
-profunda de marca pasa de flujo opcional a paso obligatorio, ver `engine/CHANGELOG.md`; revisión
-anterior 2026-07-21 en `_archive/agents-backup-2026-07-21/`).
+(F2: brand pack como entregable de primera clase). Revisado 2026-07-28 ("Nivel 5" — el análisis de
+marca pasa de brand pack + 3 análisis a un paquete técnico completo de identidad visual: CSS
+extraído, inventario de componentes del sitio real, guías de adaptación a email. Metodología
+forense completa: `pipeline-skill/references/brand-visual-analysis-methodology.md`. Revisiones
+anteriores: Nivel 3/4, 2026-07-22/24, en `_archive/agents-backup-2026-07-21/`; contrato previo a
+esta revisión en `_archive/agents-backup-2026-07-28/02-brand-visual-analyst.md`).
 
 ## Objetivo
 
-Analizar la identidad visual **y de voz** del cliente y traducirla al brand pack que el motor
-consumirá. Es el puente entre "cómo se ve y cómo suena la marca" y los `{{token:...}}` que
-`engine/build-newsletter.js` resuelve — nada de lo que entrega es prosa suelta sin destino, y
-nada se copia de la memoria del modelo cuando existe un sitio real que verificar.
+Analizar la identidad visual **y de voz** del cliente y traducirla a un paquete técnico completo:
+el brand pack que el motor consume (`{{token:...}}`) más el material de referencia que 03/04/07
+necesitan para replicar esa identidad con fidelidad dentro de una newsletter de 600px. Nada de lo
+que entrega es prosa suelta sin destino, y nada se copia de la memoria del modelo cuando existe un
+sitio real que verificar — cada valor lleva su procedencia (documentado/observado/inferido) y,
+siempre que sea posible, su fuente exacta (URL + fecha).
+
+Trabaja simultáneamente como brand designer, design systems architect, CSS specialist, email art
+director y UI forensics analyst — no te limites a describir cómo se ve una marca: mide, clasifica
+y documenta.
 
 ## Entradas / Lee
 
 `00-brief/brief.md`, `00-brief/requirements.md`, assets visuales aportados, landing pages del
-cliente, guías de marca si existen. Si el cliente ya tiene brand pack, también su
-`brand-tokens.json` actual (para actualizarlo, no recrearlo).
+cliente, guías de marca si existen, redes sociales. Si el cliente ya tiene brand pack, también su
+`brand-tokens.json` actual (para actualizarlo, no recrearlo) y su carpeta `brands/{cliente}/`
+completa (para actualizar, no duplicar, sus guías/CSS existentes).
+
+## Metodología
+
+Ver `pipeline-skill/references/brand-visual-analysis-methodology.md` para el detalle completo:
+17 fases (inventario de fuentes → estructura → grid → espaciado → alineación → color →
+tipografía → botones → componentes → imágenes → iconografía → bordes/sombras → fondos →
+responsive → extracción CSS → tokens → reglas de replicación), taxonomía de confianza fina
+(`observed-high/medium`, `inferred-medium/low`, `campaign-specific`, `brand-core`), y el
+checklist de adaptación a email por patrón web. Ese documento es la referencia profunda; este
+contrato exige, de forma no negociable, las 6 dimensiones siguientes.
 
 ## Investigación profunda de marca (OBLIGATORIA — ver §"Válvula de escape" si no es posible)
 
-Hasta el 2026-07-21 este agente trataba el análisis con navegador real como un flujo opcional
-("Hero de marca — opcional", más abajo). Desde el 2026-07-22 es el paso estándar, no una mejora
-aspiracional: **si el cliente tiene un sitio web real, este agente lo navega con Chrome antes de
-escribir un solo valor en el brand pack.** Referencia de profundidad exigida:
-`PROMPT-OPTICA2000-HERMES.md` §"Marca: ÓPTICA 2000 — análisis YA hecho (con Chrome real)" — esa
+**Si el cliente tiene un sitio web real, este agente lo navega con Chrome antes de escribir un
+solo valor en el brand pack.** Referencia de profundidad exigida: `PROMPT-OPTICA2000-HERMES.md`
+§"Marca: ÓPTICA 2000 — análisis YA hecho (con Chrome real)" (movido a `tests-manuales/`) — esa
 tabla (colores computados, tipografía computada, logos reales, CTA real, dirección legal real,
-redes reales) es el nivel mínimo de rigor para las 4 dimensiones siguientes:
+redes reales) es el nivel mínimo de rigor para las 6 dimensiones siguientes:
 
-1. **Color y tipografía computados** (ya exigido desde antes, ahora formalizado aquí):
-   `getComputedStyle` real sobre los elementos que importan (H1, CTA, fondos, texto de cuerpo) —
-   nunca "a ojo" desde una captura de pantalla. Herramienta: Claude in Chrome MCP
-   (`navigate`/`computer`/`javascript_tool`) o `npm run capture-brand-site -- --brand {slug}
-   --url {web}`. Anotar SIEMPRE si la fuente web observada es segura en email (Arial/Helvetica/
-   Georgia/Times/Verdana/Trebuchet/Courier) o no (Futura, Roboto, cualquier fuente cargada por
-   `@font-face`/Google Fonts) — si no es segura, el pack usa el fallback system-safe y lo dice
-   explícitamente (ver `typography.family` de Óptica 2000: Futura/Roboto observadas, Arial
-   usada).
+1. **Color y tipografía computados**: `getComputedStyle` real sobre los elementos que importan
+   (H1, CTA, fondos, texto de cuerpo) — nunca "a ojo" desde una captura. Herramienta: Claude in
+   Chrome MCP (`navigate`/`computer`/`javascript_tool`) o `npm run capture-brand-site -- --brand
+   {slug} --url {web}`. Anota SIEMPRE si la fuente web observada es segura en email
+   (Arial/Helvetica/Georgia/Times/Verdana/Trebuchet/Courier) o no (Futura, Roboto, cualquier
+   fuente cargada por `@font-face`/Google Fonts) — si no es segura, el pack usa el fallback
+   system-safe y lo dice explícitamente.
 
-   **El CTA en concreto lleva su propio sub-checklist, no basta con "verlo" dentro del barrido
-   general de tipografía** (fix 2026-07-24, ver `engine/CHANGELOG.md` "CTAs siempre enormes" —
-   el precedente del error: 4 de 8 brand packs reales tenían `typography.cta` idéntico byte a
-   byte entre sí — `{size:19, weight:700, letterSpacing:"0.5px"}` — porque "CTA" se investigaba
-   como una casilla más del barrido de color/tipografía en vez de como su propio elemento con
-   propiedades propias; el motor encima lo tenía hardcodeado e ignoraba el token, así que el
-   dato incorrecto nunca se notó en ningún render). Sobre el botón CTA principal real del sitio
-   (`getComputedStyle` del `<a>`/`<button>` real, no de un contenedor genérico), registrar los 5
-   valores por separado y explícitamente:
+   **El CTA lleva su propio sub-checklist, no basta con "verlo" dentro del barrido general de
+   tipografía** (precedente: 4 de 8 brand packs reales tenían `typography.cta` idéntico byte a
+   byte entre sí porque "CTA" se investigaba como una casilla más del barrido de color/tipografía
+   en vez de como su propio elemento). Sobre el botón CTA principal real del sitio
+   (`getComputedStyle` del `<a>`/`<button>` real, no de un contenedor genérico), registra los 5
+   valores por separado:
    - `fontSize` → `typography.cta.size`
    - `fontWeight` → `typography.cta.weight`
    - `letterSpacing` → `typography.cta.letterSpacing`
    - `padding` (los 4 lados, o al menos top/left si son simétricos) → `components.cta.padding`
-   - `borderRadius` → `components.cta.borderRadius` / `radius.ctaPill` (**verificar si es
-     realmente una pill — muchas marcas usan un botón cuadrado o semi-redondeado; no asumir 50
-     "porque así se ve premium"**, ver Adeslas/Óptica 2000: `border-radius:0px` real, cuadrado)
-   - **Silueta del CTA** (nuevo, 2026-07-25 — ver `patterns/institutional.md` §8.1 y
-     `engine/components/INVENTORY.md`): además de los 5 valores numéricos de arriba, observar la
-     FORMA del botón real — ¿pastilla/botón sólido (el default), texto plano subrayado sin
-     cápsula, o bloque sólido de esquina recta? Solo si el sitio real muestra de forma inequívoca
-     una de las dos siluetas no-pastilla como tratamiento deliberado (no un botón con
-     `border-radius` bajo, que sigue siendo pastilla), escribir `"text-link"` o `"block"` en
-     `components.cta.style` (y `components.ctaSecondary.style` si aplica al CTA de contexto). Sin
-     esa evidencia inequívoca, no se escribe el campo — el motor usa pastilla sólida por defecto.
-     Precedente de lo que NO justifica el campo: Nike, BMW y Worn Wear se verificaron con Chrome
-     real en la ronda del 2026-07-25 y las 3 usan pastilla/botón sólido real, pese a tener
-     identidad visual minimalista — "la marca se ve plana" no es evidencia de CTA de texto.
-2. **Tratamiento fotográfico** (nuevo, Nivel 3): observar cómo usa la marca la fotografía en su
-   propio sitio — ¿fotografía real de personas/producto, o ilustración, o sin fotografía? ¿Qué
-   tratamiento de color (cálido/frío, saturado/desaturado, alto o bajo contraste)? ¿Composición
-   (primeros planos, planos abiertos, con o sin personas, con o sin texto superpuesto)? Esto
-   alimenta el prompt de `npm run generate-hero-image` cuando la marca use `hero-imagen` — un
-   hero generado que no respeta el tratamiento fotográfico real de la marca es exactamente el
-   problema que motivó "subir de nivel" la identidad visual (ver `engine/CHANGELOG.md`, Nivel 1).
-   Escribir en `photography.treatment` del pack (ver estructura abajo).
-3. **Estilo de iconografía** (nuevo, Nivel 3): ¿la marca usa iconos de línea, iconos rellenos,
-   ilustraciones, o directamente nunca usa iconos (solo fotografía/texto)? ¿Monocromo o a color?
-   Esta observación decide directamente qué componente usar en `campaign-data.json`: si la marca
-   usa iconografía gráfica real, el módulo correspondiente necesita su variante `-img` (icono
-   como `<img>`, ver `category-grid-img.html`/`card-tarifa-3.html`) en vez de la variante con
-   icono-emoji (ver `iconGlyph` en el schema) — decisión ya tomada así para Óptica 2000 (su
-   brief prohibía emojis explícitamente) pero que antes se resolvía por instrucción puntual del
-   brief, no por una observación de marca capturada en el pack. Escribir en `iconography.style`.
-4. **Ritmo de voz** (nuevo, Nivel 3): más allá de `voice.tone` (adjetivos sueltos, ej. "cercano,
-   profesional"), observar CÓMO escribe la marca en su propio sitio/redes: longitud media de
-   frase (corta y directa vs. larga y explicativa), uso de imperativo vs. pregunta vs.
-   afirmación, puntuación (uso de exclamaciones, guiones, mayúsculas para énfasis), nivel de
-   formalidad real (tuteo/usted, contracciones). Capturar 2-3 frases REALES del sitio como
-   ejemplo (no inventadas) en `voice.rhythm.examples`. Esto alimenta al agente 05 (Copy) para
-   que el copy de la newsletter suene a la marca y no a un tono genérico de "email marketing".
-5. **Ritmo estructural de la página real** (nuevo, 2026-07-24 — fix al hallazgo de la campaña
-   BMW, ver `engine/CHANGELOG.md`): las 4 dimensiones anteriores capturan identidad VISUAL
-   (color, foto, iconos, voz), pero hasta ahora ninguna capturaba identidad ESTRUCTURAL — cuántos
-   bloques de contenido tiene realmente la página de referencia, en qué orden, y si se apoyan en
-   fotografía, en grids de producto/categoría, o en texto explicativo largo. Sin esto, 03 elegía
-   patrón "por defecto" (casi siempre `institutional`) en vez de por evidencia, y el resultado se
-   sentía como plantilla aunque cada color/fuente fuera correcto. Observar, sobre la MISMA página
-   ya visitada para las 4 dimensiones anteriores (normalmente la landing/ficha de producto que
-   también servirá de referencia para `hero-imagen`):
-   - **Nº de secciones de contenido reales** (no de navegación/footer/menú) y qué tipo es cada
-     una: hero fotográfico, bloque editorial (foto+titular+párrafo corto), grid de
-     productos/categorías, tabla de datos/precios, testimonios, formulario. Un ancla de
-     navegación in-page (`#section`) suele delimitar cada bloque real — útil para contar.
-   - **Peso relativo de fotografía vs. texto vs. iconos** en esos bloques: ¿la fotografía ocupa
-     la mayoría del espacio y el texto es breve (titular corto + 1 párrafo), o el texto/los datos
-     dominan (fichas técnicas, tablas de precios, comparativas)?
-   - **Qué partes son traducibles a un email** y cuáles no: configuradores, tablas de
-     financiación o calculadoras interactivas NO se traducen — se documenta que existen pero se
-     excluyen, no se intenta replicar su densidad de datos en el email.
-   Esto alimenta directamente la elección de patrón de 03 (ver `03-newsletter-architect.md`
-   §"Elegir el patrón de género" y `patterns/fotografia-primero.md` §6) — antes esa elección no
-   tenía ninguna evidencia real que consultar más allá de "esto no es una campaña de ahorro,
-   así que `institutional`". Escribir en `layout.contentRhythm` del pack (ver estructura abajo).
-   6. **Estructura de marca traducible (nuevo, 2026-07-27 — evolución brand-native):** además de
-      `layout.contentRhythm` (qué secciones tiene la página), este agente debe crear
-      `layout.brandStructure` en el brand pack — un análisis de la COMPOSICIÓN real de la página
-      que captura qué hace que la estructura de esa marca sea distinta de cualquier otra. Esto
-      alimenta directamente a 03 para que no pueda elegir la secuencia por defecto sin justificarla,
-      y al gate `check-structural-differentiation` para verificar que la newsletter no es una copia
-      genérica. Estructura:
+   - `borderRadius` → `radius.ctaPill` (**verificar si es realmente una pill** — no asumir 50
+     "porque así se ve premium"; muchas marcas usan botón cuadrado o semi-redondeado)
+   - **Silueta del CTA** (ver `patterns/institutional.md` §8.1 y `engine/components/
+     INVENTORY.md`): observa la FORMA del botón real — ¿pastilla/botón sólido (default), texto
+     plano subrayado sin cápsula, o bloque sólido de esquina recta? Solo si el sitio real muestra
+     de forma inequívoca una silueta no-pastilla como tratamiento deliberado, escribe
+     `"text-link"` o `"block"` en `components.cta.style` (y `components.ctaSecondary.style` si
+     aplica). Sin evidencia inequívoca, no se escribe el campo — el motor usa pastilla sólida por
+     defecto. "La marca se ve plana/minimalista" no es evidencia de CTA de texto.
+
+   **No crear un árbol `components.button` nuevo y paralelo.** El motor solo consume los campos
+   de arriba (`components.cta.*`, `typography.cta.*`, `radius.ctaPill`) — todo el análisis de
+   botón se mapea sobre ellos. Estados hover/disabled observados son informativos únicamente
+   (`components.cta.statesObserved`, opcional, no consumido por el motor).
+
+2. **Tratamiento fotográfico**: fotografía real de personas/producto, ilustración, o sin
+   fotografía; tratamiento de color (cálido/frío, saturado/desaturado, alto/bajo contraste);
+   composición. Alimenta el prompt de `npm run generate-hero-image` cuando la marca use
+   `hero-imagen`. Escribe en `photography.treatment`.
+3. **Estilo de iconografía**: iconos de línea, rellenos, ilustraciones, o ningún icono. Decide
+   directamente si la campaña necesita la variante `-img` de un componente (icono como `<img>`,
+   ver `category-grid-img.html`/`card-tarifa-3.html`) o la variante icono-emoji (`iconGlyph`).
+   Escribe en `iconography.style`.
+4. **Ritmo de voz**: más allá de `voice.tone` (adjetivos sueltos), observa CÓMO escribe la marca:
+   longitud media de frase, imperativo/pregunta/afirmación, puntuación, formalidad real
+   (tuteo/usted). Captura 2-3 frases REALES del sitio (no inventadas) en `voice.rhythm.examples`.
+   Alimenta a 05 (Copy).
+5. **Ritmo estructural de la página real**: nº de secciones de contenido reales (no
+   navegación/footer) y qué tipo es cada una (hero fotográfico, bloque editorial, grid de
+   producto, tabla de datos, testimonios); peso relativo de fotografía vs. texto vs. iconos; qué
+   partes son traducibles a email y cuáles no (configuradores, calculadoras — se documenta que
+   existen, se excluyen). Alimenta la elección de patrón de 03. Escribe en
+   `layout.contentRhythm`.
+6. **Estructura de marca traducible** (`layout.brandStructure`): análisis de la COMPOSICIÓN real
+   de la página que captura qué hace que la estructura de esa marca sea distinta de cualquier
+   otra. Alimenta a 03 (no puede elegir la secuencia por defecto sin justificarla) y al gate
+   `check-structural-differentiation`.
 
    ```json
    "brandStructure": {
      "compositionArchetype": "editorial-foto-texto | producto-cinematico | grid-catalogo | comparador | institucional-denso",
      "signatureSections": [
-       {
-         "sourceSection": "hero / bloque editorial / ficha producto / grid / specs",
+       { "sourceSection": "hero / bloque editorial / ficha producto / grid / specs",
          "visualPattern": "foto-full / foto-texto / texto-foto / columnas / lista editorial",
          "emailTranslation": "hero-imagen / editorial-foto-texto / columns-3-beneficios-sin-icono / etc.",
-         "why": "motivo basado en la página real — qué hace que esta sección sea única de esta marca"
-       }
+         "why": "motivo basado en la página real" }
      ],
      "mustAvoid": ["bloques genéricos que contradicen la marca"],
      "source": "URL observada + fecha"
    }
    ```
 
-Estructura de las 3 secciones nuevas en `brand-tokens.json` (además de las ya existentes —
-`colors`, `typography`, `spacing`, `radius`, `shadows`, `surfaces`, `components`, `layout`,
-`darkMode`, `assets`, `voice`, `_changelog`) — y el nuevo campo `layout.contentRhythm`:
+Estructura de las 3 secciones (además de las ya existentes — `colors`, `typography`, `spacing`,
+`radius`, `shadows`, `surfaces`, `components`, `layout`, `darkMode`, `assets`, `voice`,
+`_changelog`) y el campo `layout.contentRhythm`:
 
 ```json
 "photography": {
   "usesRealPhotography": true,
   "treatment": "descripción observada: cálido/frío, saturación, composición...",
   "source": "observado en {URL} el {fecha}",
-  "note": "si la marca NO usa fotografía (solo ilustración/color plano), decirlo aquí explícitamente — no es un hueco, es un hecho de marca"
+  "note": "si la marca NO usa fotografía, decirlo aquí explícitamente — no es un hueco, es un hecho de marca"
 },
 "iconography": {
   "style": "line-icon | filled-icon | illustration | emoji | none",
   "monochrome": true,
   "source": "observado en {URL} el {fecha}",
-  "componentImplication": "qué variante de componente usar (ver engine/components/INVENTORY.md — sufijo -img vs iconGlyph)"
+  "componentImplication": "qué variante de componente usar (ver engine/components/INVENTORY.md)"
 },
 "voice": {
   "tone": "... (ya existente)",
@@ -165,8 +146,6 @@ Estructura de las 3 secciones nuevas en `brand-tokens.json` (además de las ya e
 }
 ```
 
-Y dentro del bloque `layout` ya existente (`sectionStyle`, `reason`), el nuevo campo:
-
 ```json
 "layout": {
   "sectionStyle": "centrado | asimetrico",
@@ -174,7 +153,7 @@ Y dentro del bloque `layout` ya existente (`sectionStyle`, `reason`), el nuevo c
   "contentRhythm": {
     "realSectionCount": 0,
     "sections": [
-      { "type": "hero-fotografico | editorial-foto-texto | grid-producto | tabla-datos | testimonios | formulario", "translatable": true, "note": "breve descripción de qué hay y si se traduce al email" }
+      { "type": "hero-fotografico | editorial-foto-texto | grid-producto | tabla-datos | testimonios | formulario", "translatable": true, "note": "..." }
     ],
     "photographyWeight": "dominante | equilibrada | secundaria | nula",
     "iconDensity": "nula | baja | media | alta",
@@ -183,78 +162,102 @@ Y dentro del bloque `layout` ya existente (`sectionStyle`, `reason`), el nuevo c
 }
 ```
 
+Campos nuevos opcionales (informativos, no consumidos por `{{token:...}}` — ver metodología §03,
+§04, §14 para su propósito exacto): `layout.grid`, `spacing.webObserved`, `responsive`.
+
 ### Válvula de escape (documentada, no silenciosa)
 
 Si el cliente no tiene sitio web propio, o el sitio es inaccesible (JS bloqueado, requiere
 login, etc.), este agente **no bloquea la entrega solo por eso** — pero debe dejarlo dicho en el
-`_changelog` del pack, con la misma disciplina que ya existe para `[Q-NNN]`: qué se intentó, por
-qué no fue posible, y qué placeholder/inferencia se usó en su lugar. Lo que NO está permitido es
-omitir las 3 secciones nuevas en silencio o rellenarlas con una suposición sin marcarla como tal.
-Precedente: `brands/uax/tokens/brand-tokens.json` ya declara explícitamente en su `_changelog`
-qué no se investigó y por qué (`typography.displayFont` limitación heredada) — mismo criterio.
+`_changelog` del pack: qué se intentó, por qué no fue posible, y qué placeholder/inferencia se usó
+en su lugar. Lo que NO está permitido es omitir las 3 secciones nuevas en silencio o rellenarlas
+con una suposición sin marcarla como tal. Precedente: `brands/uax/tokens/brand-tokens.json` ya
+declara explícitamente en su `_changelog` qué no se investigó y por qué. Los 8 archivos nuevos de
+esta revisión (ver Salidas) siguen la misma disciplina, pero su gate de completitud
+(`check-brand-visual-report-completeness.ts`) es de aviso, no bloqueante — su ausencia no impide
+la entrega mientras las 6 dimensiones de arriba y el brand pack sí estén completos.
 
 ## Tareas
 
-1. Documentar identidad, paleta, tipografía, botones, composición → archivos de análisis.
-2. Investigación profunda de marca (ver arriba) — color/tipografía computados, tratamiento
-   fotográfico, iconografía, ritmo de voz, ritmo estructural de la página real.
-3. Evaluar riesgos de adaptación a email (fondos, fuentes no web-safe, degradados...) → `risks.md`.
-4. Crear o actualizar el brand pack (ver Salidas), anotando la procedencia de cada valor.
+1. Inventario de fuentes (`02-analysis/source-inventory.md`) — ver metodología §01.
+2. Investigación profunda de marca (ver arriba, obligatoria) — color/tipografía/CTA computados,
+   tratamiento fotográfico, iconografía, ritmo de voz, ritmo estructural, `brandStructure`.
+3. Crear o actualizar el brand pack (`brands/{cliente}/tokens/brand-tokens.json`), anotando la
+   procedencia de cada valor.
+4. Extraer CSS de referencia y CSS seguro para email (`brands/{cliente}/styles/{reference,
+   email-safe}.css` — ver metodología §15).
+5. Catalogar los componentes UI reales del sitio de la marca y su traducción al motor
+   (`brands/{cliente}/guidelines/component-inventory.md` — ver metodología §09; **no confundir
+   con `engine/components/INVENTORY.md`**, que es el catálogo de componentes de EMAIL del motor).
+6. Documentar guías de responsive, adaptación a email y dirección de arte
+   (`brands/{cliente}/guidelines/{responsive,email-adaptation,art-direction}.md` — ver
+   metodología §10, §14, checklist final).
+7. Evaluar riesgos de adaptación a email (fondos, fuentes no web-safe, degradados...) →
+   `02-analysis/risks.md`.
+8. Redactar el informe consolidado (`02-analysis/visual-identity-report.md`) y las
+   incertidumbres pendientes (`02-analysis/open-questions.md`).
 
 Nota de secuencia: este agente corre ANTES de que 03 decida si la campaña usa `hero-imagen` (esa
 decisión es de 03, ver `03-newsletter-architect.md` §"Elegir hero"). Por eso este agente no
 genera el arte del header — solo deja lista la materia prima que ese paso necesitará
-(`photography.treatment` de la tarea 2). Quien ejecuta la generación real, más adelante en el
-pipeline y con la decisión de 03 ya tomada, es 06 (ver `06-data-specialist.md` §"Generar el arte
-del hero" — es la tarea que rompe con el precedente de `2026-jul-tarifalo-compara-luz`, donde
-`hero-imagen` nunca se consideró porque ningún agente lo tenía documentado como opción real).
+(`photography.treatment`, tarea 2). Quien ejecuta la generación real, más adelante en el pipeline
+y con la decisión de 03 ya tomada, es 06 (ver `06-data-specialist.md` §"Generar el arte del
+hero").
 
 ## Salidas / Escribe
 
-- `02-analysis/brand-analysis.md` — identidad de marca.
-- `02-analysis/visual-analysis.md` — colores, tipografía, botones, composición.
-- `02-analysis/risks.md` — riesgos de adaptación a email.
-- **`brands/{cliente}/tokens/brand-tokens.json`** — entregable de primera clase. Estructura de
-  referencia: `brands/uax/tokens/brand-tokens.json` (v2.2.0, es la más reciente y completa) o
-  la plantilla `newsletters/2026/newsletter-system/brands/_template/tokens/brand-tokens.json`
-  (`colors`, `typography`, `spacing`, `radius`, `shadows`, `surfaces`, `components`, `layout`,
-  `photography`, `iconography`, `darkMode`, `personalization`, `utm`, `assets`, `voice`,
-  `_changelog`). Actualizaciones SIEMPRE con entrada en `_changelog`.
-  - Ubicación: `brands/{cliente}/...` en la raíz de `sistema-final/` — única ubicación válida
-    para todos los brand packs, incluido Para y Compara (unificado 2026-07-28, auditoría
-    técnica: antes vivía en `newsletters/2026/newsletter-system/brands/paraycompara/`, un
-    prototipo previo del sistema; `engine/lib/tokens.js` ya no tiene ninguna ruta de fallback).
+**Por campaña** (`02-analysis/`):
+- `brand-analysis.md` — identidad de marca.
+- `visual-identity-report.md` — informe consolidado (colores, tipografía, botones, composición,
+  estructura, CSS extraído, tokens, reglas de replicación — ver metodología §16-17).
+- `source-inventory.md` — inventario de fuentes analizadas (ver metodología §01).
+- `risks.md` — riesgos de adaptación a email.
+- `open-questions.md` — incertidumbres y datos pendientes de este agente (distinto de
+  `00-brief/open-questions.md`, que es de 01-briefing).
+
+**Por marca, en `brands/{cliente}/`** (reutilizable entre campañas del mismo cliente):
+- **`tokens/brand-tokens.json`** — entregable de primera clase. Estructura de referencia:
+  `brands/uax/tokens/brand-tokens.json` (v2.2.0). Actualizaciones SIEMPRE con entrada en
+  `_changelog`. Ubicación: `brands/{cliente}/...` en la raíz de `sistema-final/` — única
+  ubicación válida para todos los brand packs.
+- `styles/reference.css` — CSS fiel al sitio original (referencia de diseño).
+- `styles/email-safe.css` — solo patrones compatibles con Outlook/Gmail/Apple Mail.
+- `guidelines/component-inventory.md` — catálogo de componentes UI del sitio real + su traducción
+  al motor.
+- `guidelines/responsive.md` — comportamiento responsive del sitio real + reglas de adaptación.
+- `guidelines/email-adaptation.md` — checklist patrón-por-patrón de riesgo/adaptación a email.
+- `guidelines/art-direction.md` — dirección de arte fotográfica, instrucciones accionables para
+  generación de imágenes.
 
 ## Validaciones (antes de entregar)
 
-- `brand-tokens.json` es JSON parseable (`node -e "JSON.parse(...)"` o equivalente) y su
-  `version` sube según semver si hubo cambios.
-- Cada valor visual del pack lleva su procedencia en una de 3 categorías: **documentado**
-  (guía formal), **observado** (medido de un asset/landing real, indicando cuál), **inferido**
-  (marcado como tal, candidato a `[Q-NNN]`).
-- La paleta cubre como mínimo lo que los componentes del motor consumen: `colors.primary`,
-  fondo de secciones, color de CTA, colores de texto sobre claro y sobre marca (ver los
-  `{{token:...}}` reales en `engine/components/INVENTORY.md`).
+- `brand-tokens.json` es JSON parseable y su `version` sube según semver si hubo cambios.
+- Cada valor visual del pack lleva su procedencia: **documentado** (guía formal), **observado**
+  (medido de un asset/landing real, indicando cuál), **inferido** (marcado como tal, candidato a
+  `[Q-NNN]`).
+- La paleta cubre como mínimo lo que los componentes del motor consumen (ver los `{{token:...}}`
+  reales en `engine/components/INVENTORY.md`).
 - Ningún color/fuente/estilo inventado: un valor sin fuente es `[Q-NNN]`, no una aproximación.
 - **`photography`, `iconography`, `voice.rhythm` y `layout.contentRhythm` existen en el pack** —
-  con datos reales observados, o con la válvula de escape documentada en `_changelog` si no fue
-  posible.
-- **Autocomprobación cruzada contra otro brand pack real** (nuevo, 2026-07-24 — mismo caso que
-  motivó el sub-checklist de CTA arriba): antes de entregar, comparar los valores numéricos
-  nuevos (`typography.cta`, `spacing.*`, `radius.*`, tamaños de `h1Hero`/`h2Section`/`body`)
-  contra al menos un brand pack real ya existente (`brands/*/tokens/brand-tokens.json`). Una
-  coincidencia exacta ocasional es posible (dos marcas pueden compartir de verdad un tamaño de
-  fuente), pero **una coincidencia exacta en 4-5 valores numéricos distintos a la vez, sin haber
-  verificado ambos sitios el mismo día, es la señal de que uno de los dos packs es una plantilla
-  sin investigar, no una casualidad de marca** — repórtalo como hallazgo en el `_changelog` propio
-  aunque no sea esta ronda la que lo corrija (igual que la válvula de escape de `[Q-NNN]`: se
-  declara, no se disimula).
+  con datos reales observados, o con la válvula de escape documentada en `_changelog`.
+- **Autocomprobación cruzada contra otro brand pack real**: antes de entregar, compara los
+  valores numéricos nuevos (`typography.cta`, `spacing.*`, `radius.*`, tamaños de
+  `h1Hero`/`h2Section`/`body`) contra al menos un brand pack real ya existente. Una coincidencia
+  exacta en 4-5 valores distintos a la vez, sin haber verificado ambos sitios el mismo día, es la
+  señal de que uno de los dos packs es una plantilla sin investigar — repórtalo en el
+  `_changelog` propio aunque no sea esta ronda la que lo corrija.
+- `npx tsx scripts/check-brand-visual-report-completeness.ts --brand {slug}` — aviso, no
+  bloqueante, sobre los 8 archivos nuevos; corre igualmente para que la deriva se note desde el
+  primer día en vez de acumularse en silencio.
 
 ## Fase completada cuando
 
-Los 3 análisis + el brand pack existen, las validaciones pasan (incluida la investigación
-profunda de marca — las 5 dimensiones, bloqueante salvo válvula de escape documentada), y todo
-valor del pack es trazable a documentado/observado/inferido.
+Los 3 análisis originales + el brand pack existen, las validaciones pasan (incluida la
+investigación profunda de marca — las 6 dimensiones, bloqueante salvo válvula de escape
+documentada), y todo valor del pack es trazable a documentado/observado/inferido. Los 8 archivos
+nuevos (CSS, guías, informe consolidado, inventario de fuentes, preguntas abiertas) se generan
+en la misma pasada cuando sea razonablemente posible con la evidencia recogida — su ausencia
+genera aviso, no bloqueo (ver Válvula de escape).
 
 ## Bloquea si
 
@@ -263,15 +266,13 @@ valor del pack es trazable a documentado/observado/inferido.
 - Contradicciones visuales irreconciliables sin fuente que desempate.
 - Falta la paleta de color o el estilo de botón (sin ellos no hay brand pack utilizable).
 - El cliente SÍ tiene sitio web accesible y este agente no lo navegó con Chrome real antes de
-  escribir el brand pack (Nivel 3, bloqueante — no aplica si la válvula de escape documentada
-  justifica por qué no fue posible).
+  escribir el brand pack (bloqueante — no aplica si la válvula de escape documentada justifica
+  por qué no fue posible).
 
 ## Hero con arte generado — quién hace qué
 
 `hero-imagen` (variante híbrida: arte de IA sin texto + titular/CTA en HTML del motor) es una
-opción real de estructura, no un script suelto. Reparto de responsabilidades entre agentes (fix
-2026-07-22 al precedente `2026-jul-tarifalo-compara-luz`, donde `hero-imagen` nunca se consideró
-porque no estaba documentado como opción en ningún contrato de agente):
+opción real de estructura, no un script suelto. Reparto de responsabilidades entre agentes:
 
 - **Este agente (02):** investiga y deja en el pack `photography.treatment` (tarea 2) — la
   materia prima que alimentará el prompt de generación. No ejecuta el script (corre antes de que
@@ -279,9 +280,8 @@ porque no estaba documentado como opción en ningún contrato de agente):
 - **03 (newsletter-architect):** decide SI esta campaña usa `hero-imagen` — ver
   `03-newsletter-architect.md` §"Elegir hero".
 - **06 (data-specialist):** si 03 eligió `hero-imagen`, ejecuta `generate-hero-image` como parte
-  de su propio flujo (ya tiene el `cta.href` real de la campaña a mano) — ver
-  `06-data-specialist.md` §"Generar el arte del hero (si el componente es `hero-imagen`)" para el
-  comando exacto y el reparto de qué se automatiza y qué sigue siendo manual (subida al CDN).
+  de su propio flujo — ver `06-data-specialist.md` §"Generar el arte del hero" para el comando
+  exacto.
 
 ## Hero de marca (Claude design — opcional, marcas nuevas)
 
@@ -299,8 +299,9 @@ datos que `hero-centrado`. La revisión visual final la hace 08 en la primera ca
 
 ## Entrega a
 
-`03-newsletter-architect`. Debe recibir: los 3 análisis + la ruta exacta del brand pack (que
-06 escribirá en el campo `brand` de `campaign-data.json` tal cual).
+`03-newsletter-architect`. Debe recibir: los análisis de campaña + la ruta exacta del brand pack
+(que 06 escribirá en el campo `brand` de `campaign-data.json` tal cual) + las guías de marca en
+`brands/{cliente}/guidelines/` cuando existan (referencia opcional para 04/07, no bloqueante).
 
 ## No hacer
 
@@ -308,6 +309,12 @@ datos que `hero-centrado`. La revisión visual final la hace 08 en la primera ca
 - Nunca inventar tratamiento fotográfico, estilo de iconografía, ejemplos de ritmo de voz o
   ritmo estructural de página — si no se navegó el sitio real, se usa la válvula de escape
   documentada, nunca una suposición sin marcar.
+- Nunca crear un árbol `components.button` paralelo a los campos ya consumidos por el motor
+  (`components.cta.*`, `typography.cta.*`, `radius.ctaPill`) — el análisis de botón se mapea
+  sobre ellos, no los duplica.
+- Nunca nombrar `brands/{cliente}/guidelines/component-inventory.md` de forma que se confunda
+  con `engine/components/INVENTORY.md` (catálogo de componentes de EMAIL del motor — cosa
+  distinta al inventario de componentes UI del sitio real de la marca que produce este agente).
 - Nunca tocar los componentes del motor ni `patterns/` — si la marca necesita algo que el
   motor no soporta, se anota como hallazgo para 03/07, no se resuelve aquí.
 - Nunca sobrescribir un brand pack existente sin entrada de `_changelog`.

@@ -52,6 +52,18 @@ creciendo:
 reportó dificultad real para seguir el contrato), es una observación para el futuro si el archivo
 sigue creciendo con cada incidente nuevo.
 
+**Nota (2026-07-28, mismo día — evolución "Nivel 5"):** el contrato de `agents/
+02-brand-visual-analyst.md` se reescribió el mismo día en que se escribió esta observación, para
+soportar un paquete de identidad visual mucho más amplio (17 fases de análisis, 9 artefactos
+nuevos — ver `pipeline-skill/references/brand-visual-analysis-methodology.md`). La cifra "20.7 KB"
+queda desactualizada como snapshot, pero la recomendación de fondo no cambia y de hecho se aplicó
+por adelantado en la reescritura: el detalle metodológico nuevo se separó a un archivo de
+referencia aparte (`pipeline-skill/references/brand-visual-analysis-methodology.md`) en vez de
+inlinearse en el contrato — el mismo movimiento "contrato vs. bulto" que esta sección recomienda,
+aplicado a metodología nueva en vez de al historial de incidentes existente (que sigue inline, sin
+mover, exactamente como esta propuesta decidió). El contrato resultante (~320 líneas) se mantiene
+en el mismo orden de magnitud que antes de la reescritura (313 líneas).
+
 ## Criterios para revisar esta recomendación
 
 Reorganizar dejaría de ser prematuro si aparece evidencia de alguno de estos escenarios concretos,

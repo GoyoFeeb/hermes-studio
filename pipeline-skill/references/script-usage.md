@@ -10,7 +10,7 @@
 | `check-parity` | `npm run check-parity -- ...` | F3. Independent post-hoc audit of source/inline parity for engine-built campaigns |
 | `check-control-files` | `npm run check-control-files -- ...` | F3. Verifies the 4 control files are internally consistent |
 | `production-gate` | `npm run production-gate -- ...` | Alias explícito de `production-gate-motor`; cierre real del sistema vigente |
-| `production-gate-motor` | `npm run production-gate-motor -- ...` | Gate completo del motor: Gate 0 + Gates 1-11 |
+| `production-gate-motor` | `npm run production-gate-motor -- ...` | Gate completo del motor: Gate 0 + Gates 1-13 |
 | `test` | `npm test` | Suite de regresión con `node --test` |
 | `legacy:validate-newsletter` | `npm run legacy:validate-newsletter -- ...` | Legacy React Email JSON (`newsletter-data.json`) |
 | `legacy:check-links` | `npm run legacy:check-links -- ...` | Legacy React Email links |
@@ -532,7 +532,7 @@ npm run production-gate -- --campaign newsletters/2026/ocu/2026-jul-moneyman
 
 ### Gates executed
 
-Same Gate 0 + Gates 1-11 listed in `production-gate-motor`.
+Same Gate 0 + Gates 1-13 listed in `production-gate-motor`.
 
 ### Behaviour
 

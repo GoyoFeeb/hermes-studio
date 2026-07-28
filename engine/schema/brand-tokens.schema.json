@@ -54,12 +54,30 @@
       "type": "object",
       "additionalProperties": { "type": "string" }
     },
+    "spacing": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Escala semántica (micro/small/medium/large/section/hero/close/innerSection/cta, ya usada en los 12 packs reales) — hoy no consumida por ningún {{token:...}}, es documentación para 04/07. 'webObserved' (añadido 2026-07-28, ver pipeline-skill/references/brand-visual-analysis-methodology.md §04) es opcional: la escala numérica cruda del sitio real, antes de mapearla a los nombres semánticos.",
+      "properties": {
+        "webObserved": { "type": "object", "additionalProperties": true }
+      }
+    },
     "layout": {
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "sectionStyle": { "type": "string", "enum": ["centrado", "asimetrico"] }
+        "sectionStyle": { "type": "string", "enum": ["centrado", "asimetrico"] },
+        "grid": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Añadido 2026-07-28. Informativo — el motor construye a 600px fijo, no consume layout.grid en ningún {{token:...}}; referencia para 04 al diseñar proporciones de columna. Ver metodología §03."
+        }
       }
+    },
+    "responsive": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Añadido 2026-07-28. Informativo — el comportamiento responsive real del email ya vive en el CSS bulletproof de cada componente del motor; este campo documenta cómo se comporta el SITIO REAL de referencia. No es required. Ver metodología §14."
     },
     "assets": {
       "type": "object",
