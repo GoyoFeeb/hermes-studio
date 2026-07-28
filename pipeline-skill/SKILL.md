@@ -8,17 +8,23 @@ description: >-
 category: creative
 ---
 
-> **[PARCIALMENTE SUPERSEDED — F4, 2026-07-21]** Este documento describe el pipeline original
-> (agentes 00-09 sobre React Email). Los contratos de agente reales y vigentes están en
-> `agents/*.md` (F2, ver `docs/f2-agentes-cerrado.md`): 00-06 siguen el diseño de aquí casi sin
-> cambios, pero **07 ya no genera código React** — ejecuta el motor
-> (`engine/build-newsletter.js`, F1, `docs/f1-motor-cerrado.md`), y 08/09 tienen añadidos
-> (render obligatorio, verificación de assets). El pipeline React Email en sí (plantilla,
-> `export-html.tsx`, `prepare-react-email.ts`) se archivó en F4 —
-> `_archive/f4-react-email-pipeline/README.md`. Las secciones de este archivo sobre estrategia,
-> briefing, análisis de marca, arquitectura, copy y criterios de fase (00-06, phase gates)
-> siguen siendo una referencia válida; las secciones específicas de React Email (agente 07,
-> troubleshooting de `export-html.tsx`, componentes `@react-email/components`) son históricas.
+> **[PARCIALMENTE SUPERSEDED — F4, 2026-07-21; corregido 2026-07-28]** Este documento describe el
+> pipeline original (agentes 00-09 sobre React Email). Los contratos de agente reales y vigentes
+> están SIEMPRE en `agents/*.md` (F2, ver `docs/f2-agentes-cerrado.md`) — ante cualquier
+> contradicción entre este archivo y `agents/*.md`, `agents/*.md` gana. 00-05 siguen el diseño de
+> aquí casi sin cambios. **06 SÍ cambió de fondo, no solo 07**: produce
+> `06-data/campaign-data.json` (schema `engine/schema/campaign-data.schema.json`), no
+> `newsletter-data.json`/`.ts` — ver `agents/06-data-specialist.md`, que lo prohíbe explícitamente.
+> **07 ya no genera código React** — ejecuta el motor (`engine/build-newsletter.js`, F1,
+> `docs/f1-motor-cerrado.md`), y 08/09 tienen añadidos (render obligatorio, verificación de
+> assets). El pipeline React Email en sí (plantilla, `export-html.tsx`, `prepare-react-email.ts`)
+> se archivó en F4 — `_archive/f4-react-email-pipeline/README.md`. Las secciones de este archivo
+> sobre estrategia, briefing, análisis de marca, arquitectura y copy (00-05) siguen siendo una
+> referencia válida; las secciones sobre formato de datos (06), React Email (07), y el
+> "Production gate (3-script validation)" de más abajo son **históricas y NO deben seguirse** —
+> el cierre real vigente es `npm run production-gate` = alias de `production-gate-motor` (13
+> gates), ver `pipeline-skill/references/script-usage.md` (al día) en vez de
+> `references/production-gate.md` (histórico).
 
 # Newsletter Pipeline
 
@@ -45,8 +51,8 @@ The system has **10 agents** (00–09), each with a single responsibility. Agent
 | 03 | Newsletter Architect | Define modular structure, message hierarchy, CTA placement | 03-strategy/ |
 | 04 | Email Designer | Convert architecture into visual/technical email specs | 04-design/ |
 | 05 | Copywriter | Write subject lines, preheaders, body copy, CTAs | 05-copy/ |
-| 06 | Newsletter Data Specialist | Produce structured JSON/TS data for the template | 06-data/ |
-| 07 | React Email Developer | Implement in React Email respecting data + design | 07-code/ |
+| 06 | Newsletter Data Specialist | ⚠️ Produce **`06-data/campaign-data.json`** (NOT `newsletter-data.json`/`.ts` — that format is dead, see `agents/06-data-specialist.md`) | 06-data/ |
+| 07 | HTML Email Developer ⚠️ (NOT "React Email Developer" — see `agents/07-html-email-developer.md`) | Execute `engine/build-newsletter.js` — never writes React/HTML by hand | 09-exports/ (via the engine) |
 | 08 | Email QA Specialist | Review visual, responsive, links, Outlook, accessibility | 08-qa/ |
 | 09 | Export Manager | Prepare final HTML, inlined HTML, preview, assets | 09-exports/ |
 
@@ -68,6 +74,12 @@ Each phase has strict **exit criteria**. The orchestrator verifies deliverables 
 
 ## Campaign directory structure
 
+⚠️ **Este diagrama es histórico (pipeline React Email).** El vigente: `06-data/campaign-data.json`
+(no `newsletter-data.json`/`.ts`), `07-code/` recibe el output del motor (`09-exports/` vía
+`engine/build-newsletter.js`, no `react-email/`), y `09-exports/` no genera `final-preview.png`/
+`export-summary.md`/`production-blockers.md` como parte del motor — ver `newsletters/_campaign-template/`
+para la estructura real actual.
+
 ```
 campaign-name/
   00-brief/          — brief.md, requirements.md, source-links.md
@@ -76,8 +88,8 @@ campaign-name/
   03-strategy/       — campaign-angle.md, message-hierarchy.md, module-selection.md, structure.md
   04-design/         — layout.md, desktop-spec.md, mobile-spec.md, assets-notes.md
   05-copy/           — subject-lines.md, preheaders.md, body-copy.md, cta-options.md
-  06-data/           — newsletter-data.json, newsletter-data.ts
-  07-code/           — react-email/
+  06-data/           — newsletter-data.json, newsletter-data.ts   [HISTÓRICO — hoy: campaign-data.json]
+  07-code/           — react-email/                                [HISTÓRICO — hoy: no aplica, el motor escribe directo a 09-exports/]
   08-qa/             — visual-qa.md, responsive-qa.md, outlook-qa.md, links-qa.md, final-checklist.md
   09-exports/        — final.html, final-inline.html, final-preview.png, assets/, delivery-notes.md, export-summary.md, production-blockers.md
   README.md
@@ -393,7 +405,13 @@ The system includes supporting documentation that agents should consult alongsid
 | Email limitations | `workspace/design-system/email-limitations.md` | Per-client compatibility tables (Outlook, Gmail, Apple Mail, mobile) |
 | System validation (end-to-end) | `docs/system-validation.md` | Summary of full 00→09 pipeline validation with OCU test campaign |
 
-## Production gate (3-script validation)
+## Production gate (3-script validation) — HISTÓRICO, NO USAR
+
+⚠️ **Esta sección describe el gate del pipeline React Email archivado.** `npm run production-gate`
+hoy es un alias de `production-gate-motor` (13 gates: integridad del motor, schema, paridad,
+build, claims, assets, control files, balance de columnas, brand pack, contraste WCAG,
+production-readiness, decisión de hero, diferenciación estructural) — no los 3 scripts de abajo.
+Ver `references/script-usage.md` (al día) en vez de `references/production-gate.md` (histórico).
 
 Before marking any campaign `productionReady: true` — and ideally also before agent 09 (Export) — run all three scripts in strict/production mode. Each must exit with code 0.
 

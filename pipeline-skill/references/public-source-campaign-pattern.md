@@ -1,5 +1,13 @@
 # Public-Source Campaign Pattern — Real Data Without Client Approval
 
+> **[PARCIALMENTE SUPERSEDED — banner añadido 2026-07-28]** El patrón/criterio de negocio de
+> este documento (nunca marcar datos de fuente pública como "verificados" sin aprobación del
+> cliente) sigue vigente y es correcto — ver `AGENTS.md` regla 8. Los comandos/scripts citados
+> (`prepare-react-email`, `export-html`, `preview-html`, `validate-newsletter`, `check-links`,
+> `validate-claims` sin prefijo `legacy:`) son del pipeline React Email archivado — hoy serían
+> `legacy:*` en `package.json`, o no existen. Para el flujo vigente: `agents/01-briefing-strategist.md`,
+> `agents/02-brand-visual-analyst.md`.
+
 ## Purpose
 
 Document the flow for campaigns where the client data (product specs, prices, URLs, legal references) comes from public/official sources — the client's own website, published brochures, press releases — but lacks **explicit internal client approval** for use in the newsletter.

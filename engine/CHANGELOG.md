@@ -1,5 +1,52 @@
 # Changelog — engine/
 
+## 2026-07-28 — Auditoría técnica enterprise: fiabilidad, coherencia documental, unificación de brand packs
+
+Implementación de las Fases A-D del roadmap de una auditoría técnica exhaustiva del sistema
+(pipeline de agentes + motor). Cambios que tocan `engine/` específicamente:
+
+- **`engine/lib/tokens.js` — eliminada la resolución dual de rutas de brand pack.** Hasta esta
+  fecha, `loadBrandTokens()` probaba primero `brands/{cliente}/...` en la raíz y, si no
+  existía, caía a `newsletters/2026/newsletter-system/{brandRelPath}` — el brand pack real de
+  Para y Compara vivía únicamente en esa segunda ruta (dentro de un prototipo previo "v2.0" del
+  sistema, `newsletters/2026/newsletter-system/`, no archivado). Esa misma lógica de fallback
+  estaba duplicada en `scripts/check-contrast.ts`, `scripts/check-brand-pack-completeness.ts`
+  y `scripts/check-hero-decision.ts` — 4 copias del mismo hardcode atado al año 2026.
+  **Fix**: movido `newsletters/2026/newsletter-system/brands/paraycompara/{tokens,examples}/`
+  a `brands/paraycompara/{tokens,examples}/` en la raíz (sus assets ya eran URLs https:// del
+  CDN, sin rutas relativas que romper). `loadBrandTokens()` y las 3 funciones equivalentes de
+  `scripts/` ya no tienen ningún fallback — una sola ruta candidata, un solo sitio que mantener.
+  Verificado: `npm test` (12/12), rebuild de las 2 campañas reales de paraycompara con
+  `production-gate-motor.ts` — mismo resultado que antes del cambio (mismos gates en verde,
+  mismo único fallo esperado en `assets` por CDN externo).
+- `engine/components/INVENTORY.md`: añadidas las 3 entradas que faltaban
+  (`editorial-foto-texto`, `editorial-foto-texto-inverso`, `metric-strip-premium`) — existían
+  en `MODULE_ADAPTERS`/schema/patrón desde su creación pero nunca se documentaron aquí.
+- Nuevo `scripts/check-component-inventory.ts` (aviso no bloqueante, enganchado a
+  `production-gate-motor.ts`): detecta automáticamente si un componente nuevo se queda sin
+  documentar en `INVENTORY.md`, para que esta deriva no vuelva a acumularse en silencio.
+- `scripts/backup-changelog.ts` (nuevo): copia timestamped de este archivo a
+  `_archive/changelog-backups/` antes de cualquier modificación — mitigación directa del
+  incidente 2026-08-01 de pérdida parcial de este mismo CHANGELOG.
+
+- **`engine/schema/campaign-data.schema.json` — 6 correcciones**: (1) `pasos.items`,
+  `columns-3-beneficios(-sin-icono)?.items`, `usp-cards(-sin-icono)?.items` tenían
+  `description: "Exactamente 3"` contradiciendo su propio `minItems:2, maxItems:4` real (vigente
+  desde 2026-07-24) — corregido a "2-4 ítems" en las 6 descripciones afectadas. `trust-bar` y
+  `card-tarifa-3` (`minItems:3, maxItems:3` real) no se tocaron — su "Exactamente 3" sí era
+  correcto. (2) `banda-cierre(-asimetrico)?.data.title` gana `maxLength: 45` (vía `allOf` +
+  `$ref: nonPendingString`, para no perder la validación de `[PENDIENTE]`) — la regla de 45
+  caracteres (hallazgo prueba real F5) solo vivía en `check-column-balance.ts`; ahora también
+  falla en el Gate 1 (schema), antes de siquiera intentar el build. Verificado con ajv contra
+  `2026-jul-comparar-tv` (título de 46 chars, fixture conocida) — falla correctamente con
+  `data/title must NOT have more than 45 characters`; `2026-jul-revision-verano` (≤45) sigue
+  validando limpio.
+
+Detalle completo (todas las fases, todos los archivos) en el informe final de la
+implementación, entregado al usuario al cierre de la sesión.
+
+---
+
 ## Prompt 11 — Extracción de la biblioteca de componentes (2026-07-20)
 
 Primer prompt de la Fase 1 (`docs/auditoria-total-y-plan-transformacion-2026-07-17.md`, §3.2).

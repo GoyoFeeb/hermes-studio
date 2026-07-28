@@ -45,16 +45,15 @@ function parseArgs(): Record<string, string> {
   return out;
 }
 
+// Simplificado 2026-07-28 (auditoría técnica): todos los brand packs viven en brands/{cliente}/
+// desde que paraycompara se movió de newsletters/2026/newsletter-system/brands/ a la raíz — ya
+// no hace falta el fallback (que además vivía duplicado en 4 archivos distintos).
 function resolveBrandPackPath(brandRelPath: string): string {
-  const candidates = [
-    path.resolve(ROOT, brandRelPath),
-    path.resolve(ROOT, 'newsletters/2026/newsletter-system', brandRelPath)
-  ];
-  const found = candidates.find((p) => fs.existsSync(p));
-  if (!found) {
-    throw new Error(`Brand pack no encontrado. Probado:\n  - ${candidates.join('\n  - ')}`);
+  const resolved = path.resolve(ROOT, brandRelPath);
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`Brand pack no encontrado en ${resolved}`);
   }
-  return found;
+  return resolved;
 }
 
 function get(obj: any, dotted: string): any {

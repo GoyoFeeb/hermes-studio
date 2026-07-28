@@ -36,9 +36,9 @@ sistema-final/
 └── _archive/                ← todo lo retirado, con README por carpeta. NO revivir nada de aquí.
 ```
 
-- **Brand pack**: `newsletters/2026/newsletter-system/brands/paraycompara/tokens/brand-tokens.json`
-  v2.2.2 (el motor también resuelve la ruta objetivo `brands/{cliente}/...` en la raíz —
-  clientes nuevos van ahí).
+- **Brand packs**: todos en `brands/{cliente}/tokens/brand-tokens.json` en la raíz — incluido
+  Para y Compara (`brands/paraycompara/tokens/brand-tokens.json`, v2.2.2), unificado 2026-07-28.
+  Ya no hay ninguna ubicación alternativa ni ruta de fallback en el motor.
 - **React Email NO EXISTE ya**: archivado completo en `_archive/f4-react-email-pipeline/`.
   El agente 07 es `07-html-email-developer.md`: EJECUTA `node engine/build-newsletter.js`,
   jamás escribe HTML a mano ni JSX. Si falta un componente, se añade AL MOTOR (5 pasos, ver

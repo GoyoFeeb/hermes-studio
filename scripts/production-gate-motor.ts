@@ -93,7 +93,7 @@ function resolveCampaignPath(raw: string): string {
   return path.resolve(ROOT, raw);
 }
 
-function runGateHeader(n: number, name: string): void {
+function runGateHeader(n: number | string, name: string): void {
   console.log(`\n${'='.repeat(60)}`);
   console.log(`   Gate ${n}: ${name}`);
   console.log(`${'='.repeat(60)}\n`);
@@ -538,6 +538,14 @@ async function main(): Promise<void> {
       process.exit(1);
     }
   }
+
+  // Aviso de deriva documental (auditoría técnica 2026-07-28) — NUNCA bloquea el gate maestro
+  // (no se añade a gates[]): check-component-inventory.ts es sobre el motor entero, no sobre
+  // esta campaña en particular, así que un aviso aquí no debería impedir que ESTA campaña se
+  // certifique. Se imprime para que la deriva se note en cada run en vez de acumularse en
+  // silencio (el motivo por el que se creó este check).
+  runGateHeader('info', 'aviso de deriva documental (check-component-inventory.ts, no bloqueante)');
+  runChildGate('check-component-inventory.ts', [], '');
 
   const g1 = gate1Schema(dataPath);
   gates.push(g1);

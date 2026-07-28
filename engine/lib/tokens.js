@@ -26,8 +26,12 @@ function compareVersions(a, b) {
 
 /**
  * Carga brand-tokens.json a partir de la ruta declarada en campaign-data.json (campo `brand`,
- * relativa a la raíz de sistema-final/ — hoy vive en newsletters/2026/newsletter-system/brands/
- * porque brands/ todavía no se ha movido a la raíz, eso es F4 del plan de transformación).
+ * relativa a la raíz de sistema-final/ — todos los brand packs viven en brands/{cliente}/,
+ * incluido paraycompara desde 2026-07-28: hasta esa fecha su pack vivía en
+ * newsletters/2026/newsletter-system/brands/paraycompara/ [un prototipo previo "v2.0" del
+ * sistema, no archivado] y este archivo necesitaba una ruta de fallback duplicada en 4 sitios
+ * distintos para encontrarlo — ver la auditoría técnica 2026-07-28. Unificado: ya no hace
+ * falta ningún fallback).
  *
  * @param {string} brandRelPath - ej. "brands/paraycompara/tokens/brand-tokens.json"
  * @param {string} systemRoot - raíz de sistema-final/
@@ -35,18 +39,10 @@ function compareVersions(a, b) {
  * @throws {Error} si el archivo no existe, no es JSON válido, o su versión es < 2.2.0
  */
 function loadBrandTokens(brandRelPath, systemRoot) {
-  // El brand pack todavía vive bajo newsletters/2026/newsletter-system/ (no se ha movido a la
-  // raíz — eso es la Fase 4 del plan). Probamos primero la ruta literal declarada en
-  // campaign-data.json (por si en el futuro SÍ vive en la raíz), y si no existe, probamos con
-  // el prefijo actual. Documentado explícitamente para no sorprender a quien lea esto en F4.
-  const candidates = [
-    path.resolve(systemRoot, brandRelPath),
-    path.resolve(systemRoot, 'newsletters/2026/newsletter-system', brandRelPath)
-  ];
-  const resolvedPath = candidates.find((p) => fs.existsSync(p));
-  if (!resolvedPath) {
+  const resolvedPath = path.resolve(systemRoot, brandRelPath);
+  if (!fs.existsSync(resolvedPath)) {
     throw new Error(
-      `Brand pack no encontrado. Probado:\n  - ${candidates.join('\n  - ')}\n` +
+      `Brand pack no encontrado en ${resolvedPath}.\n` +
       `Verifica el campo "brand" de campaign-data.json.`
     );
   }

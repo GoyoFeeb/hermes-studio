@@ -57,18 +57,14 @@ function parseArgs(): Record<string, string> {
   return out;
 }
 
-/** Misma resolución dual de rutas que engine/lib/tokens.js (brands/ en la raíz, o el prefijo
- * histórico newsletters/2026/newsletter-system/ — ver ese archivo para el porqué). */
+// Simplificado 2026-07-28 (auditoría técnica): todos los brand packs viven en brands/{cliente}/
+// desde que paraycompara se movió a la raíz — ya no hace falta la resolución dual de rutas.
 function resolveBrandPackPath(brandRelPath: string): string {
-  const candidates = [
-    path.resolve(ROOT, brandRelPath),
-    path.resolve(ROOT, 'newsletters/2026/newsletter-system', brandRelPath)
-  ];
-  const found = candidates.find((p) => fs.existsSync(p));
-  if (!found) {
-    throw new Error(`Brand pack no encontrado. Probado:\n  - ${candidates.join('\n  - ')}`);
+  const resolved = path.resolve(ROOT, brandRelPath);
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`Brand pack no encontrado en ${resolved}`);
   }
-  return found;
+  return resolved;
 }
 
 function isPlaceholder(value: unknown): boolean {

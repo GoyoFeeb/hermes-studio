@@ -220,10 +220,10 @@ del hero" — es la tarea que rompe con el precedente de `2026-jul-tarifalo-comp
   (`colors`, `typography`, `spacing`, `radius`, `shadows`, `surfaces`, `components`, `layout`,
   `photography`, `iconography`, `darkMode`, `personalization`, `utm`, `assets`, `voice`,
   `_changelog`). Actualizaciones SIEMPRE con entrada en `_changelog`.
-  - Ubicación: cliente nuevo → `brands/{cliente}/...` en la raíz de `sistema-final/` (ruta
-    objetivo del plan §3). El pack de Para y Compara sigue en
-    `newsletters/2026/newsletter-system/brands/paraycompara/` — `engine/lib/tokens.js` resuelve
-    ambas rutas; moverlo no es tarea de este agente.
+  - Ubicación: `brands/{cliente}/...` en la raíz de `sistema-final/` — única ubicación válida
+    para todos los brand packs, incluido Para y Compara (unificado 2026-07-28, auditoría
+    técnica: antes vivía en `newsletters/2026/newsletter-system/brands/paraycompara/`, un
+    prototipo previo del sistema; `engine/lib/tokens.js` ya no tiene ninguna ruta de fallback).
 
 ## Validaciones (antes de entregar)
 

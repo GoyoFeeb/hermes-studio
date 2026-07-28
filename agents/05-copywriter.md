@@ -53,7 +53,8 @@ tono:
 ## Validaciones (antes de entregar, en este orden)
 
 1. **Claims** — autoevaluación contra las 29 reglas de `scripts/lib/claim-rules.ts` (las
-   mismas que ejecutará el gate):
+   mismas que ejecutará el gate; conteo verificado 2026-07-28 ejecutando `CLAIM_RULES.length`
+   directamente — 29 sigue siendo correcto):
 
    | Nivel | Reglas | Ejemplos |
    |---|---|---|

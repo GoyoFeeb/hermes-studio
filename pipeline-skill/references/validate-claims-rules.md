@@ -1,5 +1,11 @@
 # validate-claims — Rule Reference (29 rules)
 
+> **[Corregido 2026-07-28 — auditoría técnica]** El conteo de 29 reglas ya era correcto
+> (verificado ejecutando `CLAIM_RULES.length`, 9 crítico / 14 alto / 6 medio). Lo que sí estaba
+> mal es la ruta de abajo: las reglas viven en `scripts/lib/claim-rules.ts` (compartido entre
+> `validate-claims.ts` legacy y `production-gate-motor.ts`), **no** en
+> `scripts/validate-claims.ts` — corregido al final de este documento.
+
 ## Severity levels
 
 | Severity | Normal mode | Production mode |
@@ -66,4 +72,7 @@ Rules are `ClaimRule` objects with:
 - `label`: short human-readable name
 - `recommendation`: what to use instead
 
-Place in `scripts/validate-claims.ts` in the `CLAIM_RULES` array.
+Place in `scripts/lib/claim-rules.ts` in the `CLAIM_RULES` array — shared between the legacy
+`scripts/validate-claims.ts` and `scripts/production-gate-motor.ts` (gate 4) so both stay in
+sync automatically. Do NOT add rules directly in `scripts/validate-claims.ts` — it only
+imports the array from `lib/claim-rules.ts`, it doesn't define it.

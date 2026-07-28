@@ -1,5 +1,11 @@
 # Dual-Validation Audit Pattern
 
+> **[PARCIALMENTE SUPERSEDED — banner añadido 2026-07-28]** La metodología (campaña ficticia →
+> campaña con datos reales → comparar → mejorar) sigue siendo un patrón válido de validación,
+> aplicable también al motor actual. Los ejemplos/comandos concretos citados son del pipeline
+> React Email archivado — para el motor vigente, el equivalente es correr
+> `production-gate-motor.ts` contra una campaña de prueba y una campaña real y comparar.
+
 ## Why
 
 Running two complete 00→09 pipeline cycles — one with placeholder/fictitious data and one with real (public or client-provided) data — before committing to a production campaign uncovers mechanical issues, missing automation, and wrong assumptions.  Comparing the two runs in a structured audit document turns the lessons into reusable knowledge.

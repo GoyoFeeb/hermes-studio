@@ -82,10 +82,15 @@
 
 ## Phase 06 — Structured Data (agent: 06-Newsletter Data Specialist)
 
+> **[SUPERSEDED — F1/F2, 2026-07-21; banner añadido 2026-07-28]** Este gate describe el formato
+> de datos del pipeline React Email archivado. El gate vigente valida
+> `06-data/campaign-data.json` contra `engine/schema/campaign-data.schema.json` (ajv) — ver
+> `agents/06-data-specialist.md`. `newsletter-data.json`/`.ts` no se usan en el motor actual.
+
 | Condition | Type | Detail |
 |---|---|---|
-| `06-data/newsletter-data.json` exists | Mandatory | If missing → blocked |
-| `06-data/newsletter-data.ts` exists | Mandatory | TypeScript types |
+| `06-data/newsletter-data.json` exists | Mandatory (histórico) | Vigente: `06-data/campaign-data.json` |
+| `06-data/newsletter-data.ts` exists | Mandatory (histórico) | El motor actual no usa `.ts` de datos |
 | JSON is syntactically valid | Mandatory | If invalid → blocked |
 | All architecture modules present | Mandatory | |
 | Module order matches structure | Mandatory | |
@@ -151,12 +156,17 @@
 
 ## Phase 09 — Export (agent: 09-Export Manager)
 
+> **[Nota añadida 2026-07-28]** `final.html`/`final-inline.html` los genera siempre
+> `engine/build-newsletter.js` (nunca a mano). `final-preview.png` no lo produce el motor —
+> las capturas responsive (320/375/600/600-dark) las genera QA (agente 08) por separado, ver
+> `docs/qa-process.md`. Ver `agents/09-export-manager.md` para el contrato vigente completo.
+
 | Condition | Type | Detail |
 |---|---|---|
 | QA approved (handoff with ✅) | Mandatory | If not → blocked |
-| `09-exports/final.html` exists | Mandatory | |
-| `09-exports/final-inline.html` exists | Recommended | Required for Mailchimp/HubSpot |
-| `09-exports/final-preview.png` exists | Recommended | Requires Puppeteer/Playwright setup |
+| `09-exports/final.html` exists | Mandatory | Generado por `engine/build-newsletter.js`, nunca a mano |
+| `09-exports/final-inline.html` exists | Mandatory | El motor lo genera siempre en la misma ejecución |
+| `09-exports/final-preview.png` exists | Opcional | No lo produce el motor — ver capturas QA (agente 08) |
 | `09-exports/delivery-notes.md` exists | Mandatory | |
 | No empty hrefs in final HTML | Mandatory | |
 | All image URLs accessible | Mandatory | |

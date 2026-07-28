@@ -1,5 +1,11 @@
 # Production Gate — 3-script validation suite
 
+> **[SUPERSEDED — F3, 2026-07-21; banner añadido 2026-07-28]** Este documento describe el gate
+> de 3 scripts del pipeline React Email archivado. El `npm run production-gate` vigente hoy es
+> un alias de `production-gate-motor` (13 gates sobre `campaign-data.json` + `engine/`) — un
+> comando con el mismo nombre que ejecuta algo completamente distinto. Ver
+> `pipeline-skill/references/script-usage.md` § production-gate-motor para el gate real.
+
 Before any campaign can be marked `productionReady: true` and `isTestCampaign: false`, it must pass all three scripts below in strict/production mode.  This is the automated gate that prevents campaigns with placeholders, unapproved claims, or incomplete CRM data from reaching a real audience.
 
 ## The three commands

@@ -1,5 +1,11 @@
 # Controlled Campaign Pattern — BMW Serie 1 (2026-jul-bmw-serie-1-oferta-controlada)
 
+> **[HISTÓRICO — banner añadido 2026-07-28]** Caso de estudio real (05-jul-2026) del pipeline
+> React Email archivado (`prepare-react-email`, `export-html`, `preview-html`,
+> `production-gate` legacy de 3 scripts). Válido como referencia histórica de una campaña BMW
+> real bien ejecutada, pero los comandos citados no son los vigentes — ver
+> `pipeline-skill/references/script-usage.md` para el flujo actual sobre `engine/`.
+
 ## Session reference
 
 Full end-to-end campaign executed 2026-07-05. 10 pipeline actions from creation to export. Used the kickoff template (`docs/first-real-campaign-kickoff-template.md`) and the operational checklist (`docs/first-real-campaign-checklist.md`).

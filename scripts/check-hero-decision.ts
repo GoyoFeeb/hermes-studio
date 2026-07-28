@@ -45,12 +45,11 @@ function parseArgs(): Record<string, string> {
   return out;
 }
 
+// Simplificado 2026-07-28 (auditoría técnica): todos los brand packs viven en brands/{cliente}/
+// desde que paraycompara se movió a la raíz — ya no hace falta la resolución dual de rutas.
 function resolveBrandPath(brandRelPath: string): string | null {
-  const candidates = [
-    path.resolve(ROOT, brandRelPath),
-    path.resolve(ROOT, 'newsletters/2026/newsletter-system', brandRelPath)
-  ];
-  return candidates.find((p) => fs.existsSync(p)) || null;
+  const resolved = path.resolve(ROOT, brandRelPath);
+  return fs.existsSync(resolved) ? resolved : null;
 }
 
 function looksLikeRealUrl(href: string | undefined): boolean {

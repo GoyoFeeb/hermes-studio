@@ -68,12 +68,21 @@
 
 ## 06 — Newsletter Data Specialist
 
+> **[SUPERSEDED — F1/F2, 2026-07-21; banner añadido 2026-07-28]** Esta tabla describe el
+> formato de datos del pipeline React Email archivado (`newsletter-data.json`/`.ts`). El
+> contrato vigente es `agents/06-data-specialist.md`, que **prohíbe explícitamente** ese
+> formato: produce `06-data/campaign-data.json` contra `engine/schema/campaign-data.schema.json`.
+> Esta tabla se conserva como referencia histórica de la que partió el contrato nuevo — no la
+> sigas para determinar qué archivo debe escribir el agente 06 hoy. (Nota: hasta 2026-07-28 esta
+> fila no llevaba banner mientras la fila 07 sí — inconsistencia detectada y corregida en la
+> auditoría técnica de esa fecha.)
+
 | Aspect | Detail |
 |---|---|
 | State | `data` |
 | Inputs | Body copy, CTAs, module structure, visual specs |
-| Writes | `06-data/newsletter-data.json`, `06-data/newsletter-data.ts` |
-| Handoff to | 07 — React Email Developer |
+| Writes | ⚠️ HISTÓRICO: `06-data/newsletter-data.json`, `06-data/newsletter-data.ts` — VIGENTE: `06-data/campaign-data.json` |
+| Handoff to | 07 — HTML Email Developer (ejecuta `engine/build-newsletter.js`, no "React Email Developer") |
 | Block if | No body copy, no visual specs, no module structure, JSON invalid, CTA href missing |
 | Key rule | JSON is the single source of truth. Each module = one block in modules[]. Field names must match component props. |
 

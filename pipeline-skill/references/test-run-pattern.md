@@ -1,5 +1,13 @@
 # Test Run Pattern — End-to-End Pipeline Validation
 
+> **[SUPERSEDED — F1/F4, 2026-07-21; banner añadido 2026-07-28]** Describe fase 07 como
+> desarrollo React Email (`ModuleRenderer`, `HeaderBlock`, `Row`/`Column`, `.tsx`,
+> `@react-email/render`, `juice` manual). El agente 07 vigente ejecuta
+> `engine/build-newsletter.js` — no escribe componentes React. `juice` ya vive dentro del motor,
+> no se invoca a mano. El patrón de test end-to-end (00→09 con datos ficticios → bloqueado →
+> datos reales → desbloquear) sigue siendo válido como metodología; los detalles técnicos de
+> implementación de esta página no.
+
 ## Purpose
 
 Run a complete 00→09 pipeline with fictitious/test data to validate that all agents, scripts, and control files work together before using real campaign data.

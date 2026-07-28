@@ -111,10 +111,10 @@ Confirmado por el usuario (2026-07-27): tras el cierre de F5 (transformación co
 2026-07-21), el foco actual es **probar el motor (`engine/`) contra campañas reales de múltiples
 marcas** para detectar gaps antes de producción real. Evidencia en el propio repo: campañas en
 `newsletters/2026/` para Apple, BMW, Nike, Adeslas, Aesop, Rolex, Spotify, Wornwear, UAX,
-Optica2000, Tarifalo y Para y Compara, más prompts de test dedicados en la raíz
-(`PROMPT-*-TEST-MOTOR-HERMES.md`, `PROMPT-BMW-HERMES.md`, `PROMPT-NIKE-HERMES.md`, etc.,
-fechados 22-25 jul). Ninguna de estas campañas tiene `productionReady: true` — son validaciones
-del motor y de los brand packs, no envíos reales.
+Optica2000, Tarifalo y Para y Compara, más prompts de test dedicados en `tests-manuales/`
+(movidos ahí 2026-07-28, antes sueltos en la raíz — ver `tests-manuales/README.md` para el
+índice) fechados 22-25 jul. Ninguna de estas campañas tiene `productionReady: true` — son
+validaciones del motor y de los brand packs, no envíos reales.
 
 Actualización 2026-07-27: el template base ya crea `06-data/campaign-data.json`, el paquete
 entregable no debe incluir `.env`, `node_modules`, `.DS_Store`, binarios sueltos ni outputs de

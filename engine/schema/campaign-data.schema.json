@@ -535,7 +535,7 @@
                     "type": "array",
                     "minItems": 2,
                     "maxItems": 4,
-                    "description": "Exactamente 3 — layout fijo a 33%/33%/33%, igual que trust-bar. {{data:steps[0..2].*}}",
+                    "description": "2-4 pasos (corregido 2026-07-28 — auditoría técnica: la descripción decía 'Exactamente 3' pero minItems/maxItems ya permitían 2-4 desde 2026-07-24, ver balancedRows() en lib/assemble.js). {{data:steps[].*}}",
                     "items": {
                       "type": "object",
                       "required": [
@@ -650,8 +650,11 @@
                 "additionalProperties": false,
                 "properties": {
                   "title": {
-                    "$ref": "#/$defs/nonPendingString",
-                    "description": "{{data:closing.title}}"
+                    "allOf": [
+                      { "$ref": "#/$defs/nonPendingString" },
+                      { "maxLength": 45 }
+                    ],
+                    "description": "{{data:closing.title}} — máximo 45 caracteres para que quepa en 1 línea a 600px (hallazgo prueba real F5: un título de 46 caracteres partía en 2 líneas). Límite añadido al schema 2026-07-28 — auditoría técnica: antes solo vivía en scripts/check-column-balance.ts, sin garantía a nivel de dato. Ver patterns/saving.md §6."
                   },
                   "body": {
                     "$ref": "#/$defs/nonPendingString",
@@ -801,7 +804,7 @@
               "data"
             ],
             "additionalProperties": false,
-            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX). Exactamente 3 columnas iguales — el highlight es a nivel de SECCIÓN, no por columna, precisamente para que sea estructuralmente imposible repetir el desalineamiento que motivó este componente (ver columns-3-beneficios.html). scripts/check-column-balance.ts además bloquea si items[].body se desequilibra >1.6x en palabras entre columnas. 'columns-3-beneficios-asimetrico' añadido 2026-07-22 (Nivel 2, ver engine/CHANGELOG.md) — misma forma de datos, 3 filas icono-izq/texto-der en vez de 3 columnas centradas. Cuál usa cada marca: brand-tokens.json → layout.sectionStyle.",
+            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX). 2-4 columnas/filas (corregido 2026-07-28 — la descripción decía 'Exactamente 3', desactualizada desde 2026-07-24) — el highlight es a nivel de SECCIÓN, no por columna, precisamente para que sea estructuralmente imposible repetir el desalineamiento que motivó este componente (ver columns-3-beneficios.html). scripts/check-column-balance.ts además bloquea si items[].body se desequilibra >1.6x en palabras entre columnas. 'columns-3-beneficios-asimetrico' añadido 2026-07-22 (Nivel 2, ver engine/CHANGELOG.md) — misma forma de datos, filas icono-izq/texto-der en vez de columnas centradas. Cuál usa cada marca: brand-tokens.json → layout.sectionStyle.",
             "properties": {
               "component": {
                 "enum": [
@@ -834,7 +837,7 @@
                     "type": "array",
                     "minItems": 2,
                     "maxItems": 4,
-                    "description": "Exactamente 3 — layout fijo 33/33/33, igual que trust-bar/pasos.",
+                    "description": "2-4 ítems (corregido 2026-07-28 — decía 'Exactamente 3', desactualizado desde 2026-07-24).",
                     "items": {
                       "type": "object",
                       "required": [
@@ -897,7 +900,7 @@
                     "type": "array",
                     "minItems": 2,
                     "maxItems": 4,
-                    "description": "Exactamente 3 — layout fijo 33/33/33, igual que trust-bar/pasos. Sin campo icon (a diferencia de columns-3-beneficios).",
+                    "description": "2-4 ítems (corregido 2026-07-28 — decía 'Exactamente 3', desactualizado desde 2026-07-24). Sin campo icon (a diferencia de columns-3-beneficios).",
                     "items": {
                       "type": "object",
                       "required": [
@@ -1046,7 +1049,7 @@
               "data"
             ],
             "additionalProperties": false,
-            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX). Exactamente 3 tarjetas de credibilidad, sin CTA propio, más una insignia final a todo el ancho. 'usp-cards-asimetrico' añadido 2026-07-22 (Nivel 2, ver engine/CHANGELOG.md) — misma forma de datos, insignia como chip junto a la cabecera en vez de bloque a todo el ancho debajo de las tarjetas. Cuál usa cada marca: brand-tokens.json → layout.sectionStyle.",
+            "description": "Añadido 2026-07-22, patrón institutional (campaña UAX). 2-4 tarjetas de credibilidad (corregido 2026-07-28 — decía 'Exactamente 3', desactualizado desde 2026-07-24), sin CTA propio, más una insignia final a todo el ancho. 'usp-cards-asimetrico' añadido 2026-07-22 (Nivel 2, ver engine/CHANGELOG.md) — misma forma de datos, insignia como chip junto a la cabecera en vez de bloque a todo el ancho debajo de las tarjetas. Cuál usa cada marca: brand-tokens.json → layout.sectionStyle.",
             "properties": {
               "component": {
                 "enum": [
@@ -1148,7 +1151,7 @@
                     "type": "array",
                     "minItems": 2,
                     "maxItems": 4,
-                    "description": "Exactamente 3. Sin campo icon (a diferencia de usp-cards).",
+                    "description": "2-4 ítems (corregido 2026-07-28 — decía 'Exactamente 3', desactualizado desde 2026-07-24). Sin campo icon (a diferencia de usp-cards).",
                     "items": {
                       "type": "object",
                       "required": [
