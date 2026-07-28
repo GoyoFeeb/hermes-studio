@@ -149,6 +149,22 @@ necesite exactamente 2 tarjetas.
 - **No reescribir `engine/CHANGELOG.md` completo bajo ningún concepto** (`write_file` o
   equivalente) — solo append/patch, y solo después de `npm run changelog:backup`. Ver Known
   Gotchas / Critical Decisions para el incidente que motivó esta regla.
+- **No usar `json.loads()`/`json.dumps()` (ni equivalente) para mutar en bloque un `.json` ya
+  existente en este repo** — reserializa el archivo ENTERO con la indentación/estilo de la
+  librería, no el original (diffs de cientos de líneas por un cambio de 2 campos), y puede
+  colapsar en silencio claves duplicadas preexistentes (el parser se queda solo con la última,
+  sin avisar — descubierto 2026-07-28 en `brands/aesop/tokens/brand-tokens.json`, que ya tenía
+  una clave `body` repetida). Usar edición de texto quirúrgica (Edit tool, o regex sobre el bloque
+  exacto a cambiar) que solo toca las líneas que realmente cambian y deja todo lo demás
+  byte-idéntico — mismo criterio que ya rige `engine/CHANGELOG.md` (append/patch, nunca
+  reescritura completa), aplicado aquí a cualquier `.json` real del repo, no solo al CHANGELOG.
+- **Antes de modificar en bloque varios `brands/*/` o `newsletters/*/`, verificar con `git status`
+  cuáles están realmente trackeados** — un directorio puede existir en disco (y aparecer en un
+  `find`/`grep`) sin estar bajo control de versiones, perteneciendo al trabajo en curso de la
+  sesión concurrente activa en este repo (Hermes Agent CLI). Descubierto 2026-07-28: un script de
+  migración masiva tocó por error `brands/adidas/` y `brands/new-balance/` (ambos `??` en `git
+  status`, con mtime de la sesión concurrente) antes de revertirlo. `git ls-files` da la lista
+  real de lo que es seguro tocar; un listado de directorio no.
 
 Actualización 2026-07-28 (evolución enterprise post-auditoría): implementadas las Fases A, B, C y D
 del roadmap de la auditoría técnica — fiabilidad de gates (`execFileSync` + timeout,
