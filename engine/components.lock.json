@@ -1,6 +1,6 @@
 {
   "_comment": "Lockfile de integridad del motor. Regenerar SOLO tras un cambio legítimo documentado en engine/CHANGELOG.md, con: npm run check-engine -- --update",
-  "generatedAt": "2026-07-28T07:32:54.239Z",
+  "generatedAt": "2026-07-28T07:48:40.645Z",
   "files": {
     "engine/components/_shell.html": "658b5caa352e6af57411e3d5ee5c888d98e87316733bd6640e7333490c58493d",
     "engine/components/banda-cierre-asimetrico.html": "59a59a0e307e937ae233a4eaed98ad11696a88204f338b05aac4fb6f3e1ebebb",
@@ -36,7 +36,7 @@
     "engine/components/usp-cards.html": "6d1ff95e866e4ceb6b49cf9480c7f3bcdf832ca003f7fc54a7c512739c5a4673",
     "engine/lib/tokens.js": "5f6c6b9980316764efe9ad2156b9944f14579042ae5f70fbe0dc2c59f8ed2304",
     "engine/lib/pattern.js": "1557452698cf4252c6aef2dacd965e14d55ea1cc461ea273a7fcc18d7261b874",
-    "engine/lib/assemble.js": "3cc39ecab99821b4c642e88120cb6c8d1ecf4d9f3f42d71b5dc6a10d14a40826",
+    "engine/lib/assemble.js": "a87c992a89dd801155e296d887be75f291364bbca31481f83d0746e04c154606",
     "engine/lib/verify.js": "30a11464bf281f2a2b6df72579e357fd3555dadc82bcfca890fdac071baa2bc3",
     "engine/build-newsletter.js": "27a11692e5f2d48ca5e10154a0d31fad89067a681055b3c6fbbc0c37f101b057",
     "engine/schema/campaign-data.schema.json": "7757d33a8b16207c395ec801cdacfea084c190a16271322f2622c2e57b61f349"

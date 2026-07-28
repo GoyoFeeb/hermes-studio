@@ -24,33 +24,12 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs } from './lib/cli';
+import { resolveBrandPackPathOrNull } from './lib/brand-path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const PLACEHOLDER_URL_RE = /pending-|placeholder/i;
 const MENTIONS_HERO_IMAGEN_RE = /hero-imagen|arte generado|arte de ia|arte ia/i;
-
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const out: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      out[key] = next;
-      i++;
-    } else {
-      out[key] = 'true';
-    }
-  }
-  return out;
-}
-
-// Simplificado 2026-07-28 (auditoría técnica): todos los brand packs viven en brands/{cliente}/
-// desde que paraycompara se movió a la raíz — ya no hace falta la resolución dual de rutas.
-function resolveBrandPath(brandRelPath: string): string | null {
-  const resolved = path.resolve(ROOT, brandRelPath);
-  return fs.existsSync(resolved) ? resolved : null;
-}
 
 function looksLikeRealUrl(href: string | undefined): boolean {
   if (!href) return false;
@@ -106,7 +85,7 @@ function main(): void {
     console.log('   ⚠️  campaign-data.json no declara "brand" — no se puede leer photography.usesRealPhotography.\n');
     process.exit(0);
   }
-  const brandPath = resolveBrandPath(data.brand);
+  const brandPath = resolveBrandPackPathOrNull(ROOT, data.brand);
   if (!brandPath) {
     console.log(`   ⚠️  No se encontró el brand pack (${data.brand}) — omitido.\n`);
     process.exit(0);

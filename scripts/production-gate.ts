@@ -9,6 +9,7 @@
 
 import { execFileSync } from 'child_process';
 import * as path from 'path';
+import { parseArgs, resolveCampaignPath } from './lib/cli';
 
 // ── Configuración ──────────────────────────────────────────────────────────
 
@@ -26,26 +27,7 @@ let allPassed = true;
 
 // ── Argumentos ─────────────────────────────────────────────────────────────
 
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const parsed: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      parsed[key] = next;
-      i++;
-    } else {
-      parsed[key] = 'true';
-    }
-  }
-  return parsed;
-}
 
-function resolveCampaignPath(raw: string): string {
-  if (path.isAbsolute(raw)) return raw;
-  return path.resolve(ROOT, raw);
-}
 
 // ── Ejecutar un gate ──────────────────────────────────────────────────────
 
@@ -96,7 +78,7 @@ function main(): void {
     process.exit(1);
   }
 
-  const campaignDir = resolveCampaignPath(args.campaign);
+  const campaignDir = resolveCampaignPath(ROOT, args.campaign);
   const campaignArgs = ['--campaign', campaignDir];
 
   console.log('\n═══════════════════════════════════════════════════');

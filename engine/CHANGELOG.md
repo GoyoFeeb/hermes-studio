@@ -1,5 +1,17 @@
 # Changelog — engine/
 
+## 2026-07-28 — Fase D (auditoría técnica): dedup de adaptadores clonados en engine/lib/assemble.js
+
+`MODULE_ADAPTERS['card-tarifa-3']` y `MODULE_ADAPTERS['category-grid-img']` eran funciones
+escritas por separado con cuerpo idéntico a `'card-tarifa'`/`'category-grid'` respectivamente
+(mismo shape de dato, solo cambia el layout de la plantilla `.html`), en vez de aliasarse como
+ya se hace para los otros 6 pares equivalentes del archivo (`usp-cards-sin-icono*`,
+`editorial-foto-texto-inverso`, etc.). Reemplazadas por alias directos
+(`MODULE_ADAPTERS['card-tarifa-3'] = MODULE_ADAPTERS['card-tarifa']`, e igual para
+`category-grid-img`/`category-grid`) — mismo comportamiento, sin duplicación de lógica.
+Verificado: rebuild de campañas reales que usan ambos componentes produce HTML byte-idéntico
+al anterior al cambio.
+
 ## 2026-07-28 — Auditoría técnica enterprise: fiabilidad, coherencia documental, unificación de brand packs
 
 Implementación de las Fases A-D del roadmap de una auditoría técnica exhaustiva del sistema

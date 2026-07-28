@@ -26,35 +26,10 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs } from './lib/cli';
+import { resolveBrandPackPath } from './lib/brand-path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const out: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      out[key] = next;
-      i++;
-    } else {
-      out[key] = 'true';
-    }
-  }
-  return out;
-}
-
-// Simplificado 2026-07-28 (auditoría técnica): todos los brand packs viven en brands/{cliente}/
-// desde que paraycompara se movió de newsletters/2026/newsletter-system/brands/ a la raíz — ya
-// no hace falta el fallback (que además vivía duplicado en 4 archivos distintos).
-function resolveBrandPackPath(brandRelPath: string): string {
-  const resolved = path.resolve(ROOT, brandRelPath);
-  if (!fs.existsSync(resolved)) {
-    throw new Error(`Brand pack no encontrado en ${resolved}`);
-  }
-  return resolved;
-}
 
 function get(obj: any, dotted: string): any {
   return dotted.split('.').reduce((cur, k) => (cur == null ? undefined : cur[k]), obj);
@@ -287,9 +262,9 @@ function main(): void {
       console.error(`\n  ❌ ${dataPath} no declara "brand".\n`);
       process.exit(1);
     }
-    packPath = resolveBrandPackPath(campaignData.brand);
+    packPath = resolveBrandPackPath(ROOT, campaignData.brand);
   } else if (args.brand) {
-    packPath = resolveBrandPackPath(`brands/${args.brand}/tokens/brand-tokens.json`);
+    packPath = resolveBrandPackPath(ROOT, `brands/${args.brand}/tokens/brand-tokens.json`);
   } else {
     console.error('\n  ❌ Error: falta --campaign o --brand\n');
     console.error('  Uso: npx tsx scripts/check-contrast.ts --campaign newsletters/{year}/{client}/{campaign}\n');

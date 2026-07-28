@@ -20,6 +20,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import Ajv from 'ajv';
+import { parseArgs } from './lib/cli';
 
 // ── Configuración ──────────────────────────────────────────────────────────
 
@@ -38,28 +39,6 @@ function slugToClientName(slug: string): string {
     .split('-')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-}
-
-// ── Argumentos ──────────────────────────────────────────────────────────────
-
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const parsed: Record<string, string> = {};
-
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (key === 'force') {
-      parsed[key] = 'true';
-    } else if (next && !next.startsWith('--')) {
-      parsed[key] = next;
-      i++;
-    } else {
-      parsed[key] = 'true';
-    }
-  }
-
-  return parsed;
 }
 
 // ── Validación ─────────────────────────────────────────────────────────────
@@ -252,7 +231,7 @@ function main(): void {
   console.log('   Hermes Newsletter System — Crear campaña');
   console.log('═══════════════════════════════════════════════════\n');
 
-  const args = parseArgs();
+  const args = parseArgs(['force']);
   validate(args);
 
   const year = args.year;

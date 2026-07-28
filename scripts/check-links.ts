@@ -10,6 +10,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs } from './lib/cli';
 
 // ── Configuración ──────────────────────────────────────────────────────────
 
@@ -23,21 +24,6 @@ function warn(msg: string): void { RESULTS.push({ type: 'warning', message: msg 
 
 // ── Argumentos ─────────────────────────────────────────────────────────────
 
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const parsed: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      parsed[key] = next;
-      i++;
-    } else {
-      parsed[key] = 'true';
-    }
-  }
-  return parsed;
-}
 
 function resolveCampaignPath(raw: string): string {
   if (path.isAbsolute(raw)) return raw;

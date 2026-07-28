@@ -21,6 +21,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs } from './lib/cli';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
@@ -34,21 +35,6 @@ const DEFAULT_SEQUENCE = [
   'footer'
 ];
 
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const out: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      out[key] = next;
-      i++;
-    } else {
-      out[key] = 'true';
-    }
-  }
-  return out;
-}
 
 function main(): void {
   const args = parseArgs();

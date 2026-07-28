@@ -27,6 +27,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs } from './lib/cli';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
@@ -34,21 +35,6 @@ const PLACEHOLDER_URL_RE = /pending-|placeholder/i;
 const BRACKET_PLACEHOLDER_RE = /^\s*\[/;
 const SKIP_KEYS = new Set(['href', 'icon', 'unsubscribeUrl', 'preferencesUrl']); // ESP merge-tags entre corchetes son legítimos, no placeholders
 
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const out: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      out[key] = next;
-      i++;
-    } else {
-      out[key] = 'true';
-    }
-  }
-  return out;
-}
 
 interface Finding {
   fieldPath: string;

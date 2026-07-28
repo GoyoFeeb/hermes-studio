@@ -36,36 +36,12 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs } from './lib/cli';
+import { resolveBrandPackPath } from './lib/brand-path';
 import Ajv from 'ajv';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const BRAND_SCHEMA_PATH = path.join(ROOT, 'engine', 'schema', 'brand-tokens.schema.json');
-
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const out: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      out[key] = next;
-      i++;
-    } else {
-      out[key] = 'true';
-    }
-  }
-  return out;
-}
-
-// Simplificado 2026-07-28 (auditoría técnica): todos los brand packs viven en brands/{cliente}/
-// desde que paraycompara se movió a la raíz — ya no hace falta la resolución dual de rutas.
-function resolveBrandPackPath(brandRelPath: string): string {
-  const resolved = path.resolve(ROOT, brandRelPath);
-  if (!fs.existsSync(resolved)) {
-    throw new Error(`Brand pack no encontrado en ${resolved}`);
-  }
-  return resolved;
-}
 
 function isPlaceholder(value: unknown): boolean {
   return typeof value === 'string' && value.trim().startsWith('[');
@@ -206,14 +182,14 @@ function main(): void {
       process.exit(1);
     }
     try {
-      packPath = resolveBrandPackPath(campaignData.brand);
+      packPath = resolveBrandPackPath(ROOT, campaignData.brand);
     } catch (err: any) {
       console.error(`\n  ❌ ${err.message}\n`);
       process.exit(1);
     }
   } else if (args.brand) {
     try {
-      packPath = resolveBrandPackPath(`brands/${args.brand}/tokens/brand-tokens.json`);
+      packPath = resolveBrandPackPath(ROOT, `brands/${args.brand}/tokens/brand-tokens.json`);
     } catch (err: any) {
       console.error(`\n  ❌ ${err.message}\n`);
       process.exit(1);

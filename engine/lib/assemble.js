@@ -142,10 +142,6 @@ const MODULE_ADAPTERS = {
     hero: { brandName: data.brandName, h1: data.h1, subtitle: data.subtitle, cta: data.cta },
     cta: data.cta
   }),
-  'card-tarifa-3': (data) => ({
-    cardsSection: { eyebrow: data.eyebrow, title: data.title, subtitle: data.subtitle },
-    cards: data.items
-  }),
   'card-tarifa': (data) => ({
     cardsSection: { eyebrow: data.eyebrow, title: data.title, subtitle: data.subtitle },
     cards: data.items
@@ -182,16 +178,6 @@ const MODULE_ADAPTERS = {
   // así la plantilla nunca emite una fila con menos <td> "vacíos" que otra: cada fila solo
   // itera sobre los ítems que realmente tiene (ver cabecera de category-grid.html).
   'category-grid': (data) => {
-    const items = data.categories;
-    const rows = [];
-    for (let i = 0; i < items.length; i += 3) rows.push({ items: items.slice(i, i + 3) });
-    return {
-      gridSection: { title: data.title, intro: data.intro },
-      rows,
-      cta: data.cta
-    };
-  },
-  'category-grid-img': (data) => {
     const items = data.categories;
     const rows = [];
     for (let i = 0; i < items.length; i += 3) rows.push({ items: items.slice(i, i + 3) });
@@ -245,6 +231,12 @@ MODULE_ADAPTERS['usp-cards-sin-icono'] = MODULE_ADAPTERS['usp-cards'];
 MODULE_ADAPTERS['usp-cards-sin-icono-asimetrico'] = MODULE_ADAPTERS['usp-cards'];
 // editorial-foto-texto-inverso (2026-07-27): mismo contrato de datos, layout invertido.
 MODULE_ADAPTERS['editorial-foto-texto-inverso'] = MODULE_ADAPTERS['editorial-foto-texto'];
+// card-tarifa-3 / category-grid-img (corregido 2026-07-28 — auditoría técnica): ambos tenían
+// una función adaptadora ESCRITA POR SEPARADO con cuerpo idéntico a su contraparte, en vez de
+// aliasarse como los 6 pares de arriba — inconsistencia de estilo dentro de este mismo archivo.
+// Mismo motivo que el resto: layout distinto en la plantilla .html, forma del dato idéntica.
+MODULE_ADAPTERS['card-tarifa-3'] = MODULE_ADAPTERS['card-tarifa'];
+MODULE_ADAPTERS['category-grid-img'] = MODULE_ADAPTERS['category-grid'];
 
 /** Escapa &, < y > en contenido de campaña insertado en contexto HTML (spec del prompt 13). */
 function escapeHtml(value) {

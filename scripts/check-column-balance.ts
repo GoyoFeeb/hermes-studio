@@ -23,6 +23,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs } from './lib/cli';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
@@ -37,21 +38,6 @@ const MAX_RATIO_BY_COLS: Record<number, number> = { 2: 2.0, 3: 1.6, 4: 1.6 };
 const DEFAULT_MAX_RATIO = 1.6;
 const MAX_CLOSING_TITLE_CHARS = 45;
 
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const out: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      out[key] = next;
-      i++;
-    } else {
-      out[key] = 'true';
-    }
-  }
-  return out;
-}
 
 function wordCount(s: string): number {
   return String(s || '').trim().split(/\s+/).filter(Boolean).length;

@@ -28,6 +28,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs, resolveCampaignPath } from './lib/cli';
 
 // ── Configuración ──────────────────────────────────────────────────────────
 
@@ -45,26 +46,7 @@ interface Result { type: 'error' | 'warning'; message: string; }
 
 // ── Argumentos ─────────────────────────────────────────────────────────────
 
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const parsed: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (next && !next.startsWith('--')) {
-      parsed[key] = next;
-      i++;
-    } else {
-      parsed[key] = 'true';
-    }
-  }
-  return parsed;
-}
 
-function resolveCampaignPath(raw: string): string {
-  if (path.isAbsolute(raw)) return raw;
-  return path.resolve(ROOT, raw);
-}
 
 // ── Lectura segura ───────────────────────────────────────────────────────────
 
@@ -183,7 +165,7 @@ function main(): void {
     process.exit(1);
   }
 
-  const campaignDir = resolveCampaignPath(args.campaign);
+  const campaignDir = resolveCampaignPath(ROOT, args.campaign);
   if (!fs.existsSync(campaignDir)) {
     console.error(`\n   ❌ La carpeta de campaña no existe: ${campaignDir}\n`);
     process.exit(1);

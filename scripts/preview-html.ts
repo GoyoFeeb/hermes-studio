@@ -17,35 +17,11 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { parseArgs, resolveCampaignPath } from './lib/cli';
 
 // ── Configuración ──────────────────────────────────────────────────────────
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-
-// ── Argumentos ─────────────────────────────────────────────────────────────
-
-function parseArgs(): Record<string, string> {
-  const args = process.argv.slice(2);
-  const parsed: Record<string, string> = {};
-  for (let i = 0; i < args.length; i++) {
-    const key = args[i].replace(/^--/, '');
-    const next = args[i + 1];
-    if (key === 'force') {
-      parsed[key] = 'true';
-    } else if (next && !next.startsWith('--')) {
-      parsed[key] = next;
-      i++;
-    } else {
-      parsed[key] = 'true';
-    }
-  }
-  return parsed;
-}
-
-function resolveCampaignPath(raw: string): string {
-  if (path.isAbsolute(raw)) return raw;
-  return path.resolve(ROOT, raw);
-}
 
 // ── Verificar dependencias ─────────────────────────────────────────────────
 
@@ -144,7 +120,7 @@ async function main(): Promise<void> {
   console.log('   Hermes Newsletter System — Preview HTML');
   console.log('═══════════════════════════════════════════════════\n');
 
-  const args = parseArgs();
+  const args = parseArgs(["force"]);
 
   if (!args.campaign) {
     console.error('\n  ❌ Error: falta --campaign\n');
@@ -156,7 +132,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const campaignDir = resolveCampaignPath(args.campaign);
+  const campaignDir = resolveCampaignPath(ROOT, args.campaign);
   const force = args.force === 'true';
   const width = parseInt(args.width || '600', 10);
   const height = parseInt(args.height || '2000', 10);
