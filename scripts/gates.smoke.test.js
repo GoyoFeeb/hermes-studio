@@ -54,7 +54,8 @@ test('check-structural-differentiation: falla si productionReady y la secuencia 
       { component: 'header-logo', data: {} },
       { component: 'hero-imagen', data: {} },
       { component: 'intro-cta', data: {} },
-      { component: 'columns-3-beneficios-sin-icono', data: { items: [] } },
+      { component: 'columns-3-beneficios', data: { items: [] } },
+      { component: 'usp-cards', data: { items: [] } },
       { component: 'banda-cierre', data: {} },
       { component: 'footer', data: {} }
     ]
@@ -101,7 +102,8 @@ test('check-structural-differentiation: pasa cuando la traducción documenta la 
       { component: 'header-logo', data: {} },
       { component: 'hero-imagen', data: {} },
       { component: 'intro-cta', data: {} },
-      { component: 'columns-3-beneficios-sin-icono', data: { items: [] } },
+      { component: 'columns-3-beneficios', data: { items: [] } },
+      { component: 'usp-cards', data: { items: [] } },
       { component: 'banda-cierre', data: {} },
       { component: 'footer', data: {} }
     ]
@@ -118,6 +120,68 @@ test('check-structural-differentiation: pasa cuando la traducción documenta la 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ── Fase F2: comodín por patrón (antes solo fotografia-primero la tenía) ──
+
+test('check-structural-differentiation: detecta la comodín también para el patrón "saving" (antes solo existía para fotografia-primero)', () => {
+  const campaignData = {
+    pattern: 'saving',
+    metadata: {},
+    modules: [
+      { component: 'hero-asimetrico', data: {} },
+      { component: 'trust-bar', data: { items: [] } },
+      { component: 'card-tarifa', data: { items: [] } },
+      { component: 'pasos', data: { items: [] } },
+      { component: 'lista-premium', data: { items: [] } },
+      { component: 'banda-cierre', data: {} },
+      { component: 'footer', data: {} }
+    ]
+  };
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify(campaignData)
+  });
+  try {
+    const { exitCode, output } = runGateScript('check-structural-differentiation.ts', dir);
+    // Check 5 bloquea un match exacto sin justificar independientemente de productionReady
+    // (comportamiento heredado, no nuevo de esta fase — ver la rama sin "if (productionReady)").
+    assert.equal(exitCode, 1);
+    assert.match(output, /coincide exactamente con la secuencia comodín/);
+    assert.match(output, /Sin justificar/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('check-structural-differentiation: no aplica el check de comodín a un patrón sin comodín registrado', () => {
+  const campaignData = {
+    pattern: 'digest', // patrón hipotético de Fase F5, sin entrada en PATTERN_DEFAULT_SEQUENCES
+    metadata: {},
+    modules: [{ component: 'header-logo', data: {} }, { component: 'footer', data: {} }]
+  };
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify(campaignData)
+  });
+  try {
+    const { exitCode, output } = runGateScript('check-structural-differentiation.ts', dir);
+    assert.equal(exitCode, 0);
+    assert.match(output, /No hay secuencia comodín definida/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ── Fase F2: comparación cruzada real (Check 8) — contra datos reales del repo ──
+
+test('check-structural-differentiation: detecta la colisión real Audi/BMW "brand-native" (2026-08-01) que motivó esta fase', () => {
+  const bmwCampaign = path.join(ROOT, 'newsletters', '2026', 'bmw', '2026-ago-bmw-brand-native-restauracion-test');
+  if (!fs.existsSync(path.join(bmwCampaign, '06-data', 'campaign-data.json'))) {
+    return; // campaña de una sesión concurrente — si no existe en este checkout, se omite sin fallar
+  }
+  const { exitCode, output } = runGateScript('check-structural-differentiation.ts', bmwCampaign);
+  assert.equal(exitCode, 0); // aviso, no bloqueante
+  assert.match(output, /marcas distintas/);
+  assert.match(output, /audi/);
 });
 
 // ── Gate 10: check-production-readiness.ts ──

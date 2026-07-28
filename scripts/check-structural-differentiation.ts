@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
- * check-structural-differentiation.ts — Gate de diferenciación estructural (2026-07-27).
+ * check-structural-differentiation.ts — Gate de diferenciación estructural (2026-07-27, ampliado
+ * 2026-07-28 — Fase F2, ver docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md).
  * Verifica que la newsletter NO es una mera copia de la secuencia por defecto del patrón,
  * y que el agente 03 documentó una traducción real de la página de la marca a la estructura
  * del email.
@@ -10,11 +11,21 @@
  * 2. El archivo cita layout.contentRhythm o layout.brandStructure.
  * 3. El archivo mapea al menos 2 secciones reales de la página a módulos del email.
  * 4. Si una campaña fotografia-primero repite intro-cta 2+ veces, debe justificarlo.
- * 5. Si la secuencia coincide exactamente con la comodín:
- *    header-logo → hero-imagen → intro-cta → columns-3-beneficios-sin-icono → banda-cierre → footer
- *    (sin usar ningún editorial-foto-texto*), debe existir justificación explícita.
+ * 5. Si la secuencia coincide exactamente con la comodín DEL PATRÓN ELEGIDO (los 3 patrones
+ *    tienen su propia comodín desde Fase F2 — antes solo fotografia-primero la tenía, dejando
+ *    saving/institutional sin ningún check equivalente), debe existir justificación explícita.
  * 6. Si la página real documenta editorial-foto-texto como traducible y la campaña no usa
  *    ningún módulo editorial-foto-texto*, el gate debe avisar (o fallar si productionReady).
+ * 7. columns-3-beneficios-sin-icono con métricas técnicas → recomienda metric-strip-premium.
+ * 8. (Fase F2, nuevo) Comparación CRUZADA real: ¿la secuencia de esta campaña coincide ≥80% con
+ *    la de ≥2 marcas DISTINTAS que usan el mismo patrón? Hasta esta fase, el único check de
+ *    "genericidad" comparaba una campaña contra una única constante hardcodeada, nunca contra
+ *    otra campaña real — prueba directa del hueco: las campañas "brand-native" de Audi y BMW
+ *    (2026-08-01), construidas el mismo día para demostrar diferenciación estructural, resultaron
+ *    byte-idénticas entre sí sin que este gate lo detectara nunca (ninguna de las dos coincidía
+ *    con la constante única que existía entonces). Aviso, no bloqueante — igual que el resto de
+ *    checks de esta fase, necesita ejercerse contra datos reales antes de poder bloquear con
+ *    confianza (mismo criterio de "Nivel 4/5" ya usado en este sistema).
  *
  * Uso:
  *   npx tsx scripts/check-structural-differentiation.ts --campaign newsletters/{year}/{client}/{campaign}
@@ -25,15 +36,88 @@ import { parseArgs } from './lib/cli';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
-// La secuencia comodín que indica "sin traducción estructural real"
-const DEFAULT_SEQUENCE = [
-  'header-logo',
-  'hero-imagen',
-  'intro-cta',
-  'columns-3-beneficios-sin-icono',
-  'banda-cierre',
-  'footer'
-];
+// Secuencia comodín por patrón — cada una es la traducción directa del orden por defecto
+// documentado en patterns/{patrón}.md. 'hero-*'/'banda-cierre-*' son comodines: la elección
+// concreta de variante de hero/cierre ya la verifica el Gate 11 (check-hero-decision.ts) por
+// separado — este check es sobre el ORDEN del cuerpo, no sobre qué variante de hero se usó.
+const PATTERN_DEFAULT_SEQUENCES: Record<string, string[]> = {
+  'fotografia-primero': ['header-logo', 'hero-*', 'intro-cta', 'columns-3-beneficios-sin-icono', 'banda-cierre-*', 'footer'],
+  'saving': ['hero-*', 'trust-bar', 'card-tarifa', 'pasos', 'lista-premium', 'banda-cierre-*', 'footer'],
+  'institutional': ['header-logo', 'hero-*', 'intro-cta', 'columns-3-beneficios', 'usp-cards', 'banda-cierre-*', 'footer']
+};
+
+/** Quita header-logo/footer (siempre presentes, no discriminan) y sustituye la variante concreta
+ * de hero/banda-cierre por un comodín — esa elección ya la audita Gate 11 por separado. */
+function normalizeSequence(componentNames: string[]): string[] {
+  return componentNames
+    .filter((n) => n !== 'header-logo' && n !== 'footer')
+    .map((n) => (n.startsWith('hero-') ? 'hero-*' : n.startsWith('banda-cierre') ? 'banda-cierre-*' : n));
+}
+
+/** Longitud de la subsecuencia común más larga — O(n·m), sobra para secuencias de 3-9 módulos. */
+function longestCommonSubsequenceLength(a: string[], b: string[]): number {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function sequenceSimilarity(a: string[], b: string[]): number {
+  if (a.length === 0 && b.length === 0) return 1;
+  return longestCommonSubsequenceLength(a, b) / Math.max(a.length, b.length, 1);
+}
+
+function extractBrandSlug(brandField: string | undefined): string | null {
+  if (!brandField) return null;
+  const m = brandField.match(/^brands\/([^/]+)\//);
+  return m ? m[1] : null;
+}
+
+interface CampaignFingerprint {
+  campaignDir: string;
+  brand: string;
+  pattern: string;
+  sequence: string[];
+}
+
+/** Recorre newsletters/{año}/{cliente}/{campaña}/06-data/campaign-data.json — todas las campañas
+ * reales del motor, sin asumir un año fijo. Campañas con JSON inválido/ilegible se ignoran (no es
+ * responsabilidad de este gate diagnosticarlas, ya lo hace Gate 1). */
+function findAllRealCampaigns(root: string): CampaignFingerprint[] {
+  const results: CampaignFingerprint[] = [];
+  const newslettersDir = path.join(root, 'newsletters');
+  if (!fs.existsSync(newslettersDir)) return results;
+  for (const year of fs.readdirSync(newslettersDir)) {
+    const yearDir = path.join(newslettersDir, year);
+    if (!fs.statSync(yearDir).isDirectory()) continue;
+    for (const client of fs.readdirSync(yearDir)) {
+      const clientDir = path.join(yearDir, client);
+      if (!fs.statSync(clientDir).isDirectory()) continue;
+      for (const campaign of fs.readdirSync(clientDir)) {
+        const campaignDir = path.join(clientDir, campaign);
+        try {
+          if (!fs.statSync(campaignDir).isDirectory()) continue;
+          const dataPath = path.join(campaignDir, '06-data', 'campaign-data.json');
+          if (!fs.existsSync(dataPath)) continue;
+          const d = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+          const seq = (d.modules || []).map((m: any) => m.component);
+          results.push({
+            campaignDir,
+            brand: extractBrandSlug(d.brand) || client,
+            pattern: d.pattern || 'unknown',
+            sequence: normalizeSequence(seq)
+          });
+        } catch {
+          continue;
+        }
+      }
+    }
+  }
+  return results;
+}
 
 
 function main(): void {
@@ -138,44 +222,43 @@ function main(): void {
     console.log('      ⏭️  No aplica (patrón ' + pattern + ', no fotografia-primero).\n');
   }
 
-  // ── Check 5: secuencia coincide con la comodín sin editorial ──────────────
-  console.log('   5) ¿La secuencia coincide exactamente con la secuencia comodín sin editorial-foto-texto*?');
-  // Normalizamos: quitamos opcionales ausentes para comparar
-  const normalizedSequence = componentNames.filter((n: string) =>
-    n !== 'header-logo' && n !== 'footer' // siempre presentes
-  );
-  const defaultBody = DEFAULT_SEQUENCE.filter(n =>
-    n !== 'header-logo' && n !== 'footer'
-  );
-
-  // Comparar: los módulos activos (sin header-logo/footer) deben diferir del default
-  const isExactDefaultMatch = (
-    normalizedSequence.length === defaultBody.length &&
-    normalizedSequence.every((n: string, i: number) => n === defaultBody[i])
-  );
-
-  if (isExactDefaultMatch) {
-    console.log('      ⚠️  La secuencia activa coincide exactamente con la secuencia comodín.');
-    const usesEditorial = componentNames.some((n: string) =>
-      n === 'editorial-foto-texto' || n === 'editorial-foto-texto-inverso'
-    );
-    if (usesEditorial) {
-      console.log('      ✅ Pero usa editorial-foto-texto*, lo que rompe el patrón comodín.\n');
-    } else {
-      const translationExists = fs.existsSync(brandTranslationPath);
-      const hasJustification = translationExists
-        ? /justific|es el orden|por defecto|es correcto|es intencional/i.test(fs.readFileSync(brandTranslationPath, 'utf8'))
-        : false;
-      if (hasJustification) {
-        console.log('      ✅ Justificado en brand-structure-translation.md.\n');
-      } else {
-        warnings.push('La secuencia coincide exactamente con la comodín y no hay justificación explícita en brand-structure-translation.md.');
-        console.log('      ❌ Sin justificar — si este orden es correcto para la marca, debe documentarse.\n');
-        allPassed = false;
-      }
-    }
+  // ── Check 5: secuencia coincide con la comodín del PATRÓN elegido ──────────
+  console.log('   5) ¿La secuencia coincide exactamente con la secuencia comodín de este patrón?');
+  const defaultBody = PATTERN_DEFAULT_SEQUENCES[pattern];
+  if (!defaultBody) {
+    console.log(`      ⏭️  No hay secuencia comodín definida para el patrón "${pattern}" (patrón nuevo, sin comodín registrado todavía).\n`);
   } else {
-    console.log('      ✅ No coincide — la secuencia difiere de la comodín.\n');
+    const normalizedSequence = normalizeSequence(componentNames);
+    const normalizedDefault = normalizeSequence(defaultBody);
+
+    const isExactDefaultMatch = (
+      normalizedSequence.length === normalizedDefault.length &&
+      normalizedSequence.every((n: string, i: number) => n === normalizedDefault[i])
+    );
+
+    if (isExactDefaultMatch) {
+      console.log('      ⚠️  La secuencia activa coincide exactamente con la secuencia comodín.');
+      const usesEditorial = componentNames.some((n: string) =>
+        n === 'editorial-foto-texto' || n === 'editorial-foto-texto-inverso'
+      );
+      if (usesEditorial) {
+        console.log('      ✅ Pero usa editorial-foto-texto*, lo que rompe el patrón comodín.\n');
+      } else {
+        const translationExists = fs.existsSync(brandTranslationPath);
+        const hasJustification = translationExists
+          ? /justific|es el orden|por defecto|es correcto|es intencional/i.test(fs.readFileSync(brandTranslationPath, 'utf8'))
+          : false;
+        if (hasJustification) {
+          console.log('      ✅ Justificado en brand-structure-translation.md.\n');
+        } else {
+          warnings.push('La secuencia coincide exactamente con la comodín y no hay justificación explícita en brand-structure-translation.md.');
+          console.log('      ❌ Sin justificar — si este orden es correcto para la marca, debe documentarse.\n');
+          allPassed = false;
+        }
+      }
+    } else {
+      console.log('      ✅ No coincide — la secuencia difiere de la comodín.\n');
+    }
   }
 
   // ── Check 6: editorial-foto-texto disponible en página real pero no usado ─
@@ -248,6 +331,41 @@ function main(): void {
 
   if (!metricColumnsDetected) {
     console.log('      ✅ No usa columns-3-beneficios para métricas — o usa metric-strip-premium.\n');
+  }
+
+  // ── Check 8: comparación cruzada real contra otras campañas reales (Fase F2) ──
+  console.log('   8) ¿La secuencia colisiona con la de otras marcas reales del mismo patrón?');
+  const SIMILARITY_THRESHOLD = 0.8;
+  const currentSeqNormalized = normalizeSequence(componentNames);
+  const currentBrand = extractBrandSlug(data.brand) || path.basename(path.dirname(campaignDir));
+  const allCampaigns = findAllRealCampaigns(ROOT);
+  const collisions: { brand: string; campaignDir: string; similarity: number }[] = [];
+
+  for (const other of allCampaigns) {
+    if (path.resolve(other.campaignDir) === path.resolve(campaignDir)) continue; // uno mismo
+    if (other.pattern !== pattern) continue; // solo mismo patrón — comparar entre patrones distintos no es evidencia de nada
+    if (other.brand === currentBrand) continue; // misma marca en varias campañas: coherencia esperada, no genericidad
+    const similarity = sequenceSimilarity(currentSeqNormalized, other.sequence);
+    if (similarity >= SIMILARITY_THRESHOLD) {
+      collisions.push({ brand: other.brand, campaignDir: other.campaignDir, similarity });
+    }
+  }
+
+  const distinctCollidingBrands = new Set(collisions.map((c) => c.brand));
+  if (distinctCollidingBrands.size >= 2) {
+    const detail = collisions
+      .map((c) => `${c.brand}/${path.basename(c.campaignDir)} (${(c.similarity * 100).toFixed(0)}%)`)
+      .join(', ');
+    warnings.push(
+      `La secuencia coincide ≥${SIMILARITY_THRESHOLD * 100}% con ${distinctCollidingBrands.size} marcas distintas ` +
+      `del mismo patrón (${detail}) — riesgo de estructura genérica intercambiable, no solo coherencia de marca propia. ` +
+      `Aviso no bloqueante (Fase F2) — ver docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md.`
+    );
+    console.log(`      ⚠️  Coincide con ${distinctCollidingBrands.size} marcas distintas: ${detail}\n`);
+  } else if (collisions.length > 0) {
+    console.log(`      ⏭️  Coincide con ${collisions.length} campaña(s) pero de una sola marca distinta — no es evidencia suficiente de genericidad por sí sola.\n`);
+  } else {
+    console.log(`      ✅ Ninguna otra marca del mismo patrón coincide ≥${SIMILARITY_THRESHOLD * 100}%.\n`);
   }
 
   // ── Resultado final ───────────────────────────────────────────────────────
