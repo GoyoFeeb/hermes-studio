@@ -150,10 +150,16 @@ necesite exactamente 2 tarjetas.
   equivalente) — solo append/patch, y solo después de `npm run changelog:backup`. Ver Known
   Gotchas / Critical Decisions para el incidente que motivó esta regla.
 
-Actualización 2026-07-28 (evolución enterprise post-auditoría): implementadas las Fases A-D del
-roadmap de la auditoría técnica (`docs/auditoria-tecnica-hermes-newsletter-system.md` si se copió
-al repo, o ver el informe entregado en sesión) — fiabilidad de gates (`execFileSync` + timeout,
-`runChildGate()`), backup de CHANGELOG, coherencia documental, unificación de brand packs,
-reducción de duplicación. Detalle completo en el informe final de la implementación.
+Actualización 2026-07-28 (evolución enterprise post-auditoría): implementadas las Fases A, B, C y D
+del roadmap de la auditoría técnica — fiabilidad de gates (`execFileSync` + timeout,
+`runChildGate()`), backup de CHANGELOG, coherencia documental, unificación de brand packs a
+`brands/paraycompara/`, reducción de duplicación (`scripts/lib/cli.ts`, `scripts/lib/brand-path.ts`,
+alias de adaptadores clonados), suite de tests 12→32 (geometría de celdas + smoke tests de gates).
+4 commits de checkpoint: `e35c81d`/`c83e956`/`a52e378`/`fb8c3bb`. Detalle completo, incluyendo qué
+se evaluó y se decidió NO ejecutar (con motivo), en
+`docs/implementacion-auditoria-tecnica-2026-07-28.md`. Propuesta de reorganización de agentes
+(recomendación: no reorganizar, con evidencia) en
+`docs/propuesta-reorganizacion-agentes-2026-07-28.md`. Roadmap de QA visual real (Fase E, sin
+ejecutar) en `docs/roadmap-qa-visual-2026-07-28.md`.
 
 _Last updated: 2026-07-28_
