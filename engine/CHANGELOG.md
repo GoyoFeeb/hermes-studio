@@ -1,5 +1,17 @@
 # Changelog — engine/
 
+## 2026-07-28 — Fase C (auditoría técnica): cobertura de test para geometría de celdas
+
+`engine/lib/assemble.js` exporta ahora `balancedRows`, `withCellGeometry` y `withStackGeometry`
+(añadidas a `module.exports`, sin tocar su lógica interna) para poder cubrirlas con tests
+unitarios directos en `engine/lib/assemble.test.js` — hasta ahora solo se probaban
+indirectamente a través del build end-to-end de una campaña completa. Cubre el reparto de
+filas sin huérfanos (`balancedRows`: 2→[2], 4→[2,2], 5→[3,2], 6→[3,3]), el padding por
+posición de columna (`withCellGeometry`: primera/última/intermedia) y el patrón de la última
+fila sin separación inferior (`withStackGeometry`). Cero cambio de comportamiento del motor —
+solo visibilidad de test sobre funciones que ya se usaban en producción
+(`trust-bar`, `pasos`, `columns-3-beneficios*`, `usp-cards*`, `metric-strip-premium`).
+
 ## 2026-07-28 — Fase D (auditoría técnica): dedup de adaptadores clonados en engine/lib/assemble.js
 
 `MODULE_ADAPTERS['card-tarifa-3']` y `MODULE_ADAPTERS['category-grid-img']` eran funciones

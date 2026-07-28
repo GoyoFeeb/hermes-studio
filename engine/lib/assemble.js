@@ -518,5 +518,8 @@ module.exports = {
   resolveIncludeAlias,
   stripLeadingComment,
   escapeHtml,
-  MODULE_ADAPTERS
+  MODULE_ADAPTERS,
+  balancedRows,
+  withCellGeometry,
+  withStackGeometry
 };
