@@ -1,0 +1,30 @@
+name: CI
+
+# CI mínimo (auditoría técnica 2026-07-28, §15/§17): hasta ahora toda la verificación del
+# motor era manual. npm test corre en menos de un segundo y check-engine-integrity.ts no
+# depende de red ni de campañas reales — no hay excusa de coste para no correrlos en cada push.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Unit tests + smoke test end-to-end (engine/)
+        run: npm test
+
+      - name: Integridad del motor (engine/components.lock.json)
+        run: npx tsx scripts/check-engine-integrity.ts

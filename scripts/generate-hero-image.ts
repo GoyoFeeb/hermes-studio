@@ -92,6 +92,20 @@ import { loadEnv } from './lib/env';
 const ROOT = path.resolve(import.meta.dirname, '..');
 loadEnv(ROOT);
 
+// Fix (auditoría enterprise 2026-07-28): las dos llamadas a la API de OpenAI de este script
+// (descripción de estilo visual y generación de imagen) no tenían AbortController/timeout —
+// si la API se quedaba colgada, el script colgaba indefinidamente sin salida. Contrasta con
+// gate5Assets de production-gate-motor.ts, que sí usaba timeout de 8s desde el principio.
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const API_KEY = process.env.OPENAI_API_KEY;
 const MODEL = process.env.HERO_IMG_MODEL || 'gpt-image-1';
 const SIZE = process.env.HERO_IMG_SIZE || '1536x1024';
@@ -395,7 +409,7 @@ async function describeVisualStyle(screenshots: Buffer[]): Promise<string | null
       'description of 8-14 sentences, ready to be used as a rich style reference inside an ' +
       'image-generation prompt (a style description, not an instruction).';
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -416,7 +430,7 @@ async function describeVisualStyle(screenshots: Buffer[]): Promise<string | null
           ],
         }],
       }),
-    });
+    }, 60_000);
     if (!res.ok) {
       const bodyText = await res.text();
       console.log(
@@ -605,7 +619,9 @@ async function main(): Promise<void> {
 
   let res: Response;
   try {
-    res = await fetch('https://api.openai.com/v1/images/generations', {
+    // Timeout generoso (120s): generación de imagen es más lenta que la descripción de estilo,
+    // pero sin ningún límite el script podía colgarse indefinidamente si la API no respondía.
+    res = await fetchWithTimeout('https://api.openai.com/v1/images/generations', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${API_KEY}`,
@@ -618,9 +634,14 @@ async function main(): Promise<void> {
         quality: QUALITY,
         n: 1,
       }),
-    });
+    }, 120_000);
   } catch (err) {
-    console.error(`❌ No se pudo conectar con api.openai.com: ${(err as Error).message}`);
+    const isAbort = (err as Error).name === 'AbortError';
+    console.error(
+      isAbort
+        ? '❌ La API de imágenes de OpenAI no respondió en 120s — se abortó la petición.'
+        : `❌ No se pudo conectar con api.openai.com: ${(err as Error).message}`
+    );
     process.exit(1);
   }
 

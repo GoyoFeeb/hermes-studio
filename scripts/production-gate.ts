@@ -7,7 +7,7 @@
  *   npx tsx scripts/production-gate.ts --campaign newsletters/{year}/{client}/{campaign}
  */
 
-import { execSync, ExecSyncOptions } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as path from 'path';
 
 // ── Configuración ──────────────────────────────────────────────────────────
@@ -52,24 +52,32 @@ function resolveCampaignPath(raw: string): string {
 function runGate(name: string, script: string, args: string[]): GateResult {
   const tsx = path.resolve(ROOT, 'node_modules', '.bin', 'tsx');
   const scriptPath = path.resolve(ROOT, 'scripts', script);
-  const cmd = `"${tsx}" "${scriptPath}" ${args.join(' ')}`;
+  const cmdLabel = `"${tsx}" "${scriptPath}" ${args.join(' ')}`;
 
   console.log(`\n${'='.repeat(60)}`);
   console.log(`   Gate ${gates.length + 1}: ${name}`);
-  console.log(`   ${cmd}`);
+  console.log(`   ${cmdLabel}`);
   console.log(`${'='.repeat(60)}\n`);
 
+  // Fix (auditoría enterprise 2026-07-28): execSync sobre un string interpolado pasa por
+  // /bin/sh — execFileSync con array de argumentos no, y ya no depende de que cada `args[]`
+  // llegue pre-envuelto en comillas (los llamadores de main() ya no necesitan `--campaign "x"`
+  // como un único string, ver más abajo).
   try {
-    const opts: ExecSyncOptions = { cwd: ROOT, encoding: 'utf-8', timeout: 60000, maxBuffer: 50 * 1024 };
-    const output = execSync(cmd, opts);
-    const result: GateResult = { name, command: cmd, passed: true, output };
+    const output = execFileSync(tsx, [scriptPath, ...args], {
+      cwd: ROOT,
+      encoding: 'utf-8',
+      timeout: 60000,
+      maxBuffer: 50 * 1024,
+    });
+    const result: GateResult = { name, command: cmdLabel, passed: true, output };
     gates.push(result);
     console.log(output);
     return result;
   } catch (err: any) {
     const output = err.stdout || '';
     const stderr = err.stderr || '';
-    const result: GateResult = { name, command: cmd, passed: false, output: output + stderr };
+    const result: GateResult = { name, command: cmdLabel, passed: false, output: output + stderr };
     gates.push(result);
     if (output) console.log(output);
     if (stderr) console.error(stderr);
@@ -89,7 +97,7 @@ function main(): void {
   }
 
   const campaignDir = resolveCampaignPath(args.campaign);
-  const campaignArg = `--campaign "${campaignDir}"`;
+  const campaignArgs = ['--campaign', campaignDir];
 
   console.log('\n═══════════════════════════════════════════════════');
   console.log('   Hermes Newsletter System — Production Gate');
@@ -97,13 +105,13 @@ function main(): void {
   console.log(`\n   Campaña: ${campaignDir}\n`);
 
   // ── Gate 1: validate-newsletter --production ──────────────────────────
-  const g1 = runGate('validate-newsletter --production', 'validate-newsletter.ts', [campaignArg, '--production']);
+  runGate('validate-newsletter --production', 'validate-newsletter.ts', [...campaignArgs, '--production']);
 
   // ── Gate 2: check-links --strict ──────────────────────────────────────
-  const g2 = runGate('check-links --strict', 'check-links.ts', [campaignArg, '--strict']);
+  runGate('check-links --strict', 'check-links.ts', [...campaignArgs, '--strict']);
 
   // ── Gate 3: validate-claims --production ──────────────────────────────
-  const g3 = runGate('validate-claims --production', 'validate-claims.ts', [campaignArg, '--production']);
+  runGate('validate-claims --production', 'validate-claims.ts', [...campaignArgs, '--production']);
 
   // ── Resultados ─────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(60)}`);

@@ -40,6 +40,15 @@
   imagen hasta provocar `moderation_blocked`. El script ahora guarda prompt attempt, descripción
   visual raw/sanitized y error JSON antes de fallar, y sanitiza referencias a personajes, logos,
   emblemas, modelos/matrículas, URLs, precios y lenguaje de copia literal de landing.
+- **`engine/CHANGELOG.md` — solo append, nunca reescritura completa** (incidente 2026-08-01,
+  ver `docs/incidente-changelog-engine-2026-08-01.md`): una sesión externa usó `write_file`
+  (reescribe el archivo entero) en vez de `patch`/append para añadir una entrada, y perdió el
+  91% del historial (~2.777 → 148 líneas) de forma irreversible porque el repo no tenía control
+  de versiones. Mitigación aplicada: `scripts/backup-changelog.ts` (`npm run changelog:backup`)
+  copia el archivo con timestamp a `_archive/changelog-backups/` — ejecutarlo SIEMPRE antes de
+  tocar `engine/CHANGELOG.md`, y editar solo por append/patch, nunca reescribiendo el archivo
+  completo. El repo ya tiene git desde 2026-07-27, así que un futuro incidente igual sería
+  recuperable — pero la regla de comportamiento sigue siendo la primera línea de defensa.
 
 ## Known Gotchas
 
@@ -137,5 +146,14 @@ necesite exactamente 2 tarjetas.
   `CAMBIOS_REALIZADOS.md`, `INVENTARIO_ORIGEN.md` o `RIESGOS_Y_PENDIENTES.md`** para el estado
   actual del sistema — describen el empaquetado original (2026-07-09) y quedan marcados como
   históricos. Usar `context.md` + `AGENTS.md` + este archivo.
+- **No reescribir `engine/CHANGELOG.md` completo bajo ningún concepto** (`write_file` o
+  equivalente) — solo append/patch, y solo después de `npm run changelog:backup`. Ver Known
+  Gotchas / Critical Decisions para el incidente que motivó esta regla.
 
-_Last updated: 2026-07-27_
+Actualización 2026-07-28 (evolución enterprise post-auditoría): implementadas las Fases A-D del
+roadmap de la auditoría técnica (`docs/auditoria-tecnica-hermes-newsletter-system.md` si se copió
+al repo, o ver el informe entregado en sesión) — fiabilidad de gates (`execFileSync` + timeout,
+`runChildGate()`), backup de CHANGELOG, coherencia documental, unificación de brand packs,
+reducción de duplicación. Detalle completo en el informe final de la implementación.
+
+_Last updated: 2026-07-28_

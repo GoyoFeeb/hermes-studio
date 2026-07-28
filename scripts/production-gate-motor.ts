@@ -11,7 +11,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import Ajv from 'ajv';
 import { CLAIM_RULES, scanField, type MatchResult } from './lib/claim-rules';
 
@@ -19,6 +19,47 @@ import { CLAIM_RULES, scanField, type MatchResult } from './lib/claim-rules';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 const SCHEMA_PATH = path.join(ROOT, 'engine', 'schema', 'campaign-data.schema.json');
+const TSX_BIN = path.join(ROOT, 'node_modules', '.bin', 'tsx');
+
+// Fix (auditoría enterprise 2026-07-28): cada gate hijo se invocaba con execSync sobre un
+// string interpolado a mano (`"${tsx}" "${script}" --campaign "${campaignDir}"`), ejecutado
+// vía /bin/sh — inseguro por diseño (una ruta de campaña con comillas/backticks/$() se
+// interpretaría como shell) y sin timeout (el gate legacy production-gate.ts sí lo tenía;
+// se perdió al migrar). execFileSync con array de argumentos no pasa por ningún shell —
+// cero riesgo de inyección — y aquí se centraliza el timeout una sola vez para los 9 gates
+// hijos en vez de tener que añadirlo en cada uno.
+const CHILD_GATE_TIMEOUT_MS = 120_000;
+
+/** Ejecuta un binario+args como gate hijo, con timeout. Sin shell de por medio. */
+function execChildGate(bin: string, args: string[], errorMsg: string): string[] {
+  const errors: string[] = [];
+  try {
+    const output = execFileSync(bin, args, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+      timeout: CHILD_GATE_TIMEOUT_MS,
+    });
+    console.log(output);
+  } catch (err: any) {
+    const output = (err.stdout || '') + (err.stderr || '');
+    console.log(output);
+    if (err.killed || err.signal) {
+      errors.push(
+        `Proceso terminado tras superar el timeout de ${CHILD_GATE_TIMEOUT_MS / 1000}s ` +
+        `(${bin} ${args.join(' ')}) — ver salida arriba.`
+      );
+    } else {
+      errors.push(errorMsg);
+    }
+  }
+  return errors;
+}
+
+/** Ejecuta un script de scripts/ vía tsx como gate hijo. */
+function runChildGate(scriptName: string, args: string[], errorMsg: string): string[] {
+  const script = path.join(ROOT, 'scripts', scriptName);
+  return execChildGate(TSX_BIN, [script, ...args], errorMsg);
+}
 
 interface GateResult {
   name: string;
@@ -107,22 +148,12 @@ function gate1Schema(dataPath: string): GateResult {
 // siguiente paso lo regenere.
 function gate2ParityAuditPreBuild(campaignDir: string): GateResult {
   runGateHeader(2, 'paridad del export existente (check-parity.ts — ANTES de reconstruir)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-  const script = path.join(ROOT, 'scripts', 'check-parity.ts');
-  const cmd = `"${tsx}" "${script}" --campaign "${campaignDir}"`;
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('check-parity.ts detectó una desviación en el export existente — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'parity (pre-build)', passed: errors.length === 0, errors, warnings };
+  const errors = runChildGate(
+    'check-parity.ts',
+    ['--campaign', campaignDir],
+    'check-parity.ts detectó una desviación en el export existente — ver el mensaje exacto arriba.'
+  );
+  return { name: 'parity (pre-build)', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Gate 3: build limpio ─────────────────────────────────────────────────────
@@ -132,21 +163,14 @@ function gate2ParityAuditPreBuild(campaignDir: string): GateResult {
 
 function gate3Build(dataPath: string, outDir: string): GateResult {
   runGateHeader(3, 'build limpio (engine/build-newsletter.js)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const cmd = `node "${path.join(ROOT, 'engine', 'build-newsletter.js')}" --data "${dataPath}" --out "${outDir}"`;
-  console.log(`   ${cmd}\n`);
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('El build terminó en exit ≠ 0 — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'build', passed: errors.length === 0, errors, warnings };
+  const buildScript = path.join(ROOT, 'engine', 'build-newsletter.js');
+  console.log(`   node "${buildScript}" --data "${dataPath}" --out "${outDir}"\n`);
+  const errors = execChildGate(
+    'node',
+    [buildScript, '--data', dataPath, '--out', outDir],
+    'El build terminó en exit ≠ 0 — ver el mensaje exacto arriba.'
+  );
+  return { name: 'build', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Gate 4: claims (sobre campaign-data.json) ───────────────────────────────
@@ -204,7 +228,20 @@ function gate4Claims(dataPath: string): GateResult {
     errors.push(`No existe ${dataPath} — no se puede escanear claims.`);
     return { name: 'claims', passed: false, errors, warnings };
   }
-  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+
+  // Fix (auditoría enterprise 2026-07-28): este JSON.parse no tenía su propio try/catch —
+  // dependía por completo de que gate1Schema ya hubiera validado el archivo antes. Si el
+  // archivo se corrompe/cambia entre gates (proceso externo concurrente, ver el incidente del
+  // CHANGELOG en esta misma sesión), este gate moría con un stack trace de Node sin capturar
+  // en vez de un fallo de gate legible — el mismo patrón de bug que el comentario de arriba ya
+  // documenta como corregido para el caso de archivo ausente, pero no para el de JSON inválido.
+  let data: any;
+  try {
+    data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  } catch (err) {
+    errors.push(`campaign-data.json no es JSON válido al escanear claims: ${(err as Error).message}`);
+    return { name: 'claims', passed: false, errors, warnings };
+  }
   const matches = scanCampaignDataForClaims(data);
 
   if (matches.length === 0) {
@@ -323,22 +360,12 @@ async function gate5Assets(inlinePath: string): Promise<GateResult> {
 
 function gate6ControlFiles(campaignDir: string): GateResult {
   runGateHeader(6, 'control files (check-control-files.ts)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-  const script = path.join(ROOT, 'scripts', 'check-control-files.ts');
-  const cmd = `"${tsx}" "${script}" --campaign "${campaignDir}"`;
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('check-control-files.ts detectó un desajuste — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'control-files', passed: errors.length === 0, errors, warnings };
+  const errors = runChildGate(
+    'check-control-files.ts',
+    ['--campaign', campaignDir],
+    'check-control-files.ts detectó un desajuste — ver el mensaje exacto arriba.'
+  );
+  return { name: 'control-files', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Gate 7: equilibrio de columnas (check-column-balance.ts) ───────────────
@@ -351,22 +378,12 @@ function gate6ControlFiles(campaignDir: string): GateResult {
 
 function gate7ColumnBalance(campaignDir: string): GateResult {
   runGateHeader(7, 'equilibrio de columnas (check-column-balance.ts)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-  const script = path.join(ROOT, 'scripts', 'check-column-balance.ts');
-  const cmd = `"${tsx}" "${script}" --campaign "${campaignDir}"`;
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('check-column-balance.ts detectó columnas descompensadas — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'column-balance', passed: errors.length === 0, errors, warnings };
+  const errors = runChildGate(
+    'check-column-balance.ts',
+    ['--campaign', campaignDir],
+    'check-column-balance.ts detectó columnas descompensadas — ver el mensaje exacto arriba.'
+  );
+  return { name: 'column-balance', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Gate 8: fidelidad del brand pack (check-brand-pack-completeness.ts) ────
@@ -380,22 +397,12 @@ function gate7ColumnBalance(campaignDir: string): GateResult {
 
 function gate8BrandPackCompleteness(campaignDir: string): GateResult {
   runGateHeader(8, 'fidelidad del brand pack (check-brand-pack-completeness.ts)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-  const script = path.join(ROOT, 'scripts', 'check-brand-pack-completeness.ts');
-  const cmd = `"${tsx}" "${script}" --campaign "${campaignDir}"`;
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('check-brand-pack-completeness.ts detectó un hueco silencioso o un placeholder sin resolver — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'brand-pack-completeness', passed: errors.length === 0, errors, warnings };
+  const errors = runChildGate(
+    'check-brand-pack-completeness.ts',
+    ['--campaign', campaignDir],
+    'check-brand-pack-completeness.ts detectó un hueco silencioso o un placeholder sin resolver — ver el mensaje exacto arriba.'
+  );
+  return { name: 'brand-pack-completeness', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Gate 9: contraste WCAG automático (check-contrast.ts) ──────────────────
@@ -406,22 +413,12 @@ function gate8BrandPackCompleteness(campaignDir: string): GateResult {
 
 function gate9Contrast(campaignDir: string): GateResult {
   runGateHeader(9, 'contraste WCAG automático (check-contrast.ts)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-  const script = path.join(ROOT, 'scripts', 'check-contrast.ts');
-  const cmd = `"${tsx}" "${script}" --campaign "${campaignDir}"`;
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('check-contrast.ts detectó una combinación por debajo de su umbral WCAG — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'contrast', passed: errors.length === 0, errors, warnings };
+  const errors = runChildGate(
+    'check-contrast.ts',
+    ['--campaign', campaignDir],
+    'check-contrast.ts detectó una combinación por debajo de su umbral WCAG — ver el mensaje exacto arriba.'
+  );
+  return { name: 'contrast', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Gate 10: preparación para producción (check-production-readiness.ts) ──
@@ -432,22 +429,12 @@ function gate9Contrast(campaignDir: string): GateResult {
 
 function gate10ProductionReadiness(campaignDir: string): GateResult {
   runGateHeader(10, 'preparación para producción (check-production-readiness.ts)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-  const script = path.join(ROOT, 'scripts', 'check-production-readiness.ts');
-  const cmd = `"${tsx}" "${script}" --campaign "${campaignDir}"`;
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('check-production-readiness.ts detectó un placeholder que no puede llegar a producción — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'production-readiness', passed: errors.length === 0, errors, warnings };
+  const errors = runChildGate(
+    'check-production-readiness.ts',
+    ['--campaign', campaignDir],
+    'check-production-readiness.ts detectó un placeholder que no puede llegar a producción — ver el mensaje exacto arriba.'
+  );
+  return { name: 'production-readiness', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Gate 11: decisión de hero (check-hero-decision.ts) ──
@@ -460,22 +447,12 @@ function gate10ProductionReadiness(campaignDir: string): GateResult {
 
 function gate11HeroDecision(campaignDir: string): GateResult {
   runGateHeader(11, 'decisión de hero (check-hero-decision.ts)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-  const script = path.join(ROOT, 'scripts', 'check-hero-decision.ts');
-  const cmd = `"${tsx}" "${script}" --campaign "${campaignDir}"`;
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('check-hero-decision.ts detectó que se cumplen los criterios de hero-imagen pero no se evaluó — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'hero-decision', passed: errors.length === 0, errors, warnings };
+  const errors = runChildGate(
+    'check-hero-decision.ts',
+    ['--campaign', campaignDir],
+    'check-hero-decision.ts detectó que se cumplen los criterios de hero-imagen pero no se evaluó — ver el mensaje exacto arriba.'
+  );
+  return { name: 'hero-decision', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Gate 12: diferenciación estructural (check-structural-differentiation.ts) ──
@@ -489,22 +466,12 @@ function gate11HeroDecision(campaignDir: string): GateResult {
 
 function gate12StructuralDifferentiation(campaignDir: string): GateResult {
   runGateHeader(12, 'diferenciación estructural (check-structural-differentiation.ts)');
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-  const script = path.join(ROOT, 'scripts', 'check-structural-differentiation.ts');
-  const cmd = `"${tsx}" "${script}" --campaign "${campaignDir}"`;
-  try {
-    const output = execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
-    console.log(output);
-  } catch (err: any) {
-    const output = (err.stdout || '') + (err.stderr || '');
-    console.log(output);
-    errors.push('check-structural-differentiation.ts detectó una estructura sin traducción de marca real — ver el mensaje exacto arriba.');
-  }
-
-  return { name: 'structural-differentiation', passed: errors.length === 0, errors, warnings };
+  const errors = runChildGate(
+    'check-structural-differentiation.ts',
+    ['--campaign', campaignDir],
+    'check-structural-differentiation.ts detectó una estructura sin traducción de marca real — ver el mensaje exacto arriba.'
+  );
+  return { name: 'structural-differentiation', passed: errors.length === 0, errors, warnings: [] };
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
@@ -554,17 +521,11 @@ async function main(): Promise<void> {
   // es fiable: se comprueba ANTES que todo lo demás.
   runGateHeader(0, 'integridad del motor (check-engine-integrity.ts)');
   {
-    const tsx = path.join(ROOT, 'node_modules', '.bin', 'tsx');
-    const script = path.join(ROOT, 'scripts', 'check-engine-integrity.ts');
-    const errors: string[] = [];
-    try {
-      const output = execSync(`"${tsx}" "${script}"`, { cwd: ROOT, encoding: 'utf-8' });
-      console.log(output);
-    } catch (err: any) {
-      const output = (err.stdout || '') + (err.stderr || '');
-      console.log(output);
-      errors.push('El motor difiere de engine/components.lock.json — ver el detalle arriba. No se certifica nada construido con un motor alterado.');
-    }
+    const errors = runChildGate(
+      'check-engine-integrity.ts',
+      [],
+      'El motor difiere de engine/components.lock.json — ver el detalle arriba. No se certifica nada construido con un motor alterado.'
+    );
     gates.push({ name: 'engine-integrity', passed: errors.length === 0, errors, warnings: [] });
     if (errors.length > 0) {
       // Sin motor íntegro, el resto de gates carecen de sentido — reporte corto y salida.
