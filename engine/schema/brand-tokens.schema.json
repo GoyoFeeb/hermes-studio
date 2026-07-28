@@ -79,6 +79,28 @@
       "additionalProperties": true,
       "description": "Añadido 2026-07-28. Informativo — el comportamiento responsive real del email ya vive en el CSS bulletproof de cada componente del motor; este campo documenta cómo se comporta el SITIO REAL de referencia. No es required. Ver metodología §14."
     },
+    "compositionProfile": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Añadido 2026-07-28 (Fase F1, docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md). A diferencia de photography/iconography (observados con getComputedStyle), estos 3 campos son juicio de composición — igual que layout.sectionStyle ya lo era desde 2026-07-22 (ver patterns/institutional.md §7.3: 'UAX → centrado, Óptica 2000 → asimetrico', decidido por tono, no medido). No required todavía — ningún brand pack real lo tiene aún; agents/03-newsletter-architect.md §'Perfil de composición de marca' define el fallback exacto cuando está ausente.",
+      "properties": {
+        "personality": {
+          "type": "string",
+          "enum": ["sobria", "premium", "editorial", "comercial", "juvenil", "tecnica", "institucional"],
+          "description": "Enum cerrado (no voice.tone en prosa libre) para que agents/03-newsletter-architect.md pueda ramificar sobre él de forma determinista."
+        },
+        "densityPreference": {
+          "type": "string",
+          "enum": ["alta", "media", "baja"],
+          "description": "Hasta que spacing.* se consuma en el motor (Fase F3), solo afecta a cuántos módulos opcionales de la zona libre se incluyen — no al espaciado renderizado."
+        },
+        "alignmentBias": {
+          "type": "string",
+          "enum": ["centrado", "asimetrico", "alternado"],
+          "description": "Extiende layout.sectionStyle (binario, global) a un tercer valor real: 'alternado' permite mezclar variantes centrado/asimetrico módulo a módulo dentro de la misma campaña, algo que el sistema no hacía nunca antes de esta fase."
+        }
+      }
+    },
     "assets": {
       "type": "object",
       "additionalProperties": true,

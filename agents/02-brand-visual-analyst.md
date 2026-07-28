@@ -165,6 +165,33 @@ Estructura de las 3 secciones (además de las ya existentes — `colors`, `typog
 Campos nuevos opcionales (informativos, no consumidos por `{{token:...}}` — ver metodología §03,
 §04, §14 para su propósito exacto): `layout.grid`, `spacing.webObserved`, `responsive`.
 
+**`compositionProfile` (añadido 2026-07-28, Fase F1 — a diferencia de los anteriores, SÍ se
+consume con lógica real, no solo se documenta):** ver
+`docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md` y
+`03-newsletter-architect.md` §"Perfil de composición de marca". Este agente lo escribe con el
+MISMO criterio de juicio que ya usa para `layout.sectionStyle` (2026-07-22: decidido por tono de
+marca observado, no medido con `getComputedStyle` — ver `patterns/institutional.md` §7.3, "UAX →
+centrado por tono institucional/cercano, Óptica 2000 → asimetrico por tono cercano/profesional").
+No es una investigación nueva — es formalizar en un enum cerrado el mismo juicio de tono que ya
+se hace para `voice.tone`/`sectionStyle`:
+
+```json
+"compositionProfile": {
+  "personality": "sobria | premium | editorial | comercial | juvenil | tecnica | institucional",
+  "densityPreference": "alta | media | baja",
+  "alignmentBias": "centrado | asimetrico | alternado"
+}
+```
+
+`personality` se deriva de `voice.tone` (ya observado) forzado a uno de los 7 valores cerrados —
+si `voice.tone` no encaja limpiamente en ninguno, elegir el más cercano y anotarlo en
+`_changelog`, nunca dejar `compositionProfile` a medias (o se escriben los 3 campos, o no se
+escribe el bloque — un `personality` sin `alignmentBias` deja a 03 sin poder aplicar la tabla
+completa). Como con `sectionStyle`, no todas las marcas necesitan `alignmentBias:"alternado"` —
+es una opción nueva (Fase F1), no una recomendación por defecto; úsala solo cuando el ritmo real
+de la página de la marca (`layout.contentRhythm`) muestre secciones con tratamientos visuales
+genuinamente distintos entre sí, no para "romper la monotonía" sin evidencia.
+
 ### Válvula de escape (documentada, no silenciosa)
 
 Si el cliente no tiene sitio web propio, o el sitio es inaccesible (JS bloqueado, requiere

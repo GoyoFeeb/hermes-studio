@@ -1,8 +1,9 @@
 # 03 — Newsletter Architect
 
 Base: fila `03` de `pipeline-skill/references/agent-roles.md` + fase 03 de `phase-gates.md`
-(F2: elige patrón real de `patterns/`, no módulos abstractos). Revisado 2026-07-21 (backup en
-`_archive/agents-backup-2026-07-21/`).
+(F2: elige patrón real de `patterns/`, no módulos abstractos). Revisado 2026-07-28 (Fase F1,
+`compositionProfile` — ver `docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md`;
+revisión anterior 2026-07-21 en `_archive/agents-backup-2026-07-21/`).
 
 ## Objetivo
 
@@ -13,11 +14,12 @@ rellenarán en ese orden. Cero decisiones visuales, cero copy.
 
 `00-brief/brief.md`, `00-brief/requirements.md`, `02-analysis/brand-analysis.md`,
 `02-analysis/visual-analysis.md`, `02-analysis/risks.md`, el `brand-tokens.json` completo de la
-marca (en particular `layout.contentRhythm`, `photography`, `iconography` — ver
-`02-brand-visual-analyst.md` §5), y el catálogo `patterns/` (hoy `saving.md`, `institutional.md`
-y `fotografia-primero.md` — regla anti-aspiracional: no se crea un patrón sin campaña real que
-lo necesite; los 3 existentes nacieron cada uno de una campaña real que no encajaba en los
-anteriores, ver el encabezado de cada archivo).
+marca (en particular `layout.contentRhythm`, `photography`, `iconography`, `compositionProfile`
+— ver `02-brand-visual-analyst.md` §5 y §"Perfil de composición de marca" más abajo), y el
+catálogo `patterns/` (hoy `saving.md`, `institutional.md` y `fotografia-primero.md` — regla
+anti-aspiracional: no se crea un patrón sin campaña real que lo necesite; los 3 existentes
+nacieron cada uno de una campaña real que no encajaba en los anteriores, ver el encabezado de
+cada archivo).
 
 ## Tareas
 
@@ -62,6 +64,53 @@ concreta del brand pack, no contra una impresión de género:
 Esta elección se documenta en `module-selection.md` con el motivo explícito (qué campo del brand
 pack la justifica), con el mismo nivel de exigencia que ya aplica a la elección de hero (ver
 abajo) — nunca "porque no es una campaña de ahorro" sin más.
+
+**`compositionProfile` NO participa en esta elección.** Qué patrón usar es una pregunta sobre el
+CONTENIDO disponible (¿hay cifra de ahorro? ¿domina la fotografía?), no sobre la personalidad de
+la marca — una marca "juvenil" con una campaña de ahorro real sigue siendo `saving`. Mezclar
+personalidad de marca en la elección de patrón contradeciría la evidencia de contenido con una
+preferencia de estilo. `compositionProfile` actúa DESPUÉS de elegir patrón — ver la sección
+siguiente.
+
+## Perfil de composición de marca (`compositionProfile`)
+
+Añadido 2026-07-28 (Fase F1, `docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md`).
+Motivo: medir 23 campañas reales de 13 marcas mostró que, aunque la gramática de `patterns/`
+permite reordenar y repetir bloques desde 2026-07-24, **ninguna campaña real ejerce esa
+libertad** — todas transcriben el orden por defecto del patrón. El campo que se creó
+específicamente para forzar diferenciación real (`layout.brandStructure`/`compositionArchetype`,
+2026-07-27) nunca llegó a ramificar ninguna decisión de este agente: solo se documentaba, nunca
+se leía con lógica condicional real. `compositionProfile` reemplaza esa promesa incumplida con 3
+campos de tipo cerrado (`enum`, ver `engine/schema/brand-tokens.schema.json`) diseñados para que
+ESTE agente los use de verdad, no solo los cite.
+
+**Si `brand-tokens.json` no declara `compositionProfile`** (el caso de todos los brand packs
+reales hoy — ningún pack existente lo tiene todavía): usar el comportamiento que ya existía antes
+de esta fase, sin cambios — orden por defecto según §"Componer la secuencia" de siempre,
+`layout.sectionStyle` si existe, sin sesgo de densidad. No inventar un perfil de composición
+que 02 no investigó.
+
+**Cuando SÍ está declarado, tabla de aplicación** (usa solo variantes que YA existen en el motor
+— ningún componente nuevo, ningún cambio de motor en esta fase):
+
+| Campo | Valor | Efecto en ESTE agente |
+|---|---|---|
+| `alignmentBias` | `centrado` | Prefiere la variante centrada en cada módulo con hermano `-asimetrico` disponible (igual que `layout.sectionStyle:centrado` ya hacía, pero declarado explícitamente por módulo, no solo globalmente). |
+| `alignmentBias` | `asimetrico` | Prefiere la variante `-asimetrico`/invertida en cada módulo que la tenga. |
+| `alignmentBias` | `alternado` | **Nuevo — no existía ninguna forma de hacer esto antes de esta fase.** Alterna deliberadamente centrado/asimétrico módulo a módulo dentro de la MISMA campaña (ej. `intro-cta` centrado → `columns-3-beneficios-asimetrico` → `usp-cards` centrado). Documentar en `module-selection.md` qué módulo usa qué variante y por qué esa alternancia (no al azar — debe seguir el ritmo real de `layout.contentRhythm` si existe, o al menos evitar que dos módulos consecutivos usen la misma alineación). |
+| `densityPreference` | `alta` | Incluir más módulos opcionales de la zona libre de los que el contenido mínimo exige, siempre que el brief aporte contenido real para cada uno (nunca "por si acaso" — sigue vigente §"No hacer"). |
+| `densityPreference` | `baja` | Incluir solo los módulos obligatorios del patrón más, como mucho, 1 opcional con el contenido más fuerte del brief. |
+| `densityPreference` | `media` | Sin sesgo — mismo criterio de "según el contenido que el brief realmente aporta" que ya regía antes de esta fase. |
+| `personality` | cualquier valor | Guía la elección ENTRE módulos opcionales ya permitidos por el patrón (ej. `editorial`/`premium`/`sobria` → preferir `editorial-foto-texto*` sobre `category-grid*` cuando ambos son válidos y hay contenido para los dos; `comercial`/`juvenil` → preferir catálogo/grid sobre bloque editorial). **Nunca decide silueta de CTA ni ningún valor que 02 deba verificar con evidencia real** (`components.cta.style`, colores, tipografía) — eso sigue siendo estrictamente observado, no inferido de la personalidad declarada. |
+
+`personality`/`densityPreference` pueden además ser el **desempate** (no el criterio principal) en
+§"Elegir hero" cuando las 2 preguntas obligatorias de esa sección dan "No" a las dos y queda por
+decidir entre `hero-asimetrico`/`hero-centrado` sin que ninguna de las dos esté forzada por una
+cifra confirmada — ver la nota en esa sección.
+
+Documentar en `module-selection.md` qué combinación de `compositionProfile` se leyó y cómo se
+aplicó (o que estaba ausente y se usó el comportamiento por defecto) — mismo nivel de exigencia
+que ya rige el resto de este agente: nunca una decisión estructural sin motivo escrito.
 
 ## Elegir hero
 
@@ -109,6 +158,14 @@ que el motivo para descartarlo sea bueno, solo que existe.
 - **`hero-marca-*`** solo si 02 completó el flujo de "Claude design" y hay un candidato aceptado
   para esa marca (ver `02-brand-visual-analyst.md` §"Hero de marca").
 
+  **Desempate con `compositionProfile`** (solo si, tras aplicar los 3 criterios de arriba, sigue
+  habiendo ambigüedad real entre `hero-asimetrico`/`hero-centrado` — nunca para forzar una cifra
+  que no existe): `personality` en `comercial`/`juvenil` inclina hacia `hero-asimetrico` si hay
+  algún dato numérico aprovechable aunque no sea el eje central de la campaña; `personality` en
+  `editorial`/`premium`/`sobria` inclina hacia `hero-centrado` en vez de forzar un dato secundario
+  al hero. Esto es un desempate, no un criterio nuevo — las 2 preguntas obligatorias de arriba
+  siguen decidiendo primero.
+
 **Nota si el patrón elegido es `fotografia-primero`:** ese patrón solo admite `hero-imagen`,
 sin fallback (ver `patterns/fotografia-primero.md` §3) — si al llegar aquí no hay landing/URL
 de referencia útil para anclar la generación, la elección de patrón en sí fue incorrecta;
@@ -147,10 +204,18 @@ ocurrió con `hero-imagen` (§"Elegir hero": la investigación existía y no lle
    con fotografía en una marca cuya página lo hace) — **y nunca dos iguales seguidos**: eso
    reproduce exactamente el bloque duplicado que `patterns/institutional.md` §9 eliminó. Entre dos
    repeticiones tiene que haber un bloque con fondo/densidad distintos.
-4. Escribir en `module-selection.md` el orden elegido **y su motivo**, citando el campo de
-   `contentRhythm` que lo justifica. Si el orden coincide con el orden por defecto del patrón,
-   decirlo explícitamente y por qué es el correcto para esta marca — "es el orden del patrón" no
-   es un motivo, es la ausencia de uno.
+4. **Aplicar `compositionProfile` si está declarado** (ver §"Perfil de composición de marca"):
+   `densityPreference` decide cuántos opcionales de la zona libre entran (siempre con contenido
+   real detrás — nunca "por si acaso"); `alignmentBias` decide qué variante (centrado/asimétrico)
+   usa cada módulo que tenga hermano — con `alternado`, esto es precisamente el mecanismo que
+   rompe la uniformidad medida en las 23 campañas reales (§"Perfil de composición de marca"):
+   variar la alineación módulo a módulo en vez de fijar una sola para toda la campaña.
+5. Escribir en `module-selection.md` el orden elegido **y su motivo**, citando el campo de
+   `contentRhythm` que lo justifica, más qué variante de alineación usa cada módulo y por qué
+   (citando `compositionProfile.alignmentBias` si existe, o `layout.sectionStyle` si es lo único
+   disponible). Si el orden coincide con el orden por defecto del patrón, decirlo explícitamente y
+   por qué es el correcto para esta marca — "es el orden del patrón" no es un motivo, es la
+   ausencia de uno.
 
 ## Salidas / Escribe
 
@@ -199,6 +264,10 @@ ocurrió con `hero-imagen` (§"Elegir hero": la investigación existía y no lle
   respondidas explícitamente en `module-selection.md`, aunque la respuesta a ambas sea "No" —
   `scripts/check-hero-decision.ts` (Gate 11) falla la campaña si se cumplen las dos y
   `module-selection.md` no menciona `hero-imagen` en ningún sitio.
+- **`module-selection.md` documenta si `compositionProfile` estaba declarado en el brand pack y,
+  si lo estaba, cómo se aplicó** (qué módulo usa qué variante de alineación y por qué, cuántos
+  opcionales entraron por `densityPreference`) — si no estaba declarado, decir explícitamente que
+  se usó el comportamiento por defecto, no dejarlo sin mencionar.
 
 ## Fase completada cuando
 
