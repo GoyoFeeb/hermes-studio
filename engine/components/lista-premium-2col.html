@@ -1,0 +1,54 @@
+<!-- lista-premium-2col.html — misma tarjeta de lista-premium.html (badge de icono + título + cuerpo), en grid de 2 columnas en vez de apilado a ancho completo. Añadido 2026-07-28 (Fase F3, docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md, Bloque 3). Mismo contrato de datos que lista-premium.html — MODULE_ADAPTERS['lista-premium'] calcula además listRows (balancedRows(items,2)), que es lo único que esta plantilla consume. Con 3 ítems (mínimo del schema) reparte [2,1] — el mejor reparto posible con maxPerRow=2, no un huérfano [3,1]. Datos: listSection.{eyebrow,title} + listRows[].items[].{icon,title,body,colWidth,cellPad}. -->
+<tr>
+<td style="background-color:{{token:surfaces.sectionLila}};padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="left" class="mobile-pad-sm" style="padding:56px 24px 44px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" align="left" style="margin:0 0 10px;">
+          <tr><td width="32" height="2" style="background-color:{{token:colors.light}};font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:{{token:colors.light}};margin:0 0 6px;line-height:16px;letter-spacing:3px;text-transform:uppercase;text-align:left;mso-line-height-rule:exactly;">
+          {{data:listSection.eyebrow}}
+        </p>
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:22px;font-weight:800;color:{{token:colors.primary}};margin:0 0 24px;line-height:1.2;letter-spacing:-0.3px;text-align:left;mso-line-height-rule:exactly;">
+          {{data:listSection.title}}
+        </h2>
+{{#each:listRows}}
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="margin:0 0 12px;">
+          <tr>
+{{#each:items}}
+            <td style="width:{{data:colWidth}};padding:{{data:cellPad}};vertical-align:top;" class="mobile-stack">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%" style="background-color:#FFFFFF;border:1px solid {{token:colors.borders.card}};border-radius:{{token:radius.card}}px;box-shadow:{{token:shadows.card}};">
+                <tr><td height="4" style="background-color:{{token:colors.light}};border-radius:{{token:radius.cardStripe}};font-size:0;line-height:0;">&nbsp;</td></tr>
+                <tr>
+                  <td style="padding:18px 16px 20px;">
+                    <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+                      <tr>
+                        <td width="32" valign="middle" style="padding:0 10px 0 0;">
+                          <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                            <tr>
+                              <td align="center" style="background-color:{{token:colors.primary}};border-radius:50%;width:32px;height:32px;line-height:0;">
+                                <img src="{{data:icon}}" alt="" width="32" height="32" style="display:block;outline:none;border:none;width:32px;height:32px;">
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                        <td align="left" valign="middle">
+                          <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:700;color:{{token:colors.primary}};margin:0 0 2px;line-height:18px;mso-line-height-rule:exactly;">{{data:title}}</h3>
+                          <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:400;color:{{token:colors.text.secondary}};margin:0;line-height:1.45;mso-line-height-rule:exactly;">{{data:body}}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+{{/each}}
+          </tr>
+        </table>
+{{/each}}
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

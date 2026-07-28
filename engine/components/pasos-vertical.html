@@ -1,0 +1,44 @@
+<!-- pasos-vertical.html — 2-4 pasos apilados verticalmente con línea conectora entre círculos numerados, en vez de fila horizontal (pasos.html). Añadido 2026-07-28 (Fase F3, docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md, Bloque 3). Mismo contrato de datos que pasos.html — MODULE_ADAPTERS['pasos'] calcula además stepsStacked (withStackGeometry + connectorHeight), que es lo único que esta plantilla consume. Datos: stepsSection.{eyebrow,title} + stepsStacked[].{number,title,body,padIcon,padText,connectorHeight}. connectorHeight es 0 en el último paso (sin línea después) y 24 en los demás — el motor no tiene {{#if}}, así que la ausencia de línea se resuelve con altura 0, no con omitir el elemento. -->
+<tr>
+<td style="background-color:#FFFFFF;padding:0;">
+  <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+    <tr>
+      <td align="center" class="mobile-pad-sm" style="padding:56px 24px 44px;">
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto 10px;">
+          <tr><td width="32" height="2" style="background-color:{{token:colors.light}};font-size:0;line-height:0;">&nbsp;</td></tr>
+        </table>
+        <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;color:{{token:colors.light}};margin:0 0 6px;line-height:16px;letter-spacing:3px;text-transform:uppercase;text-align:center;mso-line-height-rule:exactly;">
+          {{data:stepsSection.eyebrow}}
+        </p>
+        <h2 class="mobile-section-title" style="font-family:{{token:typography.displayFont}};font-size:22px;font-weight:800;color:{{token:colors.primary}};margin:0 0 28px;line-height:1.2;letter-spacing:-0.3px;text-align:center;mso-line-height-rule:exactly;">
+          {{data:stepsSection.title}}
+        </h2>
+        <table border="0" cellpadding="0" cellspacing="0" role="presentation" width="100%">
+{{#each:stepsStacked}}
+          <tr>
+            <td width="56" valign="top" align="center" style="padding:{{data:padIcon}}">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                <tr><td align="center" style="background-color:{{token:colors.accentHaloLight}};border-radius:50%;padding:4px;line-height:0;">
+                  <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr><td align="center" style="background-color:{{token:colors.primary}};border-radius:50%;width:40px;height:40px;line-height:0;">
+                      <p style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:800;color:#FFFFFF;margin:0;line-height:40px;text-align:center;mso-line-height-rule:exactly;">{{data:number}}</p>
+                    </td></tr>
+                  </table>
+                </td></tr>
+                <tr><td align="center" style="padding:6px 0 0;">
+                  <table border="0" cellpadding="0" cellspacing="0" role="presentation"><tr><td width="2" height="{{data:connectorHeight}}" style="background-color:{{token:colors.borders.card}};font-size:0;line-height:0;">&nbsp;</td></tr></table>
+                </td></tr>
+              </table>
+            </td>
+            <td valign="top" align="left" style="padding:{{data:padText}}">
+              <h3 style="font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:{{token:colors.primary}};margin:0 0 4px;line-height:20px;mso-line-height-rule:exactly;">{{data:title}}</h3>
+              <p style="font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;color:{{token:colors.text.secondary}};margin:0;line-height:1.5;mso-line-height-rule:exactly;">{{data:body}}</p>
+            </td>
+          </tr>
+{{/each}}
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+</tr>

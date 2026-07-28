@@ -1,5 +1,38 @@
 # Changelog — engine/
 
+## 2026-07-28 — Fase F3 Bloque 3 (flexibilidad estructural): 3 variantes de layout nuevas
+
+A partir de docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md — 13 de los 27
+componentes no tenían NINGUNA variante de layout (solo un tratamiento visual posible), frente a
+7 pares `-asimetrico`/invertidos ya existentes. Se generalizó el mecanismo ya probado a los 3
+componentes con demanda real confirmada (uso en campañas reales, `pasos` además obligatorio en
+`saving`): `category-grid` (1 sola campaña real, UAX) queda fuera de esta pasada por demanda
+insuficiente.
+
+- `engine/components/pasos-vertical.html` (nuevo) — apilado con línea conectora entre círculos
+  numerados, en vez de fila horizontal. `MODULE_ADAPTERS['pasos']` gana `stepsStacked`
+  (`withStackGeometry` + `connectorHeight`: 0 en el último paso, 24 en los demás — el motor no
+  tiene `{{#if}}`, así que la ausencia de línea se resuelve con altura 0, no omitiendo el
+  elemento) junto al `steps` ya existente — mismo patrón dual que `columns-3-beneficios` ya usa.
+- `engine/components/lista-premium-2col.html` (nuevo) — 2 columnas en vez de apilado a ancho
+  completo. `MODULE_ADAPTERS['lista-premium']` gana `listRows` (`balancedRows(items,2,gutter)`)
+  junto al `listItems` ya existente. Con 3 ítems (mínimo del schema) reparte `[2,1]` — el mejor
+  reparto posible con `maxPerRow=2`, no un huérfano `[3,1]`.
+- `engine/components/trust-bar-inline.html` (nuevo) — texto en línea con separador `•`, sin
+  píldora de fondo ni círculos de check (minimalista/editorial vs. comercial). Sin cambio de
+  adaptador — `trust-bar` ya está fijo a exactamente 3 y ya expone `trustItems[0..2]` literal;
+  alias directo, igual que `banda-cierre-asimetrico`.
+
+`engine/schema/campaign-data.schema.json`: los 3 branches (`pasos`, `lista-premium`, `trust-bar`)
+pasan de `component:{const:"X"}` a `component:{enum:["X","X-variante"]}` — mismo mecanismo que
+los 6 pares `-asimetrico` ya usan, sin cambio de contrato de datos. `patterns/saving.md`: las 3
+líneas de gramática correspondientes ganan la alternativa nueva.
+
+Verificado: build real con datos de ejemplo usando los 3 nombres nuevos de componente (sin
+error), captura de `preview-html.ts` con los 3 en la misma campaña (sin regresión visual, los 3
+se ven exactamente como se diseñaron), `check-component-inventory.ts` sin deriva (30 componentes,
+antes 27).
+
 ## 2026-07-28 — Fase F3 Bloque 2 (flexibilidad estructural): spacing.* real en gutter/gap
 
 A partir de docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md — `spacing.*`

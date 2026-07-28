@@ -332,7 +332,8 @@
             "additionalProperties": false,
             "properties": {
               "component": {
-                "const": "trust-bar"
+                "enum": ["trust-bar", "trust-bar-inline"],
+                "description": "'trust-bar-inline' añadido 2026-07-28 (Fase F3) — misma forma de dato (trustItems[0..2]), tratamiento en línea sin píldora/círculos en vez de pill con checks."
               },
               "data": {
                 "type": "object",
@@ -512,7 +513,8 @@
             "additionalProperties": false,
             "properties": {
               "component": {
-                "const": "pasos"
+                "enum": ["pasos", "pasos-vertical"],
+                "description": "'pasos-vertical' añadido 2026-07-28 (Fase F3) — misma forma de dato, apilado con línea conectora en vez de fila horizontal."
               },
               "data": {
                 "type": "object",
@@ -572,7 +574,8 @@
             "additionalProperties": false,
             "properties": {
               "component": {
-                "const": "lista-premium"
+                "enum": ["lista-premium", "lista-premium-2col"],
+                "description": "'lista-premium-2col' añadido 2026-07-28 (Fase F3) — misma tarjeta y forma de dato, grid de 2 columnas en vez de apilado a ancho completo."
               },
               "data": {
                 "type": "object",

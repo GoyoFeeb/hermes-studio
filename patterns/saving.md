@@ -39,13 +39,20 @@ directamente (`{{data:preheader}}`).
      con `layout.sectionStyle:"asimetrico"` (paraycompara, tarifalo — las dos) no podían usarlo.
      Era un hueco real del patrón, no una decisión. -->
 1. hero-asimetrico|hero-centrado|hero-imagen|hero-marca-* (required)
-- trust-bar (optional, max 1)
+- trust-bar|trust-bar-inline (optional, max 1)
 - card-tarifa|card-tarifa-3 (required, max 2)
-- pasos (required, max 1)
-- lista-premium (optional, max 2)
+- pasos|pasos-vertical (required, max 1)
+- lista-premium|lista-premium-2col (optional, max 2)
 2. banda-cierre|banda-cierre-asimetrico (required)
 3. footer (required)
 <!-- /PATTERN_SEQUENCE -->
+
+<!-- NOTA 2026-07-28 (Fase F3, docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md,
+     Bloque 3): trust-bar-inline/pasos-vertical/lista-premium-2col añadidos como alternativas —
+     mismo contrato de datos que su contraparte, layout distinto en la plantilla. Cuál usa cada
+     campaña es una decisión de composición de 03 (compositionProfile.alignmentBias, ver
+     agents/03-newsletter-architect.md), no una decisión del motor. -->
+
 
 ## 2. Reglas de ritmo
 

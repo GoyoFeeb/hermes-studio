@@ -34,9 +34,12 @@
 | `cta-text-link-bulletproof.html` | `cta.href`, `cta.label` (scope del PADRE) | Silueta TERCERA de CTA (2026-07-25) — texto subrayado + flecha "→", sin cápsula de color. Tokens: `colors.primary` (texto), `typography.displayFont`, `typography.cta.size/weight/letterSpacing`. Sin bloque VML (un link de texto no necesita el parche de Outlook clásico). Se activa vía `components.cta.style`/`components.ctaSecondary.style` = `"text-link"` — ver nota de arriba |
 | `cta-block-bulletproof.html` | `cta.href`, `cta.label` (scope del PADRE) | Silueta CUARTA de CTA (2026-07-25) — bloque sólido, `border-radius:0` fijo (NO lee `radius.ctaPill` — el punto es una silueta distinta a la píldora, no una píldora de radio bajo). Misma flecha "→" dentro del bloque. Se activa vía `components.cta.style` = `"block"` — ver nota de arriba |
 | `trust-bar.html` | `trustItems[0..2].text` | **Exactamente 3** — único módulo de lista que sigue fijo tras la ronda de conteos variables (2026-07-24): sus ítems van separados por una `<td width="1">` que el último no lleva, y generalizarlo exige rehacer el separador. Ver `patterns/institutional.md` §11 |
+| `trust-bar-inline.html` | Igual que `trust-bar.html` (mismo adaptador — alias directo) | Añadido 2026-07-28 (Fase F3). Texto en línea con separador `•`, sin píldora de fondo ni círculos de check — tratamiento minimalista/editorial |
 | `card-tarifa.html` | `cardsSection.{eyebrow,title,subtitle}` + `cards[0..3].{icon,title,body,href,linkLabel}` | Grid 2×2 FIJO de 4 (limitación conocida) |
 | `pasos.html` | `stepsSection.{eyebrow,title}` + `steps[].{number,title,body}` (via `{{#each}}`) | **2-4** desde 2026-07-24 (antes exactamente 3) |
+| `pasos-vertical.html` | Igual que `pasos.html` + `stepsStacked[]` (mismo adaptador, campo nuevo) | Añadido 2026-07-28 (Fase F3). Apilado con línea conectora entre círculos, en vez de fila horizontal |
 | `lista-premium.html` | `listSection.{eyebrow,title}` + `listItems[]` (`icon`,`title`,`body` sin prefijo, via `{{#each}}`) | 3-4 ítems (rango variable verificado en F5) |
+| `lista-premium-2col.html` | Igual que `lista-premium.html` + `listRows[]` (mismo adaptador, campo nuevo) | Añadido 2026-07-28 (Fase F3). Grid de 2 columnas en vez de apilado a ancho completo — con 3 ítems reparte [2,1] (`balancedRows`) |
 | `banda-cierre.html` | `closing.{title,body}`, `cta.*` (via include) | Fondo colors.deep |
 | `footer.html` | `footer.{brandName,tagline,disclosure,unsubscribeUrl,preferencesUrl,legalLine}` | — |
 | `header.html` | — | STUB no usado (logo vive en hero-asimetrico, decisión F1) |

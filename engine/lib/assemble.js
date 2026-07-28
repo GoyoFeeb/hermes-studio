@@ -174,13 +174,28 @@ const MODULE_ADAPTERS = {
     cardsSection: { eyebrow: data.eyebrow, title: data.title, subtitle: data.subtitle },
     cards: data.items
   }),
-  'pasos': (data, tokens) => ({
-    stepsSection: { eyebrow: data.eyebrow, title: data.title },
-    steps: withCellGeometry(data.items, data.items.length, gutterFromTokens(tokens, 10))
-  }),
-  'lista-premium': (data) => ({
+  'pasos': (data, tokens) => {
+    const stacked = withStackGeometry(data.items, stackGapFromTokens(tokens, 20));
+    const last = stacked.length - 1;
+    return {
+      stepsSection: { eyebrow: data.eyebrow, title: data.title },
+      // steps (fila horizontal, pasos.html) y stepsStacked (apilado con conector, pasos-vertical.html,
+      // 2026-07-28 — Fase F3) — mismo dato base, dos formas, igual que columns-3-beneficios ya hace.
+      // connectorHeight es propio de pasos-vertical.html: 0 en el último paso (sin línea, no hay
+      // paso siguiente), 24 en los demás — el motor de plantillas no tiene {{#if}}, así que la
+      // "ausencia" de línea se resuelve con altura 0, no con omitir el elemento.
+      steps: withCellGeometry(data.items, data.items.length, gutterFromTokens(tokens, 10)),
+      stepsStacked: stacked.map((item, idx) => ({ ...item, connectorHeight: idx === last ? 0 : 24 }))
+    };
+  },
+  'lista-premium': (data, tokens) => ({
     listSection: { eyebrow: data.eyebrow, title: data.title },
-    listItems: data.items
+    // listItems (apilado a ancho completo, lista-premium.html) y listRows (2 columnas,
+    // lista-premium-2col.html, 2026-07-28 — Fase F3) — mismo dato base, dos formas. Con 3 ítems
+    // (el mínimo del schema), balancedRows(items,2) reparte [2,1] — el mejor reparto posible con
+    // maxPerRow=2, no un huérfano [3,1].
+    listItems: data.items,
+    listRows: balancedRows(data.items, 2, gutterFromTokens(tokens, 10))
   }),
   'banda-cierre': (data) => ({
     closing: { title: data.title, body: data.body, cta: data.cta },
@@ -265,6 +280,15 @@ MODULE_ADAPTERS['editorial-foto-texto-inverso'] = MODULE_ADAPTERS['editorial-fot
 // Mismo motivo que el resto: layout distinto en la plantilla .html, forma del dato idéntica.
 MODULE_ADAPTERS['card-tarifa-3'] = MODULE_ADAPTERS['card-tarifa'];
 MODULE_ADAPTERS['category-grid-img'] = MODULE_ADAPTERS['category-grid'];
+// pasos-vertical / lista-premium-2col / trust-bar-inline (2026-07-28 — Fase F3, ver
+// docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md, Bloque 3): mismo mecanismo
+// de alias que los pares de arriba — mismo contrato de datos, layout distinto en la plantilla.
+// trust-bar-inline no necesita ninguna forma de dato nueva (trust-bar ya está fijo a exactamente
+// 3 y su adaptador ya expone trustItems[0..2] literal), por eso es un alias puro sin cambios
+// previos al adaptador base, a diferencia de pasos/lista-premium que sí ganaron una segunda forma.
+MODULE_ADAPTERS['pasos-vertical'] = MODULE_ADAPTERS['pasos'];
+MODULE_ADAPTERS['lista-premium-2col'] = MODULE_ADAPTERS['lista-premium'];
+MODULE_ADAPTERS['trust-bar-inline'] = MODULE_ADAPTERS['trust-bar'];
 
 /** Escapa &, < y > en contenido de campaña insertado en contexto HTML (spec del prompt 13). */
 function escapeHtml(value) {

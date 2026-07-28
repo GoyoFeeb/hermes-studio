@@ -175,3 +175,43 @@ test('metric-strip-premium adapter uses tokens.spacing.small in place of its own
   assert.equal(withTokens.metricItems[0].cellPad, '0 8px 0 0');
   assert.equal(withoutTokens.metricItems[0].cellPad, '0 10px 0 0');
 });
+
+// ── Fase F3 Bloque 3: pasos-vertical / lista-premium-2col / trust-bar-inline ──
+
+test('pasos adapter computes stepsStacked with connectorHeight 0 only on the last item', () => {
+  const items = [
+    { number: '01', title: 'A', body: '' },
+    { number: '02', title: 'B', body: '' },
+    { number: '03', title: 'C', body: '' }
+  ];
+  const scope = MODULE_ADAPTERS['pasos']({ eyebrow: 'E', title: 'T', items });
+  assert.equal(scope.stepsStacked.length, 3);
+  assert.equal(scope.stepsStacked[0].connectorHeight, 24);
+  assert.equal(scope.stepsStacked[1].connectorHeight, 24);
+  assert.equal(scope.stepsStacked[2].connectorHeight, 0);
+  // padIcon/padText siguen viniendo de withStackGeometry, sin cambio de contrato
+  assert.equal(scope.stepsStacked[2].padIcon, '0 16px 0 0');
+});
+
+test('pasos-vertical is aliased to the exact same adapter function as pasos', () => {
+  assert.equal(MODULE_ADAPTERS['pasos-vertical'], MODULE_ADAPTERS['pasos']);
+});
+
+test('lista-premium adapter computes listRows alongside listItems ([2,1] split for 3 items)', () => {
+  const items = [
+    { icon: 'i', title: 'A', body: '' },
+    { icon: 'i', title: 'B', body: '' },
+    { icon: 'i', title: 'C', body: '' }
+  ];
+  const scope = MODULE_ADAPTERS['lista-premium']({ eyebrow: 'E', title: 'T', items });
+  assert.deepEqual(scope.listItems, items);
+  assert.deepEqual(scope.listRows.map((r) => r.items.length), [2, 1]);
+});
+
+test('lista-premium-2col is aliased to the exact same adapter function as lista-premium', () => {
+  assert.equal(MODULE_ADAPTERS['lista-premium-2col'], MODULE_ADAPTERS['lista-premium']);
+});
+
+test('trust-bar-inline is aliased to the exact same adapter function as trust-bar (no new data shape needed)', () => {
+  assert.equal(MODULE_ADAPTERS['trust-bar-inline'], MODULE_ADAPTERS['trust-bar']);
+});
