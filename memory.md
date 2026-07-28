@@ -175,4 +175,22 @@ brand packs reales existentes NO se poblaron con los archivos nuevos en esta pas
 navegar cada sitio real con Chrome) — quedan pendientes de que el agente 02 se ejecute de nuevo
 por marca.
 
+Actualización 2026-07-28 (diagnóstico "newsletters genéricas" + Fase F1, commit `fa84814`):
+usuario reportó que las newsletters se ven intercambiables entre marcas. Investigación de 3
+agentes en paralelo (23 campañas reales / 13 marcas) confirmó la hipótesis con prueba directa:
+las campañas "brand-native" de bandera de Audi y BMW (2026-08-01, construidas para demostrar
+diferenciación estructural) son byte-idénticas entre sí. Diagnóstico completo en
+`docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md` (causas raíz: `pattern.js`
+solo gobierna secuencia, nunca layout; 13 de 27 componentes no tienen ninguna variante de
+alineación; `spacing.*` 100% sin consumir; `layout.brandStructure` nunca ramifica ninguna
+decisión real). Fase F1 implementada: `compositionProfile` (`personality`/`densityPreference`/
+`alignmentBias`) en `brand-tokens.schema.json`, consumido de verdad por
+`agents/03-newsletter-architect.md` (no solo documentado — precedente exacto de por qué
+`brandStructure` fracasó). `alignmentBias:"alternado"` es la pieza nueva: por primera vez el
+sistema puede mezclar centrado/asimétrico módulo a módulo en la misma campaña. Ningún brand pack
+real tiene el campo todavía — sin efecto hasta que 02 lo escriba por marca. Fases F2-F5 (Gate 12
+con comparación cruzada real, generalizar variantes de alineación a los 13 componentes que no
+tienen ninguna, activar `spacing.*`, patrones nuevos por tipo de newsletter) quedan pendientes,
+documentadas en el mismo informe.
+
 _Last updated: 2026-07-28_
