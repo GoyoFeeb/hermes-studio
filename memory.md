@@ -162,4 +162,17 @@ se evaluó y se decidió NO ejecutar (con motivo), en
 `docs/propuesta-reorganizacion-agentes-2026-07-28.md`. Roadmap de QA visual real (Fase E, sin
 ejecutar) en `docs/roadmap-qa-visual-2026-07-28.md`.
 
+Actualización 2026-07-28 (evolución "Nivel 5" del agente 02, commit `4050b71`): `agents/
+02-brand-visual-analyst.md` reescrito para producir, además del brand pack, un paquete técnico
+completo de identidad visual — CSS extraído (`brands/{cliente}/styles/{reference,email-safe}.css`),
+inventario de componentes UI del sitio real (`brands/{cliente}/guidelines/component-inventory.md`
+— **no confundir con `engine/components/INVENTORY.md`**, catálogo distinto), guías de responsive/
+adaptación a email/dirección de arte, e informe consolidado (`02-analysis/visual-identity-report.md`).
+Metodología completa (17 fases forenses) en `pipeline-skill/references/
+brand-visual-analysis-methodology.md`. Gate 13 nuevo (`check-brand-visual-report-completeness.ts`)
+— deliberadamente NO bloqueante hoy (ningún brand pack real tiene aún estos 9 archivos). Los 12
+brand packs reales existentes NO se poblaron con los archivos nuevos en esta pasada (requiere
+navegar cada sitio real con Chrome) — quedan pendientes de que el agente 02 se ejecute de nuevo
+por marca.
+
 _Last updated: 2026-07-28_
