@@ -220,8 +220,25 @@ tuvo comodín que lo detectara (el mismo tipo de bloqueo ya afectaba a campañas
 nuevo, es cobertura nueva del mismo criterio). Pendiente: si esta campaña de paraycompara necesita
 su propio `brand-structure-translation.md` o si el orden comodín es en efecto correcto para esa
 marca (en cuyo caso solo falta documentarlo) — no se tocó, fuera del alcance de F2 (ver
-`docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md`). Fases F3-F5 (generalizar
-variantes de alineación a los 13 componentes que no tienen ninguna, activar `spacing.*`, patrones
-nuevos por tipo de newsletter) quedan pendientes.
+`docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md`).
+
+Actualización 2026-07-28 (Fase F3, commits `ed06b8d`/`9e67bc1`/`9f1c429`, 3 bloques):
+- **Bloque 1**: `spacing.*` unificado a forma canónica en los 13 brand packs REALMENTE
+  trackeados en git (no 15 — `brands/adidas/`/`brands/new-balance/` existían en disco sin estar
+  trackeados, pertenecientes a la sesión concurrente activa; se tocaron por error y se
+  revirtieron, ver Do NOT). Tipos reales en `brand-tokens.schema.json`.
+- **Bloque 2**: `spacing.small`/`spacing.medium` ahora son gutter/gap real de los 8 componentes
+  con geometría adaptativa (antes literales fijos 10/6/20) — `pasos.html` además tenía un bug
+  latente (hardcodeaba padding ignorando su propio `cellPad`), corregido. Gutter cambia de verdad
+  para los 13 packs reales (10→8px, 6→8px) — verificado sin regresión visual.
+- **Bloque 3**: 3 componentes nuevos (`pasos-vertical`, `lista-premium-2col`,
+  `trust-bar-inline`) para los 3 de los 4 candidatos originales con demanda real confirmada
+  (`category-grid`, 1 sola campaña real, quedó fuera). 30 componentes en total (antes 27).
+
+Detalle completo, incluida la corrección de un incidente evitado a tiempo (ver Do NOT: nunca usar
+`json.loads()`/`json.dumps()` para mutar JSON en bloque — colapsa duplicados en silencio y
+reformatea el archivo entero), en `docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md`.
+Fase F4 (arreglos mecánicos de `card-tarifa`/`category-grid`) y F5 (patrones nuevos por tipo de
+newsletter, sin fecha) quedan pendientes.
 
 _Last updated: 2026-07-28_
