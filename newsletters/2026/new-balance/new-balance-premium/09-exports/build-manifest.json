@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-07-28T09:20:49.689Z",
+  "campaignDataPath": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/newsletters/2026/new-balance/new-balance-premium/06-data/campaign-data.json",
+  "campaignDataSha256": "7ebd2bff68b04bea1b0dc3427d2ed7549c41ca1727e750b845b48d838f17d1e1",
+  "sourceSha256": "6860e9e364feb822e6062a1fd5142cd993e04f15be9a395411613cd7698864ce",
+  "inlineSha256": "53ef3657ecfe0b43e1942dfababa4871fb27fc8b164c42af8f90e3d63c5b3bbb",
+  "brandPack": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/brands/new-balance/tokens/brand-tokens.json",
+  "brandVersion": "2.2.0",
+  "pattern": "fotografia-primero",
+  "modules": [
+    "header-logo",
+    "hero-imagen",
+    "editorial-foto-texto",
+    "editorial-foto-texto-inverso",
+    "columns-3-beneficios-sin-icono",
+    "banda-cierre",
+    "footer"
+  ],
+  "counts": {
+    "<img": {
+      "source": 4,
+      "inline": 4
+    },
+    "utm_source": {
+      "source": 8,
+      "inline": 8
+    },
+    "v:roundrect": {
+      "source": 8,
+      "inline": 8
+    },
+    "tableBalance": {
+      "source": {
+        "open": 24,
+        "close": 24
+      },
+      "inline": {
+        "open": 24,
+        "close": 24
+      }
+    },
+    "inlineBytes": 22793
+  },
+  "inlineBytes": 22793,
+  "warnings": []
+}

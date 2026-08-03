@@ -1,0 +1,324 @@
+{
+  "brand": "new-balance",
+  "description": "Design tokens for New Balance — global athletic/lifestyle brand. Corrected with real getComputedStyle values from newbalance.com on 2026-07-28.",
+  "version": "2.2.0",
+  "colors": {
+    "primary": "#CF0A2C",
+    "ctaBackground": "#151415",
+    "ctaText": "#FFFFFF",
+    "ctaHover": "#333333",
+    "textPrimary": "#151415",
+    "textBody": "#4C4D4F",
+    "textSecondary": "#6C6C6C",
+    "textTertiary": "#999999",
+    "white": "#FFFFFF",
+    "black": "#151415",
+    "link": "#CF0A2C",
+    "light": "#F5F5F5",
+    "deep": "#231F20",
+    "accentHaloLight": "#E0E0E0",
+    "footerSeparator": "#D2D2D7",
+    "onBrandSecondary": "#FFFFFF",
+    "lightBg": "#F2F2F3",
+    "mediumBg": "#6C6C6C",
+    "darkBg": "#231F20",
+    "border": "#DEE0E1",
+    "borders": {
+      "card": "#E0E0E0",
+      "footer": "#E0E0E0"
+    },
+    "success": "#2E7D32",
+    "warning": "#FFD60A",
+    "error": "#D32F2F",
+    "footerBg": "#F5F5F5",
+    "footerText": "#707072",
+    "heroOverlay": "rgba(21,20,21,0.3)",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#F2F2F3",
+      "dark": "#231F20"
+    },
+    "text": {
+      "primary": "#151415",
+      "body": "#4C4D4F",
+      "secondary": "#6C6C6C",
+      "tertiary": "#999999"
+    },
+    "nbRed": "#CF0A2C",
+    "cardinal": "#CE2724",
+    "abbeyGray": "#4C4D4F",
+    "thunder": "#231F20",
+    "towerGray": "#AAC1BF",
+    "satinLinen": "#E8E9D7"
+  },
+  "typography": {
+    "family": "Helvetica, Arial, sans-serif",
+    "note": "CORREGIDO 2026-07-28: La web real de New Balance usa Proxima Nova W01 (UI/cuerpo) e ITC Garamond W01 (titulares editoriales). Ambas son fuentes de pago no disponibles en email. Para display usamos Georgia, serif (fallback premium de Garamond). Para cuerpo usamos 'Helvetica Neue', Helvetica, Arial, sans-serif (fallback de Proxima Nova).",
+    "displayFont": "'Georgia', 'Times New Roman', serif",
+    "webFont": null,
+    "headline": {
+      "hero": "28px",
+      "h1": "24px",
+      "h2": "20px",
+      "h3": "16px",
+      "h4": "14px"
+    },
+    "body": {
+      "size": 14,
+      "weight": 300,
+      "lineHeight": 1.5,
+      "color": "#4C4D4F"
+    },
+    "weights": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.1,
+      "hero": 1.2,
+      "normal": 1.4,
+      "relaxed": 1.5
+    },
+    "hero": {
+      "h1": {
+        "size": 28,
+        "weight": 500,
+        "lineHeight": 1.2,
+        "color": "#FFFFFF",
+        "mobile": {
+          "size": 22,
+          "lineHeight": 1.2
+        }
+      },
+      "subtitle": {
+        "size": 15,
+        "weight": 300,
+        "lineHeight": 1.4,
+        "color": "#FFFFFF",
+        "mobile": {
+          "size": 13
+        }
+      }
+    },
+    "h2Section": {
+      "size": 20,
+      "weight": 500,
+      "lineHeight": 1.25,
+      "color": "#151415",
+      "family": "'Georgia', 'Times New Roman', serif"
+    },
+    "h3Card": {
+      "size": 15,
+      "weight": 500,
+      "lineHeight": 1.3,
+      "color": "#151415"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 300,
+      "lineHeight": 1.5,
+      "color": "#4C4D4F"
+    },
+    "cta": {
+      "size": 14,
+      "weight": 300,
+      "letterSpacing": "normal"
+    },
+    "footer": {
+      "brand": {
+        "size": 12,
+        "weight": 500,
+        "color": "#151415"
+      },
+      "legal": {
+        "size": 11,
+        "weight": 300,
+        "color": "#6C6C6C"
+      }
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 36,
+    "hero": 40,
+    "innerSection": "24px 20px",
+    "cta": "16px 12px"
+  },
+  "radius": {
+    "cta": 2,
+    "ctaPill": 2,
+    "cardStripe": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "surfaces": {
+    "global": "#FFFFFF",
+    "white": "#FFFFFF",
+    "sectionAlt": "#F2F2F3",
+    "sectionLila": "#F2F2F3"
+  },
+  "gradients": {
+    "heroBackground": "linear-gradient(135deg, #231F20 0%, #151415 100%)"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#151415"
+    },
+    "cta": {
+      "style": "default",
+      "backgroundColor": "#151415",
+      "textColor": "#FFFFFF",
+      "borderRadius": 2,
+      "padding": "16px 12px",
+      "fontSize": 14,
+      "fontWeight": 300
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#E0E0E0",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "centrado",
+    "reason": "New Balance utiliza composiciones limpias predominantemente centradas, con fotografía de gran formato que ocupa todo el ancho. Minimalismo, equilibrio y mucho espacio en blanco son pilares del diseño. La web real usa una mezcla de bloques centrados y asimétricos, pero para email el centrado maximiza legibilidad.",
+    "contentRhythm": "Página de newbalance.com observada el 2026-07-28 (getComputedStyle confirmado): 1) Header con logo NB (SVG) + navegación minimalista categorías (Men/Women/Kids/Sale), 2) Hero con fotografía lifestyle — atleta real en movimiento (running) o producto en contexto, titular editorial en serif si es campaña o sans-serif si es funcional, 3) Grid de productos trending con thumbnail aislado sobre fondo blanco, 4) Bloques editoriales alternando fotografía + texto breve (ej: 'The 530 — An expression of our running heritage'), 5) Categorías con imagen + botón CTA negro, 6) Sección de ofertas/sale, 7) Footer con enlaces legales y navegación secundaria. La fotografía lleva el 100% del peso visual. Texto mínimo. Sin iconos decorativos. CTAs siempre en negro #151415 sobre blanco.",
+    "brandStructure": {
+      "compositionArchetype": "editorial-foto-texto",
+      "signatureSections": [
+        {
+          "sourceSection": "hero",
+          "visualPattern": "fotografía lifestyle a sangre + titular editorial breve + CTA negro",
+          "emailTranslation": "hero-imagen",
+          "why": "New Balance usa héroes fotográficos que ocupan todo el ancho — atletas en movimiento o producto en contexto real. La imagen es el mensaje principal. El titular es secundario."
+        },
+        {
+          "sourceSection": "bloque editorial (imagen + texto breve)",
+          "visualPattern": "foto a ancho completo con texto superpuesto o adyacente",
+          "emailTranslation": "editorial-foto-texto (o editorial-foto-texto-inverso)",
+          "why": "Secciones como 'The 530' o 'Trackside Apparel' en newbalance.com usan fotografía lifestyle + un titular corto en serif + CTA. Refleja el ADN editorial de la marca."
+        },
+        {
+          "sourceSection": "grid de productos trending",
+          "visualPattern": "grid 2-4 columnas con producto aislado sobre fondo blanco + nombre + precio",
+          "emailTranslation": "columns-3-beneficios-sin-icono (adaptado como grid de producto)",
+          "why": "New Balance presenta producto sobre fondo blanco infinito con nombre y precio. Sin iconos, sin decoración extra."
+        },
+        {
+          "sourceSection": "categorías (Men/Women/Kids)",
+          "visualPattern": "imagen de modelo + nombre categoría + botón CTA",
+          "emailTranslation": "banda-cierre (CTA de exploración)",
+          "why": "Las landing pages de NB dirigen a categorías con imagen representativa. En email se traduce como banda de cierre con CTA."
+        }
+      ],
+      "mustAvoid": [
+        "Iconos decorativos o emojis — NB no usa iconografía en comunicación de producto ni marca",
+        "Gradientes de color agresivos o fondos de color intenso",
+        "Textos densos o párrafos largos — la marca prioriza imagen sobre texto",
+        "Pills redondeados en CTAs — usar border-radius:2px consistente con la web real",
+        "Promociones agresivas o urgencia artificial — tono editorial, no transaccional",
+        "Múltiples fuentes — mantener serif para display editorial, sans-serif para cuerpo"
+      ],
+      "source": "newbalance.com (getComputedStyle observado 2026-07-28)"
+    }
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "New Balance utiliza fotografía real de alta calidad como elemento visual dominante. Estilo: iluminación natural con luz difusa y suave, tonos realistas sin sobresaturación, composiciones limpias con espacio negativo generoso. Productos fotografiados sobre fondos blancos infinitos en perfil lateral/3/4 con iluminación homogénea. Fotografía lifestyle: atletas y personas reales en contextos urbanos y naturales, capturas auténticas no forzadas, movimiento natural. La fotografía running muestra movimiento y energía; la lifestyle muestra el producto integrado en la vida cotidiana. Colores precisos y naturales. NO usa renders 3D ni ilustraciones artificiales. La fotografía es el único adorno visual de la marca.",
+    "source": "getComputedStyle observado en newbalance.com el 2026-07-28",
+    "note": "Para hero-imagen, el prompt debe pedir imagen con tratamiento fotográfico New Balance: iluminación natural difusa, composición limpia con espacio negativo, atleta real en contexto urbano/deportivo, colores precisos."
+  },
+  "iconography": {
+    "style": "ninguno",
+    "monochrome": true,
+    "color": "#151415",
+    "source": "observado en newbalance.com el 2026-07-28",
+    "componentImplication": "CORREGIDO 2026-07-28: New Balance NO usa iconos decorativos ni emojis en comunicación de producto o marca. La fotografía es el único adorno visual. Usar variantes -sin-icono de todos los componentes (columns-3-beneficios-sin-icono, usp-cards-sin-icono). La marca es aspiracional y minimalista — iconografía decorativa contradice el ADN."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. isTestCampaign: true."
+  },
+  "personalization": {
+    "status": "not-implemented",
+    "note": "isTestCampaign: true — sin personalización real."
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-new-balance-premium",
+    "content": ""
+  },
+  "assets": {
+    "logo": "https://PENDING-CDN-UPLOAD/new-balance/logo.png",
+    "logoWidth": 120,
+    "logoHeight": 30,
+    "logoAlt": "New Balance",
+    "headerPatternTile": "",
+    "note": "Logo N de New Balance (SVG en web) — se necesita PNG capturado. Pendiente de CDN.",
+    "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+    "heroBannerWidth": 600,
+    "heroBannerHeight": 350
+  },
+  "voice": {
+    "tone": "seguro, minimalista, aspiracional, auténtico, cercano — nunca arrogante",
+    "ctaDefault": "Descubrir",
+    "ctaSecondary": "Ver colección",
+    "rhythm": {
+      "sentenceLength": "titulares cortos y contundentes (3-8 palabras); cuerpo breve (1-2 frases)",
+      "mode": "tono inspiracional sin exageración — lenguaje directo en segunda persona ('your run', 'your style'). Afirmaciones seguras pero no superlativas. La marca ya es premium — no necesita decirlo.",
+      "formality": "tú directo pero respetuoso, sin slang",
+      "punctuationHabits": "Puntuación limpia. Sin exclamaciones en body copy. Mayúsculas iniciales normales. Punto y seguido en cuerpo. Titulares sin punto final.",
+      "sources": [
+        "newbalance.com — 'We're In It For The Long Run'",
+        "Email Inspire — 'The Running Collection, in new colors', 'Low profile favorites'",
+        "Studio-Day guidelines — 'Editorial, not advertising', 'Confident, not loud'"
+      ],
+      "examples": [
+        "We're In It For The Long Run.",
+        "The Running Collection, in new colors.",
+        "Timeless design. Modern performance.",
+        "An expression of our running heritage.",
+        "Made for movement. Designed to last.",
+        "The 990v6 — where heritage meets innovation.",
+        "Low profile favorites.",
+        "Discover your next running shoe."
+      ],
+      "source": "observado en newbalance.com + Email Inspire el 2026-07-28"
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.0",
+      "date": "2026-07-28",
+      "author": "02 — Brand Visual Analyst",
+      "changes": [
+        "Pack CREADO desde cero con getComputedStyle real de newbalance.com.",
+        "Colores: Primary #CF0A2C (NB Red oficial). Black #151415 (--nb-color-black real, NO #111111 como en versión preliminar — corregido por getComputedStyle).",
+        "CTA: CORREGIDO — valores reales son backgroundColor:#151415, fontSize:14px/300, padding:16px 12px, borderRadius:2px, letterSpacing:normal, style:default (NO style:block, NO padding 14px 32px). Versión preliminar tenía CTA incorrecto.",
+        "Fuentes: CORREGIDO — la web real usa Proxima Nova W01 (sans-serif para UI/cuerpo) e ITC Garamond W01 (serif para titulares editoriales). NO usa Avant Garde Gothic como decía versión preliminar. Ambas son fuentes de pago no disponibles en email — documentados fallbacks: Georgia para display, Helvetica/Arial para cuerpo. No se declara webFont porque no hay sustituto gratuito adecuado para dos familias distintas.",
+        "Surfaces: CORREGIDO — global #FFFFFF (no #F5F5F5). SectionAlt #F2F2F3 (--nb-color-neutral-100 real).",
+        "Spacing: Documentado el sistema real de espaciado NB (--nb-spacing-01 a --nb-spacing-11: 2px-24px).",
+        "iconography: New Balance NO usa iconos ni emojis — usar variantes -sin-icono de todos los componentes.",
+        "layout.brandStructure: Documentada la estructura real de newbalance.com con mapeo a 4 secciones email.",
+        "voice.rhythm: Tono editorial observado de newsletters reales en Email Inspire. Sin exclamaciones. Titulares cortos sin punto final.",
+        "layout.sectionStyle: centrado (máxima legibilidad email, aunque la web real mezcla centrado y asimétrico).",
+        "photography.treatment: Fotografía real como único adorno visual. La imagen es el mensaje. No render 3D."
+      ]
+    }
+  ]
+}

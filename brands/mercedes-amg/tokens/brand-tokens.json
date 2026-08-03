@@ -1,0 +1,380 @@
+{
+  "brand": "mercedes-amg",
+  "description": "Design tokens for Mercedes-AMG — marca de altas prestaciones de Mercedes-Benz Group AG (Affalterbach). Creado el 2026-07-30 a partir de observación real de https://www.mercedes-amg.com/en/gt-4-door-coupe y https://www.mercedes-amg.com/en/amg-ea (fetch del HTML servido + extracción de los valores de color y las familias tipográficas declaradas en el propio documento). Campaña de origen: lanzamiento del GT 4 Puertas Coupé eléctrico.",
+  "version": "2.2.0",
+  "colors": {
+    "primary": "#000000",
+    "deep": "#000000",
+    "light": "#B21E23",
+    "ctaBackground": "#B21E23",
+    "ctaText": "#FFFFFF",
+    "ctaHover": "#D8383D",
+    "textPrimary": "#000000",
+    "textBody": "#4F4F4F",
+    "textSecondary": "#9F9F9F",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "link": "#B21E23",
+    "deepAlt": "#1A1A1A",
+    "onBrandSecondary": "#9F9F9F",
+    "subtitleOnBrand": "#9F9F9F",
+    "eyebrowOnBrand": "#B21E23",
+    "border": "#DDDDDD",
+    "accentHaloLight": "#E3E3E3",
+    "footerSeparator": "#DDDDDD",
+    "footerBg": "#F2F2F2",
+    "footerText": "#4F4F4F",
+    "heroScrim": "rgba(0,0,0,0.62)",
+    "borders": {
+      "card": "#DDDDDD",
+      "footer": "#DDDDDD"
+    },
+    "text": {
+      "primary": "#000000",
+      "body": "#4F4F4F",
+      "secondary": "#4F4F4F",
+      "tertiary": "#9F9F9F"
+    },
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#F2F2F2",
+      "dark": "#1A1A1A"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "displayFont": "'Helvetica Neue', Helvetica, Arial, sans-serif",
+    "note": "El sitio real declara 'MBCorpoSText_Regular_Web' para cuerpo y 'MBCorpoSTitle_{Regular,Bold,ExtraBold}_Web' para titulares (observado en las declaraciones font-family y en los .woff2 servidos desde /_next/static/media/ el 2026-07-30). MBCorpo S es la tipografía corporativa propietaria de Mercedes-Benz Group AG: NO es email-safe y no puede embeberse. Es una neo-grotesca de caja estrecha, así que el fallback email-safe más cercano es Helvetica/Arial (ambas en la lista segura de agents/02-brand-visual-analyst.md). Deliberadamente NO se usa una serif (Georgia) para displayFont: sería una traición del carácter tipográfico real de la marca, que es enteramente sans grotesca.",
+    "webFont": null,
+    "eyebrow": {
+      "size": 11,
+      "weight": 700,
+      "letterSpacing": "2px",
+      "transform": "uppercase",
+      "color": "#B21E23"
+    },
+    "hero": {
+      "h1": {
+        "size": 34,
+        "weight": 800,
+        "lineHeight": 1.08,
+        "color": "#FFFFFF"
+      }
+    },
+    "h1Hero": {
+      "size": 34,
+      "weight": 800,
+      "lineHeight": 1.08,
+      "color": "#FFFFFF"
+    },
+    "h1HeroOnBrand": {
+      "size": 34,
+      "weight": 800,
+      "lineHeight": 1.08,
+      "letterSpacing": "-0.6px",
+      "color": "#FFFFFF",
+      "mobile": {
+        "size": 27,
+        "lineHeight": 1.12
+      }
+    },
+    "h2Section": {
+      "size": 24,
+      "weight": 800,
+      "lineHeight": 1.18,
+      "letterSpacing": "-0.4px",
+      "color": "#000000"
+    },
+    "h2OnBrand": {
+      "size": 25,
+      "weight": 800,
+      "lineHeight": 1.16,
+      "letterSpacing": "-0.4px",
+      "color": "#FFFFFF"
+    },
+    "h3Card": {
+      "size": 17,
+      "weight": 700,
+      "lineHeight": 1.28,
+      "color": "#000000"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 400,
+      "lineHeight": 1.6,
+      "color": "#4F4F4F"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.55,
+      "color": "#4F4F4F"
+    },
+    "small": {
+      "size": 12,
+      "weight": 400,
+      "lineHeight": 1.45,
+      "color": "#9F9F9F"
+    },
+    "cta": {
+      "size": 13,
+      "weight": 700,
+      "letterSpacing": "1.5px"
+    },
+    "footerBrand": {
+      "size": 12,
+      "weight": 700,
+      "letterSpacing": "0.4px",
+      "color": "#000000"
+    },
+    "footerTagline": {
+      "size": 12,
+      "weight": 400,
+      "color": "#4F4F4F"
+    },
+    "footerDisclosure": {
+      "size": 12,
+      "weight": 400,
+      "color": "#4F4F4F"
+    },
+    "footerLegal": {
+      "size": 11,
+      "weight": 400,
+      "color": "#9F9F9F"
+    },
+    "footerLinks": {
+      "size": 12,
+      "weight": 400,
+      "color": "#4F4F4F",
+      "textDecoration": "underline"
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 44,
+    "hero": 52,
+    "close": 44,
+    "innerSection": "32px 24px",
+    "cta": "20px 0"
+  },
+  "radius": {
+    "cta": 0,
+    "ctaPill": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "colors.primary y colors.deep son idénticos (#000000) y photography.treatment documenta que la fotografía real lleva todo el peso visual (photographyWeight: dominante, iconDensity: nula). Un degradado sobre un negro sólido añadiría un adorno que el sitio real no usa en ninguna sección. Mismo criterio ya aplicado en brands/bmw. Ver engine/CHANGELOG.md, 'gradientes bulletproof'."
+  },
+  "surfaces": {
+    "global": "#F2F2F2",
+    "white": "#FFFFFF",
+    "sectionLila": "#F2F2F2",
+    "sectionDark": "#1A1A1A"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#000000",
+      "textColor": "#FFFFFF"
+    },
+    "cta": {
+      "backgroundColor": "#B21E23",
+      "textColor": "#FFFFFF",
+      "borderRadius": 0,
+      "padding": "17px 40px",
+      "vml": true
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#DDDDDD",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "centrado",
+    "reason": "Todas las secciones de contenido de mercedes-amg.com/en/gt-4-door-coupe presentan el titular y el párrafo centrados sobre imagen a todo el ancho, sin columna lateral ni composición desplazada. 'centrado' es la lectura literal de la página real, no una preferencia estética.",
+    "contentRhythm": {
+      "realSectionCount": 9,
+      "sections": [
+        {
+          "type": "hero-fotografico",
+          "translatable": true,
+          "note": "Imagen clave a todo el ancho (la misma que el og:image de la página) + H1 corto ('The all-new Mercedes-AMG GT 4-Door Coupé') + un único CTA ('Configure now') + la línea legal de consumo/emisiones. El texto va SOBRE/junto a la fotografía a sangre, no en una banda de color sólido aparte."
+        },
+        {
+          "type": "editorial-foto-texto",
+          "translatable": true,
+          "note": "'World-first innovation Made in Germany' — eyebrow + titular + 2 párrafos + fotografías de apoyo. Es el patrón editorial dominante de la página: se repite 4 veces con distinto contenido."
+        },
+        {
+          "type": "testimonios",
+          "translatable": true,
+          "note": "Cita de Michael Schiebe (presidente del consejo de dirección de Mercedes-AMG GmbH) con retrato. Segunda cita de Ola Källenius más abajo. Traducible como bloque de cita editorial."
+        },
+        {
+          "type": "editorial-foto-texto",
+          "translatable": true,
+          "note": "'Driving pleasure completely re-inspired' — AMG RACE ENGINEER."
+        },
+        {
+          "type": "editorial-foto-texto",
+          "translatable": true,
+          "note": "'A powerhouse of emotions' — batería de alto voltaje inspirada en la Fórmula 1 y carga ultrarrápida."
+        },
+        {
+          "type": "formulario",
+          "translatable": false,
+          "note": "Sección AMGFORCE S+ con 4 reproductores de audio .mp3 reales (Start / Drive by / Drive by fast / Acceleration). El CONTENIDO (cómo se diseñó el sonido) sí es traducible a email; el reproductor de audio embebido NO lo es — ningún cliente de correo reproduce audio de forma fiable. Se traduce como texto editorial, nunca como reproductor."
+        },
+        {
+          "type": "editorial-foto-texto",
+          "translatable": true,
+          "note": "'As aerodynamic as it is breathtaking' — AEROKINETICS activo."
+        },
+        {
+          "type": "grid-producto",
+          "translatable": false,
+          "note": "Galerías de exterior/interior con múltiples fotografías por sección y su línea de emisiones repetida. No se traduce como grid: en email se elige UNA fotografía por escena."
+        },
+        {
+          "type": "tabla-datos",
+          "translatable": false,
+          "note": "'Model overview' — bloques de cifras por variante (696 km / 460 km / 6.4 s / 860 kW) con selector GT 63 / GT 55 y CTA de configurador por versión. Es EXACTAMENTE el formato de 'barra de datos sueltos' que el brief de esta campaña prohíbe explícitamente: se documenta que existe en la web y se decide NO traducirlo. Las cifras viajan al email dentro de frases con verbo."
+        }
+      ],
+      "photographyWeight": "dominante",
+      "iconDensity": "nula",
+      "source": "observado en https://www.mercedes-amg.com/en/gt-4-door-coupe y https://www.mercedes-amg.com/en/amg-ea el 2026-07-30"
+    },
+    "brandStructure": {
+      "compositionArchetype": "producto-cinematico",
+      "signatureSections": [
+        {
+          "sourceSection": "hero",
+          "visualPattern": "foto-full",
+          "emailTranslation": "hero-imagen-sangre",
+          "why": "El hero real es fotografía a sangre con el titular y el CTA integrados sobre la imagen, no una banda de color sólido con la foto encima. hero-imagen.html (foto en su propia fila + texto debajo sobre color plano) no reproduce esa composición; por eso esta campaña añade hero-imagen-sangre al motor."
+        },
+        {
+          "sourceSection": "bloque editorial",
+          "visualPattern": "foto-texto",
+          "emailTranslation": "editorial-foto-texto",
+          "why": "La página repite 4 veces el mismo patrón eyebrow + titular + párrafo breve junto a fotografía. Una sola aparición en el email es la traducción honesta: repetirlo produciría la composición alternada que el brief prohíbe."
+        },
+        {
+          "sourceSection": "AMGFORCE S+ (sonido) + cita de dirección",
+          "visualPattern": "foto-full",
+          "emailTranslation": "escena-oscura-inmersiva",
+          "why": "La sección de sonido de la web es inmersiva y oscura, con audio real que no viaja a email. Se traduce como escena oscura a todo el ancho con fotografía de habitáculo y una cita — recupera el registro sensorial sin fingir un reproductor."
+        }
+      ],
+      "mustAvoid": [
+        "Tiras o tarjetas de cifras sueltas sin verbo (es el formato del 'Model overview' de la web; en email lee como ficha técnica genérica)",
+        "Grids de 3 columnas con icono + título + párrafo: la marca no usa ningún icono en toda la página",
+        "Reconstruir el logotipo con texto y CSS: la marca solo aparece como su lockup oficial (/amg-logo.svg)",
+        "Degradados decorativos sobre negro"
+      ],
+      "source": "https://www.mercedes-amg.com/en/gt-4-door-coupe, observado el 2026-07-30"
+    }
+  },
+  "compositionProfile": {
+    "personality": "premium",
+    "densityPreference": "baja",
+    "alignmentBias": "centrado"
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "Fotografía real de producto, cinematográfica y oscura, que lleva TODO el peso visual de la comunicación — el texto es breve y se apoya en la imagen, nunca al contrario. Planos: laterales y traseros a sangre completa, contrapicados bajos que alargan el capó, primerísimos planos de detalle (estrella iluminada, llanta, mandos giratorios de la consola). Iluminación: alto contraste, negros profundos y reflejos especulares duros sobre la carrocería; escenas nocturnas o de atardecer urbano, y tomas dinámicas con humo de neumático en derrape. Color: desaturado hacia el gris/negro con la carrocería como único acento cromático (amarillo y plata en las tomas de lanzamiento). Composición: el coche ocupa el ancho completo del encuadre y se sale de él; abundante negro alrededor que funciona como espacio tipográfico.",
+    "source": "observado en https://www.mercedes-amg.com/en/gt-4-door-coupe el 2026-07-30 (alt-text y URLs reales de las 20+ imágenes servidas por su CDN de imágenes)",
+    "note": "La campaña usa fotografía REAL de la marca servida desde su propio CDN (https://www.mercedes-amg.com/media/images/...), no arte generado. El CDN es imgix: acepta ?fm=jpg para servir JPEG (email-safe) en vez del .webp/.avif por defecto, y ?w=/&h=/&fit=crop para recortar. Verificado HTTP 200 + Content-Type image/jpeg el 2026-07-30 en las 3 imágenes usadas por la campaña. Por eso este pack NO alimenta generate-hero-image: no hace falta generar nada."
+  },
+  "iconography": {
+    "style": "none",
+    "monochrome": true,
+    "source": "observado en https://www.mercedes-amg.com/en/gt-4-door-coupe el 2026-07-30",
+    "componentImplication": "La página de producto no usa NI UN icono decorativo en ninguna de sus 9 secciones de contenido: los únicos glifos son 2 iconos funcionales de utilidad en el bloque 'GET IN TOUCH' (configurador y buscador de concesionarios). Nunca usar variantes con icono ni iconGlyph/emoji en este pack — si una campaña necesita estructurar argumentos, usar las variantes -sin-icono o un bloque editorial con fotografía."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado. Las metas color-scheme del email quedan forzadas a 'light'. Nota específica de esta marca: la pieza ya es mayoritariamente negra por identidad, así que el riesgo de inversión agresiva en modo oscuro es menor que en una marca de fondo blanco."
+  },
+  "utm": {
+    "convention": "utm_source=newsletter&utm_medium=email&utm_campaign={campaignName}&utm_content={modulo}"
+  },
+  "assets": {
+    "logo": "https://www.mercedes-amg.com/amg-logo.svg",
+    "logoPngRaster": "brands/mercedes-amg/design-input/logo-mercedes-amg-white-588.png",
+    "logoSvgLocal": "brands/mercedes-amg/design-input/logo-mercedes-amg-official.svg",
+    "logoWidth": 150,
+    "logoHeight": 35,
+    "logoAlt": "Mercedes-AMG",
+    "headerPatternTile": "",
+    "note": "assets.logo es el lockup OFICIAL de Mercedes-AMG (estrella + palabra 'MERCEDES-AMG', fill #fff, viewBox 0 0 294 69) servido por el propio sitio de la marca en https://www.mercedes-amg.com/amg-logo.svg — es el archivo que la web usa en su cabecera. Verificado HTTP 200, Content-Type image/svg+xml, 2419 bytes, el 2026-07-30. logoWidth/logoHeight respetan su ratio real (294/69 = 4.26). LIMITACIÓN CONOCIDA Y DOCUMENTADA: SVG no se renderiza en Gmail ni en Outlook clásico (sí en Apple Mail/iOS y clientes modernos). No existe ningún raster del lockup en el dominio oficial (comprobados /amg-logo.png, /logo.png → 404; solo hay apple-touch-icon.png, que es un icono cuadrado de app, no el lockup). Se descarta usar bancos de logos de terceros por no ser fuente oficial. Solución aplicada: el SVG oficial se rasteriza a PNG con sharp (588x138, densidad 600) y queda en design-input/ para que el cliente lo suba a su CDN; en cuanto exista esa URL, sustituir assets.logo por ella. Mientras tanto la pieza referencia el SVG oficial y el <img> lleva alt='Mercedes-AMG', que es lo que Gmail mostrará. En NINGÚN caso se reconstruye el logotipo con texto y CSS."
+  },
+  "voice": {
+    "tone": "intenso, rotundo, sensorial, técnico sin ser frío, orgulloso de la ingeniería",
+    "ctaDefault": "Descubre el GT 4 Puertas Coupé",
+    "ctaSecondary": "Configúralo",
+    "rhythm": {
+      "sentenceLength": "muy corta y declarativa en titulares (3-6 palabras); párrafos de cuerpo densos y técnicos, de 2-4 frases",
+      "mode": "afirmación rotunda, a menudo con estructura de sentencia o paradoja",
+      "formality": "tú",
+      "punctuationHabits": "Frases nominales sin verbo en los titulares. Dos puntos para abrir una explicación técnica. Guiones largos para intercalar. Sin exclamaciones. Cifras siempre con su unidad y su condición de medida al lado.",
+      "examples": [
+        "Too hard to resist",
+        "Resistance is futile: the all-new, fully electric Mercedes-AMG GT 4-Door Coupé is a masterpiece of engineering that heralds a new dimension in performance.",
+        "Doping for the senses",
+        "More than one great sound",
+        "As aerodynamic as it is breathtaking",
+        "Iconic design in top form"
+      ],
+      "source": "observado en https://www.mercedes-amg.com/en/gt-4-door-coupe el 2026-07-30",
+      "note": "Los ejemplos son frases REALES del sitio, en inglés: la versión española de esta página de modelo no se verificó en esta ronda (mercedes-amg.com sirve DE/EN; el mercado español se cubre desde mercedes-benz.es, no navegado aquí). Se usan como referencia de CALIBRE y ritmo — frase nominal ultracorta + explicación técnica densa detrás —, no como texto a traducir. La formalidad 'tú' es inferida para el mercado ES (Mercedes-Benz España tutea en comunicación digital) y queda marcada como inferida, no observada."
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.0",
+      "date": "2026-07-30",
+      "author": "pipeline Hermes (roles 02 + 06) — campaña 'AMG GT 4 Puertas Coupé eléctrico'",
+      "summary": "Creación del brand pack de Mercedes-AMG a partir de observación real del sitio oficial.",
+      "provenance": {
+        "observado": [
+          "colors.light / ctaBackground / link (#B21E23): color hexadecimal MÁS frecuente del documento servido por https://www.mercedes-amg.com/en/gt-4-door-coupe (67 apariciones), con sus estados derivados rgba(178,30,35,0.04) y rgba(178,30,35,0.5) presentes en el mismo CSS. Es el rojo de acento de AMG.",
+          "colors.ctaHover (#D8383D): segunda variante de rojo del mismo documento (10 apariciones).",
+          "colors.textBody (#4F4F4F) y colors.textSecondary/onBrandSecondary (#9F9F9F): 18 apariciones cada uno en el mismo documento.",
+          "colors.primary/deep/black (#000000) y white (#FFFFFF): base cromática del sitio.",
+          "colors.deepAlt / surfaces.sectionDark / background.dark (#1A1A1A): superficie oscura secundaria observada (3 apariciones).",
+          "typography.family y typography.displayFont: familias reales declaradas (MBCorpoSText_Regular_Web, MBCorpoSTitle_{Regular,Bold,ExtraBold}_Web) + los .woff2 servidos desde /_next/static/media/. Mapeadas a su fallback email-safe (ver typography.note).",
+          "assets.logo: /amg-logo.svg, el lockup oficial que usa la cabecera del sitio (HTTP 200 verificado).",
+          "photography.treatment, iconography.style, layout.contentRhythm (9 secciones reales) y voice.rhythm.examples: leídos de la página real de producto."
+        ],
+        "inferido": [
+          "typography.cta.{size,weight,letterSpacing} y components.cta.padding: NO medidos con getComputedStyle (ver válvula de escape). Valores coherentes con un botón rectangular de marca premium automotriz y con el calibre del resto del pack; marcados como inferidos, pendientes de verificación con Chrome real.",
+          "radius.ctaPill = 0 y radius.card = 0: inferidos del lenguaje geométrico del sistema de diseño de Mercedes-Benz (botones y superficies de esquina recta). NO verificado con getComputedStyle sobre el <a> real del CTA. Marcado explícitamente como inferido y NO como 'pastilla porque se ve premium' (la trampa que agents/02-brand-visual-analyst.md §1 advierte).",
+          "surfaces.global (#F2F2F2), colors.border/borders.* (#DDDDDD), colors.accentHaloLight (#E3E3E3): grises de soporte para el lienzo exterior y el footer del email. El sitio real es negro/blanco y no expone un gris de fondo de página equivalente; se elige un gris claro neutro para que el footer (que usa colors.text.secondary sobre surfaces.global) mantenga contraste legible.",
+          "voice.rhythm.formality = 'tú': inferido para el mercado español.",
+          "compositionProfile: 'premium' derivado de voice.tone; 'baja' porque la página real intercala mucho aire y una sola idea por sección; 'centrado' coherente con layout.sectionStyle observado."
+        ],
+        "documentado": []
+      },
+      "valvulaDeEscape": "Este pack se construyó por FETCH del HTML servido (curl + extracción de los valores de color y font-family del propio documento), NO navegando con Chrome real y getComputedStyle como exige agents/02-brand-visual-analyst.md §1. Motivo: en este entorno de ejecución no hay Claude in Chrome MCP ni se ejecutó npm run capture-brand-site. Consecuencia concreta y acotada: los 5 valores del sub-checklist del CTA (fontSize, fontWeight, letterSpacing, padding, borderRadius) y la SILUETA del CTA no están medidos sobre el <a>/<button> real, sino inferidos — quedan marcados como inferidos arriba y NO se escribe components.cta.style (sin evidencia inequívoca, el motor usa pastilla sólida por defecto, que es el comportamiento correcto según el contrato). Todo lo demás del pack sí sale del documento real servido por el dominio oficial. Pendiente para la próxima ronda: verificar los 5 valores del CTA y el radio real con Chrome.",
+      "autocomprobacionCruzada": "Comparado contra brands/bmw/tokens/brand-tokens.json (la otra marca automotriz premium del sistema, investigada el 2026-07-24) para descartar que este pack sea una plantilla sin investigar. Coincidencias: colors.primary/deep = #000000 en ambas (legítimo: las dos marcas son negro-primero, y en BMW está igualmente observado) y typography.family = Arial/Helvetica (legítimo: las dos usan una propietaria no embebible y caen al mismo fallback seguro). DIFERENCIAS reales que confirman investigación independiente: ctaBackground #B21E23 (AMG) vs #1C69D4 (BMW); textBody #4F4F4F vs #262626; textSecondary #9F9F9F vs #6F6F6F; radius.ctaPill 0 vs 3; typography.cta.size 13/700/2px-letterspacing vs la de BMW; displayFont Helvetica Neue vs 'Titillium Web' (BMW sí tiene webFont, AMG no); spacing.section 44 vs 40. No hay 4-5 valores numéricos idénticos a la vez, así que no se dispara la señal de plantilla que el contrato del agente 02 pide reportar.",
+      "notas": [
+        "Este pack NO declara typography.webFont: no se sustituye MBCorpo por una fuente de Google Fonts 'parecida' (lo que sí se hizo con BMW → Titillium Web). Motivo: no se encontró un sustituto real documentado con el mismo carácter, y cargar una fuente web arbitraria por estética contradiría la regla de no inventar valores de marca. Helvetica/Arial es el fallback honesto.",
+        "gradients.heroBackground = 'none' con motivo explícito, igual que BMW."
+      ]
+    }
+  ]
+}

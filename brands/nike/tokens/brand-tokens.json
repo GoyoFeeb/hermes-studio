@@ -1,7 +1,7 @@
 {
   "brand": "nike",
   "description": "Design tokens for Nike — global athletic brand. Created from real observation of nike.com (Pegasus 42 product page) on 2026-07-24.",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "colors": {
     "primary": "#111111",
     "ctaBackground": "#111111",
@@ -231,12 +231,13 @@
     "content": ""
   },
   "assets": {
-    "logo": "",
-    "logoWidth": 80,
-    "logoHeight": 28,
+    "logo": "https://PENDING-CDN-UPLOAD/nike/logo-nike-email.png",
+    "logoSvg": "brands/nike/design-input/nike-swoosh.svg",
+    "logoWidth": 120,
+    "logoHeight": 42,
     "logoAlt": "Nike",
     "headerPatternTile": "",
-    "note": "Logo de Nike (swoosh) pendiente de capturar de nike.com. Se obtendrá PNG del swoosh durante el build.",
+    "note": "Logo swoosh de Nike capturado como SVG desde nike.com (nav principal, clase swoosh-svg, viewBox 0 0 64 22) el 2026-07-29. Convertido a PNG (160x56) via sharp. El SVG original está en brands/nike/design-input/nike-swoosh.svg para referencia.",
     "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/hero-banner.png",
     "heroBannerWidth": 600,
     "heroBannerHeight": 350
@@ -300,6 +301,19 @@
       "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
       "changes": [
         "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 32px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
+      ]
+    }
+  ,
+    {
+      "version": "2.2.4",
+      "date": "2026-07-29",
+      "author": "02 — Brand Visual Analyst (campaña Air Force One)",
+      "changes": [
+        "assets.logo actualizado: capturado el swoosh SVG oficial de nike.com (nav principal, clase swoosh-svg, viewBox 0 0 64 22). Convertido a PNG (160x56) via sharp para email.",
+        "assets.logoSvg añadido: referencia al SVG original en brands/nike/design-input/nike-swoosh.svg.",
+        "logoWidth/logoHeight ajustados a 120/42 para email (antes 80/28 era placeholder).",
+        "assets.note actualizada con procedencia del logo (OBSERVADO de nike.com el 2026-07-29).",
+        "NOTA: brand pack verificado con getComputedStyle contra nike.com/t/air-force-1-07-mens-shoes. Todos los colores y tipografía coinciden con el pack existente v2.2.3."
       ]
     }
   ]

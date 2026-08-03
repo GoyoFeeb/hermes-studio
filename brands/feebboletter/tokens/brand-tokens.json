@@ -1,0 +1,220 @@
+{
+  "brand": "FeebboLetter",
+  "version": "2.2.0",
+  "colors": {
+    "primary": "#111113",
+    "deep": "#0B0B0D",
+    "light": "#4338CA",
+    "white": "#FAFAF9",
+    "ctaBackground": "#111113",
+    "ctaText": "#FAFAF9",
+    "subtitleOnBrand": "#AEADAB",
+    "eyebrowOnBrand": "#AEADAB",
+    "bodySecondary": "#5B5B60",
+    "border": "#E7E6E2",
+    "sectionLila": "#F1F0EC",
+    "global": "#F1F0EC",
+    "onBrandSecondary": "#AEADAB",
+    "accentHaloLight": "#F1F0EC",
+    "footerSeparator": "#E7E6E2",
+    "background": {
+      "white": "#FAFAF9",
+      "sectionAlt": "#F1F0EC",
+      "exterior": "#F1F0EC",
+      "trustBar": "#F1F0EC"
+    },
+    "text": {
+      "primary": "#111113",
+      "secondary": "#5B5B60",
+      "tertiary": "#8B8A8F"
+    },
+    "borders": {
+      "card": "#E7E6E2",
+      "footer": "#E7E6E2"
+    }
+  },
+  "typography": {
+    "family": "Arial, Helvetica, sans-serif",
+    "displayFont": "Georgia, 'Times New Roman', serif",
+    "eyebrow": {
+      "size": 12,
+      "weight": 700,
+      "letterSpacing": "1.5px",
+      "transform": "uppercase",
+      "color": "#4338CA"
+    },
+    "h1Hero": {
+      "size": 30,
+      "weight": 700,
+      "lineHeight": 1.15,
+      "color": "#FAFAF9"
+    },
+    "h1HeroOnBrand": {
+      "size": 30,
+      "weight": 700,
+      "lineHeight": 1.15,
+      "letterSpacing": "-0.5px",
+      "color": "#FAFAF9",
+      "mobile": {
+        "size": 26,
+        "lineHeight": 1.18
+      }
+    },
+    "h2Section": {
+      "size": 22,
+      "weight": 700,
+      "lineHeight": 1.25,
+      "letterSpacing": "-0.3px",
+      "color": "#111113"
+    },
+    "h2OnBrand": {
+      "size": 24,
+      "weight": 700,
+      "lineHeight": 1.2,
+      "letterSpacing": "-0.4px",
+      "color": "#F4F3EF"
+    },
+    "h3Card": {
+      "size": 15,
+      "weight": 700,
+      "lineHeight": 1.3,
+      "color": "#111113"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 400,
+      "lineHeight": 1.6,
+      "color": "#5B5B60"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#5B5B60"
+    },
+    "small": {
+      "size": 12,
+      "weight": 400,
+      "lineHeight": 1.4,
+      "color": "#8B8A8F"
+    },
+    "cta": {
+      "size": 13,
+      "weight": 600,
+      "letterSpacing": "1px"
+    },
+    "footerBrand": {
+      "size": 12,
+      "weight": 600,
+      "letterSpacing": "0.2px",
+      "color": "#111113"
+    },
+    "footerTagline": {
+      "size": 12,
+      "weight": 400,
+      "color": "#5B5B60"
+    },
+    "footerDisclosure": {
+      "size": 12,
+      "weight": 400,
+      "color": "#5B5B60"
+    },
+    "footerLegal": {
+      "size": 11,
+      "weight": 400,
+      "color": "#8B8A8F"
+    },
+    "footerLinks": {
+      "size": 12,
+      "weight": 400,
+      "color": "#5B5B60",
+      "textDecoration": "underline"
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 40,
+    "hero": 56,
+    "close": 48,
+    "innerSection": "24px 20px",
+    "cta": "20px 0"
+  },
+  "radius": {
+    "ctaPill": 0,
+    "card": 0,
+    "cardStripe": "0 0 0 0",
+    "badgeCircle": "50%",
+    "chip": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "DESIGN.md (Do's and Don'ts) prohíbe gradientes en cualquier parte de la superficie FeebboLetter, sin excepción para el fondo del hero de email."
+  },
+  "surfaces": {
+    "global": "#F1F0EC",
+    "white": "#FAFAF9",
+    "sectionLila": "#F1F0EC"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FAFAF9",
+      "textColor": "#111113"
+    },
+    "cta": {
+      "backgroundColor": "#111113",
+      "textColor": "#FAFAF9",
+      "borderRadius": 0,
+      "padding": "18px 40px"
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#E7E6E2"
+    }
+  },
+  "layout": {
+    "sectionStyle": "centrado",
+    "reason": "DESIGN.md no define todavía un sistema de composición asimétrico para FeebboLetter — el sitio web es de una sola columna, restringido, sin variantes de layout alternativas documentadas. 'centrado' es la lectura honesta del sistema actual, no una elección estética añadida aquí."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado. Las metas color-scheme del email quedan forzadas a 'light'."
+  },
+  "assets": {
+    "logo": "https://assets.feebboletter.com/brand/logo-pending.png",
+    "logoWidth": 160,
+    "logoHeight": 40,
+    "logoAlt": "FeebboLetter",
+    "headerPatternTile": ""
+  },
+  "iconography": {
+    "style": "none",
+    "componentImplication": "columns-3-beneficios-sin-icono, usp-cards-sin-icono",
+    "reason": "DESIGN.md (Do's and Don'ts) prohíbe iconos genéricos y tiles de icono en toda la superficie FeebboLetter — 'Process Plates' en la web usa solo numeración y tipografía, nunca iconos. Mismo criterio aplicado aquí: usar solo las variantes de componente sin icono."
+  },
+  "voice": {
+    "tone": "premium, editorial, directo — nunca startup-bro, nunca genérico de IA",
+    "ctaDefault": "Descubrir más",
+    "ctaSecondary": "Ver más"
+  },
+  "_changelog": [
+    {
+      "version": "2.2.0",
+      "date": "2026-07-30",
+      "author": "Primera conexión del motor real de Hermes al estudio /crear de FeebboLetter",
+      "changes": [
+        "Pack creado desde cero. PROCEDENCIA: todos los colores, tipografía, radios y sombras están tomados literalmente de DESIGN.md del proyecto web FeebboLetter (feebboletter/DESIGN.md) — no inventados ni observados de un tercero, porque la marca es la propia herramienta.",
+        "typography.family/displayFont usan Arial/Georgia como fallback email-safe: los tipos web reales (Instrument Sans/Fraunces) no son fiables como @font-face en clientes de correo — Georgia se eligió como el análogo serif más cercano al carácter editorial de Fraunces, igual que ya hace feebboletter/src/lib/newsletter/renderEmailHtml.ts en su plantilla propia.",
+        "colors.subtitleOnBrand/eyebrowOnBrand/onBrandSecondary (#AEADAB) es un gris cálido NO documentado literalmente en DESIGN.md — se calculó para pasar >=4.5:1 sobre colors.primary (#111113), mismo método que brands/uax usó para su propio onBrandSecondary. Confirmar/ajustar si DESIGN.md define en el futuro un tono explícito para texto secundario sobre fondo oscuro fuera de la sección de reveal.",
+        "colors.text.tertiary (#8B8A8F) tampoco está en DESIGN.md — inferido a medio camino entre ink-muted (#5B5B60) y hairline (#E7E6E2) para textos terciarios (footer legal). Pendiente de verificación de contraste si se usa en producción real.",
+        "PENDIENTE BLOQUEANTE: assets.logo es un placeholder (https://assets.feebboletter.com/brand/logo-pending.png) que NO resuelve a un archivo real — el motor exige una URL https pública real (schema $defs.httpsUrl) y no existe todavía un logo de FeebboLetter alojado públicamente. Cualquier build con este pack producirá un <img> roto hasta que se sustituya por una URL real. No usar con metadata.productionReady:true hasta resolver esto."
+      ]
+    }
+  ]
+}

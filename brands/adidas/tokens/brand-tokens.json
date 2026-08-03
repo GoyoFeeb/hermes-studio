@@ -1,0 +1,316 @@
+{
+  "brand": "adidas",
+  "description": "Design tokens for Adidas — global sportswear and lifestyle brand. Created from real observation of adidas.com/us/men on 2026-07-28. Primary: black/white minimalism. Photography-first, square CTAs.",
+  "version": "2.2.0",
+  "colors": {
+    "primary": "#000000",
+    "ctaBackground": "#000000",
+    "ctaText": "#FFFFFF",
+    "ctaHover": "#333333",
+    "textPrimary": "#000000",
+    "textBody": "#5C5C5C",
+    "textSecondary": "#5C5C5C",
+    "textTertiary": "#98999B",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "link": "#000000",
+    "light": "#000000",
+    "deep": "#000000",
+    "accentHaloLight": "#E0E0E0",
+    "footerSeparator": "#D2D2D7",
+    "onBrandSecondary": "#98999B",
+    "lightBg": "#F5F5F5",
+    "mediumBg": "#767677",
+    "darkBg": "#000000",
+    "border": "#D2D2D7",
+    "borders": {
+      "card": "#E0E0E0",
+      "footer": "#E0E0E0"
+    },
+    "success": "#2E7D32",
+    "warning": "#FFD60A",
+    "error": "#D32F2F",
+    "footerBg": "#000000",
+    "footerText": "#5C5C5C",
+    "heroOverlay": "rgba(0,0,0,0.3)",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#F5F5F5",
+      "dark": "#000000"
+    },
+    "text": {
+      "primary": "#000000",
+      "body": "#5C5C5C",
+      "secondary": "#5C5C5C",
+      "tertiary": "#98999B"
+    }
+  },
+  "typography": {
+    "family": "Helvetica, Arial, sans-serif",
+    "note": "Adidas usa AdihausDIN como fuente de cuerpo en su web (observado via getComputedStyle en adidas.com/us/men, 2026-07-28). No es segura en email. La cadena de fuentes de Adidas ya incluye Helvetica y Arial como fallback primario.",
+    "displayFont": "'Montserrat', Helvetica, Arial, sans-serif",
+    "webFont": {
+      "family": "Montserrat",
+      "note": "Sustituto real de Adineue PRO (fuente propietaria de Adidas, no embeñible en email). Adineue PRO es el typeface primario de la marca — un sans-serif geométrico diseñado por Joancarles Casasín (2012) y expandido por MCKL. Inspirado en Bauhaus: formas limpias, sin contraste de trazo, geometría redondeada. La marca lo usa en mayúsculas para headlines con tracking amplio. Montserrat es la alternativa libre más cercana documentada (misma construcción geométrica, formas redondeadas, peso bold para impacto). Adidas usa uppercase + letter-spacing 3.5px en H1 (observado vía getComputedStyle). Pesos verificados HTTP 200 en fonts.gstatic.com el 2026-07-28.",
+      "weights": [
+        {
+          "weight": 400,
+          "url": "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Hw5aXp-p7K4KLg.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 700,
+          "url": "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM73w5aXp-p7K4KLg.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        },
+        {
+          "weight": 900,
+          "url": "https://fonts.gstatic.com/s/montserrat/v29/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC73w5aXp-p7K4KLg.woff2",
+          "unicodeRange": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+        }
+      ]
+    },
+    "headline": {
+      "hero": "30px",
+      "h1": "26px",
+      "h2": "22px",
+      "h3": "18px",
+      "h4": "16px"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#5C5C5C"
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": {
+      "tight": 1.1,
+      "hero": 1.2,
+      "normal": 1.4,
+      "relaxed": 1.5
+    },
+    "hero": {
+      "h1": {
+        "size": 30,
+        "weight": 700,
+        "lineHeight": 1.2,
+        "color": "#FFFFFF",
+        "mobile": {
+          "size": 24,
+          "lineHeight": 1.2
+        }
+      },
+      "subtitle": {
+        "size": 16,
+        "weight": 400,
+        "lineHeight": 1.4,
+        "color": "#FFFFFF",
+        "mobile": {
+          "size": 14
+        }
+      }
+    },
+    "h2Section": {
+      "size": 22,
+      "weight": 700,
+      "lineHeight": 1.25,
+      "color": "#000000",
+      "textTransform": "uppercase",
+      "letterSpacing": "3px"
+    },
+    "h3Card": {
+      "size": 16,
+      "weight": 700,
+      "lineHeight": 1.3,
+      "color": "#000000",
+      "textTransform": "uppercase",
+      "letterSpacing": "2px"
+    },
+    "bodyLarge": {
+      "size": 16,
+      "weight": 400,
+      "lineHeight": 1.5,
+      "color": "#5C5C5C"
+    },
+    "cta": {
+      "size": 16,
+      "weight": 700,
+      "letterSpacing": "0px",
+      "textTransform": "none"
+    },
+    "footer": {
+      "brand": {
+        "size": 12,
+        "weight": 500,
+        "color": "#FFFFFF"
+      },
+      "legal": {
+        "size": 11,
+        "weight": 400,
+        "color": "#98999B"
+      }
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 36,
+    "hero": 40,
+    "innerSection": "24px 20px",
+    "cta": "16px 0"
+  },
+  "radius": {
+    "cta": 0,
+    "ctaPill": 0,
+    "cardStripe": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "gradients": {
+    "heroBackground": "none",
+    "reason": "Adidas es una marca de alto contraste blanco y negro — no usa degradados en su comunicación visual. La fotografía y el diseño minimalista son los únicos elementos decorativos."
+  },
+  "surfaces": {
+    "global": "#F5F5F5",
+    "white": "#FFFFFF",
+    "sectionLila": "#F5F5F5"
+  },
+  "components": {
+    "cta": {
+      "style": "block",
+      "backgroundColor": "#000000",
+      "textColor": "#FFFFFF",
+      "borderRadius": 0,
+      "padding": "0px 16px",
+      "minHeight": 48,
+      "vml": true
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#E0E0E0",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "centrado",
+    "reason": "Adidas usa composición limpia, centrada y de alto impacto en su comunicación digital — la fotografía es el elemento dominante, el texto es mínimo. Las tres bandas (performance badge) son el único elemento gráfico recurrente además de la fotografía.",
+    "brandStructure": {
+      "compositionArchetype": "editorial-foto-texto",
+      "signatureSections": [
+        {
+          "sourceSection": "hero / banner principal",
+          "visualPattern": "foto-full con headline superpuesto",
+          "emailTranslation": "hero-imagen",
+          "why": "La página de Adidas abre con fotografía de atleta/producto a todo el ancho con headline corto y bold en mayúsculas — idéntico al hero-imagen del motor"
+        },
+        {
+          "sourceSection": "bloques editoriales (imagen + texto)",
+          "visualPattern": "foto-texto alternados en secciones de producto",
+          "emailTranslation": "editorial-foto-texto / editorial-foto-texto-inverso",
+          "why": "En las páginas de colección, Adidas alterna fotografía lifestyle con texto corto de producto — patrón directo de editorial-foto-texto"
+        }
+      ],
+      "mustAvoid": [
+        "iconos decorativos (emoji o SVG) — Adidas nunca usa iconos de beneficio",
+        "tarjetas con sombras — la comunicación de Adidas es plana, sin sombras ni profundidades",
+        "catálogo denso — Adidas prioriza una pieza visual impactante sobre grids de producto",
+        "efectos ornamentales — solo fotografía, tipografía bold y las tres bandas"
+      ],
+      "source": "observado en https://www.adidas.com/us/men el 2026-07-28"
+    },
+    "contentRhythm": "La página de categoría de Adidas (Men's) tiene esta estructura: 1) Header con logo + navegación + iconos de usuario (texto/botones), 2) Banner hero promocional con fotografía + headline bold, 3) Breadcrumb + H1 de categoría, 4) Descripción breve de la categoría, 5) Grid de productos con fotografía de cada producto, nombre y precio, 6) Navegación de paginación, 7) Footer con enlaces, social, newsletter signup. Conclusión para email: fotografía domina absolutamente. Texto mínimo. Sin iconos. Las CTAs son bold, negras, sin border-radius. La marca respira contraste — blanco, negro y fotografía."
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "Adidas utiliza fotografía real de alta calidad como elemento visual dominante. Estilo: atletas en movimiento, iluminación natural/dramática, alto contraste, ángulos dinámicos e interesantes, fondos limpios. La fotografía es aspiracional — muestra a personas reales en movimiento, no solo producto aislado. También fotografía de producto limpia sobre fondo blanco para ecommerce. Diversidad étnica y corporal. Enfoque en texturas y autenticidad. Sin sobre-edición ni filtros agresivos.",
+    "source": "observado en https://www.adidas.com/us/men el 2026-07-28",
+    "note": "Para hero-imagen, el prompt debe pedir una imagen con estilo de campaña Adidas: atleta en movimiento, alto contraste, iluminación dramática natural, composición dinámica, blanco y negro o color saturado. Sin texto en la imagen."
+  },
+  "iconography": {
+    "style": "none",
+    "monochrome": true,
+    "color": "#000000",
+    "source": "observado en https://www.adidas.com/us/men el 2026-07-28",
+    "componentImplication": "Adidas NO usa iconos decorativos de beneficio en su comunicación — ni emoji, ni iconos de línea funcionales decorativos. La comunicación se basa enteramente en: fotografía, tipografía bold (Adineue PRO / AdihausDIN) y las tres bandas de la marca. Para componentes del motor: NO usar emoji (iconGlyph) en ningún módulo. Usar siempre variantes -sin-icono. La fotografía y la tipografía son los únicos adornos visuales de la marca."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. isTestCampaign: true."
+  },
+  "personalization": {
+    "status": "not-implemented",
+    "note": "isTestCampaign: true — sin personalización real."
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-adidas-premium-run",
+    "content": ""
+  },
+  "assets": {
+    "logo": "",
+    "logoWidth": 100,
+    "logoHeight": 28,
+    "logoAlt": "adidas",
+    "headerPatternTile": "",
+    "note": "Logo de Adidas (trefoil o performance badge) pendiente de obtener PNG. El logo de Adidas es el performance badge (montaña de 3 barras) o el wordmark 'adidas' en Adineue PRO Bold lowercase.",
+    "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+    "heroBannerWidth": 600,
+    "heroBannerHeight": 400
+  },
+  "voice": {
+    "tone": "directo, seguro, aspiracional, moderno, contundente, minimalista",
+    "ctaDefault": "Descubrir colección",
+    "ctaSecondary": "Más información",
+    "rhythm": {
+      "sentenceLength": "titulares muy cortos y bold; cuerpo breve y directo",
+      "mode": "segunda persona directa ('tú', 'your') + imperativo suave ('discover', 'explore', 'move')",
+      "formality": "tú directo, moderno, sin formalidad",
+      "punctuationHabits": "Sin puntuación decorativa. Mayúsculas en titulares como estilo. Sin exclamaciones. Sin guiones.",
+      "examples": [
+        "Own the Game.",
+        "You've got this.",
+        "Impossible Is Nothing.",
+        "Through sport, we have the power to change lives.",
+        "Discover the collection that moves you."
+      ],
+      "source": "observado de adidas.com y documentación de marca (taglines oficiales: 'Impossible Is Nothing', 'Own the Game')"
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.0",
+      "date": "2026-07-28",
+      "author": "00 — Orchestrator (Hermes Agent)",
+      "changes": [
+        "Pack CREADO desde cero con investigación profunda de marca.",
+        "Colores y tipografía COMPUTADOS con getComputedStyle sobre https://www.adidas.com/us/men el 2026-07-28.",
+        "CTA: background #000000, text #FFFFFF, border-radius 0px (square — estilo 'block'), font AdihausDIN 16px/700, padding 0px 16px, min-height 48px (observado del botón 'Show items' en la página de categoría).",
+        "H1: font-family adidasFG (web version Adineue PRO), 46px, 700, uppercase, letter-spacing 3.5px (observado de getComputedStyle en adidas.com/us/men).",
+        "Body fonts: AdihausDIN para texto general, adidasFG para headlines display.",
+        "Web font seleccionado: Montserrat (alternativa libre más cercana a Adineue PRO — mismo sans-serif geométrico, formas redondeadas, disponible en Google Fonts). Pesos 400/700/900.",
+        "iconography.componentImplication: NO usar emoji ni iconos decorativos — Adidas es fotografía+tipografía. Usar siempre variantes -sin-icono.",
+        "photography.treatment documentado desde la guía de marca oficial y observación directa.",
+        "voice.rhythm documentado con ejemplos de taglines oficiales de Adidas.",
+        "layout.brandStructure documentado con mapeo de secciones reales del sitio a módulos del motor.",
+        "cta.style: 'block' (border-radius 0) — coincide con el diseño cuadrado observado en el sitio real de Adidas.",
+        "NOTA: No se incluye 'Impossible Is Nothing' como CTA fijo — se usa solo como referencia tonal."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-07-27T21:02:47.210Z",
+  "campaignDataPath": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/newsletters/2026/bmw/2026-ago-bmw-brand-native-restauracion-test/06-data/campaign-data.json",
+  "campaignDataSha256": "1b2da609352c8880d8e1c3fac7fbf0186d9480c8a3eedf29256650828f26dac3",
+  "sourceSha256": "55a30b61f89d03d378c4a3c6410fb98c534edb4beb42488895d5ebf4b870af61",
+  "inlineSha256": "b641c4547689ad8b5dd4b5dc63a8a54c913c221af3e112876837650cea467268",
+  "brandPack": "/Users/javifeebbo/Desktop/newsletter-system-reutilizable/sistema-final/brands/bmw/tokens/brand-tokens.json",
+  "brandVersion": "2.3.1",
+  "pattern": "fotografia-primero",
+  "modules": [
+    "header-logo",
+    "hero-imagen",
+    "editorial-foto-texto",
+    "editorial-foto-texto-inverso",
+    "metric-strip-premium",
+    "banda-cierre",
+    "footer"
+  ],
+  "counts": {
+    "<img": {
+      "source": 4,
+      "inline": 4
+    },
+    "utm_source": {
+      "source": 8,
+      "inline": 8
+    },
+    "v:roundrect": {
+      "source": 8,
+      "inline": 8
+    },
+    "tableBalance": {
+      "source": {
+        "open": 23,
+        "close": 23
+      },
+      "inline": {
+        "open": 23,
+        "close": 23
+      }
+    },
+    "inlineBytes": 23626
+  },
+  "inlineBytes": 23626,
+  "warnings": []
+}

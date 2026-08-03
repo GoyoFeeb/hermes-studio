@@ -1,0 +1,144 @@
+{
+  "_comment": "iPhone 17 Pro Premium — Campaña de producto con dirección creativa Apple. Patrón fotografia-primero. Hero: hero-imagen con banner del iPhone 17 Pro en Cosmic Orange. Brand pack Apple v2.2.0.",
+  "_claimSources": "Todas las especificaciones técnicas (48MP Fusion cameras, 8× optical-quality zoom, A19 Pro, vapor chamber, Ceramic Shield 2, 39h battery, 3000 nits) verificadas en https://www.apple.com/newsroom/2025/09/apple-unveils-iphone-17-pro-and-iphone-17-pro-max/ y https://www.apple.com/iphone-17-pro/",
+  "metadata": {
+    "campaignName": "iphone-17-pro-premium",
+    "clientName": "Apple",
+    "subjectLine": "iPhone 17 Pro. Cada encuadre importa.",
+    "preheader": "Tres cámaras Fusion de 48MP. El zoom de mayor calidad óptica en un iPhone.",
+    "fromName": "Apple",
+    "fromEmail": "newsletter@apple.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-28",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/apple/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-CDN-UPLOAD/apple/logo-apple.png",
+        "logoAlt": "Apple",
+        "logoWidth": 44,
+        "logoHeight": 54,
+        "label": "iPhone 17 Pro"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/apple/hero-banner.jpg",
+        "bannerAlt": "iPhone 17 Pro en Cosmic Orange — diseño unibody de aluminio forjado con plateau de cámaras Pro Fusion",
+        "brandName": "iPhone 17 Pro",
+        "h1": "Cada encuadre importa.",
+        "subtitle": "Tres cámaras Fusion de 48MP. El zoom de mayor calidad óptica en un iPhone. El chip A19 Pro con cámara de vapor. Todo en un unibody de aluminio forjado.",
+        "cta": {
+          "href": "https://www.apple.com/iphone-17-pro/?utm_source=newsletter&utm_medium=email&utm_campaign=iphone-17-pro-premium&utm_content=hero-cta",
+          "label": "Descubrir el iPhone 17 Pro"
+        }
+      }
+    },
+    {
+      "component": "intro-cta",
+      "data": {
+        "title": "Diseñado para crear sin límites.",
+        "body": "El iPhone 17 Pro reúne lo mejor del diseño, la fotografía y el rendimiento de Apple en un solo dispositivo. Cada elemento ha sido concebido para que puedas centrarte en lo que importa: crear.",
+        "cta": {
+          "href": "https://www.apple.com/iphone-17-pro/?utm_source=newsletter&utm_medium=email&utm_campaign=iphone-17-pro-premium&utm_content=intro-cta",
+          "label": "Más información"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/apple/editorial-camaras.jpg",
+        "imageAlt": "Detalle macro del plateau de cámaras del iPhone 17 Pro con tres lentes Fusion de 48MP",
+        "eyebrow": "Sistema Pro Fusion",
+        "title": "Tres lentes. 48 megapíxeles. Ocho distancias focales.",
+        "body": "Por primera vez, las tres cámaras traseras del iPhone son de 48 megapíxeles. La Main, la Ultra Wide y la nueva Telephoto trabajan juntas para ofrecerte el equivalente a ocho lentes profesionales en un solo dispositivo. Desde el macro hasta el zoom de 200mm.",
+        "cta": {
+          "href": "https://www.apple.com/iphone-17-pro/?utm_source=newsletter&utm_medium=email&utm_campaign=iphone-17-pro-premium&utm_content=editorial1-cta",
+          "label": "Conocer las cámaras"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto-inverso",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/apple/editorial-zoom.jpg",
+        "imageAlt": "Fotografía tomada con el zoom 8× de calidad óptica del iPhone 17 Pro a 200mm",
+        "eyebrow": "Zoom de calidad óptica",
+        "title": "El teleobjetivo más largo jamás visto en un iPhone.",
+        "body": "El nuevo tetraprism de cuarta generación y un sensor un 56% más grande permiten un zoom de 8× con calidad óptica a 200mm. Tu composición llega más lejos. Y el resultado es nítido, estable, con colores precisos.",
+        "cta": {
+          "href": "https://www.apple.com/iphone-17-pro/?utm_source=newsletter&utm_medium=email&utm_campaign=iphone-17-pro-premium&utm_content=editorial2-cta",
+          "label": "Ver ejemplos"
+        }
+      }
+    },
+    {
+      "component": "metric-strip-premium",
+      "data": {
+        "title": "Datos que definen una generación.",
+        "items": [
+          { "value": "48 MP", "label": "Cada cámara" },
+          { "value": "8×", "label": "Zoom calidad óptica" },
+          { "value": "A19 Pro", "label": "Chip con cámara de vapor" },
+          { "value": "39 h", "label": "Reproducción de vídeo" }
+        ]
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Pro en cada detalle.",
+        "highlight": "Pro en cada detalle.",
+        "highlightNote": "Diseñado para quienes no se conforman.",
+        "items": [
+          {
+            "title": "Cámaras profesionales",
+            "body": "Tres sensores de 48MP que te ofrecen ocho distancias focales distintas. Desde el macro hasta el zoom de 200mm, pasando por el retrato clásico de 100mm."
+          },
+          {
+            "title": "Rendimiento sin límites",
+            "body": "El chip A19 Pro y la cámara de vapor diseñada por Apple ofrecen un 40% más de rendimiento sostenido. Suficiente para los proyectos más exigentes."
+          },
+          {
+            "title": "Diseño forjado",
+            "body": "Unibody de aluminio 7000-series forjado a alta temperatura. Más ligero, más resistente, con una conductividad térmica excepcional."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre-asimetrico",
+      "data": {
+        "title": "iPhone 17 Pro",
+        "body": "Cada encuadre importa.",
+        "cta": {
+          "href": "https://www.apple.com/iphone-17-pro/?utm_source=newsletter&utm_medium=email&utm_campaign=iphone-17-pro-premium&utm_content=closing-cta",
+          "label": "Descubrir el iPhone 17 Pro"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Apple",
+        "tagline": "Apple",
+        "disclosure": "Los precios y la disponibilidad pueden variar por región. Para más información, visita apple.com/iphone-17-pro.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Apple Inc. Todos los derechos reservados. [DIRECCIÓN FÍSICA]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "iphone-17-pro-premium"
+  }
+}

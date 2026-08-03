@@ -11,6 +11,7 @@
     "check-parity": "npx tsx scripts/check-parity.ts",
     "check-control-files": "npx tsx scripts/check-control-files.ts",
     "production-gate-motor": "npx tsx scripts/production-gate-motor.ts",
+    "embed-images": "node scripts/embed-images-base64.js",
     "check-engine": "npx tsx scripts/check-engine-integrity.ts",
     "capture-brand-site": "npx tsx scripts/capture-brand-site.ts",
     "generate-hero": "npx tsx scripts/generate-hero.ts",

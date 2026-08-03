@@ -1,0 +1,105 @@
+{
+  "metadata": {
+    "campaignName": "2026-jul-adidas-premium-run",
+    "clientName": "Adidas",
+    "subjectLine": "Own Your Run. Discover the new collection.",
+    "preheader": "Engineered for every stride. Explore the new season.",
+    "fromName": "adidas",
+    "fromEmail": "newsletter@adidas.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-28",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/adidas/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-CDN-UPLOAD/adidas/logo.png",
+        "logoAlt": "adidas",
+        "logoWidth": 80,
+        "logoHeight": 53,
+        "label": "adidas"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+        "bannerAlt": "Runner en movimiento - adidas Performance",
+        "brandName": "adidas",
+        "h1": "OWN YOUR RUN",
+        "subtitle": "Engineered for every stride. Built for every goal.",
+        "cta": {
+          "href": "https://www.adidas.com/us/men?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-adidas-premium-run&utm_content=hero-cta",
+          "label": "Descubrir colección"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/adidas/editorial-runner.jpg",
+        "imageAlt": "Atleta con calzado adidas Running",
+        "eyebrow": "ADIDAS RUNNING",
+        "title": "Built to Move",
+        "body": "From the track to the street. Our latest collection combines cutting-edge technology with clean, premium design. Engineered for performance that doesn't stop when your run ends.",
+        "cta": {
+          "href": "https://www.adidas.com/us/men?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-adidas-premium-run&utm_content=editorial-cta",
+          "label": "Ver producto"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Three pillars. One purpose.",
+        "highlight": "Innovation First. Design Driven. Built for You.",
+        "highlightNote": "Each product reflects these values at every level.",
+        "items": [
+          {
+            "title": "INNOVATION FIRST",
+            "body": "Lightstrike Pro cushioning delivers responsive energy return with every stride. Tested by athletes. Proven on the track."
+          },
+          {
+            "title": "DESIGN DRIVEN",
+            "body": "Clean lines meet bold performance. Every detail serves a purpose — because great design is about what you don't see."
+          },
+          {
+            "title": "BUILT FOR YOU",
+            "body": "From road to trail, find your fit. Engineered for every runner, at every level."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Own Your Run",
+        "body": "The road is yours. The gear is ready.",
+        "cta": {
+          "href": "https://www.adidas.com/us/men?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-adidas-premium-run&utm_content=closing-cta",
+          "label": "Descubrir colección"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "adidas",
+        "tagline": "adidas",
+        "disclosure": "You are receiving this email because you signed up for adidas marketing communications.",
+        "legalLine": "© 2026 adidas AG. [DIRECCIÓN FÍSICA PENDIENTE]",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-adidas-premium-run"
+  }
+}

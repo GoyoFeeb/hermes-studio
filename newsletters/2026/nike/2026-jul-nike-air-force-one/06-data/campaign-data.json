@@ -1,0 +1,105 @@
+{
+  "brand": "brands/nike/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "metadata": {
+    "campaignName": "2026-jul-nike-air-force-one",
+    "clientName": "Nike",
+    "subjectLine": "El icono que nunca se fue",
+    "preheader": "Más de 40 años siendo el mismo icono.",
+    "fromName": "Nike",
+    "fromEmail": "newsletter@nike.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-29",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-nike-air-force-one"
+  },
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "label": "Nike",
+        "logoSrc": "https://PENDING-CDN-UPLOAD/nike/logo-nike-email.png",
+        "logoAlt": "Nike",
+        "logoWidth": 120,
+        "logoHeight": 42
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/nike/hero-banner.png",
+        "bannerAlt": "Nike Air Force 1 '07 — Silueta clásica en triple blanco",
+        "brandName": "Nike",
+        "h1": "Air Force 1",
+        "subtitle": "El icono que nunca se fue. Desde 1982.",
+        "cta": {
+          "href": "https://www.nike.com/t/air-force-1-07-mens-shoes-jBrhbr/CW2288-111?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-nike-air-force-one&utm_content=hero-cta",
+          "label": "Descubrir el icono"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/nike/editorial-af1-detail.png",
+        "imageAlt": "Detalle del upper de cuero del Air Force 1 con costuras visibles",
+        "eyebrow": "DISEÑO QUE PERDURA",
+        "title": "Cuero, goma y aire. Nada más.",
+        "body": "El upper de cuero de grano completo se moldea con cada uso. La suela de goma con patrón de espina de pescado agarra el asfalto igual que a la cancha. Y la unidad Air en el talón convierte cada paso en una declaración: esto es un icono.",
+        "cta": {
+          "href": "https://www.nike.com/w/air-force-1-shoes-5sj3yzy7ok?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-nike-air-force-one&utm_content=editorial-cta",
+          "label": "Ver la colección"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Por qué sigue siendo el original",
+        "highlight": "Más de cuatro décadas después, sigue siendo el mismo.",
+        "highlightNote": "Diseñado por Bruce Kilgore en 1982",
+        "items": [
+          {
+            "title": "Nacido en la cancha",
+            "body": "Diseñado para el baloncesto en 1982. Su amortiguación Air revolucionó el juego. La misma tecnología que llevan los atletas de élite."
+          },
+          {
+            "title": "Dueño de la calle",
+            "body": "Del parqué al asfalto. El diseño trascendió el deporte para convertirse en símbolo de expresión urbana en cada rincón del mundo."
+          },
+          {
+            "title": "Atemporal por diseño",
+            "body": "Sin estridencias. Sin trucos. La silueta chunky, el cuero blanco inmaculado y el swoosh impecable funcionan igual hoy que en los 80."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Tu icono, tu color",
+        "body": "Cuatro combinaciones clásicas. Un mismo ADN. Cada edición conserva lo esencial: líneas limpias, construcción sólida y una historia que no necesita presentación.",
+        "cta": {
+          "href": "https://www.nike.com/t/air-force-1-07-mens-shoes-jBrhbr/CW2288-111?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-nike-air-force-one&utm_content=closing-cta",
+          "label": "Explorar colores"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Nike",
+        "tagline": "Nike",
+        "disclosure": "Oferta válida hasta agotar existencias. Nike, Inc., One Bowerman Drive, Beaverton, OR 97005, USA.",
+        "legalLine": "[DIRECCIÓN FÍSICA]",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]"
+      }
+    }
+  ]
+}

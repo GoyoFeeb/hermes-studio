@@ -1,0 +1,118 @@
+{
+  "_comment": "Campaña de test para verificar restauración del sistema tras incidente engine/CHANGELOG.md. Patrón fotografia-primero, estructura brand-native inspirada en bmw.es. isTestCampaign: true, productionReady: false.",
+  "metadata": {
+    "campaignName": "2026-ago-bmw-brand-native-restauracion-test",
+    "clientName": "BMW",
+    "subjectLine": "BMW — Precisión, ingeniería y deportividad",
+    "preheader": "Descubre la experiencia BMW: diseño minimalista, tecnología puntera y la emoción de conducir",
+    "fromName": "BMW España",
+    "fromEmail": "newsletter@bmw.es",
+    "version": "1.0.0",
+    "createdAt": "2026-08-01",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/bmw/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-CDN-UPLOAD/bmw-logo.png",
+        "logoAlt": "BMW",
+        "logoWidth": 120,
+        "logoHeight": 36,
+        "label": "PRECISIÓN · INGENIERÍA"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+        "bannerAlt": "BMW en carretera — fotografía premium de alta calidad que transmite precisión, tecnología y deportividad",
+        "brandName": "BMW",
+        "h1": "La ingeniería encuentra su mejor expresión.",
+        "subtitle": "Diseño minimalista. Tecnología puntera. Placer de conducir.",
+        "cta": {
+          "href": "https://www.bmw.es/es/home.html?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-bmw-brand-native-restauracion-test&utm_content=hero-cta",
+          "label": "Descubrir BMW"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/editorial-bmw-diseno.png",
+        "imageAlt": "BMW — Detalle de diseño y líneas limpias",
+        "eyebrow": "DISEÑO",
+        "title": "Forma que sigue a la función.",
+        "body": "Cada línea tiene un propósito. Cada superficie, una razón de ser. El lenguaje de diseño BMW reduce al mínimo cualquier exceso, dejando que la pureza formal hable por sí misma. Materiales nobles, ensamblajes precisos, una estética que comunica ingeniería sin necesidad de adornos.",
+        "cta": {
+          "href": "https://www.bmw.es/es/home.html?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-bmw-brand-native-restauracion-test&utm_content=editorial-diseno",
+          "label": "Explorar diseño"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto-inverso",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/editorial-bmw-tecnologia.png",
+        "imageAlt": "BMW — Pantalla curva e interior tecnológico",
+        "eyebrow": "TECNOLOGÍA",
+        "title": "Tu inteligencia a bordo.",
+        "body": "El BMW Curved Display integra dos pantallas en una sola superficie curvada, con resolución 4K y el nuevo sistema operativo BMW iDrive 9. Control por voz, gestos y pantalla táctil — la tecnología desaparece para que solo quede la conducción.",
+        "cta": {
+          "href": "https://www.bmw.es/es/home.html?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-bmw-brand-native-restauracion-test&utm_content=editorial-tecnologia",
+          "label": "Descubrir tecnología"
+        }
+      }
+    },
+    {
+      "component": "metric-strip-premium",
+      "data": {
+        "title": "Datos que hablan por sí solos.",
+        "items": [
+          {
+            "value": "190 km/h",
+            "label": "Velocidad máxima"
+          },
+          {
+            "value": "8,3 s",
+            "label": "0–100 km/h"
+          },
+          {
+            "value": "245 CV",
+            "label": "Potencia máxima"
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Conduce el futuro.",
+        "body": "La experiencia BMW te espera. Reserva una prueba, configura tu vehículo o visita tu concesionario BMW más cercano.",
+        "cta": {
+          "href": "https://www.bmw.es/es/home.html?utm_source=newsletter&utm_medium=email&utm_campaign=2026-ago-bmw-brand-native-restauracion-test&utm_content=closing-cta",
+          "label": "Solicita información"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "BMW",
+        "tagline": "El placer de conducir.",
+        "disclosure": "Recibes este correo porque formas parte de la comunidad BMW España.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 BMW Ibérica S.A. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-ago-bmw-brand-native-restauracion-test"
+  }
+}

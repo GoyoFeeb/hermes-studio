@@ -1,25 +1,73 @@
 {
   "brand": "apple",
-  "description": "Design tokens for Apple — premium, minimalist, ecosystem-focused campaigns",
-  "version": "1.0.1",
+  "description": "Design tokens for Apple — premium, minimalist, product-first campaigns for iPhone 17 Pro",
+  "version": "2.2.0",
+  "metadata": {
+    "source": "Apple Newsroom + apple.com/iphone-17-pro/ (observado 2026-07-28)",
+    "lastVerified": "2026-07-28",
+    "pattern": "fotografia-primero",
+    "isTestCampaign": false
+  },
   "colors": {
     "primary": "#1D1D1F",
+    "background": {
+      "white": "#FFFFFF"
+    },
+    "text": {
+      "secondary": "#6E6E73"
+    },
+    "deep": "#000000",
     "ctaBackground": "#0071E3",
     "ctaText": "#FFFFFF",
     "textSecondary": "#6E6E73",
+    "lightBg": "#F5F5F7",
+    "light": "#6E6E73",
+    "border": "#D2D2D7",
+    "borders": {
+      "card": "#D2D2D7",
+      "footer": "#D2D2D7"
+    },
+    "onBrandSecondary": "#A1A1A6",
+    "accentHaloLight": "#E8E8ED",
+    "footerSeparator": "#D2D2D7",
     "white": "#FFFFFF",
     "black": "#000000",
     "link": "#0066CC",
-    "lightBg": "#F5F5F7",
-    "border": "#D2D2D7",
     "success": "#30D158",
     "warning": "#FFD60A",
     "error": "#FF453A",
     "footerBg": "#F5F5F7",
     "footerText": "#6E6E73"
   },
+  "surfaces": {
+    "global": "#FFFFFF",
+    "white": "#FFFFFF",
+    "sectionLila": "#F5F5F7",
+    "sectionAlt": "#F5F5F7",
+    "deep": "#1D1D1F",
+    "card": "#FFFFFF"
+  },
+  "gradients": {
+    "heroBackground": "linear-gradient(180deg, #000000 0%, #1D1D1F 100%)",
+    "ctaBackground": "#0071E3"
+  },
   "typography": {
     "family": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Arial, Helvetica, sans-serif",
+    "displayFont": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Arial, Helvetica, sans-serif",
+    "webFont": "",
+    "hero": {
+      "h1": {
+        "color": "#FFFFFF",
+        "size": 44,
+        "weight": 700,
+        "lineHeight": 1.1
+      }
+    },
+    "cta": {
+      "size": 17,
+      "weight": 400,
+      "letterSpacing": "0px"
+    },
     "headline": {
       "hero": "48px",
       "h1": "44px",
@@ -61,30 +109,69 @@
   },
   "radius": {
     "ctaPill": 50,
+    "cta": 50,
+    "card": 0,
     "image": 0
+  },
+  "shadows": {
+    "cta": "none",
+    "card": "none"
+  },
+  "components": {
+    "cta": {
+      "style": "default",
+      "padding": "12px 28px",
+      "fontSize": "17px",
+      "fontWeight": 400
+    }
   },
   "layout": {
     "maxWidth": 600,
     "mobileBreakpoint": 599,
     "emailWidth": 600,
-    "fullWidth": "100%"
+    "fullWidth": "100%",
+    "sectionStyle": "centrado",
+    "contentRhythm": {
+      "description": "Apple.com página de producto: hero a sangre completa, alternancia de imagen y texto breve, sin grids de categorías, tipografía masiva como elemento de diseño",
+      "sections": [
+        {"type": "hero-fullscreen", "density": "alta", "weight": "fotografía"},
+        {"type": "foto-texto", "density": "media", "weight": "imagen 60% / texto 40%"},
+        {"type": "foto-texto", "density": "media", "weight": "texto 40% / imagen 60%"},
+        {"type": "texto-centrado", "density": "baja", "weight": "texto"},
+        {"type": "foto-texto", "density": "media", "weight": "imagen 50% / texto 50%"},
+        {"type": "cierre", "density": "media", "weight": "texto + CTA"}
+      ]
+    }
   },
   "images": {
     "heroDimensions": "1200x750px",
     "heroDisplay": "600x375px",
-    "benefitDimensions": "600x400px",
-    "benefitDisplay": "600x400px",
+    "benefitDimensions": "600x600px",
+    "benefitDisplay": "300x300px",
     "format": "jpg",
     "bgColor": "#FFFFFF"
   },
-  "buttons": {
-    "vml": true,
-    "padding": "12px 28px",
-    "fontSize": "17px",
-    "fontWeight": 400,
-    "borderRadius": 50
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "La fotografía de producto es el elemento central del lenguaje visual. Cada imagen debe tener calidad de campaña global: iluminación de estudio, composición editorial, fondos limpios. El producto es el protagonista absoluto. Sin ilustraciones, sin iconos decorativos, sin elementos gráficos que compitan con la fotografía.",
+    "style": "product-hero, editorial, cinematic"
   },
-  "copyTone": "claro, seguro, aspiracional, minimalista",
+  "iconography": {
+    "componentImplication": "No usar iconos ni emoji. Apple no utiliza iconografía decorativa en su comunicación de producto. Priorizar fotografía de producto y espacio negativo sobre cualquier elemento gráfico añadido. Usar siempre variantes -sin-icono de los componentes."
+  },
+  "assets": {
+    "logo": "brands/apple/design-input/logo-apple.png",
+    "headerPatternTile": ""
+  },
+  "copyTone": "claro, seguro, aspiracional, minimalista, preciso",
+  "voice": {
+    "tone": "directo, preciso, minimalista, seguro, contenido, aspiracional",
+    "rhythm": {
+      "sentenceLength": "corta",
+      "structure": "frases cortas, una idea por línea, tono directo, verbos activos",
+      "avoid": "adjetivos vacíos, superlativos no demostrables, signos de exclamación, emojis, mayúsculas, urgencia artificial"
+    }
+  },
   "language": "es",
   "notes": [
     "Apple aesthetic: ZERO card borders, ZERO shadows, ZERO accent stripes",
@@ -92,15 +179,38 @@
     "Full-bleed images within 600px container",
     "No structured card layouts — just text + image alternating",
     "Single CTA per section, clean bulletproof button",
-    "Minimal color palette — primary #1D1D1F, secondary #6E6E73, cta blue #0071E3"
+    "Minimal color palette — primary #1D1D1F, secondary #6E6E73, cta blue #0071E3",
+    "iPhone 17 Pro colors: Cosmic Orange, Deep Blue, Silver",
+    "Photography-first brand: fotografia-primero pattern is the right choice",
+    "No icons/emoji — always use -sin-icono variants"
   ],
   "_changelog": [
     {
+      "version": "2.2.0",
+      "date": "2026-07-28",
+      "author": "Campaña iPhone 17 Pro Premium — Fase 02 Briefing",
+      "changes": [
+        "Actualización completa de v1.0.1 a v2.2.0 para compatibilidad con el motor engine/",
+        "Añadido: surfaces (global, sectionLila, sectionAlt, deep, card)",
+        "Añadido: gradients (heroBackground, ctaBackground)",
+        "Añadido: components.cta (style, padding, fontSize, fontWeight)",
+        "Añadido: layout.contentRhythm con secciones observadas de apple.com/iphone-17-pro/",
+        "Añadido: photography (usesRealPhotography: true, tratamiento detallado)",
+        "Añadido: iconography (no usar iconos/emoji)",
+        "Añadido: radius.cta (mismo valor que ctaPill: 50)",
+        "Añadido: metadata (source, lastVerified, pattern, isTestCampaign)",
+        "Añadido: colors.deep (#000000) para banda-cierre",
+        "Añadido: assets.logo (ruta al logo de Apple)",
+        "Actualizado: copyTone con 'preciso'",
+        "Nota: los valores de CTA (padding, fontSize, fontWeight) son observaciones de apple.com — CTA azul #0071E3, texto blanco, pill radius, padding 12px 28px, fontSize 17px, weight 400"
+      ]
+    },
+    {
       "version": "1.0.1",
       "date": "2026-07-28",
-      "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
+      "author": "Fase F3 (flexibilidad estructural)",
       "changes": [
-        "spacing.{micro,small,medium,large,close} añadidos (forma canónica) con los valores por defecto del sistema (4/8/16/24, close=hero-8=48) — este pack no tenía ninguna escala numérica antes. section/hero convertidos de shorthand CSS ('48px 0'/'56px 0') a número (48/56), extrayendo el valor vertical líder. 'paragraph' se conserva sin cambios. Este pack tampoco tenía _changelog — se crea aquí por primera vez, mismo formato {version,date,author,changes} usado por el resto de brand packs reales."
+        "spacing.{micro,small,medium,large,close} añadidos (forma canónica)"
       ]
     }
   ]

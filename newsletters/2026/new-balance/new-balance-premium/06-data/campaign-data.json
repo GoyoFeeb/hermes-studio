@@ -1,0 +1,119 @@
+{
+  "metadata": {
+    "campaignName": "new-balance-premium",
+    "clientName": "New Balance",
+    "subjectLine": "The Running Collection, in new colors.",
+    "preheader": "Nueva colección running. Diseño que rinde.",
+    "fromName": "New Balance",
+    "fromEmail": "newsletter@newbalance.com",
+    "version": "1.0.0",
+    "createdAt": "2026-07-28",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/new-balance/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-CDN-UPLOAD/new-balance/logo.png",
+        "logoAlt": "New Balance",
+        "logoWidth": 120,
+        "logoHeight": 30,
+        "label": "New Balance"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://PENDING-CDN-UPLOAD/hero-banner.png",
+        "bannerAlt": "Atleta sobre fondo blanco con ropa deportiva New Balance de la colección running",
+        "brandName": "New Balance",
+        "h1": "The Running Collection",
+        "subtitle": "Donde el rendimiento encuentra el estilo.",
+        "cta": {
+          "href": "https://www.newbalance.com/running?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-new-balance-premium&utm_content=hero-cta",
+          "label": "Descubrir"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/new-balance/editorial-1.jpg",
+        "imageAlt": "Persona corriendo al aire libre con ropa New Balance de la colección running",
+        "eyebrow": "NUEVOS COLORES",
+        "title": "Mismo espíritu.",
+        "body": "La colección que nació para correr se renueva con una paleta que trasciende el asfalto. Cada pieza diseñada para moverse contigo, desde el primer paso hasta el último.",
+        "cta": {
+          "href": "https://www.newbalance.com/running?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-new-balance-premium&utm_content=editorial1-cta",
+          "label": "Ver colección"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto-inverso",
+      "data": {
+        "imageSrc": "https://PENDING-CDN-UPLOAD/new-balance/editorial-2.jpg",
+        "imageAlt": "Primer plano de zapatilla New Balance 1080v15 con detalle de materiales",
+        "eyebrow": "120 AÑOS DE HERENCIA",
+        "title": "Hecho para durar.",
+        "body": "Desde 1906, cada zapatilla New Balance cuenta una historia de innovación. Materiales que evolucionan, siluetas que permanecen. El resultado: diseño que vive tanto como tu carrera.",
+        "cta": {
+          "href": "https://www.newbalance.com/heritage?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-new-balance-premium&utm_content=editorial2-cta",
+          "label": "Saber más"
+        }
+      }
+    },
+    {
+      "component": "columns-3-beneficios-sin-icono",
+      "data": {
+        "title": "Tres pilares de New Balance.",
+        "highlight": "Rendimiento, herencia y estilo.",
+        "highlightNote": "*Cada producto refleja estos valores de forma única.",
+        "items": [
+          {
+            "title": "Tecnología que impulsa",
+            "body": "Fresh Foam y FuelCell trabajan juntos para darte una zancada más suave, más rápida. Probado en laboratorio. Perfeccionado en la carretera."
+          },
+          {
+            "title": "Hecho en USA desde 1906",
+            "body": "Cinco fábricas en Nueva Inglaterra. Generaciones de artesanos. Un estándar de calidad que no se negocia."
+          },
+          {
+            "title": "Cultura que define",
+            "body": "De las calles de Nueva York a las colaboraciones con Aimé Leon Dore. New Balance no sigue tendencias — las crea."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "We're In It For The Long Run.",
+        "body": "Cada paso cuenta. Cada kilómetro importa. Sigue moviéndote.",
+        "cta": {
+          "href": "https://www.newbalance.com/running?utm_source=newsletter&utm_medium=email&utm_campaign=2026-jul-new-balance-premium&utm_content=closing-cta",
+          "label": "Descubrir la colección"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "New Balance",
+        "tagline": "We're In It For The Long Run.",
+        "disclosure": "Estás recibiendo este correo porque formas parte de la comunidad New Balance.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 New Balance Athletics, Inc. [DIRECCIÓN FÍSICA PENDIENTE]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-jul-new-balance-premium"
+  }
+}
