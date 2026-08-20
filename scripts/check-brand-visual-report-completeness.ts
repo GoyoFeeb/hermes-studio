@@ -6,14 +6,24 @@
  * del brand pack — 3 documentos de campaña (02-analysis/) + 6 documentos/CSS de marca
  * (brands/{cliente}/).
  *
- * Rollout deliberadamente NO bloqueante (mismo criterio que "Nivel 4" en
- * check-brand-pack-completeness.ts): hoy NINGUNO de los 12 brand packs reales tiene ninguno de
- * estos archivos — bloquear producción por su ausencia el mismo día en que se introducen
- * fallaría retroactivamente toda campaña real existente. Ausencia → aviso, sin excepción de
- * _changelog (a diferencia de Nivel 3/4, aquí no hace falta declarar el hueco: todavía no existe
- * ningún pack que "debería" tenerlo). Presencia con contenido placeholder sin resolver → error,
- * misma disciplina anti-fabricación que el resto del sistema (parece dato real y no lo es, que es
- * peor que declarar el hueco).
+ * Rollout inicial (2026-07-28) deliberadamente NO bloqueante (mismo criterio que "Nivel 4" en
+ * check-brand-pack-completeness.ts): en ese momento NINGUNO de los 12 brand packs reales tenía
+ * ninguno de estos archivos — bloquear producción por su ausencia el mismo día en que se
+ * introducían habría fallado retroactivamente toda campaña real existente.
+ *
+ * Actualización 2026-08-20 (petición del usuario: "que el sistema capte siempre las fuentes de
+ * las marcas"): pasa a ser BLOQUEANTE, con la misma válvula de escape que ya usa
+ * check-brand-pack-completeness.ts (Nivel 3) — ausencia declarada explícitamente en el
+ * `_changelog` del brand pack (con la palabra clave del archivo, ej. "source-inventory") → aviso,
+ * no bloquea; ausencia sin ninguna mención → error, bloquea. Presencia con contenido placeholder
+ * sin resolver sigue siendo error incondicional (sin válvula de escape — un archivo declarado
+ * entregado no puede fingir contenido real), misma disciplina anti-fabricación que el resto del
+ * sistema.
+ *
+ * Efecto esperado: los brand packs reales que aún no tienen estos artefactos (la mayoría a fecha
+ * de este cambio) empezarán a fallar `production-gate` hasta que el agente 02 los genere para esa
+ * marca, o se declare el hueco en `_changelog` — decisión explícita del usuario, no un efecto
+ * secundario no buscado.
  *
  * Uso:
  *   npx tsx scripts/check-brand-visual-report-completeness.ts --campaign newsletters/{year}/{client}/{campaign}
@@ -46,14 +56,30 @@ function isPlaceholderContent(text: string): boolean {
   return false;
 }
 
+// Mismo helper que check-brand-pack-completeness.ts (Nivel 3): un hueco declarado explícitamente
+// en _changelog no es el mismo problema que uno silencioso.
+function changelogMentions(changelog: any[], ...keywords: string[]): boolean {
+  const text = JSON.stringify(changelog || []).toLowerCase();
+  return keywords.every((k) => text.includes(k.toLowerCase()));
+}
+
 interface CheckResult {
   warnings: string[];
   errors: string[];
 }
 
-function checkFile(fullPath: string, label: string, result: CheckResult): void {
+function checkFile(fullPath: string, label: string, keyword: string, changelog: any[], result: CheckResult): void {
   if (!fs.existsSync(fullPath)) {
-    result.warnings.push(`${label} ausente (${fullPath}) — Nivel 5, no bloqueante.`);
+    const declared = changelogMentions(changelog, keyword);
+    if (declared) {
+      result.warnings.push(
+        `${label} ausente (${fullPath}) — válvula de escape documentada en _changelog (hueco declarado, no silencioso).`
+      );
+    } else {
+      result.errors.push(
+        `${label} ausente (${fullPath}) — SIN ninguna mención en _changelog. Hueco silencioso: ni generado ni declarado.`
+      );
+    }
     return;
   }
   const content = fs.readFileSync(fullPath, 'utf8');
@@ -66,18 +92,28 @@ function checkFile(fullPath: string, label: string, result: CheckResult): void {
   }
 }
 
-function checkCampaignFiles(campaignDir: string, result: CheckResult): void {
+function checkCampaignFiles(campaignDir: string, changelog: any[], result: CheckResult): void {
   for (const f of CAMPAIGN_FILES) {
-    checkFile(path.join(campaignDir, '02-analysis', f), `02-analysis/${f}`, result);
+    checkFile(path.join(campaignDir, '02-analysis', f), `02-analysis/${f}`, f, changelog, result);
   }
 }
 
-function checkBrandFiles(brandDir: string, result: CheckResult): void {
+function checkBrandFiles(brandDir: string, changelog: any[], result: CheckResult): void {
   for (const f of BRAND_STYLE_FILES) {
-    checkFile(path.join(brandDir, 'styles', f), `styles/${f}`, result);
+    checkFile(path.join(brandDir, 'styles', f), `styles/${f}`, f, changelog, result);
   }
   for (const f of BRAND_GUIDELINE_FILES) {
-    checkFile(path.join(brandDir, 'guidelines', f), `guidelines/${f}`, result);
+    checkFile(path.join(brandDir, 'guidelines', f), `guidelines/${f}`, f, changelog, result);
+  }
+}
+
+function loadBrandChangelog(brandTokensPath: string | null): any[] {
+  if (!brandTokensPath || !fs.existsSync(brandTokensPath)) return [];
+  try {
+    const tokens = JSON.parse(fs.readFileSync(brandTokensPath, 'utf8'));
+    return tokens._changelog || [];
+  } catch {
+    return [];
   }
 }
 
@@ -97,21 +133,25 @@ function main(): void {
       process.exit(0);
     }
     console.log(`   Campaña: ${campaignDir}\n`);
-    checkCampaignFiles(campaignDir, result);
 
     const campaignData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    let brandPackPath: string | null = null;
     if (campaignData.brand) {
-      const brandPackPath = resolveBrandPackPathOrNull(ROOT, campaignData.brand);
-      if (brandPackPath) {
-        const brandDir = path.dirname(path.dirname(brandPackPath)); // .../brands/{slug}/tokens/brand-tokens.json -> .../brands/{slug}
-        console.log(`   Brand:   ${brandDir}\n`);
-        checkBrandFiles(brandDir, result);
-      }
+      brandPackPath = resolveBrandPackPathOrNull(ROOT, campaignData.brand);
+    }
+    const changelog = loadBrandChangelog(brandPackPath);
+    checkCampaignFiles(campaignDir, changelog, result);
+
+    if (brandPackPath) {
+      const brandDir = path.dirname(path.dirname(brandPackPath)); // .../brands/{slug}/tokens/brand-tokens.json -> .../brands/{slug}
+      console.log(`   Brand:   ${brandDir}\n`);
+      checkBrandFiles(brandDir, changelog, result);
     }
   } else if (args.brand) {
     const brandDir = path.resolve(ROOT, 'brands', args.brand);
+    const changelog = loadBrandChangelog(path.join(brandDir, 'tokens', 'brand-tokens.json'));
     console.log(`   Brand: ${brandDir}\n`);
-    checkBrandFiles(brandDir, result);
+    checkBrandFiles(brandDir, changelog, result);
   } else {
     console.error('\n  ❌ Error: falta --campaign o --brand\n');
     console.error('  Uso: npx tsx scripts/check-brand-visual-report-completeness.ts --campaign newsletters/{year}/{client}/{campaign}\n');
@@ -124,11 +164,11 @@ function main(): void {
 
   console.log('');
   if (result.errors.length > 0) {
-    console.log('   ❌ check-brand-visual-report-completeness: FAIL (placeholder sin resolver)\n');
+    console.log('   ❌ check-brand-visual-report-completeness: FAIL (hueco silencioso o placeholder sin resolver)\n');
     process.exit(1);
   }
   if (result.warnings.length > 0) {
-    console.log('   ✅ check-brand-visual-report-completeness: OK (con avisos — Nivel 5, no bloqueante)\n');
+    console.log('   ✅ check-brand-visual-report-completeness: OK (con avisos — huecos declarados en _changelog)\n');
     process.exit(0);
   }
   console.log('   ✅ check-brand-visual-report-completeness: OK\n');

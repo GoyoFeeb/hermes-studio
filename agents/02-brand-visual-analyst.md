@@ -54,6 +54,14 @@ redes reales) es el nivel mínimo de rigor para las 6 dimensiones siguientes:
    fuente cargada por `@font-face`/Google Fonts) — si no es segura, el pack usa el fallback
    system-safe y lo dice explícitamente.
 
+   **Escribe `colors.source` y `typography.source`** en el pack, mismo formato que ya usan
+   `photography.source`/`iconography.source`/`voice.rhythm.source`: `"observado en {URL} el
+   {fecha}"`. No son consumidos por el motor (informativos, como los demás `.source`), pero desde
+   2026-08-20 `check-brand-pack-completeness.ts` (Gate 8, bloqueante) los exige con la misma
+   disciplina que al resto — son los tokens que el motor más usa y antes eran los únicos sin
+   procedencia estructurada, pese a que este contrato siempre exigió fuente para "cada valor
+   visual del pack".
+
    **El CTA lleva su propio sub-checklist, no basta con "verlo" dentro del barrido general de
    tipografía** (precedente: 4 de 8 brand packs reales tenían `typography.cta` idéntico byte a
    byte entre sí porque "CTA" se investigaba como una casilla más del barrido de color/tipografía
@@ -200,9 +208,17 @@ login, etc.), este agente **no bloquea la entrega solo por eso** — pero debe d
 en su lugar. Lo que NO está permitido es omitir las 3 secciones nuevas en silencio o rellenarlas
 con una suposición sin marcarla como tal. Precedente: `brands/uax/tokens/brand-tokens.json` ya
 declara explícitamente en su `_changelog` qué no se investigó y por qué. Los 8 archivos nuevos de
-esta revisión (ver Salidas) siguen la misma disciplina, pero su gate de completitud
-(`check-brand-visual-report-completeness.ts`) es de aviso, no bloqueante — su ausencia no impide
-la entrega mientras las 6 dimensiones de arriba y el brand pack sí estén completos.
+esta revisión (ver Salidas) siguen la misma disciplina.
+
+**Actualización 2026-08-20:** el gate de completitud de estos 8 archivos
+(`check-brand-visual-report-completeness.ts`, Gate 13) y el de procedencia de tokens
+(`check-brand-pack-completeness.ts`, Gate 8) son **ahora bloqueantes** — su ausencia SÍ impide
+`production-gate`, salvo que el hueco esté declarado en `_changelog` (la misma válvula de escape
+de este apartado, no un mecanismo nuevo). Antes de esta fecha bastaba con dejarlo pendiente sin
+mención explícita; ahora un hueco sin declarar en `_changelog` es indistinguible de uno nunca
+investigado y bloquea. Aplica también a un campo `.source` ausente dentro de un grupo por lo demás
+completo (ej. `photography.treatment` presente pero `photography.source` ausente) — antes pasaba
+en silencio, ahora se trata igual que el grupo entero ausente.
 
 ## Tareas
 
@@ -273,9 +289,13 @@ hero").
   exacta en 4-5 valores distintos a la vez, sin haber verificado ambos sitios el mismo día, es la
   señal de que uno de los dos packs es una plantilla sin investigar — repórtalo en el
   `_changelog` propio aunque no sea esta ronda la que lo corrija.
-- `npx tsx scripts/check-brand-visual-report-completeness.ts --brand {slug}` — aviso, no
-  bloqueante, sobre los 8 archivos nuevos; corre igualmente para que la deriva se note desde el
-  primer día en vez de acumularse en silencio.
+- `npx tsx scripts/check-brand-visual-report-completeness.ts --brand {slug}` — **bloqueante desde
+  2026-08-20** sobre los 8 archivos nuevos (antes era solo aviso); un hueco sin declarar en
+  `_changelog` falla `production-gate`.
+- `npx tsx scripts/check-brand-pack-completeness.ts --brand {slug}` — `colors.source` y
+  `typography.source` (formato `"observado en {URL} el {fecha}"`, igual que
+  `photography.source`/`iconography.source`/`voice.rhythm.source`) son obligatorios desde
+  2026-08-20 con la misma disciplina Nivel 3: ausentes y sin declarar en `_changelog` bloquean.
 
 ## Fase completada cuando
 

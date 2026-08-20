@@ -30,6 +30,25 @@
  * completamente ausente — no bloquea builds de packs previos a su creación; si está presente,
  * se le exige la misma disciplina anti-placeholder que a los campos de Nivel 3.
  *
+ * Actualización 2026-08-20 (petición del usuario: "que el sistema capte siempre las fuentes de
+ * las marcas"):
+ *   1. Bug corregido: un `leafPath` (ej. `photography.source`) que simplemente NO EXISTE (no un
+ *      placeholder, un `undefined` real) pasaba el gate en silencio — `isPlaceholder(undefined)`
+ *      es `false`, así que solo se detectaban placeholders explícitos, nunca campos ausentes
+ *      dentro de un grupo por lo demás completo. Confirmado contra los packs reales:
+ *      `brands/apple/tokens/brand-tokens.json` tenía `photography`/`iconography`/`voice.rhythm`
+ *      completos pero sin ningún `.source` en los tres, y `brands/feebboletter` igual en
+ *      `iconography` — ambos pasaban este gate bloqueante como si tuvieran procedencia. Ahora un
+ *      `leafPath` ausente dentro de un grupo presente sigue la MISMA regla declarado/silencioso
+ *      que un grupo entero ausente (ver situación 2/3 arriba), no una aprobación automática.
+ *   2. Alcance ampliado: `colors`/`typography` (Nivel 3) — el gate solo exigía procedencia a
+ *      photography/iconography/voice.rhythm/contentRhythm, nunca a los tokens que el motor más
+ *      usa (`colors.*`, `typography.*`), pese a que `agents/02-brand-visual-analyst.md` siempre
+ *      exigió procedencia para "cada valor visual del pack". Se añade `colors.source` /
+ *      `typography.source` (mismo formato `"observado en {URL} el {fecha}"` que ya usan
+ *      photography/iconography/voice.rhythm — no requiere cambio de schema, `additionalProperties:
+ *      true` ya lo permite, igual que con esos tres campos).
+ *
  * Uso:
  *   npx tsx scripts/check-brand-pack-completeness.ts --campaign newsletters/{year}/{client}/{campaign}
  *   npx tsx scripts/check-brand-pack-completeness.ts --brand {slug}
@@ -98,6 +117,18 @@ const FIELD_GROUPS: FieldGroup[] = [
     ],
     level: 4,
     changelogKeywords: ['contentrhythm']
+  },
+  {
+    label: 'colors',
+    leafPaths: ['colors.source'],
+    level: 3,
+    changelogKeywords: ['colors.source']
+  },
+  {
+    label: 'typography',
+    leafPaths: ['typography.source'],
+    level: 3,
+    changelogKeywords: ['typography.source']
   }
 ];
 
@@ -130,7 +161,9 @@ function checkPack(tokens: any, packPath: string): { errors: string[]; warnings:
     photography: tokens.photography !== undefined,
     iconography: tokens.iconography !== undefined,
     'voice.rhythm': get(tokens, 'voice.rhythm') !== undefined,
-    'layout.contentRhythm': get(tokens, 'layout.contentRhythm') !== undefined
+    'layout.contentRhythm': get(tokens, 'layout.contentRhythm') !== undefined,
+    colors: tokens.colors !== undefined,
+    typography: tokens.typography !== undefined
   };
 
   for (const group of FIELD_GROUPS) {
@@ -159,6 +192,28 @@ function checkPack(tokens: any, packPath: string): { errors: string[]; warnings:
         `${placeholderLeaves.join(', ')} — un campo que se declara investigado no puede contener un ` +
         `"[Q-NNN]"/"[..]" sin resolver (eso es peor que declarar el hueco: parece dato real y no lo es).`
       );
+    }
+
+    // Fix 2026-08-20: un campo hoja simplemente AUSENTE (no un placeholder) dentro de un grupo
+    // por lo demás presente pasaba en silencio antes de este fix — isPlaceholder(undefined) es
+    // false, así que nunca se comprobaba si el leaf existía. Sigue la MISMA regla
+    // declarado/silencioso que el grupo entero ausente (arriba), no una aprobación automática.
+    const missingLeaves = group.leafPaths.filter(
+      (p) => get(tokens, p) === undefined && !placeholderLeaves.includes(p)
+    );
+    if (missingLeaves.length > 0) {
+      const declared = changelogMentions(changelog, ...group.changelogKeywords);
+      const msg = `${group.label} (${levelLabel}) presente en ${packPath} pero le falta el/los campo(s): ${missingLeaves.join(', ')}`;
+      if (group.level === 4) {
+        warnings.push(`${msg} — Nivel 4, no bloqueante.`);
+      } else if (declared) {
+        warnings.push(`${msg} — válvula de escape documentada en _changelog (hueco declarado, no silencioso).`);
+      } else {
+        errors.push(
+          `${msg} — SIN ninguna mención en _changelog. Un campo ausente dentro de un grupo que sí ` +
+          `se investigó es un hueco silencioso igual que el grupo entero ausente.`
+        );
+      }
     }
   }
 

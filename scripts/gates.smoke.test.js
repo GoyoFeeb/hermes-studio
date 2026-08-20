@@ -309,7 +309,7 @@ test('check-hero-decision: pasa si el motivo para no usar hero-imagen está docu
 
 // ── Gate 13: check-brand-visual-report-completeness.ts ("Nivel 5", evolución del agente 02) ──
 
-test('check-brand-visual-report-completeness: los 9 artefactos ausentes solo avisan, nunca fallan', () => {
+test('check-brand-visual-report-completeness: artefactos ausentes sin declarar en _changelog bloquean (2026-08-20, ya no es Nivel 5 aviso-solo)', () => {
   const campaignData = {
     brand: 'brands/paraycompara/tokens/brand-tokens.json',
     modules: []
@@ -319,12 +319,53 @@ test('check-brand-visual-report-completeness: los 9 artefactos ausentes solo avi
   });
   try {
     const { exitCode, output } = runGateScript('check-brand-visual-report-completeness.ts', dir);
-    assert.equal(exitCode, 0);
+    assert.equal(exitCode, 1);
     assert.match(output, /visual-identity-report\.md ausente/);
     assert.match(output, /styles\/reference\.css ausente/);
-    assert.match(output, /Nivel 5, no bloqueante/);
+    assert.match(output, /SIN ninguna mención en _changelog/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('check-brand-visual-report-completeness: artefacto ausente pero declarado en _changelog solo avisa', () => {
+  const brandDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gate-smoke-brand-'));
+  const brandTokensDir = path.join(brandDir, 'tokens');
+  fs.mkdirSync(brandTokensDir, { recursive: true });
+  const brandTokensPath = path.join(brandTokensDir, 'brand-tokens.json');
+  fs.writeFileSync(
+    brandTokensPath,
+    JSON.stringify({
+      colors: { primary: '#000000' },
+      _changelog: [
+        {
+          version: '1.0.1',
+          changes: [
+            'Nivel 5 pospuesto en bloque (marca de prueba sin sitio propio): source-inventory.md, ' +
+              'reference.css, email-safe.css, component-inventory.md, responsive.md, email-adaptation.md ' +
+              'y art-direction.md quedan sin generar por ahora, ver open-questions.md de la campaña.'
+          ]
+        }
+      ]
+    }),
+    'utf8'
+  );
+  const campaignData = { brand: path.relative(ROOT, brandTokensPath), modules: [] };
+  const realContent = 'Contenido real observado en el sitio de la marca, con suficiente longitud para no contar como placeholder.';
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify(campaignData),
+    '02-analysis/visual-identity-report.md': realContent,
+    '02-analysis/open-questions.md': realContent
+    // source-inventory.md deliberadamente ausente — declarado arriba en _changelog.
+  });
+  try {
+    const { exitCode, output } = runGateScript('check-brand-visual-report-completeness.ts', dir);
+    assert.equal(exitCode, 0);
+    assert.match(output, /source-inventory\.md ausente/);
+    assert.match(output, /válvula de escape documentada en _changelog/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(brandDir, { recursive: true, force: true });
   }
 });
 

@@ -252,4 +252,43 @@ verificados con capturas antes/después, corregidos. `card-tarifa.items` corregi
 demanda real). Fase F5 (patrones nuevos por tipo de newsletter, sin fecha) queda pendiente,
 documentada en el mismo informe de diagnóstico.
 
-_Last updated: 2026-07-28_
+Actualización 2026-08-20 (petición del usuario: "que el sistema capte siempre las fuentes de las
+marcas de las campañas"): dos gates de procedencia de marca pasan de aviso a bloqueante, con
+evidencia real de que el hueco no era hipotético:
+- **`check-brand-pack-completeness.ts` (Gate 8) — bug corregido**: un `.source` AUSENTE (no un
+  placeholder) dentro de un grupo por lo demás presente pasaba en silencio —
+  `isPlaceholder(undefined)` es `false`, así que el gate nunca comprobaba si el leaf existía.
+  Confirmado contra los packs reales antes del fix: `brands/apple` tenía
+  `photography`/`iconography`/`voice.rhythm` completos sin ningún `.source` en los tres, y
+  `brands/feebboletter` igual en `iconography` — ambos pasaban este gate bloqueante como si
+  tuvieran procedencia. Ahora un leaf ausente sigue la misma regla declarado(en `_changelog`)/
+  silencioso que ya regía el grupo entero ausente.
+- **Alcance ampliado a `colors`/`typography`**: el gate solo exigía procedencia a
+  photography/iconography/voice.rhythm/contentRhythm, nunca a los tokens que el motor más
+  consume. Se añaden `colors.source`/`typography.source` (mismo formato que los demás `.source`,
+  sin cambio de schema — `additionalProperties:true` ya lo permitía, igual que con los otros
+  tres). Verificado: los 13 brand packs reales (incluido `nike`, que ya tenía
+  photography/iconography/voice.rhythm con fuente) NO tienen `colors.source`/`typography.source`
+  — fallan `production-gate` hasta que 02 los añada por marca o se declare el hueco en
+  `_changelog`.
+- **`check-brand-visual-report-completeness.ts` (Gate 13) — pasa de aviso a bloqueante**: hasta
+  ahora la ausencia de `source-inventory.md` y el resto de los 8 archivos "Nivel 5" (rollout
+  2026-07-28) nunca fallaba el gate, solo avisaba. Mantiene la misma válvula de escape que Gate 8
+  (declarado en `_changelog` → aviso; silencioso → error). Ningún brand pack real declara hoy
+  estos 8 archivos en su `_changelog`, así que **toda campaña real empezará a fallar
+  `production-gate`** hasta que 02 los genere por marca o se declare el hueco — decisión explícita
+  del usuario (eligió expresamente la opción que acepta este efecto retroactivo), no una regresión
+  no buscada.
+- `agents/02-brand-visual-analyst.md` actualizado: instrucción explícita de escribir
+  `colors.source`/`typography.source`, y las referencias a "Nivel 5, aviso, no bloqueante" en
+  Válvula de escape y Validaciones corregidas para reflejar el nuevo comportamiento.
+- `scripts/gates.smoke.test.js`: test de Gate 13 actualizado de "los 9 artefactos ausentes solo
+  avisan" a bloqueante, más un test nuevo que verifica que un artefacto ausente pero declarado en
+  `_changelog` sigue siendo solo aviso. `npm test` en 51/51 tras el cambio.
+- **Pendiente real, mismo patrón que `brandStructure`/`compositionProfile`** (ver actualización
+  2026-07-28 "Nivel 5" y Fase F1 arriba — el precedente exacto de por qué un campo nuevo en
+  schema/gate no sirve de nada hasta que 02 lo escribe por marca): ningún brand pack real se
+  repobló en esta pasada; los 13 quedan pendientes de que 02 se ejecute de nuevo, o de que se
+  declare el hueco en `_changelog` marca por marca.
+
+_Last updated: 2026-08-20_
