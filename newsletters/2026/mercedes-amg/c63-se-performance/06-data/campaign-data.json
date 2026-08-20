@@ -1,0 +1,107 @@
+{
+  "_comment": "Campaña Mercedes-AMG C 63 S E PERFORMANCE — datos del motor (fase 06). Patrón fotografia-primero. Copy verbatim de 05-copy/ (claims gate limpio).",
+  "_claimSources": {
+    "500 kW (350 kW térmico + 150 kW eléctrico)": "https://www.mercedes-amg.com/en/c-class-sedan — sección Engine & Drivetrain 'The best of all worlds' (350 kW + 150 kW boost; 500 kW total en bloque final de datos), verificado 2026-08-20",
+    "6,1 kWh y 560 celdas (batería HPB)": "https://media.mbusa.com/releases/release-2f4468bf3e26c13ea97feb134903da22-the-new-mercedes-amg-c-63-s-e-performance-the-dawn-of-a-new-era — sección 'Inspired by Formula 1... battery' (6.1 kWh, 560 cells, direct cooling), comunicado 21-09-2022",
+    "High Performance Powertrains (Affalterbach)": "https://media.mbusa.com/releases/release-2f4468bf3e26c13ea97feb134903da22-... — 'developed in close collaboration with the AMG Formula 1 engine builders, High Performance Powertrains in Affalterbach'",
+    "AMG Performance 4MATIC+ y dirección activa del eje trasero de serie": "https://media.mbusa.com/releases/release-2f4468bf3e26c13ea97feb134903da22-... — 'AMG Performance 4MATIC+ fully variable all-wheel drive and active rear axle steering standard'",
+    "Motor eléctrico en eje trasero con transmisión propia de 2 velocidades": "https://media.mbusa.com/releases/release-2f4468bf3e26c13ea97feb134903da22-... — 'integrated with an electrically-shifted two-speed transmission... P3 hybrid'",
+    "Nueva era": "https://media.mbusa.com/releases/release-2f4468bf3e26c13ea97feb134903da22-... — título oficial del comunicado: 'the dawn of a new era'",
+    "Línea WLTP provisional": "https://www.mercedes-amg.com/en/c-class-sedan — bloque legal de la página (5.5 kWh/100 km plus 9 l/100 km; 10.5 l/100km; CO2 205 g/km). Texto oficial ES pendiente (Q-005)"
+  },
+  "metadata": {
+    "campaignName": "c63-se-performance",
+    "clientName": "Mercedes-AMG",
+    "subjectLine": "El impulso llega antes que el ruido",
+    "preheader": "El C 63 S E PERFORMANCE responde desde el eje trasero, antes de que despierte el motor de gasolina.",
+    "fromName": "Mercedes-AMG",
+    "fromEmail": "newsletter@example.com",
+    "version": "1.0.0",
+    "createdAt": "2026-08-20",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/mercedes-amg/tokens/brand-tokens.json",
+  "pattern": "fotografia-primero",
+  "modules": [
+    {
+      "component": "header-logo",
+      "data": {
+        "logoSrc": "https://PENDING-CDN-UPLOAD/mercedes-amg/logo.png",
+        "logoAlt": "Mercedes-AMG",
+        "logoWidth": 150,
+        "logoHeight": 35,
+        "label": "E PERFORMANCE"
+      }
+    },
+    {
+      "component": "hero-imagen",
+      "data": {
+        "bannerSrc": "https://www.mercedes-amg.com/media/images/21dfb48ef6fbbece446b2dfa183b6af940dba924-1440x810.jpg?fm=jpg&w=1200",
+        "bannerAlt": "Sedán deportivo híbrido sobre asfalto nocturno",
+        "brandName": "Mercedes-AMG · E PERFORMANCE",
+        "h1": "Antes del ruido, el impulso.",
+        "subtitle": "El nuevo C 63 S E PERFORMANCE reúne 500 kW: un cuatro cilindros de 350 kW y un motor eléctrico de 150 kW en el eje trasero. Pisas y la respuesta ya está ahí, antes de que el motor despierte.",
+        "cta": {
+          "href": "https://www.mercedes-benz.es/passengercars/models/saloon/c-class/amg.html?utm_source=newsletter&utm_medium=email&utm_campaign=c63-se-performance&utm_content=hero-cta",
+          "label": "Descubrir la nueva era"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto",
+      "data": {
+        "imageSrc": "https://www.mercedes-amg.com/media/images/d3ff0fcc72190d9fd736095c52fbeaa786e49c5d-1440x1440.jpg?fm=jpg&w=560&h=420&fit=crop",
+        "imageAlt": "Detalle del tren motriz híbrido",
+        "eyebrow": "LA RESPUESTA",
+        "title": "Primero se mueve, luego ruge.",
+        "body": "El motor eléctrico vive sobre el eje trasero, con su propia transmisión de dos velocidades. Al acelerar empuja antes de que el motor de gasolina despierte: el par llega casi al instante. Lo notas en la espalda antes de oírlo.",
+        "cta": {
+          "href": "https://www.mercedes-amg.com/en/c-class-sedan?utm_source=newsletter&utm_medium=email&utm_campaign=c63-se-performance&utm_content=editorial1-cta",
+          "label": "Sentir cómo empuja"
+        }
+      }
+    },
+    {
+      "component": "editorial-foto-texto-inverso",
+      "data": {
+        "imageSrc": "https://www.mercedes-amg.com/media/images/9be0cde698a14c7ee2039dfec4b8391d98ff6c54-1440x1440.jpg?fm=jpg&w=560&h=420&fit=crop",
+        "imageAlt": "Batería de alto rendimiento",
+        "eyebrow": "HERENCIA DE F1",
+        "title": "Una batería que aprendió en la F1.",
+        "body": "La batería guarda 6,1 kWh y nació junto a los ingenieros de High Performance Powertrains, los de la Fórmula 1. Sus 560 celdas se refrigeran una a una: soltar toda la energía de golpe, y recuperarla en cada frenada.",
+        "cta": {
+          "href": "https://www.mercedes-amg.com/en/c-class-sedan?utm_source=newsletter&utm_medium=email&utm_campaign=c63-se-performance&utm_content=editorial2-cta",
+          "label": "La batería, al detalle"
+        }
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "El impulso de la nueva era.",
+        "body": "El C 63 deja atrás el rugido para ganar respuesta inmediata, en cualquier curva y a cualquier velocidad. AMG Performance 4MATIC+ y dirección activa del eje trasero ponen 500 kW donde tú quieres: el futuro tiene otra forma de empujar.",
+        "cta": {
+          "href": "https://www.mercedes-benz.es/passengercars/mercedes-benz-cars/car-configurator.html/motorization/CCci/ES/es/bm/2060801?utm_source=newsletter&utm_medium=email&utm_campaign=c63-se-performance&utm_content=closing-cta",
+          "label": "Configurar el tuyo"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Mercedes-AMG",
+        "tagline": "Alta tecnología. Pura emoción.",
+        "disclosure": "Esta comunicación es un borrador de campaña de prueba. Los datos de producto proceden de fuentes oficiales de la marca y están pendientes de aprobación del cliente.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026. Consumo combinado ponderado: 5,5 kWh/100 km + 9,0 l/100 km; con batería descargada: 10,5 l/100 km; emisiones de CO2 combinadas ponderadas: 205 g/km. [DIRECCIÓN FÍSICA — pendiente del cliente]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "c63-se-performance"
+  }
+}

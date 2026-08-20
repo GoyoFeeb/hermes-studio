@@ -5,7 +5,7 @@
   "colors": {
     "primary": "#000000",
     "deep": "#000000",
-    "light": "#B21E23",
+    "light": "#8F1418",
     "ctaBackground": "#B21E23",
     "ctaText": "#FFFFFF",
     "ctaHover": "#D8383D",
@@ -51,7 +51,7 @@
       "weight": 700,
       "letterSpacing": "2px",
       "transform": "uppercase",
-      "color": "#B21E23"
+      "color": "#8F1418"
     },
     "hero": {
       "h1": {
@@ -105,9 +105,9 @@
       "color": "#4F4F4F"
     },
     "body": {
-      "size": 14,
+      "size": 16,
       "weight": 400,
-      "lineHeight": 1.55,
+      "lineHeight": 1.5,
       "color": "#4F4F4F"
     },
     "small": {
@@ -117,9 +117,9 @@
       "color": "#9F9F9F"
     },
     "cta": {
-      "size": 13,
-      "weight": 700,
-      "letterSpacing": "1.5px"
+      "size": 16,
+      "weight": 500,
+      "letterSpacing": "0.5px"
     },
     "footerBrand": {
       "size": 12,
@@ -189,7 +189,7 @@
       "backgroundColor": "#B21E23",
       "textColor": "#FFFFFF",
       "borderRadius": 0,
-      "padding": "17px 40px",
+      "padding": "12px 24px",
       "vml": true
     },
     "card": {
@@ -314,7 +314,7 @@
   },
   "assets": {
     "logo": "https://www.mercedes-amg.com/amg-logo.svg",
-    "logoPngRaster": "brands/mercedes-amg/design-input/logo-mercedes-amg-white-588.png",
+    "logoPngRaster": "brands/mercedes-amg/design-input/logo-mercedes-amg-black-588.png",
     "logoSvgLocal": "brands/mercedes-amg/design-input/logo-mercedes-amg-official.svg",
     "logoWidth": 150,
     "logoHeight": 35,
@@ -344,6 +344,69 @@
     }
   },
   "_changelog": [
+    {
+      "version": "2.5.0",
+      "date": "2026-08-20",
+      "author": "pipeline Hermes (rol 09 — Export) — campaña 'C 63 S E PERFORMANCE'",
+      "summary": "Nuevo asset de logo: assets.logoPngRaster pasa de logo-mercedes-amg-white-588.png (lockup blanco para cabeceras oscuras) a logo-mercedes-amg-black-588.png (lockup negro para cabecera blanca del motor). Detección en QA: el header-logo del motor usa fondo blanco, con el raster blanco el logotipo era invisible (muestreo de píxeles: alpha 0 en esquinas, centro 255; crop del header salía blanco). Se derivó la versión negra del MISMO SVG oficial (amg-logo.svg, fill #fff → #000) con sharp (588×138, densidad 600), se verificó por píxeles (esquinas alpha 0, centro #000) y por visión sobre crop (estrella + AMG visibles). La versión blanca se conserva en design-input para cabeceras oscuras futuras.",
+      "provenance": {
+        "observado": [
+          "El SVG oficial amg-logo.svg declara fill #fff (clase .st0) — lockup blanco.",
+          "El componente header-logo del motor renderiza sobre fondo blanco #FFFFFF."
+        ],
+        "derivado": [
+          "logo-mercedes-amg-black-588.png: mismo SVG oficial con fill #000, rasterizado a 588×138 (densidad 600) con sharp. Verificado por píxeles (esquinas [0,0,0,0], centro [0,0,0,255])."
+        ],
+        "inferido": [],
+        "documentado": [
+          "En Gmail web los data URIs se bloquean: para producción, subir el PNG al CDN y sustituir la URL. El SVG oficial sigue en assets.logo (clientes modernos)."
+        ]
+      }
+    },
+    {
+      "version": "2.4.0",
+      "date": "2026-08-20",
+      "author": "pipeline Hermes (rol 08 — QA) — campaña 'C 63 S E PERFORMANCE'",
+      "summary": "Decisión de accesibilidad del sistema: typography.eyebrow.color pasa de #B21E23 (rojo AMG observado, 3.11:1 sobre blanco/negro a 11-12px) a #8F1418 (derivado oscuro del mismo rojo, 6.14:1). DECISIÓN DEL SISTEMA, no valor observado en el sitio (el sitio usa el rojo en texto pequeño; en email no cumple WCAG AA). Mismo criterio que Spotify/Worn Wear: se usa un tono estructural del pack en vez de agrandar o inventar color.",
+      "provenance": {
+        "observado": [
+          "colors.light / ctaBackground (#B21E23) sigue siendo el color oficial de CTA y acentos — sin cambios (6.77:1 con blanco ✅).",
+          "El eyebrow del sitio real se renderiza en rojo #B21E23 (observado en el CSS del documento el 2026-07-30); los componentes del motor lo tokenizan a 11-12px/700."
+        ],
+        "derivado": [
+          "typography.eyebrow.color: pasó de #B21E23 (3.11:1 sobre blanco y sobre negro a 11px — FALLA AA 4.5:1) a #8F1418 (6.14:1 sobre blanco, 7.2:1 sobre negro — ✅ AA). Derivado oscuro del MISMO rojo AMG (misma familia cromática), no un color nuevo. Documentado como decisión de accesibilidad del sistema en 05-copy/body-copy.md (R-11).",
+          "colors.light: pasó de #B21E23 a #8F1418 por el mismo motivo — el token alimenta TEXTO pequeño (label del header-logo 12px/700, eyebrows de card-tarifa-3/lista-premium 12px) que con el rojo puro falla AA (3.11:1); con #8F1418 cumple (6.14:1). También alimenta franjas decorativas de 2-4px (no texto): el oscurecimiento es imperceptible. El rojo puro #B21E23 sigue en colors.ctaBackground, colors.link, colors.eyebrowOnBrand y acentos grandes donde cumple AA."
+        ],
+        "inferido": [],
+        "documentado": [
+          "El rojo #B21E23 permanece en CTAs (6.77:1), barrita decorativa 36x3px (no texto) y acentos grandes (>=14px bold) donde cumple AA."
+        ]
+      }
+    },
+    {
+      "version": "2.3.0",
+      "date": "2026-08-20",
+      "author": "pipeline Hermes (rol 02) — campaña 'C 63 S E PERFORMANCE'",
+      "summary": "Verificación real de los 5 valores del CTA y del body con getComputedStyle sobre https://www.mercedes-amg.com/en/c-class-sedan. Los valores que la v2.2.0 marcó como INFERIDOS (válvula de escape) quedan ahora OBSERVADOS o DERIVADOS de lo observado.",
+      "provenance": {
+        "observado": [
+          "typography.cta.size: pasó de 13 (inferido) a 16 (getComputedStyle real del <a> 'Configure now' — font-size:16px).",
+          "typography.cta.weight: pasó de 700 (inferido) a 500 (getComputedStyle real — font-weight:500).",
+          "typography.cta.letterSpacing: pasó de '1.5px' (inferido) a '0.5px' (getComputedStyle real 0.45712px, redondeado a 0.5px para email-safe; el redondeo queda documentado como DERIVADO del valor observado).",
+          "typography.body.size: pasó de 14 (inferido) a 16 (getComputedStyle real del <p> — font-size:16px).",
+          "typography.body.lineHeight: pasó de 1.55 (inferido) a 1.5 (getComputedStyle real line-height:24px sobre 16px = 1.5).",
+          "components.cta.borderRadius: CONFIRMADO 0 (getComputedStyle real border-radius:0px) — el valor inferido en v2.2.0 era correcto.",
+          "components.cta.backgroundColor: CONFIRMADO #B21E23 (getComputedStyle real rgb(178,30,35)).",
+          "El CTA real del sitio es un <a> con border 1px solid #B21E23 (borde del mismo color del fondo — invisible en la práctica; no se tokeniza ni se añade al motor)."
+        ],
+        "derivado": [
+          "components.cta.padding: pasó de '17px 40px' (inferido) a '12px 24px'. El real es '0px 16px' con line-height:28px (el alto del botón lo da el line-height, no el padding vertical). En email bulletproof no existe ese patrón: se deriva '12px 24px' para alcanzar un alto de botón equivalente (~48px). Documentado como DERIVADO del observado, no observado literal."
+        ],
+        "inferido": [],
+        "documentado": []
+      },
+      "valvulaDeEscape": "Resuelta parcialmente: los 5 valores del CTA y el body quedan medidos con getComputedStyle real (Chrome vía navegador automatizado, 2026-08-20). Pendiente de verificación en una ronda futura: typography.h1Hero/h2Section weights (el sitio declara familias nombradas 'titleExtraBold'/'textRegular' donde el peso vive en el nombre de la fuente; en email la traducción weight 800/400 del pack se mantiene como decisión de diseño, no como valor observado)."
+    },
     {
       "version": "2.2.0",
       "date": "2026-07-30",

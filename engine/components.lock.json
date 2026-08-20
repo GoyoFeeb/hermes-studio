@@ -1,8 +1,8 @@
 {
   "_comment": "Lockfile de integridad del motor. Regenerar SOLO tras un cambio legítimo documentado en engine/CHANGELOG.md, con: npm run check-engine -- --update",
-  "generatedAt": "2026-07-28T16:20:48.411Z",
+  "generatedAt": "2026-08-20T08:23:09.779Z",
   "files": {
-    "engine/components/_shell.html": "658b5caa352e6af57411e3d5ee5c888d98e87316733bd6640e7333490c58493d",
+    "engine/components/_shell.html": "65bed3b679c05761220d2bed279a14c867ad02dec845103f09525120b77b161f",
     "engine/components/banda-cierre-asimetrico.html": "59a59a0e307e937ae233a4eaed98ad11696a88204f338b05aac4fb6f3e1ebebb",
     "engine/components/banda-cierre.html": "05491a3edeadf3310f811eb23c8aa9ddd39da6c846acd5a05ed8899cf45bc4ce",
     "engine/components/card-tarifa-3.html": "d09bc3d998b99a8afc4fcc0d23cc222e99463c2014c6c825d587aaf030ac89db",

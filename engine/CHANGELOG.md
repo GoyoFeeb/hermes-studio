@@ -1,5 +1,23 @@
 # Changelog — engine/
 
+## 2026-08-20 — Fix overflow mobile: box-sizing en `.mobile-stack` (campaña Mercedes-AMG C 63 S E PERFORMANCE)
+
+Bug real activo en el motor (mismo patrón que el documentado en el skill newsletter-pipeline,
+Nike ZF6 2026-08): las celdas de columnas `.mobile-stack` apilaban en mobile con
+`display:block;width:100% !important` pero su padding horizontal inline (p.ej. `padding:0 10px 0 0`)
+se SUMABA al 100% (content-box), produciendo overflow horizontal en móvil (375 → scrollWidth 385;
+320 → 330). Detectado en el QA de la campaña Mercedes-AMG C 63 S E PERFORMANCE con
+`measure-overflow.js` (getBoundingClientRect: los td `.mobile-stack` medían 385px). Afectaba a
+TODAS las campañas del motor con editoriales/columnas en mobile.
+
+- **`engine/components/_shell.html`** — la regla del media query `@media only screen and
+  (max-width:599px)` de `.mobile-stack` pasa de `display:block !important; width:100% !important`
+  a añadir `box-sizing:border-box !important` (mismo fix general que el skill recomienda para
+  `.col`). Con border-box, el padding queda DENTRO del 100% y la celda apilada no desborda.
+- Verificado: rebuild + Playwright a 375 y 320 → `scrollWidth === viewport` (375/320), 0
+  elementos con rect > viewport. Parity ✅.
+- `engine/components.lock.json` regenerado (`npm run check-engine -- --update`): 41 archivos.
+
 ## 2026-07-28 — Fase F4 (flexibilidad estructural): 2 bugs reales de arreglos mecánicos
 
 A partir de docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md §3.5 — dos
