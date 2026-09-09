@@ -1,0 +1,17 @@
+# Levantar desde la raíz del repo: docker compose -f studio/docker-compose.yml up --build
+services:
+  hermes-studio:
+    build:
+      context: ..
+      dockerfile: studio/Dockerfile
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+      - studio/.env
+    volumes:
+      # Persistencia: campañas, brand packs y datos de trabajos sobreviven a reinicios/redeploys.
+      - ../newsletters:/app/newsletters
+      - ../brands:/app/brands
+      - ./data:/app/studio/data
+    restart: unless-stopped

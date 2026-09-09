@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hermes Studio</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Hermes Studio</h1>
+    <p>Escribe el brief de la newsletter y el sistema la genera de principio a fin.</p>
+  </header>
+
+  <main id="app">
+    <section id="view-form">
+      <form id="brief-form">
+        <label>
+          Nombre del cliente / marca
+          <input type="text" name="clientName" required placeholder="Ej: New Balance" />
+        </label>
+
+        <fieldset>
+          <legend>¿La marca ya existe en el sistema?</legend>
+
+          <label class="radio">
+            <input type="radio" name="brandMode" value="existing" checked />
+            Ya existe — elegir de la lista
+          </label>
+          <select name="existingBrand" id="existing-brand-select"></select>
+
+          <label class="radio">
+            <input type="radio" name="brandMode" value="new" />
+            Es una marca nueva — analizar su web
+          </label>
+          <input type="url" name="brandUrl" id="brand-url-input" placeholder="https://www.marca.com" disabled />
+          <p class="hint">El análisis de una marca nueva tarda más (navega su web real) y solo hace falta la primera vez.</p>
+        </fieldset>
+
+        <label>
+          Brief de la campaña
+          <textarea name="briefText" required rows="6"
+            placeholder="Qué se anuncia, a quién, objetivo, tono, cualquier restricción legal..."></textarea>
+        </label>
+
+        <div class="row">
+          <label>
+            CTA principal
+            <input type="text" name="ctaLabel" placeholder="Ej: Comprar ahora" />
+          </label>
+          <label>
+            Enlace principal
+            <input type="url" name="ctaUrl" placeholder="https://..." />
+          </label>
+        </div>
+
+        <label>
+          Notas legales / restricciones (opcional)
+          <textarea name="legalNotes" rows="3"></textarea>
+        </label>
+
+        <label>
+          Tu nombre (opcional, para el registro del trabajo)
+          <input type="text" name="requesterName" />
+        </label>
+
+        <button type="submit">Generar newsletter</button>
+      </form>
+    </section>
+
+    <section id="view-job" hidden>
+      <h2>Progreso</h2>
+      <div id="job-status" class="status-badge"></div>
+      <ol id="job-log"></ol>
+
+      <div id="job-result" hidden>
+        <p>✅ La newsletter está lista.</p>
+        <a id="download-link" class="button" href="#">Descargar final-inline.html</a>
+        <iframe id="preview-frame" title="Previsualización de la newsletter"></iframe>
+      </div>
+
+      <div id="job-blocked" hidden>
+        <p>⚠️ La campaña se detuvo antes de poder entregarse:</p>
+        <pre id="blocked-reason"></pre>
+      </div>
+
+      <button id="new-job-btn" type="button">Enviar otro brief</button>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
