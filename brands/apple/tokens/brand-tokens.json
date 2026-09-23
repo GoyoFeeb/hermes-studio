@@ -1,7 +1,7 @@
 {
   "brand": "apple",
   "description": "Design tokens for Apple — premium, minimalist, product-first campaigns for iPhone 17 Pro",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "metadata": {
     "source": "Apple Newsroom + apple.com/iphone-17-pro/ (observado 2026-07-28)",
     "lastVerified": "2026-07-28",
@@ -9,6 +9,7 @@
     "isTestCampaign": false
   },
   "colors": {
+    "source": "observado en https://www.apple.com/es/iphone/ el 2026-09-23 (getComputedStyle: CTA 'Más información' rgb(0,113,227) = #0071E3 confirma ctaBackground exacto; texto de cuerpo/H1 rgb(29,29,31) = #1D1D1F confirma colors.primary exacto)",
     "primary": "#1D1D1F",
     "background": {
       "white": "#FFFFFF"
@@ -52,6 +53,7 @@
     "ctaBackground": "#0071E3"
   },
   "typography": {
+    "source": "observado en https://www.apple.com/es/iphone/ el 2026-09-23 (getComputedStyle: familia real '\"SF Pro Text\"/\"SF Pro Display\", \"SF Pro Icons\", \"Helvetica Neue\", Helvetica, Arial, sans-serif' en H1/body/CTA)",
     "family": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Arial, Helvetica, sans-serif",
     "displayFont": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Arial, Helvetica, sans-serif",
     "webFont": "",
@@ -211,6 +213,17 @@
       "author": "Fase F3 (flexibilidad estructural)",
       "changes": [
         "spacing.{micro,small,medium,large,close} añadidos (forma canónica)"
+      ]
+    }
+  ,
+    {
+      "version": "2.2.1",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20 — este pack no los tenía pese a que colors/typography ya eran correctos).",
+        "Verificado con getComputedStyle contra https://www.apple.com/es/iphone/: ctaBackground (#0071E3) y colors.primary (#1D1D1F) confirmados EXACTOS. Cero cambios de valor.",
+        "Hueco declarado (no investigado en esta pasada, fuera de alcance de un piloto centrado en colors/typography): voice.rhythm.mode/formality/punctuationHabits/source — voice.rhythm.sentenceLength ya estaba, el resto del grupo queda pendiente de que 02 analice tono/copy real de apple.com en su próxima pasada por esta marca."
       ]
     }
   ]

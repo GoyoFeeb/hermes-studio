@@ -10,6 +10,7 @@ import { readRepoFile, readRepoFilesGlobLike, writeGeneratedFiles } from '../cam
 import { callAgent } from '../anthropicClient';
 import { parseFileBlocks, buildOutputContract } from '../util/fileBlocks';
 import { generateHeroImage, toPublicAssetUrl } from '../heroImage';
+import { sanitizeLandingPrompt } from '../../../scripts/lib/sanitize-hero-prompt';
 import type { JobInput } from '../store';
 
 const HERO_PLACEHOLDER = '{{GENERATE_HERO}}';
@@ -64,9 +65,15 @@ export async function runDataPhase(
   }
 
   if (files[expectedFile].includes(HERO_PLACEHOLDER)) {
+    // El brief (input.briefText) es texto libre escrito por una persona — mismo tipo de riesgo
+    // que la descripción por visión del flujo CLI (incidente BMW, 2026-07-27, ver memory.md):
+    // puede nombrar personajes/logos/modelos/matrículas/precios que activan el safety system de
+    // OpenAI. Se sanea antes de interpolarlo, no solo el nombre de marca (auditoría 2026-09-23,
+    // BUG-H08 — antes Studio generaba el hero sin ningún saneado).
+    const sanitizedBrief = sanitizeLandingPrompt(input.briefText, input.clientName);
     const heroPrompt =
       `Imagen de hero premium para un email de marketing de la marca ${input.clientName}. ` +
-      `Contexto de campaña: ${input.briefText}. Fotografía de producto o estilo de vida, sin ` +
+      `Contexto de campaña: ${sanitizedBrief}. Fotografía de producto o estilo de vida, sin ` +
       'texto superpuesto, sin logotipos de terceros, apta para email marketing.';
     const heroRelPath = await generateHeroImage({ brandSlug, campaignSlug, prompt: heroPrompt });
     const publicUrl = toPublicAssetUrl(heroRelPath);

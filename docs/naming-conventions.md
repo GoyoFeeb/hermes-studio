@@ -63,7 +63,7 @@ newsletters/2026/ocu/2026-jul-moneyman/
 | Fase | Archivos | Formato |
 |---|---|---|
 | 00-brief | `brief.md`, `requirements.md`, `source-links.md`, `open-questions.md` | Markdown |
-| 02-analysis | `brand-analysis.md`, `visual-analysis.md`, `risks.md` | Markdown |
+| 02-analysis | `brand-analysis.md`, `visual-identity-report.md`, `risks.md` | Markdown |
 | 03-strategy | `campaign-angle.md`, `message-hierarchy.md`, `module-selection.md`, `structure.md` | Markdown |
 | 04-design | `layout.md`, `desktop-spec.md`, `mobile-spec.md`, `assets-notes.md` | Markdown |
 | 05-copy | `subject-lines.md`, `preheaders.md`, `body-copy.md`, `cta-options.md` | Markdown |

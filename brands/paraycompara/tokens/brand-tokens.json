@@ -1,8 +1,9 @@
 {
   "brand": "Para y Compara",
-  "version": "2.2.7",
+  "version": "2.2.8",
   "extends": "core",
   "colors": {
+    "source": "observado en https://www.paraycompara.com el 2026-09-23 (getComputedStyle) — AVISO IMPORTANTE, distinto de las demás verificaciones de este lote: los valores reales divergen de forma significativa, no un redondeo menor. El gradiente real del hero es linear-gradient(#792771 → #E85248) (sección .tarifa-movil), no colors.primary (#5E2E91) ni colors.deep (#3E244D). El CTA real ('Comparar Tarifas') es #F85842, cercano pero no idéntico a ctaBackground (#FF5A3C) — ese sí razonablemente cerca. La hipótesis más probable es que el sitio se rediseñó desde la última vez que se documentó este pack (photography.source nunca se rellenó, a diferencia de nike/bmw/audi) — no se corrigen los valores aquí: cambiar colors.primary/deep es una decisión de diseño real con impacto en 2 campañas reales existentes (paraycompara/2026-jul-comparar-tv, 2026-jul-revision-verano), no una simple adición de procedencia. Queda para que 02 haga un re-análisis completo, no una asunción de esta auditoría.",
     "primary": "#5E2E91",
     "deep": "#3E244D",
     "light": "#7B1FA2",
@@ -28,6 +29,7 @@
     }
   },
   "typography": {
+    "source": "observado en https://www.paraycompara.com el 2026-09-23 (getComputedStyle: familia real 'Alexandria, sans-serif' en H1/CTA/cuerpo — distinto del sustituto 'Sora' ya documentado en displayFont. A diferencia de Helvetica Now/AudiType/Capitana, Alexandria SÍ es una fuente de Google Fonts real y embebible — si se confirma en el re-análisis completo de 02, podría usarse directamente vía webFont en vez de un sustituto aproximado)",
     "family": "Arial, Helvetica, sans-serif",
     "displayFont": "'Sora','Segoe UI',Arial,Helvetica,sans-serif",
     "eyebrow": { "size": 12, "weight": 700, "letterSpacing": "3px", "transform": "uppercase", "color": "#7B1FA2" },
@@ -374,6 +376,16 @@
       "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
       "changes": [
         "spacing.innerSection/cta añadidos (Fase F3, forma canónica) — inferidos del valor por defecto mayoritario (24px 20px / 20px 0, usado por la mayoría de packs del key-set B), no observados directamente para esta marca."
+      ]
+    }
+  ,
+    {
+      "version": "2.2.8",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20) — pero, a diferencia del resto de este lote, NO es una confirmación limpia.",
+        "HALLAZGO IMPORTANTE (no corregido, dejado para 02): verificado con getComputedStyle contra https://www.paraycompara.com, el gradiente real del hero (#792771 → #E85248) y el CTA real (#F85842) divergen de forma notable de colors.primary/deep/ctaBackground documentados. La fuente real es 'Alexandria' (Google Font embebible), no el sustituto 'Sora' ya usado. Hipótesis: el sitio se rediseñó desde la última vez que se documentó este pack. NO se cambian los valores — afectan a 2 campañas reales existentes (2026-jul-comparar-tv, 2026-jul-revision-verano) y es una decisión de diseño, no una simple adición de procedencia. Requiere que 02 haga un re-análisis completo del pack."
       ]
     }
   ]

@@ -78,7 +78,15 @@ function isLargeText(sizePx: number, weight: number): boolean {
 
 interface Combo {
   label: string;
-  fgPath: string;
+  /** Ruta al color de primer plano en el brand pack. Omitible si `fgLiteral` está definido. */
+  fgPath?: string;
+  /**
+   * Color de primer plano FIJO en la plantilla (no viene de ningún token) — ej. el "#FFFFFF"
+   * hardcodeado del número dentro del círculo de pasos.html/pasos-vertical.html. Distinto de
+   * `fgFallback` (que es el valor que el MOTOR usa si el pack no declara el token): aquí no hay
+   * ningún token que declarar, el literal es la única fuente posible. Añadido 2026-09-23.
+   */
+  fgLiteral?: string;
   bgPath: string;
   /** Tamaño/peso literal, usado solo si no hay sizePath/weightPath o si el pack no los trae. */
   sizePx: number;
@@ -122,7 +130,11 @@ const COMBOS: Combo[] = [
     bgPath: 'colors.background.white',
     sizePx: 14,
     weight: 400,
-    usedIn: 'card-tarifa.html, lista-premium.html, columns-3-beneficios*.html (body)'
+    usedIn: 'card-tarifa.html, lista-premium.html, columns-3-beneficios*.html (body), ' +
+      'pasos.html/pasos-vertical.html (body, mismo par de color/tamaño), ' +
+      'lista-premium-2col.html (body, 13px — mismo umbral, texto no-grande) — ' +
+      'auditoría 2026-09-23: estos 3 componentes no tenían su propia entrada porque ya comparten ' +
+      'exactamente este par color+tamaño, no porque no se hubieran revisado.'
   },
   {
     label: 'Cuerpo de texto secundario sobre sección alterna',
@@ -130,7 +142,8 @@ const COMBOS: Combo[] = [
     bgPath: 'surfaces.sectionLila',
     sizePx: 13,
     weight: 400,
-    usedIn: 'usp-cards.html, columns-3-beneficios.html (fondo surfaces.sectionLila)'
+    usedIn: 'usp-cards.html, columns-3-beneficios.html (fondo surfaces.sectionLila), ' +
+      'category-grid.html/category-grid-img.html (subtitle, 12px — mismo umbral) — auditoría 2026-09-23'
   },
   {
     label: 'Subtítulo del hero sobre color primario de marca',
@@ -181,7 +194,9 @@ const COMBOS: Combo[] = [
     bgPath: 'colors.background.white',
     sizePx: 13,
     weight: 700,
-    usedIn: 'card-tarifa.html, card-tarifa-3.html (linkLabel) — resuelve el hallazgo cardLinkSecondary documentado en saving.md §5.2'
+    usedIn: 'card-tarifa.html, card-tarifa-3.html (linkLabel) — resuelve el hallazgo cardLinkSecondary documentado en saving.md §5.2. ' +
+      'También cubre trust-bar-inline.html (claim text, 13px/600) y lista-premium-2col.html (title, 14px/700) — ' +
+      'mismo par colors.primary/blanco, tamaño <18.66px en los 3 casos → mismo umbral 4.5:1 (auditoría 2026-09-23).'
   },
   {
     label: 'Texto de footer sobre fondo global',
@@ -198,6 +213,44 @@ const COMBOS: Combo[] = [
     sizePx: 14,
     weight: 700,
     usedIn: 'cta-secondary-bulletproof.html (intro-cta*.html, category-grid*.html) — añadido 2026-07-24, ronda "jerarquía de CTA"'
+  },
+  // ── Añadidas 2026-09-23 (auditoría): componentes de Fase F3/2026-08-01 (pasos-vertical,
+  // trust-bar-inline, category-grid*, lista-premium-2col, metric-strip-premium) sin ninguna
+  // verificación de contraste — mismo tipo de hueco que ya motivó este script en 2026-07-24. Las
+  // 4 combinaciones de abajo son las que NO coincidían ya con un par color+umbral existente (ver
+  // los "usedIn" ampliados arriba para las que sí coincidían).
+  {
+    label: 'Número del paso (círculo) sobre color primario de marca',
+    fgLiteral: '#FFFFFF', // hardcodeado en pasos.html/pasos-vertical.html, no viene de ningún token
+    bgPath: 'colors.primary',
+    sizePx: 16, // pasos-vertical.html (círculo 40px, texto 16px/800) — más estricto que pasos.html (20px/800, "grande", 3:1)
+    weight: 800,
+    usedIn: 'pasos-vertical.html (número, 16px). También cubre pasos.html (número, 20px/800, ' +
+      'texto "grande" → umbral 3:1, más laxo — si este combo pasa, ese también pasa).'
+  },
+  {
+    label: 'Título de categoría sobre sección alterna (sectionLila)',
+    fgPath: 'colors.primary',
+    bgPath: 'surfaces.sectionLila',
+    sizePx: 14,
+    weight: 700,
+    usedIn: 'category-grid.html, category-grid-img.html (title) — colors.primary nunca se había verificado contra surfaces.sectionLila (solo contra blanco/deep).'
+  },
+  {
+    label: 'Valor de métrica grande sobre fondo blanco (surfaces.white)',
+    fgPath: 'colors.primary',
+    bgPath: 'surfaces.white',
+    sizePx: 28,
+    weight: 300,
+    usedIn: 'metric-strip-premium.html (value) — surfaces.white es un token distinto de colors.background.white (puede divergir por marca); 28px es "texto grande" (umbral 3:1) incluso con peso 300.'
+  },
+  {
+    label: 'Label de métrica sobre fondo blanco (surfaces.white)',
+    fgPath: 'colors.text.secondary',
+    bgPath: 'surfaces.white',
+    sizePx: 13,
+    weight: 400,
+    usedIn: 'metric-strip-premium.html (label) — mismo motivo que el combo anterior: surfaces.white no se había verificado antes.'
   }
 ];
 
@@ -220,6 +273,32 @@ interface ComboResult {
 function checkContrast(tokens: any): ComboResult[] {
   const results: ComboResult[] = [];
   for (const combo of COMBOS) {
+    if (combo.fgLiteral) {
+      // Ver Combo.fgLiteral: no hay token que consultar, el color es fijo en la plantilla.
+      const fg = combo.fgLiteral;
+      const bg = get(tokens, combo.bgPath);
+      if (typeof bg !== 'string') {
+        results.push({ combo, skippedReason: `campo ausente en el pack: ${combo.bgPath}=${bg}` });
+        continue;
+      }
+      const ratio = contrastRatio(fg, bg);
+      if (ratio === null) {
+        results.push({ combo, fg, bg, skippedReason: 'uno de los 2 valores no es un hex de 6 dígitos (ej. rgba(...)) — no soportado por este check, verificar a mano.' });
+        continue;
+      }
+      const sizeFromPack = combo.sizePath ? get(tokens, combo.sizePath) : undefined;
+      const weightFromPack = combo.weightPath ? get(tokens, combo.weightPath) : undefined;
+      const sizePx = typeof sizeFromPack === 'number' ? sizeFromPack : combo.sizePx;
+      const weight = typeof weightFromPack === 'number' ? weightFromPack : combo.weight;
+      const usedFallback = !!combo.sizePath && typeof sizeFromPack !== 'number';
+      const threshold = isLargeText(sizePx, weight) ? 3.0 : 4.5;
+      results.push({ combo, fg, bg, ratio, threshold, pass: ratio >= threshold, sizePx, weight, usedFallback });
+      continue;
+    }
+    if (!combo.fgPath) {
+      results.push({ combo, skippedReason: 'combo mal definido: ni fgLiteral ni fgPath.' });
+      continue;
+    }
     const fgFromPack = get(tokens, combo.fgPath);
     const fg = typeof fgFromPack === 'string' ? fgFromPack : combo.fgFallback;
     const usedFgFallback = typeof fgFromPack !== 'string' && typeof combo.fgFallback === 'string';

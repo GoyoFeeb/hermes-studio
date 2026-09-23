@@ -57,6 +57,15 @@ test('escapeHtml escapes campaign copy inserted through data placeholders', () =
   assert.equal(escapeHtml('Tom & Jerry <script>'), 'Tom &amp; Jerry &lt;script&gt;');
 });
 
+test('escapeHtml escapes double quotes so campaign data cannot break out of an HTML attribute', () => {
+  // Regresión 2026-09-23: {{data:...}} se usa dentro de href="..."/src="..."/alt="..." en
+  // varios componentes; sin escapar ", un valor con comilla inyectaba atributos/markup arbitrario.
+  assert.equal(
+    escapeHtml('https://x.com/" onmouseover="alert(1)'),
+    'https://x.com/&quot; onmouseover=&quot;alert(1)'
+  );
+});
+
 test('withCellGeometry gives a single full-width cell zero padding', () => {
   const [item] = withCellGeometry([{ title: 'Uno' }], 1, 10);
   assert.equal(item.colWidth, '100%');

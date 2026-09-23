@@ -291,4 +291,72 @@ evidencia real de que el hueco no era hipotético:
   repobló en esta pasada; los 13 quedan pendientes de que 02 se ejecute de nuevo, o de que se
   declare el hueco en `_changelog` marca por marca.
 
+Actualización 2026-08-20 (continuación diagnóstico "newsletters genéricas" — dos hallazgos y una
+implementación):
+
+**Hallazgo 1 — casi la mitad de las newsletters reales del repo nunca pasaron por el sistema.**
+Conteo real: 32 tienen `build-manifest.json` (pasaron por `engine/build-newsletter.js` dentro de
+`newsletters/{año}/{cliente}/{campaña}/`); 30 son HTML sueltos en la raíz del repo (Toyota RAV4,
+BYD, MSF, Acción contra el Hambre, Asics, Feebbo Class5, Nike AF1-07/Air Max 97/Zoomfly6-limite,
+New Balance 740N...) construidos por scripts ad-hoc en `brands/{marca}/design-input/*.js` que
+nunca tocan `engine/build-newsletter.js`. Confirmado: **ninguna de las 6 marcas más recientes de
+esa lista tiene `brand-tokens.json`** — el color "de marca" sale de muestrear píxeles de una
+imagen de referencia (`palette-check.js`), no de `getComputedStyle` sobre el sitio real. Cero
+mecanismo de diferenciación estructural opera sobre esas piezas — por diseño, no por descuido.
+Usuario confirmó (tras preguntárselo) que generaba así **la mayoría** de sus newsletters, motivado
+por velocidad.
+
+**Hallazgo 2 — incluso las campañas que SÍ pasan por el pipeline real siguen colisionando, y la
+causa es concreta: el patrón `fotografia-primero` tiene un catálogo demasiado estrecho.**
+`check-structural-differentiation.ts` (Gate 12) contra las 32 campañas reales muestra colisión
+≥80% SOLO entre campañas `fotografia-primero` (Audi/BMW/Mercedes-AMG/New Balance/Adidas/Nike AF1)
+— `saving` e `institutional` (tarifalo, paraycompara, adeslas, uax, optica2000...) no colisionan
+nada. Comparación literal de módulos: las 5 campañas "brand-native" convergen todas en
+`hero-imagen → editorial-foto-texto → editorial-foto-texto-inverso → [1 opcional] → banda-cierre`
+porque `patterns/fotografia-primero.md` solo define 4 familias de módulos en su zona libre
+(`intro-cta`, `editorial-foto-texto`/-inverso, `metric-strip-premium`,
+`columns-3-beneficios-sin-icono`) y el par editorial es la elección obviamente correcta para
+cualquier marca premium-fotográfica (coches, sneakers, moda). Verificado contra
+`brand-structure-translation.md` de Mercedes-AMG (recién construido, con `compositionProfile` Y
+`brandStructure` poblados, ambos citando la URL real) — el documento está genuinamente bien hecho
+y AUN ASÍ converge, porque no hay entre qué elegir. `compositionProfile`/`alignmentBias` no pueden
+arreglar esto: gobiernan alineación/densidad DENTRO de un módulo, nunca qué módulos se eligen —
+distinción que ni `agents/03-newsletter-architect.md` ni Gate 12 confunden, pero que limita lo que
+esos campos pueden lograr por sí solos. **Pendiente, no implementado esta sesión** (el usuario
+priorizó primero el Hallazgo 1): ampliar el catálogo de `fotografia-primero` con 1-2 componentes
+genuinamente distintos al par editorial, y actualizar `PATTERN_DEFAULT_SEQUENCES['fotografia-primero']`
+en Gate 12 (sigue con la comodín antigua de `intro-cta`, nunca detecta que el par editorial se
+convirtió en el nuevo comodín de facto — solo lo pilla el check 8 de comparación cruzada).
+
+**Implementación — modo exploración (`metadata.explorationMode`), respuesta al Hallazgo 1.**
+Objetivo: acercar la velocidad del pipeline real a la de los scripts sueltos para que dejen de
+usarse, sin sacrificar lo que hace que una campaña no sea genérica. Cambios:
+- `engine/schema/campaign-data.schema.json`: nuevo campo opcional `metadata.explorationMode`.
+  `engine/components.lock.json` regenerado (Gate 0 vigila el schema) — ver `engine/CHANGELOG.md`.
+- `newsletters/_campaign-template-exploration/` (nueva, 14 archivos vs. ~50 de
+  `_campaign-template/`): mantiene intacto 00-brief, `02-analysis/brand-analysis.md`, y **todo**
+  `03-strategy/` incluido `brand-structure-translation.md` (obligatorio, Gate 12) — difiere
+  `01-inputs/` (placeholders vacíos), colapsa `04-design/` y `05-copy/` en un doc único cada uno,
+  y omite `08-qa/`, `09-exports/` y los 4 archivos de control (son papeleo de traspaso entre
+  sesiones, sin efecto en el HTML final).
+- `scripts/create-campaign.ts`: nuevo flag `--mode exploration|full` (por defecto `full`).
+- `scripts/production-gate-motor.ts`: con `explorationMode:true` (y `productionReady` distinto de
+  `true` — salvaguarda: si es `true`, el flag se ignora y corren las 13 gates igual) difiere 5 de
+  13 gates (parity, assets HTTP 200, control files, production-readiness, Gate 13 informe Nivel 5)
+  — las 8 que certifican fidelidad de marca y diferenciación estructural (schema, build real,
+  claims, columnas, **Gate 8 brand-pack completeness — colors/typography/photography/iconography/
+  voice.rhythm `.source`, SIN relajar**, WCAG, hero, **Gate 12 diferenciación estructural**) corren
+  igual. Verificado end-to-end contra una copia de una campaña real (uax) y contra
+  `campaign-data.example.json`: exactamente 5 avisos de "Omitido — modo exploración", Gate 8 y
+  Gate 12 siguen ejecutándose y pueden seguir fallando.
+- `agents/00-orchestrator.md` (nueva sección "Modo exploración"), `agents/02-brand-visual-analyst.md`
+  (nueva sección: 6 dimensiones núcleo siguen obligatorias, solo se difieren los 8 archivos Nivel
+  5), `agents/08-qa-specialist.md` y `agents/09-export-manager.md` (nota: fase diferida en este
+  modo) actualizados.
+- `scripts/gates.smoke.test.js`: 2 tests nuevos (explorationMode difiere las 5 gates; sin el flag
+  corren las 13 — control). `npm test` en 53/53 tras el cambio.
+- Estimación previa a implementar (archivos): ~57→~19 primera campaña de marca nueva, ~50→~18
+  campañas siguientes de marca conocida — confirmada con la implementación real (14 archivos en
+  el template, no 18-19; más ceremonia recortada de la estimada).
+
 _Last updated: 2026-08-20_

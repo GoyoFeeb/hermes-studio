@@ -1,8 +1,9 @@
 {
   "brand": "audi",
   "description": "Design tokens for Audi — ultra-premium German automotive brand. Created from real observation of audi.es on 2026-07-27.",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "colors": {
+    "source": "observado en https://www.audi.es el 2026-09-23 (getComputedStyle: fondo del body/hero rgb(16,19,25) = #101319 confirma colors.deep/darkBg exacto. AVISO no corregido: los botones píldora reales ('Ver modelos'/'Comparar modelos') usan rgb(24,29,37) = #181D25, no #000000 puro como documenta ctaBackground — diferencia mínima sin impacto de contraste (ambos >18:1 contra texto blanco) y no se pudo confirmar si ese botón es el CTA primario canónico o uno secundario de la sección de carrusel de modelos; dejar para que 02 lo confirme en su próxima pasada en vez de asumir cuál es el correcto.",
     "primary": "#000000",
     "ctaBackground": "#000000",
     "ctaText": "#FFFFFF",
@@ -48,6 +49,7 @@
     "_note": "#FCFCFD (off-white) es la superficie clara predominante de Audi. #FFFFFF se reserva como blanco técnico para texto sobre fondos oscuros y zonas que necesiten máximo contraste o compatibilidad."
   },
   "typography": {
+    "source": "observado en https://www.audi.es el 2026-09-23 (getComputedStyle: familia real 'AudiType, sans-serif' en H1/nav/botones — confirma la familia ya documentada)",
     "family": "Arial, Helvetica, sans-serif",
     "note": "Audi usa AudiType en su web (observado desde audi.es el 2026-07-27). No es segura en email. La cadena de fuentes de Audi ya incluye Arial como fallback primario — se usa Arial/Helvetica consistente con su identidad y segura en todos los clientes de correo.",
     "displayFont": "'Inter', Arial, Helvetica, sans-serif",
@@ -373,6 +375,17 @@
       "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
       "changes": [
         "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 32px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
+      ]
+    }
+  ,
+    {
+      "version": "2.2.3",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20).",
+        "Verificado con getComputedStyle contra https://www.audi.es: colors.deep/darkBg (#101319) y la familia tipográfica AudiType confirmados exactos.",
+        "HALLAZGO (no corregido, dejado para 02): los botones píldora reales usan #181D25, no #000000 puro como documenta ctaBackground — diferencia mínima sin impacto de contraste, pero no confirmada como el CTA primario canónico vs. uno secundario. No se cambia el valor sin esa confirmación."
       ]
     }
   ]

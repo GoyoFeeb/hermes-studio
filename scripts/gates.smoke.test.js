@@ -401,3 +401,108 @@ test('check-brand-visual-report-completeness: pasa limpio (sin avisos) cuando lo
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ── production-gate-motor.ts: modo exploración (2026-08-20) ────────────────────────────────
+
+test('production-gate-motor: explorationMode:true difiere las 5 gates de traspaso/entrega y sigue corriendo el resto', () => {
+  const root = path.resolve(__dirname, '..');
+  const example = JSON.parse(
+    fs.readFileSync(path.join(root, 'engine', 'schema', 'campaign-data.example.json'), 'utf8')
+  );
+  example.metadata.explorationMode = true;
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify(example)
+  });
+  try {
+    const { output } = runGateScript('production-gate-motor.ts', dir);
+    assert.match(output, /explorationMode: true — se difieren 5 gates/);
+    assert.match(output, /Gate: parity \(pre-build\)[\s\S]*?Omitido — modo exploración: sin export previo/);
+    assert.match(output, /Gate: assets HTTP 200[\s\S]*?Omitido — modo exploración: sin despliegue/);
+    assert.match(output, /Gate: control files[\s\S]*?Omitido — modo exploración: sin archivos de control/);
+    assert.match(output, /Gate: production readiness[\s\S]*?Omitido — modo exploración: preparación de producción/);
+    assert.match(output, /Gate: brand visual report completeness[\s\S]*?Omitido — modo exploración: informe Nivel 5/);
+    // Las gates que SÍ certifican fidelidad de marca y diferenciación estructural siguen corriendo.
+    assert.match(output, /Gate 8: fidelidad del brand pack/);
+    assert.match(output, /Gate 12: diferenciación estructural/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('production-gate-motor: sin explorationMode corre las 13 gates de campaña (control)', () => {
+  const root = path.resolve(__dirname, '..');
+  const example = JSON.parse(
+    fs.readFileSync(path.join(root, 'engine', 'schema', 'campaign-data.example.json'), 'utf8')
+  );
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify(example)
+  });
+  try {
+    const { output } = runGateScript('production-gate-motor.ts', dir);
+    assert.doesNotMatch(output, /explorationMode: true/);
+    assert.doesNotMatch(output, /Omitido — modo exploración/);
+    assert.match(output, /Gate 2: paridad del export existente/);
+    assert.match(output, /Gate 5: assets HTTP 200/);
+    assert.match(output, /Gate 6: control files/);
+    assert.match(output, /Gate 10: preparación para producción/);
+    assert.match(output, /Gate 13: completitud del informe visual de marca/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ── Gate 7: check-column-balance.ts — cobertura ampliada 2026-09-23 (BALANCE_CHECKS) ────────
+// Antes de esta fecha, el gate solo cubría columns-3-beneficios*; usp-cards*, category-grid*,
+// lista-premium-2col, metric-strip-premium y pasos* podían tener el mismo desequilibrio real
+// que causó el bug original de UAX (2026-07-22) sin que nada lo detectara — confirmado contra
+// campañas reales (apple/iphone-17-pro-premium, tarifalo, paraycompara, uax) durante la
+// auditoría que motivó esta ampliación.
+
+test('check-column-balance: detecta desequilibrio en metric-strip-premium (cobertura nueva, antes sin ningún check)', () => {
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify({
+      modules: [{
+        component: 'metric-strip-premium',
+        data: {
+          metricSection: { title: 'Métricas' },
+          items: [
+            { value: '340 kW', label: 'Potencia' },
+            { value: '4,5 s', label: 'Aceleración de cero a cien kilómetros por hora en circuito' },
+            { value: '773 km', label: 'Autonomía' }
+          ]
+        }
+      }]
+    })
+  });
+  try {
+    const { exitCode, output } = runGateScript('check-column-balance.ts', dir);
+    assert.equal(exitCode, 1);
+    assert.match(output, /Módulo "metric-strip-premium".*campo "label"/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('check-column-balance: category-grid balanceado pasa limpio (itemsField "categories", no "items")', () => {
+  const dir = makeCampaignFixture({
+    '06-data/campaign-data.json': JSON.stringify({
+      modules: [{
+        component: 'category-grid',
+        data: {
+          gridSection: { title: 'Categorías', intro: 'Elige la tuya' },
+          categories: [
+            { icon: '👟', title: 'Running', subtitle: 'Zapatillas de running' },
+            { icon: '🏀', title: 'Basket', subtitle: 'Zapatillas de baloncesto' },
+            { icon: '⚽', title: 'Fútbol', subtitle: 'Botas de fútbol sala' }
+          ]
+        }
+      }]
+    })
+  });
+  try {
+    const { exitCode } = runGateScript('check-column-balance.ts', dir);
+    assert.equal(exitCode, 0);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

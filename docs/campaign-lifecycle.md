@@ -97,7 +97,7 @@ Condición de salida:
 
 Condición de salida:
 - `02-analysis/brand-analysis.md` existe
-- `02-analysis/visual-analysis.md` existe
+- `02-analysis/visual-identity-report.md` existe
 - `02-analysis/risks.md` existe
 - Cada afirmación visual tiene fuente asignada
 

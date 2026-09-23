@@ -200,6 +200,19 @@ es una opción nueva (Fase F1), no una recomendación por defecto; úsala solo c
 de la página de la marca (`layout.contentRhythm`) muestre secciones con tratamientos visuales
 genuinamente distintos entre sí, no para "romper la monotonía" sin evidencia.
 
+### Modo exploración (`metadata.explorationMode`, 2026-08-20)
+
+Si `campaign-data.json` (o el brief, si `campaign-data.json` no existe todavía en esta fase)
+indica `explorationMode:true`: las 6 dimensiones de investigación profunda de marca de arriba
+siguen siendo obligatorias tal cual — colores/tipografía/CTA computados (con `colors.source`/
+`typography.source`), tratamiento fotográfico, iconografía, ritmo de voz, ritmo estructural,
+`brandStructure`. Lo que se difiere son los 8 archivos "Nivel 5" de la sección "Tareas" 4-6 (CSS
+extraído, inventario de componentes, guías de responsive/adaptación/dirección de arte) — no se
+generan en esta pasada, y `check-brand-visual-report-completeness.ts` (Gate 13) los difiere
+automáticamente al leer el flag. Si la marca pasa a producción real después, se generan entonces.
+No cambia nada de esta sección para marcas que ya tienen paquete Nivel 5: no se borra ni se
+degrada lo ya investigado.
+
 ### Válvula de escape (documentada, no silenciosa)
 
 Si el cliente no tiene sitio web propio, o el sitio es inaccesible (JS bloqueado, requiere

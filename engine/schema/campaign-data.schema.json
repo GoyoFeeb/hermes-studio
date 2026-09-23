@@ -27,13 +27,13 @@
     },
     "httpsUrl": {
       "type": "string",
-      "pattern": "^https://",
-      "description": "Regla heredada: todo src/href debe ser una URL absoluta https. Nada de rutas relativas, file:// ni SVG (ver next-steps.md de la campaña piloto, sección 'Assets CDN completado')."
+      "pattern": "^https://[^\"'<>\\s]+$",
+      "description": "Regla heredada: todo src/href debe ser una URL absoluta https. Nada de rutas relativas, file:// ni SVG (ver next-steps.md de la campaña piloto, sección 'Assets CDN completado'). Patrón anclado al final y sin comillas/ángulos/espacios (auditoría 2026-09-23): sin esto, un valor con `\"` pasaba la validación del schema y rompía el atributo href/src en el HTML final."
     },
     "espResolvedUrl": {
       "type": "string",
-      "pattern": "^(https://|\\[[A-Z_]+\\]$)",
-      "description": "Para unsubscribeUrl/preferencesUrl EXCLUSIVAMENTE. Acepta una URL https real O un merge-tag de plataforma de envío entre corchetes en mayúsculas (ej. '[UNSUBSCRIBE_LINK]', '[PREFERENCES_LINK]') — estos NO son datos pendientes: son tokens que el ESP resuelve en el momento del envío, un patrón estándar (Mailchimp y similares). Distinto de un valor realmente incompleto: por eso tiene su propio $def en vez de relajar httpsUrl de forma genérica para todos los campos."
+      "pattern": "^(https://[^\"'<>\\s]+|\\[[A-Z_]+\\])$",
+      "description": "Para unsubscribeUrl/preferencesUrl EXCLUSIVAMENTE. Acepta una URL https real O un merge-tag de plataforma de envío entre corchetes en mayúsculas (ej. '[UNSUBSCRIBE_LINK]', '[PREFERENCES_LINK]') — estos NO son datos pendientes: son tokens que el ESP resuelve en el momento del envío, un patrón estándar (Mailchimp y similares). Distinto de un valor realmente incompleto: por eso tiene su propio $def en vez de relajar httpsUrl de forma genérica para todos los campos. Ambas ramas ancladas al final (auditoría 2026-09-23)."
     },
     "hexColor": {
       "type": "string",
@@ -118,6 +118,10 @@
         },
         "productionReady": {
           "type": "boolean"
+        },
+        "explorationMode": {
+          "type": "boolean",
+          "description": "Añadido 2026-08-20. Campaña de exploración rápida: pasa por 02 (medición real con Chrome, solo las 6 dimensiones núcleo) y 03 (decisión estructural real) y por el motor real, pero difiere los 8 artefactos 'Nivel 5' de marca y las gates de production-gate-motor.ts que auditan cosas que no existen aún en una exploración (paridad de export ya construido, HTTP 200 de assets desplegados, archivos de control de traspaso, preparación de producción). Se usa junto a isTestCampaign:true y productionReady:false; si productionReady es true, explorationMode se ignora y todas las gates corren igual (ver production-gate-motor.ts)."
         }
       }
     },

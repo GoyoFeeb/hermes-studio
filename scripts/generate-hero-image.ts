@@ -88,6 +88,7 @@ import { execFile } from 'child_process';
 import * as readline from 'readline/promises';
 import sharp from 'sharp';
 import { loadEnv } from './lib/env';
+import { sanitizeLandingPrompt } from './lib/sanitize-hero-prompt';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 loadEnv(ROOT);
@@ -455,70 +456,9 @@ async function describeVisualStyle(screenshots: Buffer[]): Promise<string | null
   }
 }
 
-/**
- * Sanitiza una descripción visual de landing para que el prompt final no active
- * el safety system de OpenAI. Transforma descripciones literales de una marca/página
- * real en dirección de arte genérica segura.
- *
- * Problema detectado (BMW 2026-07-27): la descripción generada desde capturas de landing
- * puede incluir términos demasiado identificables (modelos, parrilla, emblemas, logotipos)
- * que, combinados con la referencia explícita a la marca, activan el safety system de
- * OpenAI (error.code: "safety"). Esta función elimina/camufla los trigger points.
- */
-function sanitizeLandingPrompt(desc: string, brandName: string): string {
-  // Palabras/conceptos que activan safety system cuando se asocian a marca real
-  const brandTriggers = [
-    /bmw\s*kidney\s*grill/i, /bmw\s*grille/i, /roundel/i,
-    /kidney\s*grill/i, /double\s*kidney/i,
-    /logo\s+bmw/i, /bmw\s+logo/i, /emblem/i, /insignia/i,
-    /modelo\s+x\d/i, /x\d\s+bmw/i, /m\s+\d+/i,
-    /license\s*plate/i, /matr[íi]cula/i,
-    /brand\s+badge/i, /brand\s+emblem/i,
-  ];
-  let sanitized = desc;
-  for (const re of brandTriggers) {
-    sanitized = sanitized.replace(re, '[automotive design element]');
-  }
-
-  // Reemplazar el nombre de la marca por descripción genérica si aparece
-  // en contexto identificable (evita "bmw" suelto, pero no "color azul BMW" genérico)
-  const brandPattern = new RegExp(`\\b${brandName}\\b`, 'gi');
-  sanitized = sanitized.replace(brandPattern, 'the brand');
-
-  // Limpiar referencias a modelos concretos (X1, X3, M4, Serie 1, Serie 3...)
-  sanitized = sanitized.replace(/\b(serie\s+\d|x\d|m\d+|i\d+|z\d+)\b/gi, '[model]');
-
-  // Eliminar URLs, textos literales, números de teléfono, precios
-  sanitized = sanitized.replace(/https?:\/\/[^\s]+/g, '');
-  sanitized = sanitized.replace(/\b\d{3,4}\s*\d{3,4}\s*\d{3,4}\b/g, '[contact]');
-  sanitized = sanitized.replace(/\b\d+[.,]\d{2}\s*[€$]/g, '[price]');
-
-  // Reemplazar "the brand's own page" o similar
-  sanitized = sanitized.replace(/from\s+the\s+brand'?s?\s*own\s+page/gi, 'art direction reference');
-  sanitized = sanitized.replace(/the\s+brand'?s?\s*website/gi, 'reference material');
-
-  // STRIP: personajes/personas con copyright — superheroes, figuras, personajes de cómic/película
-  sanitized = sanitized.replace(/\bsuperhero\b/gi, '');
-  sanitized = sanitized.replace(/\bsuper[- ]?hero(es)?\b/gi, '');
-  sanitized = sanitized.replace(/\bcostumed\s+figure\b/gi, '');
-  sanitized = sanitized.replace(/\bcostumed\s+character\b/gi, '');
-  sanitized = sanitized.replace(/\bcomic[- ]?book\s+(character|figure|hero)\b/gi, '');
-  sanitized = sanitized.replace(/\bcinematic\s+(superhero|character|figure)\b/gi, '');
-  sanitized = sanitized.replace(/\bairborne\s+figure\b/gi, '');
-  sanitized = sanitized.replace(/\bsuspended\s+(dynamically|overhead|in\s+mid[- ]?air)\b/gi, '');
-  sanitized = sanitized.replace(/\bhero\s+(composite|shot|scene|image)\b/gi, 'featured imagery');
-  sanitized = sanitized.replace(/\bmotion\s+blur\s+creating\s+(speed|impact|drama)\b/gi, 'motion blur');
-  sanitized = sanitized.replace(/\bpromotional\s+character\s+colors\b/gi, 'brand accent colors');
-  sanitized = sanitized.replace(/\bcookie[- ]?consent\s+(panel|banner|overlay)\b/gi, 'ui overlay');
-  sanitized = sanitized.replace(/\belectric[- ]?blue\s+primary\s+action\b/gi, 'brand primary action');
-  sanitized = sanitized.replace(/\bradial\s+motion\s+blur\b/gi, 'motion blur');
-  sanitized = sanitized.replace(/\bvivid\s+red\s+accents\b/gi, 'accent colors');
-
-  // Comprimir espacios dobles tras eliminaciones
-  sanitized = sanitized.replace(/\s{2,}/g, ' ');
-
-  return sanitized.trim();
-}
+// sanitizeLandingPrompt() se extrajo a ./lib/sanitize-hero-prompt.ts (auditoría 2026-09-23,
+// BUG-H08) para que studio/server/heroImage.ts pueda usar el mismo saneado — antes solo vivía
+// aquí, así que el flujo de Studio quedaba sin la mitigación del incidente BMW (2026-07-27).
 
 async function main(): Promise<void> {
   const brand = arg('brand');

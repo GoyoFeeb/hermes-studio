@@ -28,7 +28,7 @@
 |---|---|
 | State | `analysis` |
 | Inputs | brief, requirements, visual assets, landing pages, brand guidelines |
-| Writes | `02-analysis/brand-analysis.md`, `02-analysis/visual-analysis.md`, `02-analysis/risks.md` |
+| Writes | `02-analysis/brand-analysis.md`, `02-analysis/visual-identity-report.md`, `02-analysis/risks.md` |
 | Handoff to | 03 — Newsletter Architect |
 | Block if | No visual inputs, client/mark not identifiable, irreconcilable visual contradictions |
 | Key rule | Distinguish documented identity from observed identity from inference. Never invent colours, fonts, or styles. |
@@ -110,10 +110,10 @@
 |---|---|
 | State | `qa` / `corrections` |
 | Inputs | HTML render, JSON, components, design specs, brief |
-| Writes | `08-qa/visual-qa.md`, `08-qa/responsive-qa.md`, `08-qa/outlook-qa.md`, `08-qa/links-qa.md`, `08-qa/final-checklist.md`, `08-qa/return.md` (if returning) |
+| Writes | `08-qa/visual-qa.md`, `08-qa/responsive-qa.md`, `08-qa/outlook-qa.md`, `08-qa/links-qa.md`, `08-qa/brand-fidelity-qa.md` (added 2026-07-24), `08-qa/final-checklist.md`, `08-qa/return.md` (if returning) |
 | Handoff to | 09 — Export Manager (if approved) or responsible agent (if corrections) |
-| Block if | Critical error: legal texts wrong, prices wrong, CTA without href, image without src, JSON invalid, subject/preheader empty |
-| Key rule | Evaluate, don't fix. Classify errors (critical/high/medium/low). Assign to correct agent. Only export if approved. |
+| Block if | Critical error: legal texts wrong, prices wrong, CTA without href, image without src, JSON invalid, subject/preheader empty, OR a brand-fidelity finding that contradicts an explicit brand pack prohibition |
+| Key rule | Evaluate, don't fix. Classify errors (critical/high/medium/low). Assign to correct agent. Verdict must state the level (added 2026-09-23): "Aprobado — prueba interna" vs "Aprobado — producción" (per `metadata.isTestCampaign`/`productionReady`), never "Aprobado" unqualified — see `agents/08-qa-specialist.md` §"Nivel de aprobación". Only export if approved at the right level. |
 
 ## 09 — Export Manager
 

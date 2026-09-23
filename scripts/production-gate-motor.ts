@@ -519,6 +519,29 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  // ── Modo exploración (2026-08-20) ───────────────────────────────────────────
+  // explorationMode difiere 5 gates que auditan cosas que no existen aún en una campaña de
+  // exploración rápida (paridad de export ya construido, HTTP 200 de assets desplegados,
+  // archivos de control de traspaso entre sesiones, preparación de producción, e informe
+  // Nivel 5 de marca). Las 8 gates que SÍ certifican fidelidad de marca y diferenciación
+  // estructural (schema, build real, claims, columnas, brand pack Nivel 3 con .source, WCAG,
+  // decisión de hero, diferenciación estructural — Gate 12, la que detecta genericidad) siguen
+  // corriendo igual, sin relajar nada. Salvaguarda: si productionReady es true, el flag se
+  // ignora — nunca se saltan estas gates en una campaña que de verdad va a producción, aunque
+  // alguien olvide desactivar explorationMode al promoverla.
+  let explorationMode = false;
+  try {
+    const raw = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    explorationMode = raw?.metadata?.explorationMode === true && raw?.metadata?.productionReady !== true;
+  } catch {
+    explorationMode = false;
+  }
+  if (explorationMode) {
+    console.log('   🚀 explorationMode: true — se difieren 5 gates (paridad, assets HTTP 200,');
+    console.log('      archivos de control, preparación de producción, informe Nivel 5 de marca).');
+    console.log('      Fidelidad de marca y diferenciación estructural siguen auditándose igual.\n');
+  }
+
   // ── Gate 0: integridad del motor (añadido tras el incidente 2026-07-21 — ver
   // engine/CHANGELOG.md). Si el motor difiere del lock, nada de lo que certifique este gate
   // es fiable: se comprueba ANTES que todo lo demás.
@@ -560,8 +583,19 @@ async function main(): Promise<void> {
   // Orden crítico: paridad (Gate 2) ANTES de build (Gate 3) — ver comentario de cabecera de
   // gate2ParityAuditPreBuild. Si se invierte, el build enmascara cualquier manipulación
   // manual del export antes de que la auditoría llegue a verla.
+  const skipped = (name: string, motivo: string): GateResult => ({
+    name,
+    passed: true,
+    errors: [],
+    warnings: [`Omitido — modo exploración: ${motivo}`]
+  });
+
   if (g1.passed) {
-    gates.push(gate2ParityAuditPreBuild(campaignDir));
+    if (explorationMode) {
+      gates.push(skipped('parity (pre-build)', 'sin export previo que auditar.'));
+    } else {
+      gates.push(gate2ParityAuditPreBuild(campaignDir));
+    }
     gates.push(gate3Build(dataPath, outDir));
   } else {
     gates.push({ name: 'parity (pre-build)', passed: false, errors: ['Omitido — Gate 1 (schema) no pasó'], warnings: [] });
@@ -569,15 +603,31 @@ async function main(): Promise<void> {
   }
 
   gates.push(gate4Claims(dataPath));
-  gates.push(await gate5Assets(inlinePath));
-  gates.push(gate6ControlFiles(campaignDir));
+  gates.push(
+    explorationMode
+      ? skipped('assets HTTP 200', 'sin despliegue que auditar todavía.')
+      : await gate5Assets(inlinePath)
+  );
+  gates.push(
+    explorationMode
+      ? skipped('control files', 'sin archivos de control de traspaso en una exploración en solitario.')
+      : gate6ControlFiles(campaignDir)
+  );
   gates.push(gate7ColumnBalance(campaignDir));
   gates.push(gate8BrandPackCompleteness(campaignDir));
   gates.push(gate9Contrast(campaignDir));
-  gates.push(gate10ProductionReadiness(campaignDir));
+  gates.push(
+    explorationMode
+      ? skipped('production readiness', 'preparación de producción no aplica todavía.')
+      : gate10ProductionReadiness(campaignDir)
+  );
   gates.push(gate11HeroDecision(campaignDir));
   gates.push(gate12StructuralDifferentiation(campaignDir));
-  gates.push(gate13BrandVisualReportCompleteness(campaignDir));
+  gates.push(
+    explorationMode
+      ? skipped('brand visual report completeness', 'informe Nivel 5 de marca diferido hasta producción real.')
+      : gate13BrandVisualReportCompleteness(campaignDir)
+  );
 
   // ── Resultados ─────────────────────────────────────────────────────────
   console.log(`\n${'='.repeat(60)}`);

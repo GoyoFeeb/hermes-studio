@@ -294,12 +294,18 @@ MODULE_ADAPTERS['pasos-vertical'] = MODULE_ADAPTERS['pasos'];
 MODULE_ADAPTERS['lista-premium-2col'] = MODULE_ADAPTERS['lista-premium'];
 MODULE_ADAPTERS['trust-bar-inline'] = MODULE_ADAPTERS['trust-bar'];
 
-/** Escapa &, < y > en contenido de campaña insertado en contexto HTML (spec del prompt 13). */
+/**
+ * Escapa &, <, > y " en contenido de campaña insertado en contexto HTML (spec del prompt 13).
+ * La comilla doble se escapa porque {{data:...}} se usa también dentro de atributos
+ * (href="{{data:cta.href}}", src=, alt=...) — sin esto, un valor de campaña con `"` rompe el
+ * atributo e inyecta HTML/atributos arbitrarios en final.html (hallado en auditoría 2026-09-23).
+ */
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /**

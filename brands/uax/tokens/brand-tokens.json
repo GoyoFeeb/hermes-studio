@@ -1,7 +1,8 @@
 {
   "brand": "UAX FP Online",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "colors": {
+    "source": "observado en https://www.uax.com el 2026-09-23 (getComputedStyle: botón 'Más información' rgb(0,96,171) = #0060AB confirma ctaBackground/light exacto)",
     "primary": "#003F6F",
     "deep": "#003F6F",
     "light": "#0060AB",
@@ -34,6 +35,7 @@
     }
   },
   "typography": {
+    "source": "observado en https://www.uax.com el 2026-09-23 (getComputedStyle: familia real '\"PT Sans Bold\"/\"PT Sans Regular\", sans-serif' en H1/CTA/body — NOTA: PT Sans es Google Font real y embebible, distinto del fallback genérico Arial/Helvetica que family/displayFont usan hoy sin sustituto webFont declarado; no se cambia aquí — requiere que 02 lo evalúe y lo declare explícitamente, mismo criterio que el hallazgo de Alexandria en paraycompara)",
     "family": "Arial, Helvetica, sans-serif",
     "displayFont": "Arial, Helvetica, sans-serif",
     "eyebrow": {
@@ -245,6 +247,17 @@
       "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
       "changes": [
         "spacing.innerSection/cta añadidos (Fase F3, forma canónica) — inferidos del valor por defecto mayoritario (24px 20px / 20px 0, usado por la mayoría de packs del key-set B), no observados directamente para esta marca."
+      ]
+    }
+  ,
+    {
+      "version": "2.2.5",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20).",
+        "Verificado con getComputedStyle contra https://www.uax.com: ctaBackground/light (#0060AB) confirmado EXACTO. Cero cambios de valor.",
+        "NOTA para 02: la fuente real es 'PT Sans' (Google Font embebible), no reflejada en typography.webFont — oportunidad de mejora real, no un hueco de procedencia."
       ]
     }
   ]

@@ -43,7 +43,7 @@ El Orchestrator no produce la newsletter. Produce archivos de control y activa a
 | Agente | 02 — Brand Visual Analyst |
 | Estado | analysis |
 | Input | brief.md, requirements.md, source-links.md, assets en 01-inputs/ |
-| Output | 02-analysis/brand-analysis.md, 02-analysis/visual-analysis.md, 02-analysis/risks.md |
+| Output | 02-analysis/brand-analysis.md, 02-analysis/visual-identity-report.md, 02-analysis/risks.md |
 | Handoff | Hacia 03 — Newsletter Architect |
 | Criterio de avance | Colores, tipografías, botones, tono visual y limitaciones de email documentados |
 | Bloqueo si falta | Inputs visuales, cliente/marca no identificable, contradicciones visuales irreconciliables |
@@ -54,7 +54,7 @@ El Orchestrator no produce la newsletter. Produce archivos de control y activa a
 |---|---|
 | Agente | 03 — Newsletter Architect |
 | Estado | strategy |
-| Input | brief.md, requirements.md, brand-analysis.md, visual-analysis.md, risks.md |
+| Input | brief.md, requirements.md, brand-analysis.md, visual-identity-report.md, risks.md |
 | Output | 03-strategy/campaign-angle.md, 03-strategy/message-hierarchy.md, 03-strategy/module-selection.md, 03-strategy/structure.md |
 | Handoff | Hacia 04 — Email Designer |
 | Criterio de avance | Estructura definida: orden de módulos, función de cada uno, CTA principal y secundarios, jerarquía de mensajes, criterio desktop/mobile |

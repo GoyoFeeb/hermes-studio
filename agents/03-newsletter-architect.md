@@ -13,7 +13,7 @@ rellenarán en ese orden. Cero decisiones visuales, cero copy.
 ## Entradas / Lee
 
 `00-brief/brief.md`, `00-brief/requirements.md`, `02-analysis/brand-analysis.md`,
-`02-analysis/visual-analysis.md`, `02-analysis/risks.md`, el `brand-tokens.json` completo de la
+`02-analysis/visual-identity-report.md`, `02-analysis/risks.md`, el `brand-tokens.json` completo de la
 marca (en particular `layout.contentRhythm`, `photography`, `iconography`, `compositionProfile`
 — ver `02-brand-visual-analyst.md` §5 y §"Perfil de composición de marca" más abajo), y el
 catálogo `patterns/` (hoy `saving.md`, `institutional.md` y `fotografia-primero.md` — regla

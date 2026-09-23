@@ -12,7 +12,7 @@ implementables por el motor tal como existe. No escribe código ni copy.
 ## Entradas / Lee
 
 Los 4 archivos de `03-strategy/` (estructura, selección de módulos, ángulo, jerarquía de
-mensajes), `02-analysis/visual-analysis.md`, `02-analysis/brand-analysis.md`,
+mensajes), `02-analysis/visual-identity-report.md`, `02-analysis/brand-analysis.md`,
 `00-brief/brief.md`, **`patterns/{género}.md` completo** y
 **`brands/{cliente}/tokens/brand-tokens.json` completo**.
 

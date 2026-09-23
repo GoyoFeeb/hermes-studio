@@ -1,8 +1,9 @@
 {
   "brand": "new-balance",
   "description": "Design tokens for New Balance — global athletic/lifestyle brand. Corrected with real getComputedStyle values from newbalance.com on 2026-07-28.",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "colors": {
+    "source": "observado en https://www.newbalance.com/pd/574-core/ML574V3-40377.html el 2026-09-23 (getComputedStyle: botón 'Add to bag' rgb(21,20,21) = #151415 confirma ctaBackground exacto; rgb(207,10,44) = #CF0A2C presente en la home confirma colors.primary exacto)",
     "primary": "#CF0A2C",
     "ctaBackground": "#151415",
     "ctaText": "#FFFFFF",
@@ -52,6 +53,7 @@
     "satinLinen": "#E8E9D7"
   },
   "typography": {
+    "source": "observado en https://www.newbalance.com/pd/574-core/ML574V3-40377.html el 2026-09-23 (getComputedStyle: familia real '\"Proxima Nova W01\", -apple-system, ...' en nav/CTA/body)",
     "family": "Helvetica, Arial, sans-serif",
     "note": "CORREGIDO 2026-07-28: La web real de New Balance usa Proxima Nova W01 (UI/cuerpo) e ITC Garamond W01 (titulares editoriales). Ambas son fuentes de pago no disponibles en email. Para display usamos Georgia, serif (fallback premium de Garamond). Para cuerpo usamos 'Helvetica Neue', Helvetica, Arial, sans-serif (fallback de Proxima Nova).",
     "displayFont": "'Georgia', 'Times New Roman', serif",
@@ -318,6 +320,16 @@
         "voice.rhythm: Tono editorial observado de newsletters reales en Email Inspire. Sin exclamaciones. Titulares cortos sin punto final.",
         "layout.sectionStyle: centrado (máxima legibilidad email, aunque la web real mezcla centrado y asimétrico).",
         "photography.treatment: Fotografía real como único adorno visual. La imagen es el mensaje. No render 3D."
+      ]
+    }
+  ,
+    {
+      "version": "2.2.1",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20).",
+        "Verificado con getComputedStyle contra https://www.newbalance.com/pd/574-core/ML574V3-40377.html: ctaBackground (#151415) y colors.primary (#CF0A2C) confirmados EXACTOS. Cero cambios de valor."
       ]
     }
   ]

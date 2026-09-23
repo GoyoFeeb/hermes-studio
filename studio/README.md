@@ -41,8 +41,9 @@ cp studio/.env.example studio/.env   # APP_ACCESS_PASSWORD, PORT, STUDIO_PUBLIC_
 npm run studio
 ```
 
-Abre `http://localhost:3000`. Si dejaste `APP_ACCESS_PASSWORD` vacía, el servicio no pide
-contraseña (solo para desarrollo local).
+Abre `http://localhost:3000`. Con `ALLOW_NO_AUTH=true` (por defecto en `.env.example`, solo para
+desarrollo local) el servicio no pide contraseña. Sin `APP_ACCESS_PASSWORD` NI `ALLOW_NO_AUTH=true`,
+el servicio se niega a arrancar en vez de quedar abierto por accidente (auditoría 2026-09-23).
 
 ## Desplegar en Railway
 
@@ -96,7 +97,9 @@ Requisitos para producción real:
   `/assets/...`, y el schema de `campaign-data.json` exige URLs `https://` para todo asset.
 - Persistir `newsletters/`, `brands/` y `studio/data/` (ya montados como volúmenes en
   `docker-compose.yml`) — son el estado real del sistema, no se pueden perder en un redeploy.
-- Configurar `APP_ACCESS_PASSWORD` — sin ella el servicio queda abierto a quien tenga la URL.
+- Configurar `APP_ACCESS_PASSWORD` y quitar/desactivar `ALLOW_NO_AUTH` — sin contraseña NI ese
+  flag, el servicio ya no arranca (antes quedaba abierto a quien tuviera la URL; ver auditoría
+  2026-09-23).
 
 ## Alcance de esta v1 — limitaciones conocidas
 
@@ -112,16 +115,21 @@ Requisitos para producción real:
   y `getComputedStyle` de un puñado fijo de selectores y se los pasa a Claude ya extraídos. Es
   más rápido y predecible para un servicio desatendido, pero puede pasar por alto matices que
   una sesión interactiva sí captaría.
-- **Generación de hero simplificada.** `heroImage.ts` llama directamente a la API de imágenes
-  de OpenAI sin el saneado de prompt a partir de visión de la landing real que sí tiene
-  `scripts/generate-hero-image.ts` (resuelto tras el incidente de moderación de 2026-07-27, ver
-  `memory.md`). Si aparecen problemas de moderación o de calidad, portar esa lógica es el
-  siguiente paso natural.
+- **Generación de hero simplificada.** `heroImage.ts` no tiene el paso de visión sobre la
+  landing real que sí tiene `scripts/generate-hero-image.ts` (el prompt sale directo del brief
+  que escribe la persona, no de una descripción automática de la página). El saneado de texto en
+  sí (`scripts/lib/sanitize-hero-prompt.ts`, el fix del incidente de moderación de 2026-07-27 —
+  ver `memory.md`) sí se aplica al brief desde la auditoría 2026-09-23 (`phases/dataPhase.ts`).
 - **Si al motor (fase 07) le falta un componente**, el job se bloquea para revisión humana en
   vez de dejar que un agente edite `engine/components/` sin supervisión — coherente con la
   regla propia del proyecto de que un componente nuevo nunca se improvisa por campaña.
 - **Auth de equipo = una sola contraseña compartida (Basic Auth).** No hay usuarios ni roles.
   Suficiente para v1; migrar a algo más granular es un cambio de `server/index.ts` aislado.
+  Protegida contra fuerza bruta desde 2026-09-23: `server/rateLimit.ts` corta a 20 intentos
+  fallidos / 5 min por IP (solo cuenta fallos, no penaliza uso normal ya autenticado) y a 5
+  jobs creados / 10 min por IP (cada job dispara llamadas reales a Anthropic/OpenAI). Limitador
+  en memoria por proceso, sin dependencia nueva — no vale para varias réplicas (ver cabecera del
+  archivo), coherente con que Studio hoy es un solo proceso con una cola secuencial.
 
 ## Verificación antes de anunciarlo al equipo
 

@@ -132,7 +132,10 @@ campaña pasa a `blocked` (ver Interaction Patterns).
 2. `npm install`.
 3. Crear `.env` desde `.env.example`.
 4. Verificar/crear el brand pack del cliente en `brands/{cliente}/`.
-5. Crear campaña con `npm run create-campaign` y ejecutar el pipeline de agentes 00→09.
+5. Crear campaña con `npm run create-campaign` y ejecutar el pipeline de agentes 00→09. Para una
+   exploración rápida (sin comprometerse a producción todavía), añadir `-- --mode exploration` —
+   ver `newsletters/_campaign-template-exploration/README.md` y
+   `agents/00-orchestrator.md` §"Modo exploración".
 
 ## Referencias
 

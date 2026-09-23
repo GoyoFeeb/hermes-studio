@@ -1,10 +1,10 @@
 /**
  * heroImage.ts — genera una imagen de hero vía la API de imágenes de OpenAI cuando la fase 06
- * la necesita. Es una versión deliberadamente simplificada de scripts/generate-hero-image.ts:
- * no replica su saneado de prompts a partir de una descripción por visión de la landing real
- * (el incidente de moderación de 2026-07-27, ver memory.md). Si en producción aparecen
- * problemas de moderación o calidad, portar esa lógica de saneado aquí es el siguiente paso
- * natural — anotado en studio/README.md como mejora pendiente, no construido en v1.
+ * la necesita. Sigue siendo una versión más simple que scripts/generate-hero-image.ts (no hay
+ * paso de visión sobre la landing real, el prompt sale directo del brief que escribe la
+ * persona) pero, desde la auditoría 2026-09-23 (BUG-H08), quien construye ese prompt
+ * (../phases/dataPhase.ts) sí pasa el texto por el mismo saneado que el flujo CLI usa contra el
+ * incidente de moderación de 2026-07-27 (ver scripts/lib/sanitize-hero-prompt.ts y memory.md).
  */
 import * as fs from 'fs';
 import * as path from 'path';

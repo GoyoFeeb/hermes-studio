@@ -28,3 +28,12 @@ jobs:
 
       - name: Integridad del motor (engine/components.lock.json)
         run: npx tsx scripts/check-engine-integrity.ts
+
+      # Añadido 2026-09-23 (auditoría, BUG-H12): hasta ahora ningún step de CI ejecutaba
+      # production-gate-motor.ts con una aserción explícita de qué debe seguir pasando — solo se
+      # ejercitaba indirectamente dentro de npm test. Corre en modo exploración contra la
+      # campaña de ejemplo del repo y falla si algún gate de CÓDIGO (no de completitud de
+      # contenido de una marca concreta) deja de pasar. Ver scripts/ci-example-campaign-gate.ts
+      # para el porqué exacto de qué se exige y qué se tolera.
+      - name: Gate de campaña de ejemplo (production-gate-motor, modo exploración)
+        run: npm run ci:example-campaign-gate

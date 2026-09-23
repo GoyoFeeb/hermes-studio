@@ -1,5 +1,15 @@
 # Changelog — engine/
 
+## 2026-08-20 — Modo exploración: `metadata.explorationMode` en el schema
+
+Petición del usuario: acercar la velocidad de generar dentro del pipeline a la de los scripts
+sueltos que se estaban usando para saltárselo por completo (ver memory.md, entrada "modo
+exploración"). Cambio de motor real (no solo de proceso): `engine/schema/campaign-data.schema.json`
+añade `metadata.explorationMode` (boolean, opcional) — el motor y el schema lo aceptan sin
+cambiar cómo se construye el HTML; lo que cambia es qué gates de `production-gate-motor.ts`
+auditan la campaña (ver ese script). `engine/components.lock.json` regenerado (`npm run
+check-engine -- --update`) porque el schema vigilado por Gate 0 cambió.
+
 ## 2026-08-20 — Fix overflow mobile: box-sizing en `.mobile-stack` (campaña Mercedes-AMG C 63 S E PERFORMANCE)
 
 Bug real activo en el motor (mismo patrón que el documentado en el skill newsletter-pipeline,

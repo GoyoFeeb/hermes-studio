@@ -16,6 +16,23 @@ Todo. En la práctica, antes de activar cada agente: los archivos de la sección
 ese agente, más los 4 archivos de control de la campaña (`campaign-status.md`, `task-log.md`,
 `handoff.md`, `next-steps.md`).
 
+## Modo exploración (`metadata.explorationMode`, 2026-08-20)
+
+Creada con `npx tsx scripts/create-campaign.ts --mode exploration` (~14 archivos en vez de ~50 —
+ver `newsletters/_campaign-template-exploration/README.md`). Existe porque el usuario reportó que
+generar dentro del pipeline era tan lento frente a un script suelto que se estaba generando por
+fuera del sistema por completo (ver `memory.md`, entrada 2026-08-20). No es un pipeline distinto:
+02 sigue midiendo con Chrome real, 03 sigue decidiendo estructura real contra la marca, el motor
+construye el HTML real — lo que se difiere son los archivos de traspaso entre sesiones (control
+files, QA de Outlook/responsive, entrega) y el paquete "Nivel 5" de marca (CSS extraído, guías).
+
+- No exige los 4 archivos de control — el checklist de cierre de ronda (punto 2 abajo) no aplica.
+- `production-gate-motor.ts` difiere 5 de sus 13 gates automáticamente al leer
+  `explorationMode:true` — ver ese script para el detalle exacto de cuáles.
+- Antes de prometer una campaña de exploración a producción real: quitar `explorationMode` (o
+  ponerlo a `false`), completar el paquete Nivel 5 de la marca si aún no existe, y generar los
+  archivos de traspaso/QA que falten — entonces sí aplica el checklist completo de abajo.
+
 ## Detección de estado (SIEMPRE, antes de hacer nada)
 
 Al retomar una campaña — en la misma sesión o en una nueva:
@@ -49,8 +66,10 @@ Al retomar una campaña — en la misma sesión o en una nueva:
 Antes de marcar cualquier fase como cerrada:
 
 1. Existen todos los archivos que la fase exige (sección "Salidas" del agente, o
-   `pipeline-skill/references/phase-gates.md`).
-2. `npm run check-control-files -- --campaign {campaña}` → exit 0.
+   `pipeline-skill/references/phase-gates.md`) — en modo exploración, los de
+   `newsletters/_campaign-template-exploration/`, no los del pipeline completo.
+2. `npm run check-control-files -- --campaign {campaña}` → exit 0. **No aplica en modo
+   exploración** (no existen archivos de control que verificar — ver §"Modo exploración").
 3. Si la fase es 07: `npm run check-parity -- --campaign {campaña}` → exit 0, y el
    `campaignDataSha256` de `build-manifest.json` coincide con el `campaign-data.json` actual.
 4. Si la fase es 08: existen las 4 capturas de render (320/375/600/600-dark), no solo el

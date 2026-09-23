@@ -1,8 +1,9 @@
 {
   "brand": "nike",
   "description": "Design tokens for Nike — global athletic brand. Created from real observation of nike.com (Pegasus 42 product page) on 2026-07-24.",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "colors": {
+    "source": "observado en https://www.nike.com/es/t/pegasus-42-zapatillas-de-running-en-asfalto-hombre-M9ckDyR3/IB1873-401 el 2026-09-23 (getComputedStyle: botón 'Añadir a la cesta' rgb(17,17,17)/rgb(255,255,255) = #111111/#FFFFFF confirma ctaBackground/ctaText; texto secundario rgb(112,112,114) = #707072 confirma text.secondary — coincide byte a byte con los valores ya presentes desde v2.2.0, tercera verificación independiente tras 2026-07-24 y 2026-07-29)",
     "primary": "#111111",
     "ctaBackground": "#111111",
     "ctaText": "#FFFFFF",
@@ -46,6 +47,7 @@
     }
   },
   "typography": {
+    "source": "observado en https://www.nike.com/es/t/pegasus-42-zapatillas-de-running-en-asfalto-hombre-M9ckDyR3/IB1873-401 el 2026-09-23 (getComputedStyle: familia real 'Helvetica Now Text'/'Helvetica Now Text Medium'/'Helvetica Now Display Medium' en body/h1/CTA — confirma la nota de family ya presente)",
     "family": "Helvetica, Arial, sans-serif",
     "note": "Nike usa Helvetica Now Display/Text en su web (observado). No son seguras en email. La cadena de fuentes de Nike ya incluye Helvetica y Arial como fallback primario.",
     "displayFont": "'Inter', Helvetica, Arial, sans-serif",
@@ -314,6 +316,17 @@
         "logoWidth/logoHeight ajustados a 120/42 para email (antes 80/28 era placeholder).",
         "assets.note actualizada con procedencia del logo (OBSERVADO de nike.com el 2026-07-29).",
         "NOTA: brand pack verificado con getComputedStyle contra nike.com/t/air-force-1-07-mens-shoes. Todos los colores y tipografía coinciden con el pack existente v2.2.3."
+      ]
+    }
+  ,
+    {
+      "version": "2.2.5",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20 — este pack no los tenía pese a que colors/typography ya eran correctos desde v2.2.0).",
+        "Tercera verificación independiente con getComputedStyle contra https://www.nike.com/es/t/pegasus-42-zapatillas-de-running-en-asfalto-hombre-M9ckDyR3/IB1873-401 (producto Pegasus 42 actual — la URL de v2.2.0/2026-07-24 ya no existe, el producto se retiró de catálogo).",
+        "Cero cambios de valor: ctaBackground/ctaText/text.secondary y la familia tipográfica coinciden exactamente con lo ya documentado. No se corrige nada porque no había nada que corregir — solo se añade la procedencia que faltaba."
       ]
     }
   ]

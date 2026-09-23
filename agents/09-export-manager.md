@@ -9,6 +9,11 @@ Base: fila `09` de `pipeline-skill/references/agent-roles.md` + fase 09 de `phas
 Cerrar la campaña. No cambia contenido — verifica que lo que 07 construyó y 08 aprobó está
 completo y accesible, y lo documenta con rutas exactas.
 
+**Modo exploración** (`metadata.explorationMode:true`, ver `agents/00-orchestrator.md`): esta
+fase se difiere — no hay `09-exports/delivery-notes.md` en
+`newsletters/_campaign-template-exploration/` (`09-exports/` sí existe, la crea el motor al
+construir). Se ejecuta solo cuando la campaña se promueve a producción real.
+
 ## Entradas / Lee
 
 `09-exports/final.html`, `final-inline.html`, `build-manifest.json`,

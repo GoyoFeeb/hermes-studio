@@ -9,6 +9,33 @@ Base: fila `08` de `pipeline-skill/references/agent-roles.md` + fase 08 de `phas
 Evaluar el HTML generado por 07 antes de que pueda exportarse. Evalúa, no corrige: clasifica
 por severidad y devuelve al agente responsable. Solo aprueba sin errores críticos.
 
+**Modo exploración** (`metadata.explorationMode:true`, ver `agents/00-orchestrator.md`): esta
+fase se difiere — no hay `08-qa/` en `newsletters/_campaign-template-exploration/`. Se ejecuta
+solo cuando la campaña se promueve a producción real (`explorationMode` pasa a `false`).
+
+## Nivel de aprobación: prueba interna vs. producción (2026-09-23)
+
+`AGENTS.md` ("QA en dos niveles, nunca 'aprobado' a secas") exige esta distinción como contrato
+de sistema desde hace tiempo, pero hasta ahora este agente no la aplicaba: el veredicto era un
+único eje (Aprobado/Devuelto/Bloqueado) sin mirar `metadata.isTestCampaign`/
+`metadata.productionReady` de `06-data/campaign-data.json` (esos dos campos los escribe 06 — ver
+`06-data-specialist.md`). Un "Aprobado" sin más podía confundirse con listo-para-enviar aunque la
+campaña fuera de prueba. Antes de emitir veredicto, lee ambos campos:
+
+- Si `metadata.isTestCampaign: true` (o `metadata.productionReady` distinto de `true`): el
+  veredicto máximo posible es **"Aprobado — prueba interna"** — funcional, pero puede tener
+  placeholders/assets pendientes ya documentados como bloqueos de producción (ver
+  `09-exports/production-blockers.md`, que escribe 09). Nunca escribir "Aprobado" a secas en
+  este caso: 09 (o cualquiera que lea `final-checklist.md` sin mirar el JSON) lo interpretaría
+  como listo para envío real.
+- Solo si `metadata.isTestCampaign: false` **y** `metadata.productionReady: true` **y** cero
+  bloqueos de severidad alta/crítica abiertos puede emitirse **"Aprobado — producción"**.
+- Si el veredicto es "Devuelto" o "Bloqueado", el nivel no aplica todavía (no hay ninguna
+  aprobación que calificar).
+
+`final-checklist.md` debe declarar el nivel explícitamente en la primera línea del veredicto
+(ej. `Veredicto: Aprobado — prueba interna`), nunca "Aprobado" sin calificar.
+
 ## Entradas / Lee
 
 `09-exports/final.html`, `final-inline.html`, `build-manifest.json`, `07-code/build-log.md`,

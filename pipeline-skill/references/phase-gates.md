@@ -19,7 +19,7 @@
 | Condition | Type | Detail |
 |---|---|---|
 | `02-analysis/brand-analysis.md` exists | Mandatory | Brand identity overview |
-| `02-analysis/visual-analysis.md` exists | Mandatory | Colours, typography, buttons, composition |
+| `02-analysis/visual-identity-report.md` exists | Mandatory | Colours, typography, buttons, composition |
 | `02-analysis/risks.md` exists | Mandatory | Email adaptation risks documented |
 | Colour palette documented | Mandatory | If missing → blocked |
 | Button style documented or observed | Mandatory | If missing → blocked |
@@ -128,9 +128,11 @@
 | `08-qa/responsive-qa.md` exists | Mandatory | Mobile review |
 | `08-qa/outlook-qa.md` exists | Mandatory | Outlook compatibility |
 | `08-qa/links-qa.md` exists | Mandatory | Links, CTAs, images |
-| `08-qa/final-checklist.md` exists | Mandatory | 40-item checklist |
+| `08-qa/brand-fidelity-qa.md` exists | Mandatory (added 2026-07-24) | Icon/photography/structure/voice/CTA fidelity vs. real brand pack |
+| `08-qa/final-checklist.md` exists | Mandatory | Checklist per `agents/08-qa-specialist.md` — see that file, not a fixed item count |
+| Verdict states approval level | Mandatory (added 2026-09-23) | "Aprobado — prueba interna" vs "Aprobado — producción" (`metadata.isTestCampaign`/`productionReady`), never unqualified "Aprobado" |
 | No critical errors | Mandatory | If found → blocked |
-| Decision documented | Mandatory | Approved / Returned / Blocked |
+| Decision documented | Mandatory | Approved (with level) / Returned / Blocked |
 | Return.md generated if returning | Mandatory | For corrections flow |
 
 ### QA Severity definitions

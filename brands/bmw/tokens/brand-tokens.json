@@ -1,8 +1,9 @@
 {
   "brand": "bmw",
   "description": "Design tokens for BMW — ultra-premium automotive brand. Created from real observation of bmw.es on 2026-07-24.",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "colors": {
+    "source": "observado en https://www.bmw.es/es/coches-bmw/x/x1/bmw-x1.html el 2026-09-23 (getComputedStyle: botón 'Configuración y precio' rgb(28,105,212)/rgb(255,255,255) = #1C69D4/#FFFFFF confirma ctaBackground/ctaText; párrafo de cuerpo ('Su esencia combina...') rgb(38,38,38) = #262626 confirma textBody — coincide byte a byte con los valores ya presentes desde que photography.source cita esta misma URL el 2026-07-24)",
     "primary": "#000000",
     "ctaBackground": "#1C69D4",
     "ctaText": "#FFFFFF",
@@ -46,6 +47,7 @@
     }
   },
   "typography": {
+    "source": "observado en https://www.bmw.es/es/coches-bmw/x/x1/bmw-x1.html el 2026-09-23 (getComputedStyle: familia real 'bmwTypeNextWeb, Arial, Helvetica, Roboto, sans-serif' en H1/body/CTA — confirma la familia ya documentada)",
     "family": "Arial, Helvetica, sans-serif",
     "note": "BMW usa bmwTypeNextWeb en su web (observado). No es segura en email. La cadena de fuentes de BMW ya incluye Arial como fallback primario — se usa Arial/Helvetica que es consistente con su identidad y segura en todos los clientes de correo.",
     "displayFont": "'Titillium Web', Arial, Helvetica, sans-serif",
@@ -327,6 +329,17 @@
       "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
       "changes": [
         "spacing.close añadido (Fase F3, forma canónica) = hero - 8 = 40px — fórmula derivada del key-set A (hero:56/close:48 en los packs que ya tenían ambos), no observado directamente para esta marca."
+      ]
+    }
+  ,
+    {
+      "version": "2.3.3",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20 — este pack no los tenía pese a que colors/typography ya eran correctos desde v2.2.0/2026-07-24).",
+        "Reverificado con getComputedStyle contra https://www.bmw.es/es/coches-bmw/x/x1/bmw-x1.html (misma URL que ya cita photography.source) el 2026-09-23.",
+        "Cero cambios de valor: ctaBackground/ctaText/textBody y la familia tipográfica coinciden exactamente con lo ya documentado. No se corrige nada porque no había nada que corregir — solo se añade la procedencia que faltaba."
       ]
     }
   ]

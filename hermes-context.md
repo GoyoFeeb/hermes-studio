@@ -1,0 +1,263 @@
+# Contexto del proyecto Hermes (pipeline de newsletters) — memoria de la skill `hermes-pipeline`
+
+> Este archivo es la memoria persistente de la skill `hermes-pipeline` entre sesiones de
+> auditoría/mejora. **No sustituye a `context.md` ni a `memory.md`** (project-docs), que siguen
+> siendo la fuente de verdad técnica y narrativa del proyecto, mantenida por las propias sesiones
+> que operan el pipeline. Este archivo es el registro de auditorías externas y su seguimiento:
+> qué se diagnosticó, qué se decidió arreglar, y qué sigue abierto — para que una futura sesión de
+> esta skill no repita el mismo diagnóstico desde cero.
+
+**Última actualización:** 2026-09-23 (BUG-H09 cerrado; BUG-H11 en curso — 10/18 brand packs)
+
+---
+
+## Estado del roadmap (según `pipeline-skill/references/pipeline-architecture.md` + evidencia real del repo)
+
+| Fase | Nombre | Estado | Notas |
+|---|---|---|---|
+| 0 | Fundamentos | Cerrada | Control files, schema 3 patrones, contrato de componentes — todo presente y en uso. |
+| 1 | MVP (3 patrones) | Cerrada | Los 3 patrones (`saving`, `institutional`, `fotografia-primero`) están implementados y con campañas reales de prueba. |
+| 2 | Consolidación (QA + Export + orquestación) | Cerrada con huecos reales | 08/09 existen y funcionan, pero 08 no implementa la distinción interno/producción que `AGENTS.md` exige (ver BUG-002), y la orquestación de devoluciones (tabla de `agents/00-*.md`) no se ha verificado contra un caso de fallo real reciente. |
+| 3 | Escala / Optimización | En curso | F1-F4 de "flexibilidad estructural" (2026-07-28) cerradas; F3.1 (reutilización brand pack) y F3.3 (extensibilidad) parciales; F3.2 (paralelización) no iniciada. Fase F5 (patrones nuevos) pendiente, documentada pero no priorizada. |
+
+**Dato más importante de todo el roadmap:** de las 27 campañas reales trackeadas en `newsletters/2026/`,
+**ninguna tiene `productionReady: true`**. El sistema no ha cerrado nunca un ciclo real de
+producción — todo lo anterior son campañas de prueba/exploración del motor.
+
+---
+
+## Decisiones tomadas en esta auditoría
+
+- 2026-09-23 — Auditoría completa (agentes 00-09, motor `engine/`, infraestructura/`studio/`) vía
+  3 subagentes en paralelo + verificación directa contra el código y campañas reales — motivo:
+  petición explícita del usuario de exponer puntos débiles y mejoras. No se aplicó ningún cambio
+  (solo diagnóstico); ver informe completo entregado al usuario en el chat de esa sesión.
+- 2026-09-23 — Se decide crear este archivo (`hermes-context.md`) en vez de añadir directamente a
+  `memory.md` del proyecto, para no mezclar la memoria operativa de las sesiones que ejecutan el
+  pipeline con el registro de auditorías externas de esta skill — motivo: `memory.md` ya tiene una
+  convención de changelog propia y muy activa; duplicar ahí sin que el usuario lo pida es más
+  riesgo que beneficio.
+
+---
+
+## Asunciones abiertas
+
+- ⚠️ Se asume que `studio/` (añadido en el último commit, `c1f30a8`) es una vía de producción real
+  y no solo un prototipo — si en realidad es experimental, varios hallazgos (auth por defecto,
+  `heroImage.ts` sin sanitizado) bajan de severidad. Confirmar con el usuario.
+- ⚠️ Se asume que las 15 marcas sin `brand-tokens.json` (Amazon, Toyota, Zara, Samsung, MSF, BYD,
+  Asics, El Corte Inglés, Feebbo, Fitness Park, Mazda, Myprotein, Supreme, Volkswagen, Acción
+  contra el Hambre) son deliberadamente generadas fuera del pipeline gobernado (scripts ad-hoc) —
+  si el usuario las considera parte de la producción real, el impacto de Hallazgo 1 (memory.md) es
+  mayor de lo documentado.
+
+---
+
+## Bugs conocidos (hallados en esta auditoría, no presentes textualmente en `memory.md`)
+
+| ID | Tipo | Descripción | Origen real | Estado |
+|---|---|---|---|---|
+| BUG-H01 | Motor (salida) | `escapeHtml()` en `engine/lib/assemble.js` no escapa comillas dobles; `{{data:...}}` se usa sin escape adicional dentro de atributos `href`/`src`/`alt` en ~15 componentes. Un valor de campaña con `"` rompe el atributo e inyecta HTML/atributos arbitrarios en `final.html`. | `engine/lib/assemble.js:297-303` | **Cerrado 2026-09-23** — `escapeHtml` escapa `"`; `httpsUrl`/`espResolvedUrl` anclados en el schema (sin comillas/ángulos/espacios); test de regresión añadido; validado contra las 27 campañas reales (sin regresiones nuevas) y `npm test` 56/56. |
+| BUG-H02 | Agentes (handoff) | 02 entrega `02-analysis/visual-identity-report.md` pero 03 y 04 siguen instruyendo leer `visual-analysis.md` (nombre viejo). Confirmado fallando en campañas reales (`converse/2026-ago-converse-chuck70-industrial-glam`, `mercedes-amg/c63-se-performance`) — Gate 13 (bloqueante) falla en silencio. | `agents/02-brand-visual-analyst.md:267` vs `agents/03-*.md:16`, `agents/04-*.md:15` | **Cerrado 2026-09-23** — nombre sincronizado en `agents/03-*.md`, `agents/04-*.md`, `pipeline-skill/references/agent-roles.md`, `pipeline-skill/references/phase-gates.md`, `docs/campaign-lifecycle.md`, `docs/naming-conventions.md`, `docs/workflow.md` (7 archivos). Nota: las campañas converse/mercedes-amg ya creadas siguen sin los archivos Nivel 5 — este fix corrige la instrucción, no repuebla campañas existentes. |
+| BUG-H03 | Motor (cobertura test) | `engine/lib/verify.js` (decide si se escribe `final.html`) no tiene ningún test dedicado — ni un caso de fallo real cubierto. | `engine/lib/verify.js` | Abierto |
+| BUG-H04 | Motor (gate) | Gate 0 (`check-engine-integrity.ts`) no vigila `patterns/*.md` ni `scripts/*.ts` (incluido `production-gate-motor.ts` y los propios `check-*.ts`) — el mecanismo creado tras el incidente 2026-07-21 tiene un hueco sobre el mismo tipo de vector. | `scripts/check-engine-integrity.ts:25-37` | **Cerrado 2026-09-23** — `watchedFiles()` ahora incluye todo `patterns/*.md` y `scripts/*.ts` (67 archivos vigilados, antes ~41). Lock regenerado (`npm run check-engine -- --update`), verificado limpio. |
+| BUG-H05 | Motor (gate) | Gate 9 (`check-contrast.ts`) y Gate 7 (`check-column-balance.ts`) no cubren los componentes añadidos 2026-07-24→2026-08-01 (`pasos-vertical`, `trust-bar-inline`, `category-grid*`, `lista-premium-2col`, `metric-strip-premium`) — el mismo bug real de UAX (columnas) puede repetirse sin detección. | `scripts/check-contrast.ts:108-202`, `scripts/check-column-balance.ts:97-99` | **Cerrado 2026-09-23** — Gate 7 generalizado con tabla `BALANCE_CHECKS` (cubre los 5 componentes, cada uno con su campo/reparto real de assemble.js); Gate 9 con 4 combos nuevos (`fgLiteral`, `surfaces.white`, `surfaces.sectionLila`/primary) + `usedIn` ampliado en 3 combos ya existentes. **Efecto secundario real, no un falso positivo**: contra las 27 campañas reales, Gate 7 ahora detecta 4 desequilibrios genuinos antes invisibles (apple/iphone-17-pro-premium, paraycompara/2026-jul-revision-verano, uax/2026-jul-uax-fp-online, tarifalo/2026-jul-tarifalo-compara-energia) — NO se tocó el copy de esas campañas (no es trabajo de esta sesión, pertenece a 05/06); queda como hallazgo nuevo para quien retome esas campañas. También se corrigió el propio `engine/schema/campaign-data.example.json` (trust-bar 2/4/2 palabras, ratio 2.0x) por ser fixture/ejemplo del repo, no contenido de cliente. 2 tests de regresión nuevos en `gates.smoke.test.js`. |
+| BUG-H06 | Agentes (frontera QA) | `agents/08-qa-specialist.md` no implementa la distinción "prueba interna vs. producción" (`isTestCampaign`/`productionReady`) que `AGENTS.md:81-83` exige como contrato de sistema. | `agents/08-qa-specialist.md` (completo) | **Cerrado 2026-09-23** — nueva sección "Nivel de aprobación" en `agents/08-qa-specialist.md`: lee `metadata.isTestCampaign`/`productionReady` antes de emitir veredicto, exige calificar "Aprobado — prueba interna" vs "Aprobado — producción" en `final-checklist.md`, nunca "Aprobado" a secas. |
+| BUG-H07 | Docs (desactualización) | `pipeline-skill/references/phase-gates.md`/`agent-roles.md` (sin tocar desde 2026-07-28) y `docs/qa-process.md` (menciona el rol "React Email Developer" ya archivado) pueden llevar a 00 o a una sesión nueva a verificar criterios obsoletos. | `pipeline-skill/references/phase-gates.md`, `docs/qa-process.md` | Parcialmente cerrado 2026-09-23 — el nombre `visual-identity-report.md` ya sincronizado (ver BUG-H02). `docs/qa-process.md` (legacy "React Email Developer", 40-checklist desalineado) sigue sin actualizar — no se tocó, es un documento entero por rehacer, fuera del alcance de "corto plazo". |
+| BUG-H08 | Infra (studio) | `studio/server/heroImage.ts` no aplica `sanitizeLandingPrompt()` (el fix real del incidente BMW de moderación) — mismo vector de fallo puede reproducirse generando un hero vía Studio en vez de CLI. | `studio/server/heroImage.ts` vs `scripts/generate-hero-image.ts:468-510` | **Cerrado 2026-09-23** — función extraída a `scripts/lib/sanitize-hero-prompt.ts` (única fuente, ya no duplicada); `scripts/generate-hero-image.ts` la importa; `studio/server/phases/dataPhase.ts` sanea `input.briefText` antes de interpolarlo en el prompt del hero. 3 tests de regresión nuevos. Nota: Studio no tiene paso de visión sobre la landing real (el prompt sale del brief escrito a mano), así que el vector exacto de BMW no aplica 1:1, pero la misma clase de contenido problemático (personajes, matrículas, precios, URLs) sí puede colarse en un brief libre. |
+| BUG-H09 | Infra (studio) | Studio arranca sin autenticación si `APP_ACCESS_PASSWORD` está vacía (solo `console.warn`); comparación de contraseña no timing-safe; sin rate limiting en `/api/jobs`. | `studio/server/index.ts:24-38` | **Cerrado 2026-09-23** — arrancar sin contraseña exige `ALLOW_NO_AUTH=true` explícito; comparación con `crypto.timingSafeEqual`; `studio/server/rateLimit.ts` nuevo (sin dependencia nueva, limitador en memoria por IP): 20 intentos de auth FALLIDOS/5min (solo cuenta fallos — probado que NO penaliza uso normal autenticado, un bug real de la primera versión detectado probando con curl antes de cerrarlo) y 5 jobs creados/10min. 4 tests de regresión (`rateLimit.test.js`) + verificación funcional con curl en los 3 escenarios (uso normal, fuerza bruta, creación de jobs). Efecto en el entorno real: `studio/.env` local (no trackeado, de la sesión concurrente) no tiene `ALLOW_NO_AUTH` — dejará de arrancar hasta que se añada esa línea o una contraseña real. |
+| BUG-H10 | Dependencias | 7 vulnerabilidades npm sin resolver (`sharp` alta/libheif, `postcss` alta, `undici` alta, `qs` moderada), todas con fix disponible sin cambio de major. | `package.json` | **Cerrado 2026-09-23** — `npm audit fix` (sin `--force`, sin cambios de major). `npm audit` → 0 vulnerabilidades. |
+| BUG-H11 | Escala (producción) | 15/32 carpetas de marca sin `brand-tokens.json`; de los 17-18 restantes, solo `converse` tenía `colors.source`/`typography.source`. Gate 8 (bloqueante) hace fallar `production-gate` para prácticamente todas las marcas reales. | `brands/*/` | **Parcialmente cerrado 2026-09-23** — 3 lotes con navegación real + `getComputedStyle`: lote 1 (Nike, BMW, Tarifalo), lote 2 (Audi, Para y Compara, Apple), lote 3 (Mercedes-AMG, New Balance, UAX — ver changelog "tercer lote"). **10 de 18 packs reales pasan Gate 8 limpio ahora** (apple, audi, bmw, converse, mercedes-amg, new-balance, nike, paraycompara, tarifalo, uax). Quedan 8: adeslas, adidas, aesop, feebboletter, optica2000, rolex, spotify, wornwear — deuda de contenido real del agente 02, no de código. **2 hallazgos no anticipados, no corregidos, declarados para 02**: (1) `paraycompara` diverge de forma significativa de la web real (probable rediseño no reflejado en el pack, afecta a 2 campañas reales); (2) `uax` usa realmente 'PT Sans' (Google Font embebible) pero el pack no lo declara como `webFont`, mismo patrón que el hallazgo de 'Alexandria' en paraycompara — dos indicios de que ningún pack real ha revisado su fuente `webFont` contra la fuente real desde que la sustitución de fuentes se implementó. |
+| BUG-H12 | CI (cobertura) | `.github/workflows/ci.yml` solo corre `npm test` + `check-engine-integrity` — nunca ejecuta `production-gate-motor` de forma visible con una aserción explícita de qué debe pasar. | `.github/workflows/ci.yml` | **Cerrado 2026-09-23** — nuevo step de CI + `scripts/ci-example-campaign-gate.ts`: corre `production-gate-motor` en modo exploración contra `campaign-data.example.json` y falla si algún gate de CÓDIGO (schema/build/claims/column-balance/contrast/hero-decision/engine-integrity) deja de pasar; tolera explícitamente `brand-pack-completeness`/`structural-differentiation` (deuda de contenido conocida, ver BUG-H11). Nota de corrección: mi hallazgo original decía que CI "nunca ejecuta production-gate-motor" — impreciso, `npm test` ya lo ejercitaba indirectamente (`gates.smoke.test.js`); el hueco real era la falta de una aserción positiva de qué debe seguir pasando, que es lo que este step añade. |
+
+---
+
+## Changelog
+
+### 2026-09-23
+- **Qué se hizo:** Auditoría completa del sistema (10 agentes, motor, infraestructura) a petición
+  del usuario. Verificación empírica (no solo lectura) de los hallazgos más fuertes: ejecución de
+  gates reales contra campañas reales, conteo de brand packs, revisión de `npm audit`, inspección
+  de CI. Informe completo entregado en el chat de la sesión (puntos débiles + mejoras priorizadas).
+  A continuación, el usuario pidió aplicar los 4 fixes críticos/baratos identificados: se
+  implementaron BUG-H01 (escape de comillas + anclaje de `httpsUrl`/`espResolvedUrl`), BUG-H02
+  (sincronizar `visual-identity-report.md` en 7 archivos), BUG-H04 (ampliar Gate 0 a
+  `patterns/*.md` + `scripts/*.ts`) y BUG-H10 (`npm audit fix`). Verificado con `npm test` (56/56,
+  incluye 1 test nuevo de regresión), `check-engine` limpio (67 archivos), y validación del schema
+  contra las 27 campañas reales (los 2 fallos preexistentes —`hero-marca-*` pattern— confirmados
+  no relacionados, ya fallaban antes del cambio).
+- **Por qué:** el usuario quiere un sistema más sólido y con mejores resultados; no se había hecho
+  antes una auditoría específicamente centrada en fronteras entre agentes + seguridad del motor +
+  infraestructura en una sola pasada (las auditorías previas documentadas en `memory.md` fueron
+  temáticas: flexibilidad estructural, procedencia de marca, etc.).
+- **Aviso de seguridad detectado durante la implementación:** al hacer `git status` (regla ya
+  establecida en `memory.md` antes de tocar el repo) se detectó una **sesión concurrente activa**
+  con cambios sin commitear en `AGENTS.md`, `agents/00/02/08/09-*.md`, `memory.md`,
+  `engine/CHANGELOG.md`, `production-gate-motor.ts`, `create-campaign.ts`, `gates.smoke.test.js`,
+  y campañas/marcas nuevas sin trackear (Amazon, El Corte Inglés, Converse, Mini, Supreme,
+  Volkswagen...). Ninguno de los 4 fixes de esta sesión toca esos archivos (verificado con `git
+  diff --stat` acotado). No se hizo ningún `git add`/`commit` — se avisó al usuario en el chat.
+- **Qué queda abierto (al cierre de "ya mismo"):** BUG-H03, H05, H06, H07, H08, H09, H11, H12.
+  Ningún commit se ha hecho todavía sobre los 4 fixes cerrados — quedan en el working tree.
+
+### 2026-09-23 (continuación — bloque "corto plazo")
+- **Qué se hizo:** a petición del usuario ("continúa con el bloque de corto plazo"), se cerraron
+  BUG-H05, H06, H08, H09 (parcial), H12; H07 quedó parcial. Detalle línea a línea en la tabla de
+  "Bugs conocidos" arriba. Verificación en cada paso: `npm test` (61/61 al final, subiendo desde
+  56 — 2 tests de Gate 7 + 3 de `sanitize-hero-prompt` nuevos), `npm run check-engine` limpio (68
+  archivos, regenerado 3 veces según iban cambiando `scripts/*.ts`), `npm run
+  ci:example-campaign-gate` verificado en los dos sentidos (falla si el motor está alterado —
+  probado forzando un lock falso; pasa limpio con solo los 2 gates de contenido tolerados). Gate
+  7 extendido se probó contra las 27 campañas reales, no solo contra fixtures.
+- **Por qué:** cerrar primero lo crítico/barato y lo de impacto medio-alto de la auditoría, antes
+  de tocar deuda de contenido (brand packs) que pertenece a otra fase del pipeline (agente 02).
+- **Aviso de seguridad repetido:** se volvió a comprobar `git status` antes de cada tanda de
+  cambios — la sesión concurrente seguía activa con los mismos archivos que al inicio, más
+  `agents/08-qa-specialist.md` y `scripts/gates.smoke.test.js`, que esta sesión SÍ necesitaba
+  tocar (BUG-H06 y los tests nuevos). Se leyó el contenido ACTUAL de esos 2 archivos antes de
+  editar (no una versión en caché) y se verificó con `npm test` que el resultado combinado sigue
+  siendo válido — no se ha perdido nada, pero es la señal más clara hasta ahora de que ambas
+  sesiones deberían coordinarse. Sigue sin hacerse ningún `git commit`.
+- **Qué queda abierto (al cierre del bloque "corto plazo"):** BUG-H03, H07 (parcial), H09
+  (parcial), H11. Bloque "medio plazo" sin empezar. **Nuevo, no anticipado**: 4 campañas reales
+  ahora fallan Gate 7 (ver detalle abajo). `studio/.env` local no tiene `ALLOW_NO_AUTH` —
+  dejará de arrancar hasta que se añada esa línea o una contraseña real.
+
+### 2026-09-23 (continuación — BUG-H03, BUG-H07, y 2 de 3 puntos del bloque medio-plazo)
+- **Qué se hizo:** a petición del usuario ("vamos con BUG-H03 y BUG-H07 y con el bloque
+  medio-plazo"), y tras confirmar con el usuario el alcance del punto más grande (repoblar 17
+  brand packs → eligió "piloto con 2-3 marcas" en vez de las 17 o saltarlo):
+  - **BUG-H03 cerrado**: `engine/lib/verify.test.js` nuevo, 16 tests — cubre los 5 checks reales
+    (charset, placeholders sin resolver, paridad fuente/inline, balance de `<table>`, límite de
+    90KB) más `tagBalance`/`countOccurrences` directamente. `npm test` pasó de 61→77.
+  - **BUG-H07 cerrado**: `docs/qa-process.md` reescrito entero (fuente de verdad:
+    `agents/08-qa-specialist.md`) — fuera "React Email Developer", el checklist fijo de 40 ítems
+    inexistente, y añadida la distinción de 2 niveles de aprobación. `pipeline-skill/references/
+    phase-gates.md` y `agent-roles.md` actualizados en su fila de fase 08 (brand-fidelity-qa.md
+    como mandatory, nivel de aprobación).
+  - **Medio plazo — catálogo de `fotografia-primero` ampliado**: añadidas `pasos|pasos-vertical`
+    y `lista-premium|lista-premium-2col` a la zona libre (antes solo vivían en `saving.md`) —
+    dan peso visual real sin gastar otra foto, la causa raíz exacta del diagnóstico de
+    `memory.md` 2026-08-20. Nueva §8 en el patrón documentando cuándo elegir cada uno (regla
+    anti-comodín: si nada aplica, no rellenar el slot). Gate 12 (`check-structural-
+    differentiation.ts`) corregido: `PATTERN_DEFAULT_SEQUENCES` pasó de 1 comodín por patrón a
+    una lista (fotografia-primero ahora tiene 2: la original con `intro-cta` y la nueva con el
+    par editorial) — **se eliminó la rama que daba pase automático a `editorial-foto-texto*`**
+    (exactamente lo contrario de lo que la evidencia real mostraba). Verificado contra
+    `mercedes-amg/c63-se-performance` (coincide exacto con la comodín nueva, ahora exige
+    justificación — la tiene, pasa por el motivo correcto en vez de un pase automático).
+  - **Medio plazo — limpieza de raíz**: NO se movieron los ~124 archivos HTML/PNG sueltos —
+    varios scripts ad-hoc en `brands/*/design-input/*.js` (tarifalo, paraycompara, feebbo) leen/
+    escriben esos archivos por ruta absoluta hardcodeada; moverlos los habría roto en silencio
+    sin beneficio real. Se añadió en su lugar `/*.html`/`/*.png`/`/*.jpg`/`/*.jpeg` (anclado a
+    raíz) a `.gitignore` — la protección real (evita que un `git add -A` futuro commitee ~28MB).
+    Los 6 docs históricos YA tenían banner ⚠️ OBSOLETO desde 2026-07-27 — el hallazgo original de
+    la auditoría sobre esto era impreciso, verificado y corregido aquí.
+  - **Medio plazo — piloto de brand packs (3 marcas: Nike, BMW, Tarifalo)**: navegación real con
+    el navegador (`mcp__Claude_Browser__*`) + `getComputedStyle` contra las 3 webs reales.
+    - **Nike** (`brands/nike/tokens/brand-tokens.json` v2.2.4→2.2.5): verificado contra
+      `nike.com/.../pegasus-42-.../IB1873-401` (la URL de 2026-07-24 ya no existe, producto
+      retirado de catálogo — se usó la URL real actual del mismo modelo). `ctaBackground`/
+      `ctaText`/`text.secondary` coinciden byte a byte con lo ya documentado — tercera
+      verificación independiente sin cambios de valor.
+    - **BMW** (v2.3.2→2.3.3): verificado contra la misma URL que ya citaba `photography.source`
+      (`bmw.es/.../bmw-x1.html`). `ctaBackground`/`ctaText`/`textBody` confirmados exactos.
+    - **Tarifalo** (v2.2.6→2.2.7): verificado contra `tarifalo.com/`. `colors.primary`/
+      `ctaBackground` confirmados exactos. **Hallazgo real, no corregido**: el CTA real de la web
+      usa texto blanco sobre naranja, pero el pack documenta `ctaText:"#002035"` (navy oscuro).
+      Verificado que el valor del pack SÍ es el que pasa WCAG (6.35:1) y el de la web NO (~2.76:1)
+      — se interpreta como divergencia deliberada por accesibilidad en email, no un error, y se
+      deja registrado en el changelog para que 02 lo confirme explícitamente, sin asumirlo.
+    - Los 3 pasan Gate 8 (`check-brand-pack-completeness.ts --brand {marca}`) limpio ahora.
+      Verificado contra campañas reales (`production-gate-motor.ts` en exploración): nike/2026-jul-
+      nike-pegasus-42 y bmw/2026-jul-bmw-x1-descubre y tarifalo/2026-jul-tarifalo-compara-luz ya
+      NO fallan `brand-pack-completeness` — solo quedan `brand-visual-report-completeness`
+      (Nivel 5, fuera de alcance) y, según campaña, `structural-differentiation`/`parity`
+      (deuda de contenido no relacionada con este piloto).
+    - **14-15 brand packs reales siguen sin `.source`** (todos menos converse/nike/bmw/tarifalo) —
+      deuda de contenido que queda fuera del piloto, ver BUG-H11.
+- **Por qué:** el usuario quiso seguir bajando la lista de hallazgos por prioridad; se le
+  preguntó explícitamente por el punto de mayor escala (17 marcas reales) antes de comprometerse
+  a un alcance concreto, dado que implica navegación real de sitios externos.
+- **Verificación:** `npm test` 77/77 en cada paso, `check-engine` limpio (68 archivos, regenerado
+  tras cada cambio de `scripts/*.ts`/`patterns/*.md`), `ci:example-campaign-gate` sigue en verde
+  (solo los 2 gates de contenido tolerados). Gate 12 verificado contra campañas reales (Audi/BMW
+  brand-native: no coinciden con la comodín de 6 módulos porque además llevan
+  `metric-strip-premium` — la colisión exacta entre ambas la sigue cazando el check 8 de
+  comparación cruzada, no un hueco nuevo).
+- **Qué queda abierto:** BUG-H09 (rate limiting), BUG-H11 (14-15 brand packs reales sin
+  `.source`, fuera del piloto). **Nuevo, no anticipado**: 4 campañas reales (apple/iphone-17-pro-
+  premium, paraycompara/2026-jul-revision-verano, uax/2026-jul-uax-fp-online, tarifalo/2026-jul-
+  tarifalo-compara-energia) fallan Gate 7 por desequilibrios reales en trust-bar/pasos/metric-
+  strip-premium/category-grid — ninguna tiene `productionReady:true`, no bloquea nada hoy, pero
+  quien las retome para producción real necesitará ajustar ese copy (agente 05/06, no 07).
+
+### 2026-09-23 (continuación — BUG-H09 y segundo lote de BUG-H11)
+- **Qué se hizo:** a petición del usuario ("vamos con BUG-H09 y con BUG-H11"):
+  - **BUG-H09 cerrado**: `studio/server/rateLimit.ts` nuevo — limitador en memoria por IP, sin
+    dependencia nueva (`express-rate-limit` no estaba instalado; coherente con el resto del
+    proyecto, que evita dependencias de terceros cuando una implementación propia simple basta).
+    20 intentos de auth FALLIDOS/5min y 5 jobs creados/10min. **Bug real detectado probando antes
+    de dar por cerrado**: la primera versión contaba TAMBIÉN los aciertos, así que uso normal
+    autenticado (ej. varios GET seguidos del panel) habría agotado el cupo sin que nadie fallara
+    una contraseña — corregido para que el límite de auth solo consuma cupo en la rama que falla
+    (`recordFailure`), verificado con 3 pruebas funcionales por curl (25 GETs correctos → 0
+    bloqueos; 22 fallos → bloquea desde el 21; 7 creaciones de job → bloquea desde la 6ª) más 4
+    tests de regresión (`rateLimit.test.js`). `app.set('trust proxy', 1)` añadido — sin esto,
+    `req.ip` da la IP del proxy de Railway para todos, no la del cliente real.
+  - **BUG-H11 — segundo lote (Audi, Para y Compara, Apple)**: mismo proceso de navegación real +
+    `getComputedStyle` que el lote 1.
+    - **Audi** (v2.2.2→2.2.3): `colors.deep`/`darkBg` (#101319) y la fuente AudiType confirmados
+      exactos. Aviso menor: los botones píldora reales usan #181D25, no #000000 puro como
+      `ctaBackground` — diferencia sin impacto de contraste, no corregida (no se pudo confirmar
+      si ese botón concreto es el CTA canónico), declarada para 02.
+    - **Para y Compara** (v2.2.7→2.2.8): **hallazgo significativo, no un simple redondeo** — el
+      gradiente real del hero (#792771→#E85248) y el CTA real (#F85842) divergen notablemente de
+      `colors.primary`/`deep`/`ctaBackground` documentados, y la fuente real ('Alexandria', un
+      Google Font embebible) es distinta del sustituto 'Sora' ya usado. Hipótesis: el sitio se
+      rediseñó desde la última vez que se analizó este pack (nunca tuvo `photography.source`,
+      a diferencia de nike/bmw/audi). **NO se corrigieron los valores** — cambiar
+      `colors.primary`/`deep` es una decisión de diseño con impacto real en 2 campañas existentes
+      (2026-jul-comparar-tv, 2026-jul-revision-verano), no una simple adición de procedencia;
+      queda declarado en el pack para que 02 haga un re-análisis completo.
+    - **Apple** (v2.2.0→2.2.1): `ctaBackground` (#0071E3) y `colors.primary` (#1D1D1F)
+      confirmados EXACTOS contra apple.com/es/iphone/. Gate 8 seguía fallando por un hueco
+      preexistente y no relacionado (`voice.rhythm.mode/formality/punctuationHabits/source`,
+      sin declarar en `_changelog`) — se declaró el hueco (sin fabricar los valores, que
+      requieren analizar tono de copy real, fuera de alcance de este piloto) para que 02 lo
+      resuelva de verdad en su próxima pasada.
+  - **7 de 18 brand packs reales pasan Gate 8 limpio ahora**: apple, audi, bmw, converse
+    (ya lo tenía), nike, paraycompara, tarifalo.
+- **Por qué:** continuación directa de la priorización ya acordada; BUG-H09 era una tarea de
+  código acotada y BUG-H11 seguía el mismo proceso ya validado en el lote anterior.
+- **Verificación:** `npm test` 81/81 (77→81, +4 tests de `rateLimit.test.js`). `check-engine`
+  limpio. `git status` revisado antes y después — sin colisión con la sesión concurrente (no se
+  tocó ningún archivo de su lista) y sin efectos secundarios en `build-manifest.json` esta vez
+  (no se corrió `production-gate-motor` contra campañas reales en este bloque, solo
+  `check-brand-pack-completeness.ts`, que es de solo lectura).
+- **Qué queda abierto (al cierre de este bloque):** 11 brand packs reales sin `.source`.
+
+### 2026-09-23 (tercer lote de BUG-H11: Mercedes-AMG, New Balance, UAX)
+- **Qué se hizo:** a petición del usuario ("vamos con BUG-H11"), tercer lote con el mismo
+  proceso de navegación real + `getComputedStyle`:
+  - **Mercedes-AMG** (v2.2.0→2.2.1): `ctaBackground` (#B21E23) y `colors.primary/deep`
+    (#000000) confirmados EXACTOS contra mercedes-amg.com/en/gt-4-door-coupe. Cero cambios.
+  - **New Balance** (v2.2.0→2.2.1): `ctaBackground` (#151415, botón "Add to bag" real) y
+    `colors.primary` (#CF0A2C) confirmados EXACTOS. Cero cambios.
+  - **UAX** (v2.2.4→2.2.5): `ctaBackground`/`light` (#0060AB) confirmado EXACTO. **Hallazgo**:
+    la fuente real es 'PT Sans' (Google Font embebible), pero `typography.webFont` no la
+    declara — mismo patrón que el hallazgo de 'Alexandria' en paraycompara del lote anterior.
+    No se cambia `typography.webFont` aquí (requiere confirmar pesos/licencia/embeber, trabajo
+    de 02), solo se deja anotado.
+  - **10 de 18 brand packs reales pasan Gate 8 limpio ahora.**
+- **Por qué:** continuación directa de la priorización ya acordada, mismo proceso validado en
+  los 2 lotes anteriores.
+- **Verificación:** `npm test` 81/81 (sin cambio de conteo — este lote no tocó tests). `git
+  status` revisado: solo los 3 `brand-tokens.json` de este lote modificados, sin colisión con
+  la sesión concurrente, sin efectos secundarios en `build-manifest.json` (no se corrió
+  `production-gate-motor` contra campañas reales, solo `check-brand-pack-completeness.ts`).
+- **Qué queda abierto:** 8 brand packs reales sin `.source` (adeslas, adidas, aesop,
+  feebboletter, optica2000, rolex, spotify, wornwear). Los 2 hallazgos de fuente real no
+  declarada (paraycompara/Alexandria, uax/PT Sans) sugieren que vale la pena que 02 revise
+  `typography.webFont` en su próxima pasada por CUALQUIER marca, no solo estas dos — patrón
+  repetido, no una coincidencia aislada.

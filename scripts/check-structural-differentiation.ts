@@ -36,14 +36,34 @@ import { parseArgs } from './lib/cli';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 
-// Secuencia comodín por patrón — cada una es la traducción directa del orden por defecto
-// documentado en patterns/{patrón}.md. 'hero-*'/'banda-cierre-*' son comodines: la elección
-// concreta de variante de hero/cierre ya la verifica el Gate 11 (check-hero-decision.ts) por
-// separado — este check es sobre el ORDEN del cuerpo, no sobre qué variante de hero se usó.
-const PATTERN_DEFAULT_SEQUENCES: Record<string, string[]> = {
-  'fotografia-primero': ['header-logo', 'hero-*', 'intro-cta', 'columns-3-beneficios-sin-icono', 'banda-cierre-*', 'footer'],
-  'saving': ['hero-*', 'trust-bar', 'card-tarifa', 'pasos', 'lista-premium', 'banda-cierre-*', 'footer'],
-  'institutional': ['header-logo', 'hero-*', 'intro-cta', 'columns-3-beneficios', 'usp-cards', 'banda-cierre-*', 'footer']
+// Secuencias comodín por patrón — cada una es una traducción "obviamente correcta" que el motor
+// puede producir sin que el agente 03 haya tenido que decidir nada real. 'hero-*'/'banda-cierre-*'
+// son comodines: la elección concreta de variante de hero/cierre ya la verifica el Gate 11
+// (check-hero-decision.ts) por separado — este check es sobre el ORDEN del cuerpo, no sobre qué
+// variante de hero se usó.
+//
+// fotografia-primero tiene DOS comodines, no uno (corregido 2026-09-23 — auditoría, diagnóstico
+// "newsletters genéricas" de memory.md 2026-08-20): hasta esta fecha solo se comparaba contra la
+// secuencia con `intro-cta` (el comodín ORIGINAL de cuando el patrón se creó, 2026-07-24). Pero
+// desde que `editorial-foto-texto` existe (2026-07-27), se convirtió en el comodín DE FACTO —
+// "la opción obviamente correcta" para cualquier marca fotográfica, hasta el punto de que
+// campañas "brand-native" reales (Audi/BMW, 2026-08-01) fueron byte-idénticas en estructura sin
+// que este check (aunque sí el check 8 de comparación cruzada) lo detectara, precisamente porque
+// la secuencia con editorial-foto-texto NUNCA coincidía con el único comodín que existía
+// entonces. Antes, además, este check trataba "usa editorial-foto-texto" como evidencia
+// automática de diferenciación (ver el commit que introdujo la rama `usesEditorial` — exactamente
+// lo contrario de lo que la evidencia real terminó mostrando).
+const PATTERN_DEFAULT_SEQUENCES: Record<string, string[][]> = {
+  'fotografia-primero': [
+    ['header-logo', 'hero-*', 'intro-cta', 'columns-3-beneficios-sin-icono', 'banda-cierre-*', 'footer'],
+    ['header-logo', 'hero-*', 'editorial-foto-texto', 'editorial-foto-texto-inverso', 'banda-cierre-*', 'footer']
+  ],
+  'saving': [
+    ['hero-*', 'trust-bar', 'card-tarifa', 'pasos', 'lista-premium', 'banda-cierre-*', 'footer']
+  ],
+  'institutional': [
+    ['header-logo', 'hero-*', 'intro-cta', 'columns-3-beneficios', 'usp-cards', 'banda-cierre-*', 'footer']
+  ]
 };
 
 /** Quita header-logo/footer (siempre presentes, no discriminan) y sustituye la variante concreta
@@ -222,42 +242,39 @@ function main(): void {
     console.log('      ⏭️  No aplica (patrón ' + pattern + ', no fotografia-primero).\n');
   }
 
-  // ── Check 5: secuencia coincide con la comodín del PATRÓN elegido ──────────
-  console.log('   5) ¿La secuencia coincide exactamente con la secuencia comodín de este patrón?');
-  const defaultBody = PATTERN_DEFAULT_SEQUENCES[pattern];
-  if (!defaultBody) {
+  // ── Check 5: secuencia coincide con ALGUNA comodín del PATRÓN elegido ──────
+  console.log('   5) ¿La secuencia coincide exactamente con alguna secuencia comodín de este patrón?');
+  const defaultBodies = PATTERN_DEFAULT_SEQUENCES[pattern];
+  if (!defaultBodies || defaultBodies.length === 0) {
     console.log(`      ⏭️  No hay secuencia comodín definida para el patrón "${pattern}" (patrón nuevo, sin comodín registrado todavía).\n`);
   } else {
     const normalizedSequence = normalizeSequence(componentNames);
-    const normalizedDefault = normalizeSequence(defaultBody);
-
-    const isExactDefaultMatch = (
-      normalizedSequence.length === normalizedDefault.length &&
-      normalizedSequence.every((n: string, i: number) => n === normalizedDefault[i])
-    );
-
-    if (isExactDefaultMatch) {
-      console.log('      ⚠️  La secuencia activa coincide exactamente con la secuencia comodín.');
-      const usesEditorial = componentNames.some((n: string) =>
-        n === 'editorial-foto-texto' || n === 'editorial-foto-texto-inverso'
+    const matchedDefault = defaultBodies.find((defaultBody) => {
+      const normalizedDefault = normalizeSequence(defaultBody);
+      return (
+        normalizedSequence.length === normalizedDefault.length &&
+        normalizedSequence.every((n: string, i: number) => n === normalizedDefault[i])
       );
-      if (usesEditorial) {
-        console.log('      ✅ Pero usa editorial-foto-texto*, lo que rompe el patrón comodín.\n');
+    });
+
+    if (matchedDefault) {
+      // Ya NO existe un pase automático para editorial-foto-texto* (corregido 2026-09-23): ese
+      // par es precisamente una de las comodines registradas ahora, no una prueba de
+      // diferenciación. Toda coincidencia exacta, use el módulo que use, exige justificación.
+      console.log(`      ⚠️  La secuencia activa coincide exactamente con la secuencia comodín [${matchedDefault.join(' → ')}].`);
+      const translationExists = fs.existsSync(brandTranslationPath);
+      const hasJustification = translationExists
+        ? /justific|es el orden|por defecto|es correcto|es intencional/i.test(fs.readFileSync(brandTranslationPath, 'utf8'))
+        : false;
+      if (hasJustification) {
+        console.log('      ✅ Justificado en brand-structure-translation.md.\n');
       } else {
-        const translationExists = fs.existsSync(brandTranslationPath);
-        const hasJustification = translationExists
-          ? /justific|es el orden|por defecto|es correcto|es intencional/i.test(fs.readFileSync(brandTranslationPath, 'utf8'))
-          : false;
-        if (hasJustification) {
-          console.log('      ✅ Justificado en brand-structure-translation.md.\n');
-        } else {
-          warnings.push('La secuencia coincide exactamente con la comodín y no hay justificación explícita en brand-structure-translation.md.');
-          console.log('      ❌ Sin justificar — si este orden es correcto para la marca, debe documentarse.\n');
-          allPassed = false;
-        }
+        warnings.push('La secuencia coincide exactamente con una comodín y no hay justificación explícita en brand-structure-translation.md.');
+        console.log('      ❌ Sin justificar — si este orden es correcto para la marca, debe documentarse.\n');
+        allPassed = false;
       }
     } else {
-      console.log('      ✅ No coincide — la secuencia difiere de la comodín.\n');
+      console.log('      ✅ No coincide con ninguna comodín registrada.\n');
     }
   }
 

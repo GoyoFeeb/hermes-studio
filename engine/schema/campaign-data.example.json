@@ -31,9 +31,9 @@
       "component": "trust-bar",
       "data": {
         "items": [
-          { "text": "Comparador independiente" },
+          { "text": "Comparador 100% independiente" },
           { "text": "Ahorra tiempo y dinero" },
-          { "text": "100% gratuito" }
+          { "text": "100% gratuito, sin compromiso" }
         ]
       }
     },

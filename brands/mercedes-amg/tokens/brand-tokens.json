@@ -1,8 +1,9 @@
 {
   "brand": "mercedes-amg",
   "description": "Design tokens for Mercedes-AMG — marca de altas prestaciones de Mercedes-Benz Group AG (Affalterbach). Creado el 2026-07-30 a partir de observación real de https://www.mercedes-amg.com/en/gt-4-door-coupe y https://www.mercedes-amg.com/en/amg-ea (fetch del HTML servido + extracción de los valores de color y las familias tipográficas declaradas en el propio documento). Campaña de origen: lanzamiento del GT 4 Puertas Coupé eléctrico.",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "colors": {
+    "source": "observado en https://www.mercedes-amg.com/en/gt-4-door-coupe el 2026-09-23 (getComputedStyle: botón 'Configure now' rgb(178,30,35) = #B21E23 confirma ctaBackground exacto; fondo del body rgb(0,0,0) = #000000 confirma colors.primary/deep exacto)",
     "primary": "#000000",
     "deep": "#000000",
     "light": "#8F1418",
@@ -42,6 +43,7 @@
     }
   },
   "typography": {
+    "source": "observado en https://www.mercedes-amg.com/en/gt-4-door-coupe el 2026-09-23 (getComputedStyle: familia real 'MBCorpoSText_Regular_Web' (body/CTA) y 'titleExtraBold' (H1) — fuentes corporativas no embebibles, confirma la decisión ya documentada de usar Arial/Helvetica como fallback honesto en vez de un sustituto aproximado)",
     "family": "Arial, Helvetica, sans-serif",
     "displayFont": "'Helvetica Neue', Helvetica, Arial, sans-serif",
     "note": "El sitio real declara 'MBCorpoSText_Regular_Web' para cuerpo y 'MBCorpoSTitle_{Regular,Bold,ExtraBold}_Web' para titulares (observado en las declaraciones font-family y en los .woff2 servidos desde /_next/static/media/ el 2026-07-30). MBCorpo S es la tipografía corporativa propietaria de Mercedes-Benz Group AG: NO es email-safe y no puede embeberse. Es una neo-grotesca de caja estrecha, así que el fallback email-safe más cercano es Helvetica/Arial (ambas en la lista segura de agents/02-brand-visual-analyst.md). Deliberadamente NO se usa una serif (Georgia) para displayFont: sería una traición del carácter tipográfico real de la marca, que es enteramente sans grotesca.",
@@ -437,6 +439,16 @@
       "notas": [
         "Este pack NO declara typography.webFont: no se sustituye MBCorpo por una fuente de Google Fonts 'parecida' (lo que sí se hizo con BMW → Titillium Web). Motivo: no se encontró un sustituto real documentado con el mismo carácter, y cargar una fuente web arbitraria por estética contradiría la regla de no inventar valores de marca. Helvetica/Arial es el fallback honesto.",
         "gradients.heroBackground = 'none' con motivo explícito, igual que BMW."
+      ]
+    }
+  ,
+    {
+      "version": "2.2.1",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20).",
+        "Verificado con getComputedStyle contra https://www.mercedes-amg.com/en/gt-4-door-coupe: ctaBackground (#B21E23) y colors.primary/deep (#000000) confirmados EXACTOS. Cero cambios de valor."
       ]
     }
   ]

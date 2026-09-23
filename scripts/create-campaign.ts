@@ -15,6 +15,11 @@
  *   --cta         Texto del CTA principal (opcional, por defecto: "Definir CTA")
  *   --url         URL principal (opcional, por defecto: https://placeholder.invalid/{client}/{campaign})
  *   --force       Sobrescribir si la campaña ya existe (opcional)
+ *   --mode        "full" (por defecto) o "exploration" (2026-08-20) — exploration usa
+ *                 newsletters/_campaign-template-exploration/ (~14 archivos en vez de ~50):
+ *                 difiere archivos de traspaso/QA/entrega y el paquete "Nivel 5" de marca, pero
+ *                 mantiene intacta la investigación real de 02 y la decisión estructural real de
+ *                 03. Ver newsletters/_campaign-template-exploration/README.md.
  */
 
 import * as fs from 'fs';
@@ -25,7 +30,8 @@ import { parseArgs } from './lib/cli';
 // ── Configuración ──────────────────────────────────────────────────────────
 
 const ROOT = path.resolve(import.meta.dirname, '..');
-const TEMPLATE = path.join(ROOT, 'newsletters', '_campaign-template');
+const TEMPLATE_FULL = path.join(ROOT, 'newsletters', '_campaign-template');
+const TEMPLATE_EXPLORATION = path.join(ROOT, 'newsletters', '_campaign-template-exploration');
 const CAMPAIGN_DATA_SCHEMA = path.join(ROOT, 'engine', 'schema', 'campaign-data.schema.json');
 const PLACEHOLDER_FILES = ['.md', '.json', '.ts'];
 
@@ -43,6 +49,14 @@ function slugToClientName(slug: string): string {
 
 // ── Validación ─────────────────────────────────────────────────────────────
 
+function resolveTemplate(mode: string): string {
+  if (mode !== 'full' && mode !== 'exploration') {
+    console.error(`\n  ❌ Error: --mode debe ser "full" o "exploration" (recibido: "${mode}")\n`);
+    process.exit(1);
+  }
+  return mode === 'exploration' ? TEMPLATE_EXPLORATION : TEMPLATE_FULL;
+}
+
 function validate(args: Record<string, string>): void {
   const required = ['year', 'client', 'campaign'];
   const missing = required.filter((k) => !args[k]);
@@ -51,7 +65,7 @@ function validate(args: Record<string, string>): void {
     console.error(`\n  ❌ Error: faltan argumentos obligatorios: ${missing.join(', ')}\n`);
     console.error('  Uso: npx tsx scripts/create-campaign.ts \\');
     console.error('         --year 2026 --client mi-cliente --campaign 2026-jul-campana --date 2026-07-05 \\');
-    console.error('         [--client-name "Mi Cliente"] [--cta "Texto"] [--url "https://..."] [--force]\n');
+    console.error('         [--client-name "Mi Cliente"] [--cta "Texto"] [--url "https://..."] [--mode exploration] [--force]\n');
     process.exit(1);
   }
 
@@ -65,8 +79,9 @@ function validate(args: Record<string, string>): void {
     process.exit(1);
   }
 
-  if (!fs.existsSync(TEMPLATE)) {
-    console.error(`\n  ❌ Error: no se encuentra la plantilla en ${TEMPLATE}\n`);
+  const template = resolveTemplate(args.mode || 'full');
+  if (!fs.existsSync(template)) {
+    console.error(`\n  ❌ Error: no se encuentra la plantilla en ${template}\n`);
     process.exit(1);
   }
 }
@@ -242,14 +257,17 @@ function main(): void {
   const cta = args.cta || 'Definir CTA';
   const url = args.url || `https://placeholder.invalid/${clientSlug}/${campaign}`;
   const force = args.force === 'true';
+  const mode = args.mode || 'full';
+  const template = resolveTemplate(mode);
 
   const dest = buildDestPath(year, clientSlug, campaign);
 
-  console.log(`  📁 Creando campaña en:  newsletters/${year}/${clientSlug}/${campaign}/\n`);
+  console.log(`  📁 Creando campaña en:  newsletters/${year}/${clientSlug}/${campaign}/`);
+  console.log(`  🚀 Modo: ${mode}${mode === 'exploration' ? ' (~14 archivos — ver README.md de la campaña creada)' : ''}\n`);
 
   // 1. Copiar plantilla
   console.log('  1. Copiando plantilla...');
-  const fileCount = copyTemplate(TEMPLATE, dest, force);
+  const fileCount = copyTemplate(template, dest, force);
   console.log(`     ✅ ${fileCount} archivos copiados\n`);
 
   // 2. Reemplazar placeholders

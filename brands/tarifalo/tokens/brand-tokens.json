@@ -1,7 +1,8 @@
 {
   "brand": "Tarífalo",
-  "version": "2.2.6",
+  "version": "2.2.7",
   "colors": {
+    "source": "observado en https://tarifalo.com/ el 2026-09-23 (getComputedStyle: fondo del hero rgb(0,48,73) = #003049 confirma colors.primary exacto; botón CTA '¡Comparar y participar!' rgb(247,127,0) = #F77F00 confirma ctaBackground exacto. AVISO: el texto de ese botón real es blanco (#FFFFFF), NO #002035 como documenta ctaText aquí — pero #FFFFFF/#F77F00 da ~2.76:1 (falla el umbral WCAG 4.5:1 de check-contrast.ts) mientras que #002035/#F77F00 da 6.35:1 (pasa con margen, verificado con `npm run check-contrast -- --brand tarifalo`). No se cambia ctaText: se interpreta como una divergencia deliberada del email respecto a la web para cumplir WCAG en email, no un error a corregir — dejar registrado para que 02 lo confirme explícitamente en su próxima pasada por esta marca, en vez de asumirlo en silencio otra vez.",
     "primary": "#003049",
     "deep": "#002035",
     "light": "#004B6B",
@@ -34,6 +35,7 @@
     }
   },
   "typography": {
+    "source": "observado en https://tarifalo.com/ el 2026-09-23 (getComputedStyle: H1 en 'Poppins', CTA/cuerpo en 'Capitana Medium'/'Capitana Regular' — fuentes reales no embebibles en email; el pack ya sustituye por 'Sora' como equivalente geométrico web-safe, coherente con el mismo patrón de sustitución que Nike/otras marcas usan para su fuente real)",
     "family": "Arial, Helvetica, sans-serif",
     "displayFont": "'Sora','Segoe UI',Arial,Helvetica,sans-serif",
     "webFont": {
@@ -362,6 +364,17 @@
       "author": "Fase F3 (flexibilidad estructural) — docs/diagnostico-y-propuesta-flexibilidad-estructural-2026-07-28.md",
       "changes": [
         "spacing.innerSection/cta añadidos (Fase F3, forma canónica) — inferidos del valor por defecto mayoritario (24px 20px / 20px 0, usado por la mayoría de packs del key-set B), no observados directamente para esta marca."
+      ]
+    }
+  ,
+    {
+      "version": "2.2.7",
+      "date": "2026-09-23",
+      "author": "Auditoría del sistema — piloto de repoblación de brand packs (BUG-H11)",
+      "changes": [
+        "colors.source y typography.source añadidos (Gate 8 bloqueante desde 2026-08-20 — este pack no tenía NINGUNA procedencia real, ni siquiera photography.source, a diferencia de nike/bmw).",
+        "Verificado con getComputedStyle contra https://tarifalo.com/: colors.primary (#003049) y ctaBackground (#F77F00) confirmados exactos.",
+        "HALLAZGO (no corregido, dejado para 02): el texto real del CTA '¡Comparar y participar!' en la web es blanco (#FFFFFF), no #002035 como documenta ctaText. #FFFFFF/#F77F00 falla WCAG (~2.76:1); #002035/#F77F00 pasa (6.35:1, verificado con check-contrast.ts). Se interpreta como una divergencia deliberada por accesibilidad en email y NO se cambia el valor — requiere confirmación explícita de 02 en su próxima pasada, no una asunción de esta auditoría."
       ]
     }
   ]

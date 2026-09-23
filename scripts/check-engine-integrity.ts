@@ -20,8 +20,12 @@ import * as crypto from 'crypto';
 const ROOT = path.resolve(import.meta.dirname, '..');
 const LOCK_PATH = path.join(ROOT, 'engine', 'components.lock.json');
 
-// Qué se vigila: componentes + las 4 libs + el entry point + el schema. Todo lo que define
-// el comportamiento del motor.
+// Qué se vigila: componentes + las 4 libs + el entry point + el schema + los patrones (la
+// gramática PATTERN_SEQUENCE) + los scripts de gates (incluido production-gate-motor.ts y este
+// mismo archivo). Todo lo que define el comportamiento del motor Y lo que certifica una campaña
+// como lista para producción — ampliado 2026-09-23 (auditoría): antes solo cubría el motor en
+// sentido estricto, así que alterar patterns/*.md o un check-*.ts para relajar una regla no lo
+// detectaba nada, el mismo tipo de vector que motivó este script tras el incidente 2026-07-21.
 function watchedFiles(): string[] {
   const files: string[] = [];
   const compDir = path.join(ROOT, 'engine', 'components');
@@ -33,6 +37,17 @@ function watchedFiles(): string[] {
   }
   files.push(path.join('engine', 'build-newsletter.js'));
   files.push(path.join('engine', 'schema', 'campaign-data.schema.json'));
+
+  const patternsDir = path.join(ROOT, 'patterns');
+  for (const f of fs.readdirSync(patternsDir).sort()) {
+    if (f.endsWith('.md')) files.push(path.join('patterns', f));
+  }
+
+  const scriptsDir = path.join(ROOT, 'scripts');
+  for (const f of fs.readdirSync(scriptsDir).sort()) {
+    if (f.endsWith('.ts')) files.push(path.join('scripts', f));
+  }
+
   return files;
 }
 
