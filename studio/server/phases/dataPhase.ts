@@ -14,6 +14,59 @@ import { sanitizeLandingPrompt } from '../../../scripts/lib/sanitize-hero-prompt
 import type { JobInput } from '../store';
 
 const HERO_PLACEHOLDER = '{{GENERATE_HERO}}';
+/** Solo para validar antes de generar el hero; nunca se escribe a disco. */
+const PROVISIONAL_HERO_URL = 'https://example.com/hero-provisional.png';
+const MAX_REPAIRS = 2;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type JsonSchema = any;
+
+/** Valida contra el schema del motor y devuelve errores LEGIBLES. Con `modules.items.oneOf`,
+ *  ajv lista los fallos de las ~20 ramas a la vez (cientos de líneas inútiles); aquí cada
+ *  módulo inválido se re-valida solo contra la rama de SU componente. */
+export function buildValidator(schemaJson: JsonSchema): (json: string) => string[] {
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  const validateAll = ajv.compile(schemaJson);
+  const branches: JsonSchema[] = schemaJson?.properties?.modules?.items?.oneOf || [];
+  const branchValidators = branches.map((b) => ({
+    component: b?.properties?.component || {},
+    validate: ajv.compile({ ...b, $defs: schemaJson.$defs }),
+  }));
+  const matches = (c: JsonSchema, name: unknown): boolean =>
+    typeof name === 'string' &&
+    (c.const === name || (Array.isArray(c.enum) && c.enum.includes(name)) || (c.pattern && new RegExp(c.pattern).test(name)));
+
+  return (json: string): string[] => {
+    let data: JsonSchema;
+    try {
+      data = JSON.parse(json);
+    } catch (err) {
+      return [`No es JSON válido: ${(err as Error).message}`];
+    }
+    if (validateAll(data)) return [];
+
+    const out = new Set<string>();
+    for (const e of validateAll.errors || []) {
+      const m = (e.instancePath || '').match(/^\/modules\/(\d+)/);
+      if (!m) {
+        out.add(`${e.instancePath || '(raíz)'} ${e.message}`);
+        continue;
+      }
+      const i = Number(m[1]);
+      const mod = data?.modules?.[i];
+      const branch = branchValidators.find((b) => matches(b.component, mod?.component));
+      if (!branch) {
+        out.add(`/modules/${i}: el componente "${mod?.component}" no existe en el motor`);
+      } else if (!branch.validate(mod)) {
+        for (const be of branch.validate.errors || []) {
+          const extra = be.keyword === 'additionalProperties' ? ` ("${(be.params as { additionalProperty?: string }).additionalProperty}")` : '';
+          out.add(`/modules/${i} (${mod.component})${be.instancePath} ${be.message}${extra}`);
+        }
+      }
+    }
+    return [...out];
+  };
+}
 
 function joinFiles(files: Record<string, string>): string {
   return Object.entries(files)
@@ -57,14 +110,40 @@ export async function runDataPhase(
     input.ctaUrl ? `\nEnlace principal confirmado por el compañero: ${input.ctaUrl}` : '',
   ].join('');
 
-  const raw = await callAgent({ systemPrompt, userText, maxTokens: 8000 });
-  const files = parseFileBlocks(raw);
+  const schemaJson = JSON.parse(schema);
+  const validator = buildValidator(schemaJson);
 
-  if (!(expectedFile in files)) {
-    throw new Error('La fase 06 no devolvió campaign-data.json');
+  // Ronda de corrección (2026-09-24): un solo campo mal (p. ej. un string vacío) tumbaba el job
+  // entero. Se valida ANTES de generar el hero (la parte cara) con una URL provisional en el
+  // placeholder, y si falla se devuelve al modelo el error concreto del módulo afectado.
+  let json = '';
+  let errors: string[] = [];
+  let prompt = userText;
+  for (let attempt = 0; attempt <= MAX_REPAIRS; attempt++) {
+    const raw = await callAgent({ systemPrompt, userText: prompt, maxTokens: 8000 });
+    const files = parseFileBlocks(raw);
+    if (!(expectedFile in files)) {
+      errors = ['La respuesta no contenía el bloque de campaign-data.json.'];
+    } else {
+      json = files[expectedFile];
+      errors = validator(json.split(HERO_PLACEHOLDER).join(PROVISIONAL_HERO_URL));
+    }
+    if (errors.length === 0) break;
+    prompt = [
+      userText,
+      json ? `\n\n--- Tu campaign-data.json anterior (NO válido) ---\n${json}` : '',
+      '\n\n--- Errores de validación contra el schema del motor ---',
+      ...errors.map((e) => `- ${e}`),
+      '\nDevuelve campaign-data.json completo y corregido. Ningún campo obligatorio puede ir',
+      'vacío: si un componente exige un campo que no tienes, cámbialo por otro componente del',
+      'schema que sí encaje con el contenido.',
+    ].join('\n');
+  }
+  if (errors.length > 0) {
+    throw new Error(`campaign-data.json no cumple el schema del motor: ${errors.join('; ')}`);
   }
 
-  if (files[expectedFile].includes(HERO_PLACEHOLDER)) {
+  if (json.includes(HERO_PLACEHOLDER)) {
     // El brief (input.briefText) es texto libre escrito por una persona — mismo tipo de riesgo
     // que la descripción por visión del flujo CLI (incidente BMW, 2026-07-27, ver memory.md):
     // puede nombrar personajes/logos/modelos/matrículas/precios que activan el safety system de
@@ -76,24 +155,13 @@ export async function runDataPhase(
       `Contexto de campaña: ${sanitizedBrief}. Fotografía de producto o estilo de vida, sin ` +
       'texto superpuesto, sin logotipos de terceros, apta para email marketing.';
     const heroRelPath = await generateHeroImage({ brandSlug, campaignSlug, prompt: heroPrompt });
-    const publicUrl = toPublicAssetUrl(heroRelPath);
-    files[expectedFile] = files[expectedFile].split(HERO_PLACEHOLDER).join(publicUrl);
+    json = json.split(HERO_PLACEHOLDER).join(toPublicAssetUrl(heroRelPath));
+    const finalErrors = validator(json);
+    if (finalErrors.length > 0) {
+      throw new Error(`campaign-data.json no cumple el schema del motor: ${finalErrors.join('; ')}`);
+    }
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(files[expectedFile]);
-  } catch (err) {
-    throw new Error(`campaign-data.json generado no es JSON válido: ${(err as Error).message}`);
-  }
-
-  const schemaJson = JSON.parse(schema);
-  const ajv = new Ajv({ allErrors: true, strict: false });
-  const validateFn = ajv.compile(schemaJson);
-  if (!validateFn(parsed)) {
-    const messages = (validateFn.errors || []).map((e) => `${e.instancePath || '(raíz)'} ${e.message}`).join('; ');
-    throw new Error(`campaign-data.json no cumple el schema del motor: ${messages}`);
-  }
-
+  const files = { [expectedFile]: json };
   writeGeneratedFiles(files, [campaignRelPath]);
 }

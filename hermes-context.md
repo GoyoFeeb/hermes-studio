@@ -320,3 +320,13 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   `agents/08-qa-specialist.md`, antes se habría rechazado como "no reconocido"), tolera fences
   ```json, y si falta el bloque JSON cae al `Veredicto:` explícito de `final-checklist.md` (si
   tampoco existe, falla igual que antes). 6 casos probados.
+- **Segundo job con gpt-5.4-mini:** falló en 06 — `/modules/1` (`columns-3-beneficios`) con
+  `highlightNote: ""` (campo obligatorio vacío). El error mostrado eran cientos de líneas porque
+  ajv lista los fallos de las ~20 ramas del `oneOf` de módulos. Fix en
+  `studio/server/phases/dataPhase.ts`: (1) `buildValidator()` re-valida cada módulo inválido
+  solo contra la rama de su componente → 1 línea concreta por fallo; (2) hasta 2 rondas de
+  corrección devolviendo al modelo su JSON + errores; (3) se valida ANTES de generar el hero
+  (URL provisional en el placeholder, nunca escrita a disco) para no pagar la imagen de un JSON
+  que luego se descarta. Probado con un `campaign-data.json` real de Adeslas + 5 mutaciones.
+  Observación: la fase 06 NO es determinista con este modelo (el job anterior pasó 06 a la
+  primera) — la ronda de corrección es la defensa, no un parche puntual.
