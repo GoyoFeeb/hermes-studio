@@ -56,12 +56,17 @@ export async function runJob(jobId: string): Promise<void> {
 
     const openQuestionsPath = path.join(ROOT, campaignRelPath, '00-brief', 'open-questions.md');
     const openQuestions = fs.existsSync(openQuestionsPath) ? fs.readFileSync(openQuestionsPath, 'utf8') : '';
-    if (/bloqueante/i.test(openQuestions)) {
+    const blocking = blockingQuestionLines(openQuestions);
+    if (blocking.length > 0) {
+      // Antes solo se decía "revisa open-questions.md" — un archivo dentro del volumen de
+      // Railway al que el compañero no tiene acceso. Ahora se muestran las preguntas en la UI.
       updateJob(jobId, {
         status: 'blocked',
         blockedReason:
-          'El brief tiene preguntas bloqueantes sin resolver. Revisa ' +
-          `${campaignRelPath}/00-brief/open-questions.md y vuelve a enviar el formulario con más detalle.`,
+          'Al brief le falta información imprescindible. Preguntas bloqueantes del agente 01:\n\n' +
+          blocking.join('\n') +
+          '\n\nResponde a estas preguntas en el brief (o rellena los campos de enlace del CTA y ' +
+          'notas legales del formulario) y vuelve a enviarlo.',
       });
       log(jobId, '01', 'Hay preguntas bloqueantes — se necesita más información del compañero.', 'error');
       return;
@@ -151,4 +156,17 @@ export async function runJob(jobId: string): Promise<void> {
     updateJob(jobId, { status: 'failed', error: message });
     log(jobId, getJob(jobId)?.currentPhase || 'system', message, 'error');
   }
+}
+
+/** Líneas de open-questions.md marcadas como bloqueantes. Antes bastaba con que la palabra
+ *  "bloqueante" apareciera en cualquier sitio, así que "No hay preguntas bloqueantes" o
+ *  "no bloqueante" también bloqueaban el job. */
+export function blockingQuestionLines(markdown: string): string[] {
+  const NEGATED = /\bno[\s-]+(es\s+)?bloqueantes?\b|\bning[uú]n[ao]?\b[^\n]*bloqueante|\bsin\s+(preguntas\s+)?bloqueantes\b|\bno\s+hay\b[^\n]*bloqueante/i;
+  return markdown
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => /bloqueante/i.test(l) && !NEGATED.test(l))
+    .map((l) => l.replace(/^\|\s*|\s*\|$/g, '').replace(/\s*\|\s*/g, ' · '))
+    .slice(0, 15);
 }

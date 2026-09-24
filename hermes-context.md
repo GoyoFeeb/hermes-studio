@@ -339,3 +339,11 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
 - **Cambio de modelo:** a petición del usuario, `LLM_MODEL=gpt-5.5` en Railway (antes
   `gpt-5.4-mini` por defecto) tras 3 jobs fallidos por reglas de los agentes mal seguidas.
   Probado en local (texto + imagen + `reasoning_effort=low`). Más caro por newsletter.
+- **Cuarto job (gpt-5.5):** bloqueado en 01 por "preguntas bloqueantes" — probablemente legítimo
+  (agente 01 bloquea si falta CTA/enlace principal o restricciones legales; Adeslas = seguros).
+  Dos fallos de Studio detectados: (1) la UI solo decía "revisa `00-brief/open-questions.md`",
+  archivo dentro del volumen de Railway al que el compañero no tiene acceso; (2) la detección era
+  `/bloqueante/i` sobre todo el archivo — "No hay preguntas bloqueantes" o "no bloqueante"
+  también bloqueaban. Fix en `studio/server/runner.ts`: `blockingQuestionLines()` ignora
+  negaciones y el motivo del bloqueo muestra las preguntas en la UI. Probado con el
+  `open-questions.md` real de Audi (3 bloqueantes detectadas) + casos negados.
