@@ -552,3 +552,21 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   disponibles, prohíbe `search_files` para eso y limita la investigación a 5 búsquedas web; y
   `STALL_KILL_SEC` (12 min sin actividad → se corta el turno y se retoma la sesión, en brief y en
   newsletter). Relanzado: brief en 4 min, newsletter en 11 min (15 min en total).
+
+### 2026-09-24 (tarde) — Revisión de la newsletter de Adidas: imágenes de IA y autoauditoría
+
+- **Hallazgo:** con "solo assets oficiales", Hermes usó dos fotos de `brands/adidas/design-input/`
+  que eran de IA (C2PA de fal.ai, generadas para la campaña de prueba de julio). Además, el titular
+  no derivaba del concepto del brief y el precio (260 €) iba sin fuente.
+- **Escaneo C2PA de todos los brand packs:** 36 imágenes de IA en 13 marcas (adidas, apple, audi, bmw,
+  feebbo, msf, new-balance, nike, rolex, spotify, tarifalo, toyota, uax, wornwear), incluidos logos
+  generados con IA en adidas (`logo-adidas.png`) y new-balance (`logo-nb.png`, `logo-nb-email.png`).
+- **Adidas (con aprobación):** las 4 fotos y el logo de IA movidos a `_archive/imagenes-ia/adidas/`
+  (README con el detalle). Quedan `logo-adidas-badge.svg` (trazados oficiales) y `logo.png`.
+  **Resto de marcas: sin tocar** — pendiente de decisión del usuario.
+- **Worker:** `brandAssetsNote` lista a Hermes (en el brief y en la newsletter) los logos, las fotos
+  sin verificar y las marcadas como IA por C2PA (y sus copias `-email/-original/-raw`).
+- **Encargo:** en modo "assets oficiales", las fotos salen de la web oficial con URL de origen; las
+  del brand pack solo si se confirma que están publicadas. Autoauditoría por escrito obligatoria en
+  `notas.md` (concepto → titular, fuente de cada precio/cifra, origen de cada imagen, preguntas del
+  prompt); si falta, el worker pide un turno más. Studio guarda y muestra esas notas.

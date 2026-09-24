@@ -47,7 +47,10 @@ export function buildHermesPrompt(job: Job): string {
   const images =
     job.input.imageMode === 'ai'
       ? 'Imágenes: GENÉRALAS CON IA con tu herramienta de generación de imágenes (hero, producto, ambiente). El logo, en cambio, SIEMPRE el oficial de la marca.'
-      : `Imágenes: usa SOLO assets oficiales de la marca (brands/${job.input.clientSlug}/ si existe, o imágenes de su web oficial). No generes imágenes con IA.`;
+      : 'Imágenes: SOLO fotografía oficial de la marca, sacada de su web oficial, newsroom o press kit ' +
+        '(descárgala con el navegador y anota la URL de origen). No generes imágenes con IA. Las fotos de ' +
+        `brands/${job.input.clientSlug}/design-input/ pueden venir de campañas anteriores generadas con IA: ` +
+        'úsalas solo si puedes confirmar que están publicadas en la web oficial.';
   return [
     job.input.briefText.trim(),
     '',
@@ -66,7 +69,14 @@ export function buildHermesPrompt(job: Job): string {
     '  email comercial; el ESP sustituye la variable) y, si procede, el aviso legal de la marca.',
     `- Scripts y archivos auxiliares (conversiones, comprobaciones, capturas): en ${outDir}/_trabajo/`,
     '  o en /tmp. Nunca en scripts/, en la raíz del repo ni en brands/ (ahí solo logos e imágenes de marca).',
-    '- Respuesta final: breve — concepto, fuentes de los datos verificados y lo que quede pendiente.',
+    `- Autoauditoría por escrito, OBLIGATORIA: antes de terminar, escribe ${outDir}/notas.md con:`,
+    '  1. Concepto (una frase) y titular principal de la pieza; explica cómo deriva el titular del',
+    '     concepto. Si no deriva de él, corrige el titular antes de entregar.',
+    '  2. Cada precio, cifra, nombre de modelo o dato técnico que aparezca en la pieza, con su fuente',
+    '     (URL oficial). Lo que no tenga fuente no puede estar en la pieza: quítalo o reescríbelo.',
+    '  3. Origen de cada imagen: URL oficial, brand pack o generada con IA.',
+    '  4. Las preguntas de autoauditoría del prompt con su respuesta.',
+    '- Respuesta final: breve — concepto y lo que quede pendiente.',
   ].join('\n');
 }
 
@@ -83,7 +93,9 @@ export function buildBriefPrompt(job: Job): string {
   const images =
     job.input.imageMode === 'ai'
       ? 'Las imágenes de la pieza se generarán con IA (el logo, siempre el oficial).'
-      : 'La pieza usará solo assets oficiales de la marca (nada de imágenes generadas con IA).';
+      : 'La pieza usará solo fotografía oficial de la marca, sacada de su web oficial (nada de imágenes ' +
+        'generadas con IA; las fotos del brand pack pueden serlo). Pide en el brief localizar las imágenes ' +
+        'oficiales concretas (URL) de la web de la marca.';
   return [
     'Carga la skill newsletter-creative-brief (skill_view) y sigue su "Modo 1 — Generar un brief nuevo".',
     '',

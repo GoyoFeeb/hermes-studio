@@ -382,20 +382,52 @@ const BRIEF_EXPECTED_SEC = 6 * 60;
 /** Lo que Hermes necesita del repo para el brief, ya resuelto: el 2026-09-24 (Adidas) hizo 21
  *  search_files (varios con patrón "*" sobre todo el repo) buscando el brand pack y no llegó a
  *  escribir. */
+/** Imágenes del brand pack con metadatos C2PA de generación por IA (fal.ai, OpenAI): el 2026-09-24
+ *  Hermes usó como "assets oficiales" de Adidas dos fotos generadas con fal.ai que estaban en
+ *  brands/adidas/design-input/. Las copias reducidas pierden los metadatos, así que también se
+ *  marcan las que comparten nombre base con una detectada (hero-banner.png → hero-banner-email.jpg). */
+function brandAssets(slug: string): { dir: string; logos: string[]; photos: string[]; ai: string[] } {
+  const dir = path.join('brands', slug, 'design-input');
+  const abs = path.join(ROOT, dir);
+  const files = fs.existsSync(abs) ? fs.readdirSync(abs).filter((f) => /\.(png|jpe?g|svg|webp)$/i.test(f)) : [];
+  const detected = files.filter((f) => {
+    try {
+      return fs.readFileSync(path.join(abs, f)).includes('trainedAlgorithmicMedia');
+    } catch {
+      return false;
+    }
+  });
+  const base = (f: string): string => f.replace(/\.[^.]+$/, '').replace(/-(email|original|raw|crop|v\d+)$/i, '');
+  const aiBases = new Set(detected.map(base));
+  const ai = files.filter((f) => detected.includes(f) || aiBases.has(base(f)));
+  const rest = files.filter((f) => !ai.includes(f));
+  return { dir, logos: rest.filter((f) => /logo/i.test(f)), photos: rest.filter((f) => !/logo/i.test(f)), ai };
+}
+
+function brandAssetsNote(outputDir: string): string {
+  const slug = outputDir.split(path.sep)[2] || '';
+  const { dir, logos, photos, ai } = brandAssets(slug);
+  if (!logos.length && !photos.length && !ai.length) return '';
+  return [
+    '',
+    `## Nota de entorno: imágenes de ${dir}/`,
+    logos.length ? `- Logos: ${logos.join(', ')}` : '',
+    photos.length ? `- Fotos sin verificar (pueden ser de campañas anteriores): ${photos.join(', ')}` : '',
+    ai.length ? `- GENERADAS CON IA (metadatos C2PA), NO son assets oficiales: ${ai.join(', ')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 function briefEnvNote(outputDir: string): string {
   const slug = outputDir.split(path.sep)[2] || '';
   const tokens = path.join('brands', slug, 'tokens', 'brand-tokens.json');
-  const assetsDir = path.join('brands', slug, 'design-input');
-  const assets = fs.existsSync(path.join(ROOT, assetsDir))
-    ? fs.readdirSync(path.join(ROOT, assetsDir)).filter((f) => /\.(png|jpe?g|svg|webp)$/i.test(f)).slice(0, 12)
-    : [];
   return [
     '',
     '## Nota de entorno (worker de Hermes Studio): rutas ya comprobadas',
     fs.existsSync(path.join(ROOT, tokens))
       ? `- Brand pack: EXISTE en ${tokens}. Léelo con read_file (una vez) y úsalo como pide la skill.`
       : `- Brand pack: NO existe para esta marca (${tokens}). Procede como marca nueva.`,
-    assets.length ? `- Logos/imágenes de marca ya disponibles en ${assetsDir}/: ${assets.join(', ')}` : '',
     '- No uses search_files para buscar el brand pack ni la estructura del repo: las rutas son estas.',
     '- Investigación: como máximo 5 búsquedas web. Después escribe el brief (write_file) aunque falten',
     '  datos — márcalos como pendientes de verificar, como pide la plantilla.',
@@ -450,7 +482,7 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
   }, PROGRESS_MS);
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  let turn = await runHermesTurn(job.briefPrompt! + briefEnvNote(job.outputDir) + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
+  let turn = await runHermesTurn(job.briefPrompt! + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
   for (let i = 1; i <= 3 && !ready() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     turn = await runHermesTurn(
       `Todavía no existe ${job.outputDir}/brief.md. Escríbelo AHORA con write_file, con lo que ya tengas ` +
@@ -536,7 +568,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   }, PROGRESS_MS);
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  let turn = await runHermesTurn(job.prompt + skillReadingNote() + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
+  let turn = await runHermesTurn(job.prompt + skillReadingNote() + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})`);
     await api(`/api/worker/jobs/${job.id}/progress`, {
@@ -547,6 +579,21 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         'no llamó a ninguna herramienta, y eso termina tu turno sin avanzar. Responde AHORA con llamadas a ' +
         'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
         'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
+      sessionId,
+      () => undefined
+    );
+  }
+  // La autoauditoría por escrito es parte de la entrega (Adidas, 2026-09-24: titular que no salía
+  // del concepto y precio sin fuente). Si falta, un turno más para escribirla y corregir la pieza.
+  const notesFile = path.join(outAbs, 'notas.md');
+  const notesReady = (): boolean => fs.existsSync(notesFile) && fs.statSync(notesFile).mtimeMs >= started;
+  if (htmlReady() && !notesReady() && sessionId && Date.now() - started < TIMEOUT_MS) {
+    console.log(`[${stamp()}] ${job.id}: falta notas.md — se pide la autoauditoría`);
+    await api(`/api/worker/jobs/${job.id}/progress`, { message: 'Falta la autoauditoría por escrito: se le pide a Hermes.' }).catch(() => undefined);
+    await runHermesTurn(
+      `Falta ${job.outputDir}/notas.md, obligatorio. Escríbelo AHORA (write_file) con los 4 puntos de la ` +
+        'autoauditoría: concepto y titular (y cómo deriva), fuente de cada precio/cifra/dato de la pieza, ' +
+        'origen de cada imagen y las preguntas de autoauditoría. Si algo no cumple, corrige la newsletter.html antes.',
       sessionId,
       () => undefined
     );
@@ -575,7 +622,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // Subida con más reintentos: un corte de red aquí perdía en Studio una newsletter ya terminada.
   let uploadError = '';
   try {
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage: turn.output }, 6);
+    const notes = notesReady() ? fs.readFileSync(notesFile, 'utf8').trim() : '';
+    const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;
