@@ -525,3 +525,24 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   por estado, duración, motivo del fallo, acciones Ver/Descargar/**Reutilizar** (rellena el
   formulario con marca, prompt e imágenes; no envía). `/api/jobs` devuelve además clientSlug,
   imageMode, elapsedSec y error.
+
+### 2026-09-24 (tarde) — Studio: newsletter a partir de una instrucción básica
+
+- **Qué:** además de pegar el prompt completo, el formulario acepta una "Instrucción rápida"
+  ("quiero una newsletter de Adeslas…"). Hermes genera primero el brief con la skill
+  `newsletter-creative-brief` y después ejecuta ese brief como un trabajo normal, sin pausa.
+- **Skill:** copiada de la skill de Claude (Cowork) a `~/.hermes/skills/creative/newsletter-creative-brief/`
+  (nueva, sin sobrescribir nada; se añadió `category/version/updated` al frontmatter). Si se
+  modifica la plantilla en Cowork, hay que volver a copiarla.
+- **Destino fijo `standalone`:** la skill pregunta el destino si es ambiguo; el encargo del paso
+  del brief (`buildBriefPrompt` en `studio/server/standalone.ts`) lo fija en standalone, prohíbe
+  preguntas (sin producto concreto → campaña vigente más razonable, dicho en el brief) y exige
+  `{outDir}/brief.md` como entregable (ignora `present_files`).
+- **Flujo:** `JobInput.instruction` + `briefText` vacío → `/api/worker/claim` devuelve
+  `briefPrompt` → el worker (`runBriefStep`) ejecuta Hermes en una sesión propia (2 "continúa"
+  si no escribe el archivo) → `POST /api/worker/jobs/:id/brief` guarda el brief y devuelve el
+  encargo final → newsletter en sesión nueva. La barra reserva el 12 % para el brief.
+- **Web:** selector "Instrucción rápida / Prompt completo"; la página del trabajo muestra el brief
+  generado con "Usar este brief en un trabajo nuevo"; el historial marca "Desde instrucción";
+  "Reutilizar" respeta el tipo de entrada. Se guardan `instruccion.md` y `prompt.md` (el brief).
+- **Verificado en local** con un Hermes simulado (instrucción → brief → newsletter, y prompt pegado).

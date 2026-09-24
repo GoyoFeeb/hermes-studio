@@ -144,7 +144,7 @@ function describeTool(tool: string): string {
 
 export interface Progress {
   pct: number;
-  stage: Stage;
+  stage: Stage | 'brief';
   stageLabel: string;
   detail: string;
   actions: number;
@@ -363,17 +363,104 @@ function runHermesTurn(
   });
 }
 
-async function runJob(job: { id: string; prompt: string; outputDir: string }): Promise<void> {
-  current = job.id;
-  const outAbs = path.join(ROOT, job.outputDir);
+interface ClaimedJob {
+  id: string;
+  outputDir: string;
+  /** Encargo final (prompt pegado + instrucciones de entrega). */
+  prompt?: string;
+  /** Solo con instrucción básica: paso previo en el que Hermes escribe el brief con la skill. */
+  briefPrompt?: string;
+}
+
+/** Parte de la barra que ocupa el paso del brief cuando el trabajo llega como instrucción básica. */
+const BRIEF_SHARE = 12;
+const BRIEF_EXPECTED_SEC = 6 * 60;
+
+/** Paso 1 de una instrucción básica: Hermes escribe `{outDir}/brief.md` con la skill
+ *  newsletter-creative-brief; se sube a Studio, que devuelve el encargo final de la newsletter.
+ *  Sesión propia: la newsletter arranca limpia con el brief, igual que al pegarlo a mano. */
+async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: string; seconds: number } | { error: string }> {
+  const started = Date.now();
+  const briefFile = path.join(outAbs, 'brief.md');
+  const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
+  let sessionId: string | null = null;
+  let busy = false;
+  const heartbeat = setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    const elapsed = (Date.now() - started) / 1000;
+    let tools: ToolCall[] = [];
+    try {
+      sessionId = sessionId || (await findSessionId(new Date(started)));
+      if (sessionId) tools = await sessionToolCalls(sessionId);
+    } catch {
+      // progreso solo por tiempo
+    }
+    const last = tools[tools.length - 1];
+    const progress: Progress = {
+      pct: Math.round(Math.min(BRIEF_SHARE - 1, 1 + (elapsed / BRIEF_EXPECTED_SEC) * (BRIEF_SHARE - 2))),
+      stage: 'brief',
+      stageLabel: 'Escribiendo el brief creativo',
+      detail: last ? (last.name === 'write_file' ? 'Escribiendo el brief' : describeTool(last.name)) : 'Arrancando Hermes',
+      actions: tools.length,
+      elapsedSec: Math.round(elapsed),
+      etaSec: null,
+    };
+    await api(`/api/worker/jobs/${job.id}/progress`, { progress }).catch(() => undefined);
+    busy = false;
+  }, PROGRESS_MS);
+  const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
+
+  let turn = await runHermesTurn(job.briefPrompt! + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
+  for (let i = 1; i <= 2 && !ready() && sessionId; i++) {
+    turn = await runHermesTurn(
+      `Todavía no existe ${job.outputDir}/brief.md. Escríbelo AHORA con write_file, con lo que ya tengas ` +
+        '(marca como pendiente lo que no hayas podido verificar). Sin texto previo: llama a la herramienta.',
+      sessionId,
+      () => undefined
+    );
+  }
+  clearInterval(heartbeat);
+  clearTimeout(killer);
+  if (!ready()) {
+    return { error: `Hermes no llegó a escribir el brief (${job.outputDir}/brief.md).\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2000)}` };
+  }
+  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8') }, 6);
+  if (!res.ok) return { error: `Studio no aceptó el brief: ${res.status} ${(await res.text()).slice(0, 300)}` };
+  const { prompt } = (await res.json()) as { prompt: string };
+  console.log(`[${stamp()}] Brief de ${job.id} listo en ${Math.round((Date.now() - started) / 60000)} min`);
+  return { prompt, seconds: (Date.now() - started) / 1000 };
+}
+
+async function runJob(claimed: ClaimedJob): Promise<void> {
+  current = claimed.id;
+  const outAbs = path.join(ROOT, claimed.outputDir);
   fs.mkdirSync(outAbs, { recursive: true });
+  console.log(`[${stamp()}] Trabajo ${claimed.id} → ${claimed.outputDir}${claimed.briefPrompt ? ' (desde instrucción: primero el brief)' : ''}`);
+
+  // Con instrucción básica la barra reserva BRIEF_SHARE % para el brief y el resto para la newsletter.
+  let briefSec = 0;
+  let prompt = claimed.prompt || '';
+  if (claimed.briefPrompt) {
+    const brief = await runBriefStep(claimed, outAbs);
+    if ('error' in brief) {
+      await api(`/api/worker/jobs/${claimed.id}/fail`, { error: brief.error }).catch(() => undefined);
+      console.log(`[${stamp()}] ✗ ${claimed.id}: sin brief`);
+      current = null;
+      return;
+    }
+    prompt = brief.prompt;
+    briefSec = brief.seconds;
+  }
+  const job = { id: claimed.id, outputDir: claimed.outputDir, prompt };
+  const scale = (p: Progress): Progress =>
+    briefSec ? { ...p, pct: Math.round(BRIEF_SHARE + (p.pct * (100 - BRIEF_SHARE)) / 100), elapsedSec: Math.round(p.elapsedSec + briefSec) } : p;
   const started = Date.now();
   const expectedFile = path.join(outAbs, 'newsletter.html');
   // Si Hermes escribe mal la ruta (erratas al copiarla), se acepta cualquier .html escrito durante
   // este trabajo en la carpeta hermes/ de la marca.
   const htmlReady = (): string | null =>
     fs.existsSync(expectedFile) ? expectedFile : newestHtml(outAbs) || newestHtmlSince(path.dirname(outAbs), started);
-  console.log(`[${stamp()}] Trabajo ${job.id} → ${job.outputDir}`);
 
   const expected = expectedSeconds();
   let sessionId: string | null = null;
@@ -395,7 +482,7 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
       lastCount = tools.length;
       lastChange = Date.now();
     }
-    const progress = estimateProgress(tools, elapsed, expected);
+    const progress = scale(estimateProgress(tools, elapsed, expected));
     const idleSec = (Date.now() - lastChange) / 1000;
     if (idleSec >= STALL_WARN_SEC) {
       progress.detail = `Hermes lleva ${Math.round(idleSec / 60)} min sin avanzar (esperando al modelo)`;
@@ -516,7 +603,7 @@ async function main(): Promise<void> {
     try {
       const res = await api('/api/worker/claim', { brands: localBrands() });
       if (res.status === 200) {
-        const job = (await res.json()) as { id: string; prompt: string; outputDir: string };
+        const job = (await res.json()) as ClaimedJob;
         try {
           await runJob(job);
         } catch (err) {

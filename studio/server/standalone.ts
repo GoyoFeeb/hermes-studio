@@ -70,6 +70,43 @@ export function buildHermesPrompt(job: Job): string {
   ].join('\n');
 }
 
+/** El brief está pendiente: el trabajo llegó como instrucción básica y Hermes aún no lo ha escrito. */
+export function needsBrief(job: Job): boolean {
+  return !!job.input.instruction && !job.input.briefText.trim();
+}
+
+/** Paso previo para una instrucción básica: Hermes escribe el prompt de dirección creativa con la
+ *  skill newsletter-creative-brief (destino standalone, fijado aquí: la skill pregunta el destino si
+ *  es ambiguo y en esta ejecución nadie responde). El worker lo lee de `{outDir}/brief.md`. */
+export function buildBriefPrompt(job: Job): string {
+  const outDir = standaloneOutputDir(job);
+  const images =
+    job.input.imageMode === 'ai'
+      ? 'Las imágenes de la pieza se generarán con IA (el logo, siempre el oficial).'
+      : 'La pieza usará solo assets oficiales de la marca (nada de imágenes generadas con IA).';
+  return [
+    'Carga la skill newsletter-creative-brief (skill_view) y sigue su "Modo 1 — Generar un brief nuevo".',
+    '',
+    `Petición del equipo: «${job.input.instruction!.trim()}»`,
+    `Marca: ${job.input.clientName}${job.input.clientSlug ? ` (carpeta brands/${job.input.clientSlug}/ si existe)` : ''}.`,
+    '',
+    '## Decisiones ya tomadas (no preguntes)',
+    '- Destino: **standalone** (HTML standalone). Usa la variante `standalone` de la sección 6 de la',
+    '  plantilla; no uses la variante `hermes` ni preguntes por el destino.',
+    `- ${images} Tenlo en cuenta en el brief.`,
+    '- Nadie va a responder preguntas: no uses clarify. Si falta el producto o la campaña concreta,',
+    '  elige la opción más razonable para la marca ahora mismo (lanzamiento o campaña vigente en su web',
+    '  oficial) y dilo explícitamente en el brief.',
+    '- Investigación ligera, como pide la skill (2-4 búsquedas o páginas de la web oficial).',
+    '',
+    '## Entrega',
+    `- Escribe el brief completo, con todas las {{VARIABLES}} resueltas, en ${outDir}/brief.md (write_file).`,
+    '  Es el entregable: ignora las instrucciones de la skill sobre present_files o guardar la skill.',
+    '- NO generes la newsletter ni ningún HTML: solo el brief. La newsletter se hace en otro paso.',
+    '- Respuesta final: una línea con el concepto elegido.',
+  ].join('\n');
+}
+
 /** El prompt tiene que hablar de la marca elegida: el 2026-09-24 se envió un prompt de Prozis con
  *  la marca Adeslas seleccionada (el navegador había rellenado el formulario) y Hermes recibió
  *  "usa solo assets de Adeslas" para una campaña de Prozis. */
@@ -166,6 +203,7 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
   if (count) log(jobId, `${count} imagen(es) publicada(s) en /assets.`, 'success');
 
   fs.writeFileSync(path.join(outAbs, 'prompt.md'), job.input.briefText, 'utf8');
+  if (job.input.instruction) fs.writeFileSync(path.join(outAbs, 'instruccion.md'), job.input.instruction.trim() + '\n', 'utf8');
   fs.writeFileSync(path.join(outAbs, 'newsletter.html'), html, 'utf8');
   if (finalMessage.trim()) fs.writeFileSync(path.join(outAbs, 'notas.md'), finalMessage.trim() + '\n', 'utf8');
 

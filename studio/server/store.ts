@@ -23,6 +23,9 @@ export interface JobInput {
    *  Sin definir = pipeline de 9 fases. En standalone, briefText guarda el prompt pegado. */
   mode?: 'pipeline' | 'standalone';
   imageMode?: 'official' | 'ai';
+  /** Instrucción básica ("quiero una newsletter de Adeslas", 2026-09-24): Hermes genera primero el
+   *  brief con la skill newsletter-creative-brief y lo guarda en briefText (vacío hasta entonces). */
+  instruction?: string;
 }
 
 export interface Job {

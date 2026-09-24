@@ -23,12 +23,21 @@
     <section class="hero">
       <p class="eyebrow">Hermes Studio</p>
       <h1>Newsletters de marca, <span class="accent">con Hermes</span></h1>
-      <p class="lead">Pega el prompt creativo y Hermes investiga la marca, escribe la newsletter, la revisa y la corrige. Suele tardar 15-20 minutos.</p>
+      <p class="lead">Pide la newsletter con una frase o pega un prompt creativo completo. Hermes investiga la marca, escribe la newsletter, la revisa y la corrige: suele tardar 15-25 minutos.</p>
     </section>
 
     <section id="view-form">
       <form id="brief-form" class="card" autocomplete="off">
         <input type="hidden" name="mode" value="standalone" />
+
+        <fieldset class="kind">
+          <legend class="label">¿Qué vas a escribir?</legend>
+          <div class="segmented" role="radiogroup">
+            <label><input type="radio" name="inputKind" value="instruction" checked /><span>Instrucción rápida</span></label>
+            <label><input type="radio" name="inputKind" value="brief" /><span>Prompt completo</span></label>
+          </div>
+          <p class="hint" id="kind-hint"></p>
+        </fieldset>
 
         <div class="row">
           <label>
@@ -45,9 +54,8 @@
         </div>
 
         <label>
-          <span class="label">Prompt creativo</span>
-          <textarea name="promptText" id="prompt-input" required rows="14"
-            placeholder="Pega aquí el prompt generado con la skill newsletter-creative-brief."></textarea>
+          <span class="label" id="prompt-label">Instrucción</span>
+          <textarea name="promptText" id="prompt-input" required rows="14"></textarea>
         </label>
 
         <fieldset>
@@ -134,7 +142,16 @@
         <pre id="blocked-reason"></pre>
       </div>
 
-      <details class="log-box">
+      <details class="log-box" id="brief-box" hidden>
+        <summary>Brief creativo generado por Hermes</summary>
+        <div class="brief-body">
+          <p class="hint" id="brief-instruction"></p>
+          <pre id="brief-text"></pre>
+          <button id="use-brief-btn" type="button" class="btn btn-ghost">Usar este brief en un trabajo nuevo</button>
+        </div>
+      </details>
+
+      <details class="log-box" id="log-box">
         <summary>Registro de Hermes</summary>
         <ol id="job-log"></ol>
       </details>

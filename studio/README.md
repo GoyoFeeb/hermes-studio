@@ -59,6 +59,11 @@ aunque `caffeinate` esté activo. Si la subida final falla, el error indica dón
 Ajuste recomendado en `~/.hermes/config.yaml` (agent): `intent_ack_continuation: true` — evita que
 DeepSeek cierre el turno tras anunciar "Let me..." sin ejecutar nada.
 
+**Instrucción rápida:** en vez de pegar el prompt se puede escribir una frase ("quiero una
+newsletter de Adeslas…"). Hermes escribe antes el brief con la skill `newsletter-creative-brief`
+(instalada en `~/.hermes/skills/creative/`, destino fijado en HTML standalone) y luego hace la
+newsletter con él; el brief queda visible en la página del trabajo.
+
 La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El desplegable de marcas combina las del
 volumen de Railway y las del Mac del worker. Si el prompt no menciona la marca elegida, Studio pide
 confirmación antes de encolarlo.

@@ -22,6 +22,8 @@ import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
 import {
   buildHermesPrompt,
+  buildBriefPrompt,
+  needsBrief,
   completeStandaloneJob,
   standaloneOutputDir,
   log as hermesLog,
@@ -170,7 +172,26 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
   }
   const job = updateJob(next.id, { status: 'running', currentPhase: 'hermes' });
   hermesLog(job.id, 'Hermes ha recogido el trabajo y está trabajando.');
-  res.json({ id: job.id, prompt: buildHermesPrompt(job), outputDir: standaloneOutputDir(job) });
+  res.json({
+    id: job.id,
+    outputDir: standaloneOutputDir(job),
+    // Instrucción básica: el worker ejecuta primero briefPrompt y luego pide el encargo final
+    // a /brief. Con prompt pegado, el encargo va directamente.
+    ...(needsBrief(job) ? { briefPrompt: buildBriefPrompt(job) } : { prompt: buildHermesPrompt(job) }),
+  });
+});
+
+app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb' }), (req: Request, res: Response) => {
+  const job = standaloneJobForWorker(req, res);
+  if (!job) return;
+  const brief = typeof req.body?.brief === 'string' ? req.body.brief.trim() : '';
+  if (brief.length < 200) {
+    res.status(400).json({ error: 'El brief está vacío o incompleto.' });
+    return;
+  }
+  const updated = updateJob(job.id, { input: { ...job.input, briefText: brief.slice(0, 200000) } });
+  hermesLog(job.id, 'Brief creativo listo: Hermes empieza la newsletter.', 'success');
+  res.json({ prompt: buildHermesPrompt(updated) });
 });
 
 app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '64kb' }), (req: Request, res: Response) => {
@@ -289,11 +310,12 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       res.status(400).json({ error: 'Elige de dónde salen las imágenes: assets oficiales o IA.' });
       return;
     }
+    const fromInstruction = body.inputKind === 'instruction';
     const clientSlug = body.existingBrand || slugify(body.clientName);
     if (!body.confirmBrand && !promptMentionsBrand(String(body.promptText), String(body.clientName), clientSlug)) {
       res.status(409).json({
         code: 'brand_mismatch',
-        error: `El prompt no menciona "${body.clientName}". ¿Seguro que la marca elegida es la correcta?`,
+        error: `${fromInstruction ? 'La instrucción' : 'El prompt'} no menciona "${body.clientName}". ¿Seguro que la marca elegida es la correcta?`,
       });
       return;
     }
@@ -302,7 +324,8 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       clientSlug,
       clientName: body.clientName,
       brandMode: body.existingBrand ? 'existing' : 'new',
-      briefText: body.promptText,
+      briefText: fromInstruction ? '' : body.promptText,
+      instruction: fromInstruction ? String(body.promptText).slice(0, 4000) : undefined,
       imageMode: body.imageMode,
       requesterName: body.requesterName || undefined,
     });
@@ -368,6 +391,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       clientSlug: j.input.clientSlug,
       requesterName: j.input.requesterName || null,
       imageMode: j.input.imageMode || null,
+      fromInstruction: !!j.input.instruction,
       pct: j.progress?.pct ?? null,
       elapsedSec: j.progress?.elapsedSec ?? null,
       error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,

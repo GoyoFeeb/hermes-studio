@@ -34,6 +34,41 @@ async function loadHermesStatus() {
 loadHermesStatus();
 setInterval(loadHermesStatus, 60000);
 
+// Instrucción rápida (Hermes escribe antes el brief con la skill newsletter-creative-brief) o
+// prompt completo ya generado con la skill.
+const KIND_COPY = {
+  instruction: {
+    label: 'Instrucción',
+    rows: 4,
+    placeholder: 'Ej: quiero una newsletter de Adeslas para presentar su seguro dental a familias',
+    hint: 'Hermes escribe primero el brief creativo con la skill newsletter-creative-brief (HTML standalone) y luego hace la newsletter.',
+  },
+  brief: {
+    label: 'Prompt creativo',
+    rows: 14,
+    placeholder: 'Pega aquí el prompt generado con la skill newsletter-creative-brief.',
+    hint: 'Hermes ejecuta el prompt tal cual.',
+  },
+};
+
+function applyKind() {
+  const kind = form.querySelector('input[name="inputKind"]:checked')?.value || 'instruction';
+  const copy = KIND_COPY[kind];
+  const input = document.getElementById('prompt-input');
+  document.getElementById('prompt-label').textContent = copy.label;
+  document.getElementById('kind-hint').textContent = copy.hint;
+  input.placeholder = copy.placeholder;
+  input.rows = copy.rows;
+  input.style.minHeight = kind === 'instruction' ? '0' : '';
+}
+form.querySelectorAll('input[name="inputKind"]').forEach((r) => r.addEventListener('change', applyKind));
+form.addEventListener('reset', () => setTimeout(applyKind));
+
+function setKind(kind) {
+  form.querySelector(`input[name="inputKind"][value="${kind}"]`).checked = true;
+  applyKind();
+}
+
 // Al elegir una marca existente se rellena el nombre (editable, p. ej. "El Corte Inglés").
 existingBrandSelect.addEventListener('change', () => {
   if (existingBrandSelect.value && !clientNameInput.value) {
@@ -150,7 +185,7 @@ function renderHistory() {
     .map((j) => {
       const id = encodeURIComponent(j.id);
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
-      const meta = [when, j.requesterName, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
+      const meta = [when, j.requesterName, j.fromInstruction ? 'Desde instrucción' : null, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
@@ -202,7 +237,7 @@ document.getElementById('history-list').addEventListener('click', (e) => {
 
 // "Reutilizar": rellena el formulario con la marca, el prompt y el modo de imágenes de un trabajo
 // anterior (para relanzar uno fallido o hacer una variante). No se envía hasta pulsar Generar.
-async function reuseJob(id) {
+async function reuseJob(id, { useBrief = false } = {}) {
   const res = await fetch(`/api/jobs/${encodeURIComponent(id)}`);
   if (!res.ok) return alert('No se pudo cargar ese trabajo.');
   const { job } = await res.json();
@@ -212,8 +247,13 @@ async function reuseJob(id) {
   const slug = job.input.clientSlug || '';
   existingBrandSelect.value = [...existingBrandSelect.options].some((o) => o.value === slug) ? slug : '';
   clientNameInput.value = job.input.clientName || '';
-  document.getElementById('prompt-input').value = job.input.briefText || '';
+  setKind(job.input.instruction ? 'instruction' : 'brief');
+  document.getElementById('prompt-input').value = job.input.instruction || job.input.briefText || '';
   document.getElementById('requester-input').value = job.input.requesterName || '';
+  if (useBrief && job.input.briefText) {
+    setKind('brief');
+    document.getElementById('prompt-input').value = job.input.briefText;
+  }
   const radio = form.querySelector(`input[name="imageMode"][value="${job.input.imageMode}"]`);
   if (radio) radio.checked = true;
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -240,6 +280,9 @@ document.getElementById('new-job-btn').addEventListener('click', () => {
 document.getElementById('reuse-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob);
 });
+document.getElementById('use-brief-btn').addEventListener('click', () => {
+  if (currentJob) reuseJob(currentJob, { useBrief: true });
+});
 window.addEventListener('popstate', () => route());
 
 const PHASE_LABELS = {
@@ -261,6 +304,9 @@ function showJobView(id) {
   document.getElementById('job-result').hidden = true;
   document.getElementById('job-blocked').hidden = true;
   document.getElementById('preview-frame').removeAttribute('src');
+  document.getElementById('brief-box').hidden = true;
+  document.getElementById('brief-box').open = false;
+  document.getElementById('brief-text').textContent = '';
   document.getElementById('job-title').textContent = '';
   document.getElementById('job-meta').textContent = '';
   window.scrollTo({ top: 0 });
@@ -285,6 +331,13 @@ async function poll(id) {
   ]
     .filter(Boolean)
     .join(' · ');
+
+  const briefBox = document.getElementById('brief-box');
+  briefBox.hidden = !(job.input.instruction && job.input.briefText);
+  if (!briefBox.hidden && document.getElementById('brief-text').textContent !== job.input.briefText) {
+    document.getElementById('brief-instruction').textContent = `Instrucción: «${job.input.instruction}»`;
+    document.getElementById('brief-text').textContent = job.input.briefText;
+  }
 
   const statusEl = document.getElementById('job-status');
   statusEl.textContent = STATUS_LABELS[job.status] || job.status;
@@ -312,7 +365,7 @@ async function poll(id) {
   if (job.status === 'blocked' || job.status === 'failed') {
     document.getElementById('job-blocked').hidden = false;
     document.getElementById('blocked-reason').textContent = job.blockedReason || job.error || 'Motivo desconocido.';
-    document.querySelector('.log-box').open = true;
+    document.getElementById('log-box').open = true;
     return;
   }
 
@@ -335,7 +388,9 @@ function renderProgress(job) {
     track.setAttribute('aria-valuenow', '0');
     document.getElementById('progress-stage').textContent = 'En cola';
     document.getElementById('progress-eta').textContent = '';
-    document.getElementById('progress-detail').textContent = 'Esperando a que Hermes lo recoja.';
+    document.getElementById('progress-detail').textContent = job.input.instruction
+      ? 'Esperando a que Hermes lo recoja. Primero escribirá el brief creativo.'
+      : 'Esperando a que Hermes lo recoja.';
     return;
   }
   if (!p || (job.status !== 'running' && job.status !== 'completed')) {
@@ -393,4 +448,5 @@ function route() {
 // El navegador restaura el formulario anterior (así se coló un prompt de Prozis con la marca
 // Adeslas seleccionada): cada visita empieza en blanco.
 form.reset();
+applyKind();
 route();
