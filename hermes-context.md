@@ -485,3 +485,24 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 **Pendiente del usuario:** plan de pago de Railway (~16 días de prueba); quitar de Railway
 `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` y `LLM_*`; revisar las dos skills de ~98 KB.
 
+
+### 2026-09-24 (tarde) — Reorganización de la skill de Hermes `newsletter-pipeline` (punto 11)
+
+- **Problema:** `SKILL.md` y `references/standalone-creative-newsletter-brief.md` ~98 KB cada uno
+  (Hermes añade aprendizajes al cuerpo tras cada campaña). Por `skill_view` llegaban como una línea
+  de 100 KB imposible de leer por tramos → bucles y contexto inicial de ~47k tokens.
+- **Hecho (con aprobación):** reparto por secciones, **sin reescribir contenido**, con un script
+  (`split_skill.py`, en el scratchpad de la sesión) aplicado primero a una copia y verificado:
+  las 1.172 líneas no vacías originales están todas, 0 duplicadas, 93 referencias intactas; solo
+  cambian `version: 2.38.0` y `updated`. `SKILL.md` 12 KB (esencial + "Mapa de referencias" +
+  regla de mantenimiento: aprendizajes a `references/`, tope ~30 KB/archivo); referencia standalone
+  38 KB (pasos 1-7, autoauditoría, entrega); 12 referencias nuevas temáticas (engine-operations,
+  brand-onboarding, copy-and-claims, hero-images, INDEX, standalone-html-techniques,
+  standalone-pitfalls-{layout,images,research-tools}, standalone-research-automotive,
+  standalone-brand-color-and-files, logo-sourcing).
+- **Verificado con Hermes real:** ambos `skill_view` completos de una vez (19 KB y 40 KB), sin
+  persisted-output; contexto de la primera llamada 24k tokens (antes ~47k).
+- **Copia completa previa:** `/Users/javifeebbo/.hermes/skill-backups/newsletter-pipeline-20260924_133552`
+  (fuera de `~/.hermes/skills` para que Hermes no la cargue).
+- **Vigilar:** que Hermes respete la regla de mantenimiento en las próximas campañas (si `SKILL.md`
+  vuelve a crecer, la nota del worker para archivos > 40 KB sigue actuando de red).
