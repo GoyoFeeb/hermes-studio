@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import { getJob, updateJob, appendEvent, type JobInput } from './store';
 import { createCampaign, brandExists, slugify } from './campaignFs';
 import { runTextPhase, type TextPhaseSpec } from './phases/textPhase';
-import { PHASE_01, PHASE_03, PHASE_04, PHASE_05 } from './phases/specs';
+import { PHASE_01, PHASE_03, PHASE_04, PHASE_05, BLOCKING_KEY } from './phases/specs';
 import { runBrandPhase } from './phases/brandPhase';
 import { runDataPhase } from './phases/dataPhase';
 import { runBuildPhase } from './phases/buildPhase';
@@ -51,12 +51,14 @@ export async function runJob(jobId: string): Promise<void> {
 
     updateJob(jobId, { currentPhase: '01' });
     log(jobId, '01', 'Estructurando el brief...');
-    await runTextPhase(PHASE_01, campaignRelPath, input);
+    const phase01Files = await runTextPhase(PHASE_01, campaignRelPath, input);
     log(jobId, '01', 'Brief estructurado.', 'success');
 
     const openQuestionsPath = path.join(ROOT, campaignRelPath, '00-brief', 'open-questions.md');
     const openQuestions = fs.existsSync(openQuestionsPath) ? fs.readFileSync(openQuestionsPath, 'utf8') : '';
-    const blocking = blockingQuestionLines(openQuestions);
+    const declared = declaredBlockingQuestions(phase01Files[BLOCKING_KEY]);
+    // Sin bloque JSON válido se cae a la heurística por palabras sobre open-questions.md.
+    const blocking = declared ?? blockingQuestionLines(openQuestions);
     if (blocking.length > 0) {
       // Antes solo se decía "revisa open-questions.md" — un archivo dentro del volumen de
       // Railway al que el compañero no tiene acceso. Ahora se muestran las preguntas en la UI.
@@ -162,11 +164,28 @@ export async function runJob(jobId: string): Promise<void> {
  *  "bloqueante" apareciera en cualquier sitio, así que "No hay preguntas bloqueantes" o
  *  "no bloqueante" también bloqueaban el job. */
 export function blockingQuestionLines(markdown: string): string[] {
-  const NEGATED = /\bno[\s-]+(es\s+)?bloqueantes?\b|\bning[uú]n[ao]?\b[^\n]*bloqueante|\bsin\s+(preguntas\s+)?bloqueantes\b|\bno\s+hay\b[^\n]*bloqueante/i;
+  const NEGATED = /\bno\s+cr[ií]tic[ao]\b|\bno[\s-]+(es\s+)?bloqueantes?\b|\bning[uú]n[ao]?\b[^\n]*bloqueante|\bsin\s+(preguntas\s+)?bloqueantes\b|\bno\s+hay\b[^\n]*bloqueante/i;
   return markdown
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => /bloqueante/i.test(l) && !NEGATED.test(l))
     .map((l) => l.replace(/^\|\s*|\s*\|$/g, '').replace(/\s*\|\s*/g, ' · '))
     .slice(0, 15);
+}
+
+/** Lista del bloque __blocking__.json de la fase 01, o null si falta o no es válido. */
+export function declaredBlockingQuestions(raw: string | undefined): string[] | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw.trim().replace(/^```(?:json)?\s*|\s*```$/g, ''));
+    if (!Array.isArray(parsed?.blocking)) return null;
+    return parsed.blocking
+      .map((q: { id?: unknown; question?: unknown } | string) =>
+        typeof q === 'string' ? q : [q.id, q.question].filter(Boolean).map(String).join(' — ')
+      )
+      .filter((q: string) => q.trim().length > 0)
+      .slice(0, 15);
+  } catch {
+    return null;
+  }
 }

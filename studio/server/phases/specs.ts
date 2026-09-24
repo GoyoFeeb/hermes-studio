@@ -18,10 +18,27 @@ function joinFiles(files: Record<string, string>): string {
     .join('');
 }
 
+export const BLOCKING_KEY = '__blocking__.json';
+
 export const PHASE_01: TextPhaseSpec = {
   id: '01',
   label: 'Briefing Strategist',
   agentFile: 'agents/01-briefing-strategist.md',
+  // Antes Studio decidía el bloqueo buscando la palabra "bloqueante" en open-questions.md, y
+  // notas condicionales para otras fases ("no crítica para 01; bloqueante para 02 si...")
+  // paraban el job. Ahora el agente declara él mismo qué cumple su sección "Bloquea si".
+  extraOutput: {
+    key: BLOCKING_KEY,
+    instructions: [
+      `Incluye SIEMPRE un bloque extra con la ruta literal "${BLOCKING_KEY}" y este contenido`,
+      '(JSON válido, sin texto extra): {"blocking": [{"id": "Q-001", "question": "..."}]}',
+      'En "blocking" van SOLO las preguntas que cumplen tu sección "Bloquea si" para ESTA fase:',
+      'falta el cliente, el objetivo, el CTA principal o el enlace principal, o faltan',
+      'restricciones legales/comerciales que el tipo de campaña exige. Todo lo no crítico, lo',
+      'condicional o lo que afecta solo a fases posteriores se queda en open-questions.md pero NO',
+      'va aquí. Si no hay ninguna, devuelve {"blocking": []}.',
+    ],
+  },
   expectedFiles: (c) => [
     path.join(c, '00-brief/brief.md'),
     path.join(c, '00-brief/requirements.md'),

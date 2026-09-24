@@ -15,6 +15,8 @@ export interface TextPhaseSpec {
   agentFile: string;
   expectedFiles: (campaignRelPath: string) => string[];
   buildContext: (campaignRelPath: string, jobInput: JobInput) => string;
+  /** Bloque extra machine-readable que Studio necesita para decidir (no se escribe a disco). */
+  extraOutput?: { key: string; instructions: string[] };
 }
 
 export async function runTextPhase(
@@ -26,7 +28,12 @@ export async function runTextPhase(
   if (!agentPrompt) throw new Error(`No se encuentra ${spec.agentFile}`);
 
   const expected = spec.expectedFiles(campaignRelPath);
-  const systemPrompt = `${agentPrompt}\n${buildOutputContract(expected)}`;
+  const extra = spec.extraOutput;
+  const systemPrompt = [
+    agentPrompt,
+    ...(extra ? ['\n--- Formato adicional obligatorio de esta ejecución automatizada ---', ...extra.instructions] : []),
+    buildOutputContract(extra ? [...expected, extra.key] : expected),
+  ].join('\n');
   const userText = spec.buildContext(campaignRelPath, jobInput);
 
   const raw = await callAgent({ systemPrompt, userText, maxTokens: 8000 });
@@ -37,6 +44,8 @@ export async function runTextPhase(
     throw new Error(`La fase ${spec.id} no devolvió: ${missing.join(', ')}`);
   }
 
-  writeGeneratedFiles(files, [campaignRelPath]);
+  const toWrite = { ...files };
+  if (extra) delete toWrite[extra.key];
+  writeGeneratedFiles(toWrite, [campaignRelPath]);
   return files;
 }

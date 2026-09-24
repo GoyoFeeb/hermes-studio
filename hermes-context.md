@@ -347,3 +347,11 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   también bloqueaban. Fix en `studio/server/runner.ts`: `blockingQuestionLines()` ignora
   negaciones y el motivo del bloqueo muestra las preguntas en la UI. Probado con el
   `open-questions.md` real de Audi (3 bloqueantes detectadas) + casos negados.
+- **Quinto job (gpt-5.5):** con las preguntas ya visibles, el bloqueo resultó ser un FALSO
+  POSITIVO: la única línea detectada era "Criticidad: no crítica para fase 01; bloqueante para
+  decisiones visuales del agente 02 si no se puede comprobar". La heurística por palabras no
+  es fiable. Fix: la fase 01 devuelve un bloque `__blocking__.json` (mismo patrón que el
+  veredicto de QA) con SOLO las preguntas que cumplen la sección "Bloquea si" de
+  `agents/01-briefing-strategist.md` para esta fase; `textPhase.ts` admite un `extraOutput`
+  por spec (entra en el contrato, no se escribe a disco). Sin bloque válido → heurística, que
+  ahora también ignora "no crítica". Agente 01 sin tocar.
