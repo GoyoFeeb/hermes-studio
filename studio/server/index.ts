@@ -72,6 +72,25 @@ const authRateLimit = createRateLimiter({
   message: 'Demasiados intentos de autenticación fallidos. Inténtalo de nuevo en unos minutos.'
 });
 
+// /assets es PÚBLICO y solo sirve imágenes (2026-09-24, cierra BUG-H13): las newsletters
+// referencian estas URLs (logos, hero generado) y el cliente de correo del destinatario no tiene
+// la contraseña de Studio — detrás del Basic Auth llegaban sin imágenes. Cualquier otro archivo
+// de brands/ (tokens, .md, capturas HTML) sigue sin exponerse.
+const PUBLIC_ASSET_RE = /\.(png|jpe?g|gif|webp|svg)$/i;
+app.use('/assets', (req: Request, res: Response, next: NextFunction) => {
+  if (!PUBLIC_ASSET_RE.test(req.path) || req.path.split('/').some((seg) => seg.startsWith('.'))) {
+    res.status(404).end();
+    return;
+  }
+  next();
+}, express.static(BRANDS_DIR, {
+  dotfiles: 'deny',
+  index: false,
+  fallthrough: false,
+  // Un SVG puede llevar <script>: en sandbox no se ejecuta nada ni accede al origen de Studio.
+  setHeaders: (res) => res.setHeader('Content-Security-Policy', 'sandbox'),
+}));
+
 if (ACCESS_PASSWORD) {
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (authRateLimit.isLimited(req)) {
@@ -93,14 +112,19 @@ if (ACCESS_PASSWORD) {
   console.warn('ATENCION: arrancando SIN contraseña porque ALLOW_NO_AUTH=true -- el servicio queda abierto (solo para desarrollo local).');
 }
 
-app.use('/assets', express.static(BRANDS_DIR));
 app.use(express.static(path.join(STUDIO_DIR, 'web')));
 
+/** clientSlug acaba en rutas de disco (brands/{slug}, newsletters/{año}/{slug}): nada de
+ *  "../" ni barras — antes existingBrand se usaba tal cual llegaba del formulario. */
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,59}$/;
+
+// Modo standalone: vale cualquier marca con carpeta en brands/ (logos/imágenes), aunque no
+// tenga brand-tokens.json — el pack completo solo lo exigía el pipeline de 9 fases.
 app.get('/api/brands', (_req: Request, res: Response) => {
   const brands = fs.existsSync(BRANDS_DIR)
     ? fs
         .readdirSync(BRANDS_DIR, { withFileTypes: true })
-        .filter((e) => e.isDirectory() && fs.existsSync(path.join(BRANDS_DIR, e.name, 'tokens', 'brand-tokens.json')))
+        .filter((e) => e.isDirectory() && SLUG_RE.test(e.name))
         .map((e) => e.name)
         .sort()
     : [];
@@ -120,6 +144,34 @@ const createJobRateLimit = createRateLimiter({
 
 app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Response) => {
   const body = req.body || {};
+  if (body.existingBrand && !SLUG_RE.test(String(body.existingBrand))) {
+    res.status(400).json({ error: 'Marca no válida.' });
+    return;
+  }
+
+  if (body.mode === 'standalone') {
+    if (!body.promptText || !body.clientName) {
+      res.status(400).json({ error: 'Faltan campos obligatorios: marca y prompt.' });
+      return;
+    }
+    if (body.imageMode !== 'official' && body.imageMode !== 'ai') {
+      res.status(400).json({ error: 'Elige de dónde salen las imágenes: assets oficiales o IA.' });
+      return;
+    }
+    const job = createJob({
+      mode: 'standalone',
+      clientSlug: body.existingBrand || slugify(body.clientName),
+      clientName: body.clientName,
+      brandMode: body.existingBrand ? 'existing' : 'new',
+      briefText: body.promptText,
+      imageMode: body.imageMode,
+      requesterName: body.requesterName || undefined,
+    });
+    enqueue(job.id);
+    res.status(201).json({ id: job.id });
+    return;
+  }
+
   if (!body.briefText || !body.clientName) {
     res.status(400).json({ error: 'Faltan campos obligatorios: clientName, briefText.' });
     return;
@@ -167,7 +219,15 @@ app.get('/api/jobs/:id/result', (req: Request, res: Response) => {
     res.status(404).json({ error: 'El resultado todavía no está disponible.' });
     return;
   }
-  res.sendFile(path.join(ROOT, job.resultRelPath));
+  // El HTML lo escribe un modelo que ha leído páginas web (posible inyección): se sirve en un
+  // sandbox sin scripts ni acceso al origen de Studio, igual en la vista previa que abierto aparte.
+  res.set('Content-Security-Policy', 'sandbox');
+  const abs = path.join(ROOT, job.resultRelPath);
+  if (req.query.download) {
+    res.download(abs, `${job.input.clientSlug}-${job.id}.html`);
+    return;
+  }
+  res.sendFile(abs);
 });
 
 recoverOnStartup();

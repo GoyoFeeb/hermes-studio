@@ -69,7 +69,7 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
 | BUG-H10 | Dependencias | 7 vulnerabilidades npm sin resolver (`sharp` alta/libheif, `postcss` alta, `undici` alta, `qs` moderada), todas con fix disponible sin cambio de major. | `package.json` | **Cerrado 2026-09-23** — `npm audit fix` (sin `--force`, sin cambios de major). `npm audit` → 0 vulnerabilidades. |
 | BUG-H11 | Escala (producción) | 15/32 carpetas de marca sin `brand-tokens.json`; de los 17-18 restantes, solo `converse` tenía `colors.source`/`typography.source`. Gate 8 (bloqueante) hace fallar `production-gate` para prácticamente todas las marcas reales. | `brands/*/` | **Parcialmente cerrado 2026-09-23** — 3 lotes con navegación real + `getComputedStyle`: lote 1 (Nike, BMW, Tarifalo), lote 2 (Audi, Para y Compara, Apple), lote 3 (Mercedes-AMG, New Balance, UAX — ver changelog "tercer lote"). **10 de 18 packs reales pasan Gate 8 limpio ahora** (apple, audi, bmw, converse, mercedes-amg, new-balance, nike, paraycompara, tarifalo, uax). Quedan 8: adeslas, adidas, aesop, feebboletter, optica2000, rolex, spotify, wornwear — deuda de contenido real del agente 02, no de código. **2 hallazgos no anticipados, no corregidos, declarados para 02**: (1) `paraycompara` diverge de forma significativa de la web real (probable rediseño no reflejado en el pack, afecta a 2 campañas reales); (2) `uax` usa realmente 'PT Sans' (Google Font embebible) pero el pack no lo declara como `webFont`, mismo patrón que el hallazgo de 'Alexandria' en paraycompara — dos indicios de que ningún pack real ha revisado su fuente `webFont` contra la fuente real desde que la sustitución de fuentes se implementó. |
 | BUG-H12 | CI (cobertura) | `.github/workflows/ci.yml` solo corre `npm test` + `check-engine-integrity` — nunca ejecuta `production-gate-motor` de forma visible con una aserción explícita de qué debe pasar. | `.github/workflows/ci.yml` | **Cerrado 2026-09-23** — nuevo step de CI + `scripts/ci-example-campaign-gate.ts`: corre `production-gate-motor` en modo exploración contra `campaign-data.example.json` y falla si algún gate de CÓDIGO (schema/build/claims/column-balance/contrast/hero-decision/engine-integrity) deja de pasar; tolera explícitamente `brand-pack-completeness`/`structural-differentiation` (deuda de contenido conocida, ver BUG-H11). Nota de corrección: mi hallazgo original decía que CI "nunca ejecuta production-gate-motor" — impreciso, `npm test` ya lo ejercitaba indirectamente (`gates.smoke.test.js`); el hueco real era la falta de una aserción positiva de qué debe seguir pasando, que es lo que este step añade. |
-| BUG-H13 | Infra (studio) | `/assets` (hero y logos generados por Studio, referenciados por URL absoluta `STUDIO_PUBLIC_BASE_URL/assets/...` en `campaign-data.json`) se sirve DESPUÉS del middleware de Basic Auth — un cliente de correo real recibe 401 y la newsletter llega sin imágenes. No depende de Vercel (pasa igual con Railway/Docker solos). | `studio/server/index.ts` (orden: auth → `express.static(BRANDS_DIR)` en `/assets`) | **Abierto** (detectado 2026-09-24 al preparar el frontend en Vercel). Opciones a decidir: servir `/assets` antes del auth (expone todo `brands/`, incluidos `.md`/tokens — habría que limitarlo a imágenes), o subir las imágenes a un hosting público/CDN en fase 06/09. |
+| BUG-H13 | Infra (studio) | `/assets` (hero y logos generados por Studio, referenciados por URL absoluta `STUDIO_PUBLIC_BASE_URL/assets/...` en `campaign-data.json`) se sirve DESPUÉS del middleware de Basic Auth — un cliente de correo real recibe 401 y la newsletter llega sin imágenes. No depende de Vercel (pasa igual con Railway/Docker solos). | `studio/server/index.ts` (orden: auth → `express.static(BRANDS_DIR)` en `/assets`) | **Cerrado 2026-09-24** — `/assets` se sirve ANTES del auth, solo extensiones de imagen, sin dotfiles y con CSP sandbox (SVG). (Detectado 2026-09-24 al preparar el frontend en Vercel.) Opciones a decidir: servir `/assets` antes del auth (expone todo `brands/`, incluidos `.md`/tokens — habría que limitarlo a imágenes), o subir las imágenes a un hosting público/CDN en fase 06/09. |
 
 ---
 
@@ -355,3 +355,28 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   `agents/01-briefing-strategist.md` para esta fase; `textPhase.ts` admite un `extraOutput`
   por spec (entra en el contrato, no se escribe a disco). Sin bloque válido → heurística, que
   ahora también ignora "no crítica". Agente 01 sin tocar.
+
+### 2026-09-24 (continuación) — Studio pasa a modo standalone
+
+- **Decisión del usuario:** tras 5 jobs del pipeline de 9 fases fallando por reglas mal seguidas
+  (con gpt-5.4-mini y gpt-5.5), Studio usa el flujo que al usuario le funciona con Hermes: pegar
+  el prompt de `newsletter-creative-brief` y obtener un HTML standalone. Con búsqueda web; las
+  imágenes se eligen por trabajo (assets oficiales o IA); la interfaz solo ofrece standalone
+  (el pipeline sigue en el código).
+- **Nota:** el commit `cb99489` (bloqueos de fase 01) se hizo y desplegó aunque el usuario
+  interrumpió esa llamada — la interrupción llegó cuando el comando ya había terminado.
+- **Implementación:** `studio/server/standalone.ts` (nuevo), `callResearchAgent()` en
+  `llmClient.ts` (Responses API + `web_search` + background con polling, timeout 30 min),
+  `runner.ts` despacha por `input.mode`, `store.ts` (`mode`, `imageMode`), `index.ts` (rama
+  standalone en `POST /api/jobs`, validación de slug de marca — antes `existingBrand` llegaba a
+  rutas de disco sin validar —, `/assets` público solo imágenes = cierra BUG-H13, resultado con
+  CSP sandbox + `?download=1`), `studio/web/` (formulario nuevo).
+- **Prueba real en local** (Adeslas, assets oficiales, gpt-5.5, esfuerzo medium): completado a
+  la primera, 7 búsquedas web, 19,7 KB, logo y foto oficiales, datos con fuente (Plena Total,
+  Promoción Salud 2026 y sus bases legales), footer legal de seguros. Fallo visto y corregido en
+  instrucciones: el "Concepto: ..." salía como antetítulo visible. **No probado aún:** modo IA
+  (generación de imágenes) y en Railway.
+- **Ojo en Railway:** el volumen se sembró el 2026-09-09 con los `brands/` de entonces; imágenes
+  añadidas después en local y sin trackear (p. ej. `brands/adeslas/design-input/`) pueden no
+  estar allí — el log del job dice cuántas imágenes oficiales encontró.
+

@@ -9,55 +9,44 @@
 <body>
   <header class="topbar">
     <h1>Hermes Studio</h1>
-    <p>Escribe el brief de la newsletter y el sistema la genera de principio a fin.</p>
+    <p>Pega el prompt creativo y el sistema genera la newsletter en HTML.</p>
   </header>
 
   <main id="app">
     <section id="view-form">
       <form id="brief-form">
+        <input type="hidden" name="mode" value="standalone" />
+
         <label>
-          Nombre del cliente / marca
-          <input type="text" name="clientName" required placeholder="Ej: New Balance" />
+          Marca
+          <select name="existingBrand" id="existing-brand-select">
+            <option value="">— Marca nueva (no está en el sistema) —</option>
+          </select>
+        </label>
+
+        <label>
+          Nombre de la marca
+          <input type="text" name="clientName" id="client-name-input" required placeholder="Ej: Adeslas" />
+        </label>
+
+        <label>
+          Prompt creativo
+          <textarea name="promptText" required rows="16"
+            placeholder="Pega aquí el prompt generado con la skill newsletter-creative-brief."></textarea>
         </label>
 
         <fieldset>
-          <legend>¿La marca ya existe en el sistema?</legend>
-
+          <legend>¿De dónde salen las imágenes?</legend>
           <label class="radio">
-            <input type="radio" name="brandMode" value="existing" checked />
-            Ya existe — elegir de la lista
+            <input type="radio" name="imageMode" value="official" required />
+            Assets oficiales de la marca
           </label>
-          <select name="existingBrand" id="existing-brand-select"></select>
-
           <label class="radio">
-            <input type="radio" name="brandMode" value="new" />
-            Es una marca nueva — analizar su web
+            <input type="radio" name="imageMode" value="ai" />
+            Generarlas con IA
           </label>
-          <input type="url" name="brandUrl" id="brand-url-input" placeholder="https://www.marca.com" disabled />
-          <p class="hint">El análisis de una marca nueva tarda más (navega su web real) y solo hace falta la primera vez.</p>
+          <p class="hint">El logo siempre es el oficial. Con IA se generan hasta 3 imágenes (hero, producto, ambiente).</p>
         </fieldset>
-
-        <label>
-          Brief de la campaña
-          <textarea name="briefText" required rows="6"
-            placeholder="Qué se anuncia, a quién, objetivo, tono, cualquier restricción legal..."></textarea>
-        </label>
-
-        <div class="row">
-          <label>
-            CTA principal
-            <input type="text" name="ctaLabel" placeholder="Ej: Comprar ahora" />
-          </label>
-          <label>
-            Enlace principal
-            <input type="url" name="ctaUrl" placeholder="https://..." />
-          </label>
-        </div>
-
-        <label>
-          Notas legales / restricciones (opcional)
-          <textarea name="legalNotes" rows="3"></textarea>
-        </label>
 
         <label>
           Tu nombre (opcional, para el registro del trabajo)
@@ -65,6 +54,7 @@
         </label>
 
         <button type="submit">Generar newsletter</button>
+        <p class="hint">Investiga en la web de la marca y escribe el HTML: suele tardar varios minutos.</p>
       </form>
     </section>
 
@@ -75,8 +65,8 @@
 
       <div id="job-result" hidden>
         <p>✅ La newsletter está lista.</p>
-        <a id="download-link" class="button" href="#">Descargar final-inline.html</a>
-        <iframe id="preview-frame" title="Previsualización de la newsletter"></iframe>
+        <a id="download-link" class="button" href="#">Descargar HTML</a>
+        <iframe id="preview-frame" sandbox title="Previsualización de la newsletter"></iframe>
       </div>
 
       <div id="job-blocked" hidden>
@@ -84,7 +74,7 @@
         <pre id="blocked-reason"></pre>
       </div>
 
-      <button id="new-job-btn" type="button">Enviar otro brief</button>
+      <button id="new-job-btn" type="button">Generar otra newsletter</button>
     </section>
   </main>
 

@@ -2,26 +2,28 @@ const form = document.getElementById('brief-form');
 const viewForm = document.getElementById('view-form');
 const viewJob = document.getElementById('view-job');
 const existingBrandSelect = document.getElementById('existing-brand-select');
-const brandUrlInput = document.getElementById('brand-url-input');
+const clientNameInput = document.getElementById('client-name-input');
 
 async function loadBrands() {
   try {
     const res = await fetch('/api/brands');
     const data = await res.json();
-    existingBrandSelect.innerHTML = data.brands.map((b) => `<option value="${b}">${b}</option>`).join('');
+    existingBrandSelect.insertAdjacentHTML(
+      'beforeend',
+      data.brands.map((b) => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')
+    );
   } catch (err) {
     console.error('No se pudieron cargar las marcas existentes', err);
   }
 }
 loadBrands();
 
-function syncBrandMode() {
-  const mode = form.querySelector('input[name="brandMode"]:checked').value;
-  existingBrandSelect.disabled = mode !== 'existing';
-  brandUrlInput.disabled = mode !== 'new';
-}
-[...form.querySelectorAll('input[name="brandMode"]')].forEach((r) => r.addEventListener('change', syncBrandMode));
-syncBrandMode();
+// Al elegir una marca existente se rellena el nombre (editable, p. ej. "El Corte Inglés").
+existingBrandSelect.addEventListener('change', () => {
+  if (existingBrandSelect.value && !clientNameInput.value) {
+    clientNameInput.value = existingBrandSelect.value.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+});
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -57,7 +59,6 @@ document.getElementById('new-job-btn').addEventListener('click', () => {
   viewJob.hidden = true;
   viewForm.hidden = false;
   form.reset();
-  syncBrandMode();
 });
 
 const PHASE_LABELS = {
@@ -71,6 +72,7 @@ const PHASE_LABELS = {
   '07': '07 · Construcción del HTML',
   '08': '08 · QA',
   '09': '09 · Gate de producción',
+  standalone: 'Newsletter',
   system: 'Sistema',
 };
 
@@ -102,7 +104,7 @@ async function poll(id) {
 
   if (job.status === 'completed') {
     document.getElementById('job-result').hidden = false;
-    document.getElementById('download-link').href = `/api/jobs/${id}/result`;
+    document.getElementById('download-link').href = `/api/jobs/${id}/result?download=1`;
     document.getElementById('preview-frame').src = `/api/jobs/${id}/result`;
     return;
   }

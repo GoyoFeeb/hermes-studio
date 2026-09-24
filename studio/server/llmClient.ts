@@ -125,3 +125,82 @@ async function callOpenAI(opts: CallOpts): Promise<string> {
   if (!text) throw new Error(`${MODEL} devolvió una respuesta vacía.`);
   return text;
 }
+
+/**
+ * Modo standalone (2026-09-24): llamada larga con búsqueda web, vía la Responses API de OpenAI
+ * en modo background (se crea la respuesta y se consulta hasta que termina). Sin background, una
+ * generación de varios minutos puede cortarse por el timeout de cabeceras de fetch (~5 min).
+ * Solo OpenAI: es el proveedor configurado en producción y el que tiene la herramienta web_search.
+ */
+export async function callResearchAgent(opts: {
+  instructions: string;
+  input: string;
+  maxOutputTokens: number;
+  reasoningEffort?: string;
+  onProgress?: (elapsedSeconds: number) => void;
+  timeoutMs?: number;
+}): Promise<{ text: string; webSearches: number }> {
+  const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('El modo standalone necesita OPENAI_API_KEY (o LLM_API_KEY).');
+  const baseUrl = (process.env.LLM_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
+  const model = PROVIDER === 'openai' ? MODEL : process.env.STANDALONE_MODEL || 'gpt-5.5';
+  const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+
+  const createRes = await fetch(`${baseUrl}/responses`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model,
+      instructions: opts.instructions,
+      input: opts.input,
+      tools: [{ type: 'web_search' }],
+      reasoning: { effort: opts.reasoningEffort || 'medium' },
+      max_output_tokens: opts.maxOutputTokens,
+      background: true,
+    }),
+  });
+  if (!createRes.ok) {
+    throw new Error(`${model} (${baseUrl}/responses) ${createRes.status}: ${(await createRes.text()).slice(0, 500)}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let resp: any = await createRes.json();
+  const started = Date.now();
+  const timeoutMs = opts.timeoutMs ?? 30 * 60 * 1000;
+  let lastProgress = 0;
+  while (resp.status === 'queued' || resp.status === 'in_progress') {
+    if (Date.now() - started > timeoutMs) {
+      await fetch(`${baseUrl}/responses/${resp.id}/cancel`, { method: 'POST', headers }).catch(() => undefined);
+      throw new Error(`${model} no terminó en ${Math.round(timeoutMs / 60000)} minutos — cancelado.`);
+    }
+    await new Promise((r) => setTimeout(r, 5000));
+    const pollRes = await fetch(`${baseUrl}/responses/${resp.id}`, { headers });
+    if (!pollRes.ok) continue; // un fallo puntual de red no debe tumbar un trabajo de minutos
+    resp = await pollRes.json();
+    const elapsed = Math.round((Date.now() - started) / 1000);
+    if (opts.onProgress && elapsed - lastProgress >= 60) {
+      lastProgress = elapsed;
+      opts.onProgress(elapsed);
+    }
+  }
+
+  if (resp.status !== 'completed') {
+    const why = resp.error?.message || resp.incomplete_details?.reason || resp.status;
+    throw new Error(
+      why === 'max_output_tokens'
+        ? `${model} se quedó sin tokens de salida antes de terminar el HTML.`
+        : `${model} no completó la respuesta: ${why}`
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const output: any[] = resp.output || [];
+  const text = output
+    .filter((o) => o.type === 'message')
+    .flatMap((o) => o.content || [])
+    .filter((c) => c.type === 'output_text')
+    .map((c) => c.text)
+    .join('\n');
+  if (!text) throw new Error(`${model} devolvió una respuesta vacía.`);
+  return { text, webSearches: output.filter((o) => o.type === 'web_search_call').length };
+}

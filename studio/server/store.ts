@@ -19,6 +19,10 @@ export interface JobInput {
   ctaUrl?: string;
   legalNotes?: string;
   requesterName?: string;
+  /** 'standalone' (2026-09-24): prompt creativo pegado → HTML suelto (ver standalone.ts).
+   *  Sin definir = pipeline de 9 fases. En standalone, briefText guarda el prompt pegado. */
+  mode?: 'pipeline' | 'standalone';
+  imageMode?: 'official' | 'ai';
 }
 
 export interface Job {

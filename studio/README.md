@@ -8,6 +8,27 @@ Ver el diseño completo y las decisiones detrás de esta implementación en el p
 funcionalidad correspondiente (arquitectura, alcance v1 vs. iteraciones futuras). Este README
 es la guía operativa: cómo correrlo y qué limitaciones conocidas tiene hoy.
 
+## Modo standalone (el que muestra la interfaz desde 2026-09-24)
+
+El compañero elige la marca, pega el prompt de dirección creativa generado con la skill
+`newsletter-creative-brief` y elige de dónde salen las imágenes: **assets oficiales** de la marca
+(`brands/{marca}/`, o URLs de su web oficial) o **generadas con IA** (gpt-image, máx. 3; el logo
+siempre es el oficial). `server/standalone.ts` llama a la Responses API de OpenAI con búsqueda
+web (modo background, `gpt-5.5` vía `LLM_MODEL`, esfuerzo `STANDALONE_REASONING_EFFORT`, por
+defecto `medium`) y el modelo devuelve el HTML de email completo. Studio lo pasa a inline con
+juice, avisa de problemas típicos (peso > 102 KB, imágenes sin https, sin enlace de baja, datos
+pendientes) y lo entrega. No pasa por el motor ni por los gates: es el flujo de "HTML suelto".
+
+Salida en `newsletters/{año}/{marca}/standalone/{fecha}-{slug}/`: `prompt.md`,
+`newsletter.html`, `newsletter-inline.html` y `notas.md` (concepto, fuentes con URL y pendientes).
+
+`/assets/*` es público y solo sirve imágenes (sin él, el correo del destinatario no cargaría el
+logo ni el hero); el resto de `brands/` sigue detrás de la contraseña. El HTML generado se sirve
+con `Content-Security-Policy: sandbox`.
+
+El pipeline de 9 fases descrito abajo sigue en el código (`runner.ts`) pero ya no se ofrece en
+la interfaz.
+
 ## Cómo funciona (resumen)
 
 El backend es dueño de la orquestación y del filesystem. Cada fase de IA se llama como una
@@ -114,8 +135,7 @@ diálogo aparece en la primera llamada a `/api`).
    Framework Preset = *Other*, sin build command.
 
 `STUDIO_PUBLIC_BASE_URL` puede apuntar a la URL de Railway o a la de Vercel (ambas sirven
-`/assets`). Limitación conocida (no específica de Vercel): `/assets` está detrás del Basic Auth,
-así que un cliente de correo real no puede cargar esas imágenes — ver `hermes-context.md`.
+`/assets`, público y solo imágenes desde 2026-09-24).
 
 ## Desplegar con Docker en tu propio host/VPS
 
