@@ -77,11 +77,41 @@ la raíz del repo) — no hace falta tocar nada del Dockerfile para esto. Pasos:
      conectas uno), siempre `https://...`
    - `PORT` — Railway asigna el suyo propio automáticamente y lo expone como `PORT`; el
      servicio ya lo lee de `process.env.PORT`, no hace falta fijarlo a mano.
+   - `TRUST_PROXY_HOPS` — solo si pones el frontend en Vercel delante (ver sección siguiente):
+     fíjala a `2`. Sin Vercel delante, no la definas (por defecto `1`).
 
 5. **Desplegar**:
    ```bash
    railway up
    ```
+
+## Frontend en Vercel (opcional, delante de Railway)
+
+Vercel no puede alojar el backend: la cola en memoria, la escritura en `newsletters/`/`brands/`,
+Playwright y la duración de un job completo necesitan un proceso persistente con disco (Railway
+o Docker). Lo que sí puede servir Vercel es la interfaz estática (`studio/web/`), reenviando
+`/api/*` y `/assets/*` al backend con los rewrites de `studio/web/vercel.json`. Para el navegador
+todo es el mismo dominio, así que el frontend no cambia y el Basic Auth sigue funcionando (el
+diálogo aparece en la primera llamada a `/api`).
+
+1. Despliega antes el backend en Railway (sección anterior) y anota su URL pública.
+2. Sustituye `<TU-URL-RAILWAY>` en `studio/web/vercel.json` por ese dominio (sin `https://`
+   duplicado ni barra final).
+3. En Railway, fija `TRUST_PROXY_HOPS=2` — con Vercel + Railway delante hay dos proxies; con el
+   valor por defecto (1) el limitador de `server/rateLimit.ts` vería la IP de Vercel para todo el
+   equipo y compartiríais un único cupo. Contrapartida: una llamada directa a la URL de Railway
+   puede falsear un salto de `X-Forwarded-For` y esquivar el limitador por IP (la contraseña
+   sigue siendo obligatoria).
+4. Despliega solo la carpeta de la interfaz:
+   ```bash
+   cd studio/web && vercel --prod
+   ```
+   O, conectando el repo desde el dashboard de Vercel, fija **Root Directory = `studio/web`**,
+   Framework Preset = *Other*, sin build command.
+
+`STUDIO_PUBLIC_BASE_URL` puede apuntar a la URL de Railway o a la de Vercel (ambas sirven
+`/assets`). Limitación conocida (no específica de Vercel): `/assets` está detrás del Basic Auth,
+así que un cliente de correo real no puede cargar esas imágenes — ver `hermes-context.md`.
 
 ## Desplegar con Docker en tu propio host/VPS
 

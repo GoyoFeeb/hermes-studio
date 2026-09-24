@@ -7,7 +7,7 @@
 > qué se diagnosticó, qué se decidió arreglar, y qué sigue abierto — para que una futura sesión de
 > esta skill no repita el mismo diagnóstico desde cero.
 
-**Última actualización:** 2026-09-23 (BUG-H09 cerrado; BUG-H11 en curso — 10/18 brand packs)
+**Última actualización:** 2026-09-24 (frontend de Studio en Vercel preparado; BUG-H13 abierto)
 
 ---
 
@@ -69,6 +69,7 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
 | BUG-H10 | Dependencias | 7 vulnerabilidades npm sin resolver (`sharp` alta/libheif, `postcss` alta, `undici` alta, `qs` moderada), todas con fix disponible sin cambio de major. | `package.json` | **Cerrado 2026-09-23** — `npm audit fix` (sin `--force`, sin cambios de major). `npm audit` → 0 vulnerabilidades. |
 | BUG-H11 | Escala (producción) | 15/32 carpetas de marca sin `brand-tokens.json`; de los 17-18 restantes, solo `converse` tenía `colors.source`/`typography.source`. Gate 8 (bloqueante) hace fallar `production-gate` para prácticamente todas las marcas reales. | `brands/*/` | **Parcialmente cerrado 2026-09-23** — 3 lotes con navegación real + `getComputedStyle`: lote 1 (Nike, BMW, Tarifalo), lote 2 (Audi, Para y Compara, Apple), lote 3 (Mercedes-AMG, New Balance, UAX — ver changelog "tercer lote"). **10 de 18 packs reales pasan Gate 8 limpio ahora** (apple, audi, bmw, converse, mercedes-amg, new-balance, nike, paraycompara, tarifalo, uax). Quedan 8: adeslas, adidas, aesop, feebboletter, optica2000, rolex, spotify, wornwear — deuda de contenido real del agente 02, no de código. **2 hallazgos no anticipados, no corregidos, declarados para 02**: (1) `paraycompara` diverge de forma significativa de la web real (probable rediseño no reflejado en el pack, afecta a 2 campañas reales); (2) `uax` usa realmente 'PT Sans' (Google Font embebible) pero el pack no lo declara como `webFont`, mismo patrón que el hallazgo de 'Alexandria' en paraycompara — dos indicios de que ningún pack real ha revisado su fuente `webFont` contra la fuente real desde que la sustitución de fuentes se implementó. |
 | BUG-H12 | CI (cobertura) | `.github/workflows/ci.yml` solo corre `npm test` + `check-engine-integrity` — nunca ejecuta `production-gate-motor` de forma visible con una aserción explícita de qué debe pasar. | `.github/workflows/ci.yml` | **Cerrado 2026-09-23** — nuevo step de CI + `scripts/ci-example-campaign-gate.ts`: corre `production-gate-motor` en modo exploración contra `campaign-data.example.json` y falla si algún gate de CÓDIGO (schema/build/claims/column-balance/contrast/hero-decision/engine-integrity) deja de pasar; tolera explícitamente `brand-pack-completeness`/`structural-differentiation` (deuda de contenido conocida, ver BUG-H11). Nota de corrección: mi hallazgo original decía que CI "nunca ejecuta production-gate-motor" — impreciso, `npm test` ya lo ejercitaba indirectamente (`gates.smoke.test.js`); el hueco real era la falta de una aserción positiva de qué debe seguir pasando, que es lo que este step añade. |
+| BUG-H13 | Infra (studio) | `/assets` (hero y logos generados por Studio, referenciados por URL absoluta `STUDIO_PUBLIC_BASE_URL/assets/...` en `campaign-data.json`) se sirve DESPUÉS del middleware de Basic Auth — un cliente de correo real recibe 401 y la newsletter llega sin imágenes. No depende de Vercel (pasa igual con Railway/Docker solos). | `studio/server/index.ts` (orden: auth → `express.static(BRANDS_DIR)` en `/assets`) | **Abierto** (detectado 2026-09-24 al preparar el frontend en Vercel). Opciones a decidir: servir `/assets` antes del auth (expone todo `brands/`, incluidos `.md`/tokens — habría que limitarlo a imágenes), o subir las imágenes a un hosting público/CDN en fase 06/09. |
 
 ---
 
@@ -261,3 +262,37 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   declarada (paraycompara/Alexandria, uax/PT Sans) sugieren que vale la pena que 02 revise
   `typography.webFont` en su próxima pasada por CUALQUIER marca, no solo estas dos — patrón
   repetido, no una coincidencia aislada.
+
+### 2026-09-24 — Hermes Studio: frontend en Vercel (opción híbrida)
+
+- **Decisión:** el usuario quería alojar Studio en Vercel. Descartado portarlo entero (cola en
+  memoria, escritura en `newsletters/`/`brands/`, Playwright y jobs de minutos son incompatibles
+  con funciones serverless; portarlo exigiría BD + Blob + Queues/Sandbox y sacar los brand packs
+  del repo, contra la arquitectura de archivos-como-fuente-de-verdad). Elegida la **opción A**:
+  interfaz estática (`studio/web/`) en Vercel con rewrites de `/api/*` y `/assets/*` al backend en
+  Railway (que sigue siendo el que ejecuta el pipeline). Sin efecto sobre agentes 00-09 ni motor.
+- **Cambios:**
+  - `studio/web/vercel.json` nuevo — rewrites; destino con marcador `<TU-URL-RAILWAY>` hasta que
+    exista el deploy de Railway (el CLI de Railway no tenía sesión iniciada; Vercel sí, `javifeebbo`).
+  - `studio/server/index.ts` — `trust proxy` configurable vía `TRUST_PROXY_HOPS` (por defecto 1,
+    comportamiento idéntico). Con Vercel delante hay 2 proxies: sin esto el limitador de BUG-H09
+    vería la IP de Vercel para todo el equipo (cupo compartido / bloqueo colectivo). Contrapartida
+    documentada: llamada directa a Railway puede falsear un salto de X-Forwarded-For.
+  - `studio/README.md` — sección "Frontend en Vercel" + variable `TRUST_PROXY_HOPS`.
+- **Verificación:** `rateLimit.test.js` 4/4; servidor arranca con `TRUST_PROXY_HOPS=2` y
+  `/api/brands` responde 200.
+- **Abierto:** BUG-H13 (`/assets` detrás del Basic Auth). Pendiente: desplegar backend en Railway,
+  rellenar la URL en `vercel.json`, fijar `TRUST_PROXY_HOPS=2` en Railway y `vercel --prod` desde
+  `studio/web`.
+- **Despliegue real (misma fecha):** el backend ya existía en Railway (proyecto `striking-luck`,
+  servicio `hermes-studio`, desplegado 2026-09-09 desde GitHub `Javifeebbo/hermes-studio` rama
+  `main`, commit `c1f30a8` — ANTERIOR a la auditoría `5e52ac9`) y estaba **abierto sin contraseña**
+  (solo tenía `ANTHROPIC_API_KEY`; `/api/jobs` devolvía 200 con los briefs). El usuario añadió
+  `APP_ACCESS_PASSWORD`, `OPENAI_API_KEY`, `STUDIO_PUBLIC_BASE_URL`
+  (`https://hermes-studio-production-761e.up.railway.app`) y `TRUST_PROXY_HOPS=2`; tras el
+  redeploy `/api/*` responde 401. Frontend publicado en Vercel (proyecto
+  `javifeebbos-projects/hermes-studio`, root `studio/web`): `https://hermes-studio-beta.vercel.app`
+  — `/` 200, `/api/*` 401 con `WWW-Authenticate` reenviado desde Railway.
+- **Pendiente:** Railway sigue corriendo `c1f30a8` (sin el limitador de BUG-H09 ni
+  `TRUST_PROXY_HOPS`); hay que llevar `5e52ac9` + cambios de hoy a `Javifeebbo/hermes-studio`.
+  Railway está en periodo de prueba (16 días / 4,03 $ a 2026-09-24).

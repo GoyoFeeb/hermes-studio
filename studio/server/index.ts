@@ -50,7 +50,13 @@ const app = express();
 // Necesario para que rateLimit.ts vea la IP real del cliente (no la del proxy) detrás de
 // Railway/Docker (ver docker-compose.yml) — sin esto, `req.ip` devuelve la IP del proxy para
 // TODAS las peticiones y el limitador por IP no distingue a nadie (auditoría 2026-09-23).
-app.set('trust proxy', 1);
+// TRUST_PROXY_HOPS (2026-09-24): con el frontend en Vercel reenviando /api y /assets a Railway
+// hay DOS proxies delante (Vercel + Railway) — con 1 salto, req.ip sería la IP de salida de
+// Vercel y todo el equipo compartiría el mismo cupo del limitador. En ese despliegue se fija a 2.
+// Contrapartida: quien llame directo a la URL de Railway puede falsear un salto de
+// X-Forwarded-For y esquivar el limitador por IP (la contraseña sigue siendo obligatoria).
+const TRUST_PROXY_HOPS = Number(process.env.TRUST_PROXY_HOPS || 1);
+app.set('trust proxy', Number.isInteger(TRUST_PROXY_HOPS) && TRUST_PROXY_HOPS >= 0 ? TRUST_PROXY_HOPS : 1);
 app.use(express.json({ limit: '2mb' }));
 
 // Límite de intentos de contraseña (auditoría 2026-09-23, BUG-H09): antes la única barrera de
