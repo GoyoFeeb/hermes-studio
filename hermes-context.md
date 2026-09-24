@@ -546,3 +546,9 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   generado con "Usar este brief en un trabajo nuevo"; el historial marca "Desde instrucción";
   "Reutilizar" respeta el tipo de entrada. Se guardan `instruccion.md` y `prompt.md` (el brief).
 - **Verificado en local** con un Hermes simulado (instrucción → brief → newsletter, y prompt pegado).
+- **Primera prueba real (Adidas, 16:00):** Hermes hizo 21 `search_files` (varios con patrón "*")
+  buscando el brand pack y luego se colgó 14 min en una llamada a Nous sin que su timeout saltara.
+  Arreglos en el worker: `briefEnvNote` le da ya resueltas la ruta del brand pack y los logos
+  disponibles, prohíbe `search_files` para eso y limita la investigación a 5 búsquedas web; y
+  `STALL_KILL_SEC` (12 min sin actividad → se corta el turno y se retoma la sesión, en brief y en
+  newsletter). Relanzado: brief en 4 min, newsletter en 11 min (15 min en total).

@@ -290,6 +290,9 @@ let currentChild: ReturnType<typeof spawn> | null = null;
 const MAX_CONTINUES = 3;
 /** Sin ninguna actividad en la sesión durante este tiempo, la barra avisa de que parece atascado. */
 const STALL_WARN_SEC = 10 * 60;
+/** Sin actividad este tiempo, se corta el turno de Hermes y se retoma la sesión: una llamada al
+ *  modelo colgada no siempre la corta Hermes (Adidas, 2026-09-24: 14 min esperando sin respuesta). */
+const STALL_KILL_SEC = 12 * 60;
 
 /** Las skills de newsletter de Hermes han crecido a ~100 KB por archivo. Por `skill_view` llegan
  *  como UNA línea JSON de 100 KB que Hermes guarda en un temporal y no consigue leer por tramos
@@ -376,6 +379,31 @@ interface ClaimedJob {
 const BRIEF_SHARE = 12;
 const BRIEF_EXPECTED_SEC = 6 * 60;
 
+/** Lo que Hermes necesita del repo para el brief, ya resuelto: el 2026-09-24 (Adidas) hizo 21
+ *  search_files (varios con patrón "*" sobre todo el repo) buscando el brand pack y no llegó a
+ *  escribir. */
+function briefEnvNote(outputDir: string): string {
+  const slug = outputDir.split(path.sep)[2] || '';
+  const tokens = path.join('brands', slug, 'tokens', 'brand-tokens.json');
+  const assetsDir = path.join('brands', slug, 'design-input');
+  const assets = fs.existsSync(path.join(ROOT, assetsDir))
+    ? fs.readdirSync(path.join(ROOT, assetsDir)).filter((f) => /\.(png|jpe?g|svg|webp)$/i.test(f)).slice(0, 12)
+    : [];
+  return [
+    '',
+    '## Nota de entorno (worker de Hermes Studio): rutas ya comprobadas',
+    fs.existsSync(path.join(ROOT, tokens))
+      ? `- Brand pack: EXISTE en ${tokens}. Léelo con read_file (una vez) y úsalo como pide la skill.`
+      : `- Brand pack: NO existe para esta marca (${tokens}). Procede como marca nueva.`,
+    assets.length ? `- Logos/imágenes de marca ya disponibles en ${assetsDir}/: ${assets.join(', ')}` : '',
+    '- No uses search_files para buscar el brand pack ni la estructura del repo: las rutas son estas.',
+    '- Investigación: como máximo 5 búsquedas web. Después escribe el brief (write_file) aunque falten',
+    '  datos — márcalos como pendientes de verificar, como pide la plantilla.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 /** Paso 1 de una instrucción básica: Hermes escribe `{outDir}/brief.md` con la skill
  *  newsletter-creative-brief; se sube a Studio, que devuelve el encargo final de la newsletter.
  *  Sesión propia: la newsletter arranca limpia con el brief, igual que al pegarlo a mano. */
@@ -385,6 +413,8 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
   const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
   let sessionId: string | null = null;
   let busy = false;
+  let lastCount = -1;
+  let lastChange = Date.now();
   const heartbeat = setInterval(async () => {
     if (busy) return;
     busy = true;
@@ -395,6 +425,15 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
       if (sessionId) tools = await sessionToolCalls(sessionId);
     } catch {
       // progreso solo por tiempo
+    }
+    if (tools.length !== lastCount) {
+      lastCount = tools.length;
+      lastChange = Date.now();
+    }
+    if ((Date.now() - lastChange) / 1000 >= STALL_KILL_SEC && currentChild) {
+      console.log(`[${stamp()}] Brief de ${job.id}: Hermes sin actividad ${Math.round(STALL_KILL_SEC / 60)} min — se corta el turno y se retoma`);
+      lastChange = Date.now();
+      currentChild.kill('SIGTERM');
     }
     const last = tools[tools.length - 1];
     const progress: Progress = {
@@ -411,8 +450,8 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
   }, PROGRESS_MS);
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  let turn = await runHermesTurn(job.briefPrompt! + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
-  for (let i = 1; i <= 2 && !ready() && sessionId; i++) {
+  let turn = await runHermesTurn(job.briefPrompt! + briefEnvNote(job.outputDir) + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
+  for (let i = 1; i <= 3 && !ready() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     turn = await runHermesTurn(
       `Todavía no existe ${job.outputDir}/brief.md. Escríbelo AHORA con write_file, con lo que ya tengas ` +
         '(marca como pendiente lo que no hayas podido verificar). Sin texto previo: llama a la herramienta.',
@@ -486,6 +525,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const idleSec = (Date.now() - lastChange) / 1000;
     if (idleSec >= STALL_WARN_SEC) {
       progress.detail = `Hermes lleva ${Math.round(idleSec / 60)} min sin avanzar (esperando al modelo)`;
+    }
+    if (idleSec >= STALL_KILL_SEC && currentChild) {
+      console.log(`[${stamp()}] ${job.id}: Hermes sin actividad ${Math.round(idleSec / 60)} min — se corta el turno y se retoma`);
+      lastChange = Date.now();
+      currentChild.kill('SIGTERM');
     }
     await api(`/api/worker/jobs/${job.id}/progress`, { progress }).catch(() => undefined);
     busy = false;

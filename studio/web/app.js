@@ -408,7 +408,13 @@ function renderProgress(job) {
   track.setAttribute('aria-valuenow', String(p.pct));
   document.getElementById('progress-stage').textContent = `${p.stageLabel} · ${p.pct}%`;
   document.getElementById('progress-eta').textContent =
-    job.status === 'completed' ? '' : p.etaSec ? `quedan ~${formatMinutes(p.etaSec)} (estimado)` : 'terminando, algo más de lo habitual';
+    job.status === 'completed'
+      ? ''
+      : p.stage === 'brief'
+        ? 'después, la newsletter (~15-20 min)'
+        : p.etaSec
+          ? `quedan ~${formatMinutes(p.etaSec)} (estimado)`
+          : 'terminando, algo más de lo habitual';
   document.getElementById('progress-detail').textContent =
     job.status === 'completed'
       ? `Hecha en ${formatMinutes(p.elapsedSec)} · ${p.actions} acciones de Hermes.`
