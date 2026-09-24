@@ -2,7 +2,7 @@
  * hermes-worker.ts — corre en el Mac del usuario, NO en Railway (2026-09-24).
  *
  * Pregunta a Hermes Studio si hay newsletters standalone en cola, ejecuta cada una con
- * `hermes -z` usando la instalación local de Hermes Agent (config, skills, memoria, suscripción
+ * `hermes chat -q` (no interactivo) usando la instalación local de Hermes Agent (config, skills, memoria, suscripción
  * de Nous) dentro de sistema-final/, y sube el HTML resultante. Es exactamente el flujo manual
  * del usuario (pegar el prompt en Hermes), automatizado: por eso la calidad es la misma.
  *
@@ -12,7 +12,7 @@
  * Variables (studio/.env):      STUDIO_WORKER_URL, WORKER_TOKEN
  * Opcionales:                   HERMES_BIN (por defecto "hermes"), HERMES_TIMEOUT_MIN (180)
  *
- * Un trabajo a la vez. `hermes -z` aprueba solo los comandos (no hay nadie para confirmarlos):
+ * Un trabajo a la vez. `--yolo` aprueba solo los comandos (no hay nadie para confirmarlos):
  * Hermes actúa en este Mac igual que en una sesión normal, pero sin pedir permiso.
  */
 import * as fs from 'fs';
@@ -241,23 +241,74 @@ async function sessionToolCalls(sessionId: string): Promise<ToolCall[]> {
   }
 }
 
+/** El .html más reciente escrito después de `sinceMs` en cualquier subcarpeta directa de `dir`. */
+function newestHtmlSince(dir: string, sinceMs: number): string | null {
+  if (!fs.existsSync(dir)) return null;
+  const found = fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => newestHtml(path.join(dir, e.name)))
+    .filter((f): f is string => !!f && fs.statSync(f).mtimeMs >= sinceMs)
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  return found[0] || null;
+}
+
 let current: string | null = null;
+let currentChild: ReturnType<typeof spawn> | null = null;
+
+/** Veces que se le dice a Hermes "continúa" si termina sin haber dejado el HTML (en la app de
+ *  escritorio lo haría el usuario; p. ej. el 2026-09-24 Hermes anunció "reintento la extracción"
+ *  y terminó el turno sin reintentar). */
+const MAX_CONTINUES = 3;
+/** Sin ninguna actividad en la sesión durante este tiempo, la barra avisa de que parece atascado. */
+const STALL_WARN_SEC = 10 * 60;
+
+/** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
+ *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
+function runHermesTurn(
+  query: string,
+  resumeId: string | null,
+  onSession: (id: string) => void
+): Promise<{ code: number | null; output: string; stderr: string }> {
+  const args = ['chat', '-q', query, '-Q', '--yolo', ...(resumeId ? ['--resume', resumeId] : [])];
+  const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+  currentChild = child;
+  let stdout = '';
+  let stderr = '';
+  child.stdout!.on('data', (d) => {
+    stdout += d;
+    const m = stdout.match(/session_id:\s*(\S+)/);
+    if (m) onSession(m[1]);
+  });
+  child.stderr!.on('data', (d) => (stderr = (stderr + d).slice(-8000)));
+  return new Promise((resolve) => {
+    child.on('close', (code) => {
+      currentChild = null;
+      resolve({ code, output: stdout.replace(/^\s*session_id:.*$/m, '').trim(), stderr });
+    });
+    child.on('error', (err) => {
+      currentChild = null;
+      resolve({ code: -1, output: stdout, stderr: `${stderr}\n${err.message}` });
+    });
+  });
+}
 
 async function runJob(job: { id: string; prompt: string; outputDir: string }): Promise<void> {
   current = job.id;
   const outAbs = path.join(ROOT, job.outputDir);
   fs.mkdirSync(outAbs, { recursive: true });
-  console.log(`[${stamp()}] Trabajo ${job.id} → ${job.outputDir}`);
-
   const started = Date.now();
-  const child = spawn(HERMES_BIN, ['-z', job.prompt], { cwd: ROOT, env: process.env });
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (d) => (stdout += d));
-  child.stderr.on('data', (d) => (stderr = (stderr + d).slice(-8000)));
+  const expectedFile = path.join(outAbs, 'newsletter.html');
+  // Si Hermes escribe mal la ruta (erratas al copiarla), se acepta cualquier .html escrito durante
+  // este trabajo en la carpeta hermes/ de la marca.
+  const htmlReady = (): string | null =>
+    fs.existsSync(expectedFile) ? expectedFile : newestHtml(outAbs) || newestHtmlSince(path.dirname(outAbs), started);
+  console.log(`[${stamp()}] Trabajo ${job.id} → ${job.outputDir}`);
 
   const expected = expectedSeconds();
   let sessionId: string | null = null;
+  let lastCount = -1;
+  let lastChange = Date.now();
   let busy = false;
   const heartbeat = setInterval(async () => {
     if (busy) return;
@@ -270,28 +321,43 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
     } catch {
       // Si no se puede leer la sesión, el progreso sigue solo por tiempo.
     }
-    await api(`/api/worker/jobs/${job.id}/progress`, { progress: estimateProgress(tools, elapsed, expected) }).catch(() => undefined);
+    if (tools.length !== lastCount) {
+      lastCount = tools.length;
+      lastChange = Date.now();
+    }
+    const progress = estimateProgress(tools, elapsed, expected);
+    const idleSec = (Date.now() - lastChange) / 1000;
+    if (idleSec >= STALL_WARN_SEC) {
+      progress.detail = `Hermes lleva ${Math.round(idleSec / 60)} min sin avanzar (esperando al modelo)`;
+    }
+    await api(`/api/worker/jobs/${job.id}/progress`, { progress }).catch(() => undefined);
     busy = false;
   }, PROGRESS_MS);
-  const killer = setTimeout(() => child.kill('SIGTERM'), TIMEOUT_MS);
+  const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  const code: number | null = await new Promise((resolve) => {
-    child.on('close', resolve);
-    child.on('error', (err) => {
-      stderr += `\n${err.message}`;
-      resolve(-1);
-    });
-  });
+  let turn = await runHermesTurn(job.prompt, null, (id) => (sessionId = sessionId || id));
+  for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+    console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})`);
+    await api(`/api/worker/jobs/${job.id}/progress`, {
+      message: `Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${MAX_CONTINUES}).`,
+    }).catch(() => undefined);
+    turn = await runHermesTurn(
+      `Continúa con el encargo: todavía no existe ${job.outputDir}/newsletter.html. Sigue trabajando ` +
+        '(reintenta lo que haya fallado o busca otra fuente) hasta dejar ese archivo terminado y revisado. ' +
+        'No te detengas a anunciar lo que vas a hacer: hazlo.',
+      sessionId,
+      () => undefined
+    );
+  }
   clearInterval(heartbeat);
   clearTimeout(killer);
   const minutes = Math.round((Date.now() - started) / 60000);
 
-  const expectedFile = path.join(outAbs, 'newsletter.html');
-  const htmlPath = fs.existsSync(expectedFile) ? expectedFile : newestHtml(outAbs);
+  const htmlPath = htmlReady();
   if (!htmlPath) {
-    const why = Date.now() - started >= TIMEOUT_MS ? `se agotó el tiempo (${minutes} min)` : `terminó (código ${code}) sin dejar el HTML en ${job.outputDir}/`;
+    const why = Date.now() - started >= TIMEOUT_MS ? `se agotó el tiempo (${minutes} min)` : `terminó (código ${turn.code}) sin dejar el HTML en ${job.outputDir}/`;
     await api(`/api/worker/jobs/${job.id}/fail`, {
-      error: `Hermes ${why}.\n\nÚltima respuesta de Hermes:\n${(stdout || stderr).trim().slice(-2500)}`,
+      error: `Hermes ${why}.\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2500)}`,
     });
     console.log(`[${stamp()}] ✗ ${job.id}: ${why}`);
     current = null;
@@ -304,7 +370,7 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
       message: `Aviso: ${missing.length} imagen(es) referenciadas que no existen en el Mac: ${missing.slice(0, 5).join(', ')}`,
     });
   }
-  const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage: stdout.trim() });
+  const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage: turn.output });
   if (res.ok) recordDuration(minutes);
   console.log(`[${stamp()}] ${res.ok ? '✓' : '✗'} ${job.id} en ${minutes} min${res.ok ? '' : `: ${await res.text()}`}`);
   current = null;
@@ -336,6 +402,7 @@ async function main(): Promise<void> {
 }
 
 process.on('SIGINT', async () => {
+  currentChild?.kill('SIGTERM');
   if (current) {
     await api(`/api/worker/jobs/${current}/fail`, { error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.' }).catch(() => undefined);
   }

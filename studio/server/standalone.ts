@@ -19,7 +19,6 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { ROOT } from './paths';
 import { getJob, updateJob, appendEvent, type Job } from './store';
-import { slugify } from './campaignFs';
 import { toPublicAssetUrl } from './heroImage';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
@@ -30,8 +29,10 @@ export function log(jobId: string, message: string, level: 'info' | 'error' | 's
   appendEvent(jobId, { phase: 'hermes', level, message });
 }
 
+/** Corto a propósito: Hermes copia esta ruta a mano y con nombres largos se equivoca (el
+ *  2026-09-24 escribió "integradon" por "integracion" y dejó el HTML en otra carpeta). */
 export function standaloneCampaignSlug(job: Job): string {
-  return `${job.createdAt.slice(0, 10)}-${slugify(job.input.briefText).slice(0, 30)}-${job.id.slice(-4)}`;
+  return `${job.createdAt.slice(0, 10)}-${job.id.slice(-6)}`;
 }
 
 /** Carpeta de trabajo (relativa a sistema-final/) donde Hermes debe dejar la newsletter — la

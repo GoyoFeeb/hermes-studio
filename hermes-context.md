@@ -419,3 +419,14 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   de las últimas duraciones reales (`studio/worker/.hermes-durations.json`, 20 min por defecto).
   Calibrado con 3 sesiones reales del 23-09. Servidor guarda `job.progress`; UI con barra, fase,
   acción actual y minutos restantes estimados.
+- **Primer trabajo real vía worker (Prozis, 12:07-12:19) falló sin HTML:** `web_extract` de la
+  página de cupones devolvió el aviso de redirección geográfica ("Go to Prozis USA"), el modelo
+  tardó 11 min en contestar y respondió "reintento la extracción" SIN llamar a ninguna herramienta
+  — en modo no interactivo eso cierra el turno. (Además el usuario había dejado seleccionada la
+  marca Adeslas con un prompt de Prozis; se canceló y reenvió.)
+- **Fixes en el worker:** `hermes -z` → `hermes chat -q … -Q --yolo` (imprime `session_id` y
+  admite `--resume`); si Hermes termina sin HTML se retoma la sesión con "continúa" hasta 3 veces
+  (probado: funcionó); aviso en la barra si la sesión lleva > 10 min sin actividad; ruta de
+  salida corta (`{fecha}-{6 chars del id}`) y búsqueda tolerante porque DeepSeek escribió
+  "integradon" por "integracion" al copiar la ruta larga. Hermes, además, deja scripts auxiliares
+  en el repo (p. ej. `scripts/generate-*.js`): limpiados los de las pruebas.
