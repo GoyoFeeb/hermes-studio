@@ -3,70 +3,111 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hermes Studio</title>
+  <meta name="theme-color" content="#050c2a" />
+  <title>Hermes Studio · Feebbo</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700;800&family=Work+Sans:wght@400;500;600;700&display=swap" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1>Hermes Studio</h1>
-    <p>Pega el prompt creativo y Hermes genera la newsletter en HTML.</p>
-    <p id="hermes-status" class="hint">Comprobando si Hermes está conectado…</p>
+    <a class="brand" href="/" aria-label="Hermes Studio — inicio">
+      <img src="/feebbo-logo.svg" alt="Feebbo Digital" width="99" height="36" />
+    </a>
+    <span id="hermes-status" class="status-pill">Comprobando Hermes…</span>
   </header>
 
   <main id="app">
+    <section class="hero">
+      <p class="eyebrow">Hermes Studio</p>
+      <h1>Newsletters de marca, <span class="accent">con Hermes</span></h1>
+      <p class="lead">Pega el prompt creativo y Hermes investiga la marca, escribe la newsletter, la revisa y la corrige. Suele tardar 15-20 minutos.</p>
+    </section>
+
     <section id="view-form">
-      <form id="brief-form" autocomplete="off">
+      <form id="brief-form" class="card" autocomplete="off">
         <input type="hidden" name="mode" value="standalone" />
 
-        <label>
-          Marca
-          <select name="existingBrand" id="existing-brand-select">
-            <option value="">— Marca nueva (no está en el sistema) —</option>
-          </select>
-        </label>
+        <div class="row">
+          <label>
+            <span class="label">Marca</span>
+            <select name="existingBrand" id="existing-brand-select">
+              <option value="">— Marca nueva (no está en el sistema) —</option>
+            </select>
+          </label>
+
+          <label>
+            <span class="label">Nombre de la marca</span>
+            <input type="text" name="clientName" id="client-name-input" required placeholder="Ej: Adeslas" />
+          </label>
+        </div>
 
         <label>
-          Nombre de la marca
-          <input type="text" name="clientName" id="client-name-input" required placeholder="Ej: Adeslas" />
-        </label>
-
-        <label>
-          Prompt creativo
-          <textarea name="promptText" required rows="16"
+          <span class="label">Prompt creativo</span>
+          <textarea name="promptText" id="prompt-input" required rows="14"
             placeholder="Pega aquí el prompt generado con la skill newsletter-creative-brief."></textarea>
         </label>
 
         <fieldset>
-          <legend>¿De dónde salen las imágenes?</legend>
-          <label class="radio">
-            <input type="radio" name="imageMode" value="official" required />
-            Assets oficiales de la marca
-          </label>
-          <label class="radio">
-            <input type="radio" name="imageMode" value="ai" />
-            Generarlas con IA
-          </label>
+          <legend class="label">¿De dónde salen las imágenes?</legend>
+          <div class="choices">
+            <label class="choice">
+              <input type="radio" name="imageMode" value="official" required />
+              <span><strong>Assets oficiales</strong><small>Imágenes de la marca o de su web</small></span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="imageMode" value="ai" />
+              <span><strong>Generadas con IA</strong><small>Hero, producto y ambiente</small></span>
+            </label>
+          </div>
           <p class="hint">El logo siempre es el oficial.</p>
         </fieldset>
 
         <label>
-          Tu nombre (opcional, para el registro del trabajo)
-          <input type="text" name="requesterName" />
+          <span class="label">Tu nombre <em>(opcional, para el registro)</em></span>
+          <input type="text" name="requesterName" id="requester-input" />
         </label>
 
-        <button type="submit">Generar newsletter</button>
-        <p class="hint">Hermes investiga la marca, escribe la newsletter, la revisa y la corrige: suele tardar 15-20 minutos. Puedes cerrar esta página y volver con el enlace del trabajo.</p>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Generar newsletter</button>
+          <p class="hint">Puedes cerrar esta página y volver con el enlace del trabajo.</p>
+        </div>
       </form>
 
       <section id="history" hidden>
-        <h2>Últimas newsletters</h2>
+        <div class="section-head">
+          <p class="eyebrow">Historial</p>
+          <span id="history-count" class="hint"></span>
+        </div>
+        <div class="history-tools">
+          <input type="search" id="history-search" placeholder="Buscar por marca o persona…" aria-label="Buscar en el historial" />
+          <select id="history-brand" aria-label="Filtrar por marca">
+            <option value="">Todas las marcas</option>
+          </select>
+        </div>
+        <div class="chips" id="history-status" role="group" aria-label="Filtrar por estado">
+          <button type="button" class="chip is-active" data-status="">Todas</button>
+          <button type="button" class="chip" data-status="active">En curso</button>
+          <button type="button" class="chip" data-status="completed">Listas</button>
+          <button type="button" class="chip" data-status="failed">Fallidas</button>
+        </div>
         <ul id="history-list"></ul>
+        <p id="history-empty" class="hint" hidden>Ningún trabajo coincide con el filtro.</p>
+        <button type="button" id="history-more" class="btn btn-ghost" hidden>Ver más</button>
       </section>
     </section>
 
-    <section id="view-job" hidden>
-      <h2>Progreso</h2>
-      <div id="job-status" class="status-badge"></div>
+    <section id="view-job" class="card" hidden>
+      <div class="job-head">
+        <div>
+          <p class="eyebrow">Trabajo</p>
+          <h2 id="job-title"></h2>
+          <p id="job-meta" class="hint"></p>
+        </div>
+        <div id="job-status" class="status-badge"></div>
+      </div>
 
       <div id="job-progress" hidden>
         <div class="progress-head">
@@ -78,22 +119,36 @@
         </div>
         <p id="progress-detail" class="hint"></p>
       </div>
-      <ol id="job-log"></ol>
 
       <div id="job-result" hidden>
-        <p>✅ La newsletter está lista.</p>
-        <a id="download-link" class="button" href="#">Descargar HTML</a>
+        <div class="result-bar">
+          <p>La newsletter está lista.</p>
+          <a id="download-link" class="btn btn-primary" href="#">Descargar HTML</a>
+          <a id="open-link" class="btn btn-ghost" href="#" target="_blank" rel="noopener">Abrir en pestaña</a>
+        </div>
         <iframe id="preview-frame" sandbox title="Previsualización de la newsletter"></iframe>
       </div>
 
       <div id="job-blocked" hidden>
-        <p>⚠️ La campaña se detuvo antes de poder entregarse:</p>
+        <p>La campaña se detuvo antes de poder entregarse:</p>
         <pre id="blocked-reason"></pre>
       </div>
 
-      <button id="new-job-btn" type="button">Generar otra newsletter</button>
+      <details class="log-box">
+        <summary>Registro de Hermes</summary>
+        <ol id="job-log"></ol>
+      </details>
+
+      <div class="actions">
+        <button id="reuse-btn" type="button" class="btn btn-secondary">Reutilizar este prompt</button>
+        <button id="new-job-btn" type="button" class="btn btn-ghost">Generar otra newsletter</button>
+      </div>
     </section>
   </main>
+
+  <footer class="foot">
+    <span>Feebbo Digital</span><span>Digital Business CRO y Growthinking</span>
+  </footer>
 
   <script src="/app.js"></script>
 </body>

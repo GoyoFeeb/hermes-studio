@@ -1,6 +1,7 @@
 const form = document.getElementById('brief-form');
 const viewForm = document.getElementById('view-form');
 const viewJob = document.getElementById('view-job');
+const hero = document.querySelector('.hero');
 const existingBrandSelect = document.getElementById('existing-brand-select');
 const clientNameInput = document.getElementById('client-name-input');
 
@@ -16,17 +17,18 @@ async function loadBrands() {
     console.error('No se pudieron cargar las marcas existentes', err);
   }
 }
-loadBrands();
+const brandsReady = loadBrands();
 
 async function loadHermesStatus() {
   const el = document.getElementById('hermes-status');
   try {
     const { hermesOnline } = await (await fetch('/api/status')).json();
-    el.textContent = hermesOnline
-      ? '🟢 Hermes conectado.'
-      : '🟠 Hermes no está conectado ahora mismo: puedes enviar igualmente, empezará cuando se conecte.';
+    el.textContent = hermesOnline ? 'Hermes conectado' : 'Hermes desconectado';
+    el.className = `status-pill ${hermesOnline ? 'is-online' : 'is-offline'}`;
+    el.title = hermesOnline ? '' : 'Puedes enviar igualmente: empezará cuando Hermes se conecte.';
   } catch {
     el.textContent = '';
+    el.className = 'status-pill';
   }
 }
 loadHermesStatus();
@@ -35,7 +37,7 @@ setInterval(loadHermesStatus, 60000);
 // Al elegir una marca existente se rellena el nombre (editable, p. ej. "El Corte Inglés").
 existingBrandSelect.addEventListener('change', () => {
   if (existingBrandSelect.value && !clientNameInput.value) {
-    clientNameInput.value = existingBrandSelect.value.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    clientNameInput.value = prettyBrand(existingBrandSelect.value);
   }
 });
 
@@ -88,88 +90,229 @@ const STATUS_LABELS = {
   blocked: 'Bloqueada',
 };
 
+const IMAGE_LABELS = { official: 'Assets oficiales', ai: 'Imágenes con IA' };
+
+// ---------------------------------------------------------------- historial
+
+const HISTORY_PAGE = 20;
+const historyState = { jobs: [], query: '', brand: '', status: '', shown: HISTORY_PAGE };
+let historyTimer = null;
+
 async function loadHistory() {
+  clearTimeout(historyTimer);
   try {
     const { jobs } = await (await fetch('/api/jobs')).json();
-    const box = document.getElementById('history');
-    box.hidden = jobs.length === 0;
-    document.getElementById('history-list').innerHTML = jobs
-      .map((j) => {
-        const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
-        const who = j.requesterName ? ` · ${escapeHtml(j.requesterName)}` : '';
-        const pct = j.status === 'running' && j.pct != null ? ` ${j.pct}%` : '';
-        return `<li><a href="?job=${encodeURIComponent(j.id)}">${escapeHtml(j.clientName)}</a>
-          <span class="hint">${when}${who}</span>
-          <span class="status-badge status-${escapeHtml(j.status)}">${STATUS_LABELS[j.status] || escapeHtml(j.status)}${pct}</span></li>`;
-      })
-      .join('');
+    historyState.jobs = jobs;
+    document.getElementById('history').hidden = jobs.length === 0;
+
+    const brandSelect = document.getElementById('history-brand');
+    const current = brandSelect.value;
+    const brands = [...new Map(jobs.map((j) => [j.clientSlug || j.clientName, j.clientName])).entries()].sort((a, b) =>
+      a[1].localeCompare(b[1], 'es')
+    );
+    brandSelect.innerHTML =
+      '<option value="">Todas las marcas</option>' +
+      brands.map(([slug, name]) => `<option value="${escapeHtml(slug)}">${escapeHtml(name)}</option>`).join('');
+    brandSelect.value = brands.some(([slug]) => slug === current) ? current : '';
+
+    renderHistory();
+    // Mientras haya trabajos en curso, el historial se refresca solo.
+    if (jobs.some((j) => j.status === 'running' || j.status === 'queued')) {
+      historyTimer = setTimeout(loadHistory, 20000);
+    }
   } catch (err) {
     console.error('No se pudo cargar el historial', err);
   }
 }
 
-document.getElementById('new-job-btn').addEventListener('click', () => {
+function filteredJobs() {
+  const q = normalize(historyState.query);
+  return historyState.jobs.filter((j) => {
+    if (historyState.brand && (j.clientSlug || j.clientName) !== historyState.brand) return false;
+    if (historyState.status === 'active' && j.status !== 'running' && j.status !== 'queued') return false;
+    if (historyState.status === 'completed' && j.status !== 'completed') return false;
+    if (historyState.status === 'failed' && j.status !== 'failed' && j.status !== 'blocked') return false;
+    if (q && !normalize(`${j.clientName} ${j.requesterName || ''}`).includes(q)) return false;
+    return true;
+  });
+}
+
+function renderHistory() {
+  const list = filteredJobs();
+  const visible = list.slice(0, historyState.shown);
+  const total = historyState.jobs.length;
+  document.getElementById('history-count').textContent =
+    list.length === total ? `${total} trabajo${total === 1 ? '' : 's'}` : `${list.length} de ${total}`;
+  document.getElementById('history-empty').hidden = list.length > 0;
+  document.getElementById('history-more').hidden = list.length <= visible.length;
+
+  document.getElementById('history-list').innerHTML = visible
+    .map((j) => {
+      const id = encodeURIComponent(j.id);
+      const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+      const meta = [when, j.requesterName, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
+        .filter(Boolean)
+        .map(escapeHtml)
+        .join(' · ');
+      const running = j.status === 'running' && j.pct != null;
+      const label = (STATUS_LABELS[j.status] || j.status) + (running ? ` · ${j.pct}%` : '');
+      const actions = [
+        `<a class="btn btn-ghost" href="?job=${id}">Ver</a>`,
+        j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
+        `<button type="button" class="btn btn-secondary" data-reuse="${escapeHtml(j.id)}">Reutilizar</button>`,
+      ].join('');
+      return `<li class="job-row">
+          <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}</a>
+          <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(label)}</span>
+          <p class="meta">${meta}</p>
+          <div class="row-actions">${actions}</div>
+          ${running ? `<div class="mini-track"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}
+          ${j.error ? `<p class="err">${escapeHtml(j.error)}</p>` : ''}
+        </li>`;
+    })
+    .join('');
+}
+
+document.getElementById('history-search').addEventListener('input', (e) => {
+  historyState.query = e.target.value;
+  historyState.shown = HISTORY_PAGE;
+  renderHistory();
+});
+document.getElementById('history-brand').addEventListener('change', (e) => {
+  historyState.brand = e.target.value;
+  historyState.shown = HISTORY_PAGE;
+  renderHistory();
+});
+document.getElementById('history-status').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  document.querySelectorAll('#history-status .chip').forEach((c) => c.classList.toggle('is-active', c === chip));
+  historyState.status = chip.dataset.status;
+  historyState.shown = HISTORY_PAGE;
+  renderHistory();
+});
+document.getElementById('history-more').addEventListener('click', () => {
+  historyState.shown += HISTORY_PAGE;
+  renderHistory();
+});
+document.getElementById('history-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-reuse]');
+  if (btn) reuseJob(btn.dataset.reuse);
+});
+
+// "Reutilizar": rellena el formulario con la marca, el prompt y el modo de imágenes de un trabajo
+// anterior (para relanzar uno fallido o hacer una variante). No se envía hasta pulsar Generar.
+async function reuseJob(id) {
+  const res = await fetch(`/api/jobs/${encodeURIComponent(id)}`);
+  if (!res.ok) return alert('No se pudo cargar ese trabajo.');
+  const { job } = await res.json();
+  showFormView();
+  await brandsReady;
+  form.reset();
+  const slug = job.input.clientSlug || '';
+  existingBrandSelect.value = [...existingBrandSelect.options].some((o) => o.value === slug) ? slug : '';
+  clientNameInput.value = job.input.clientName || '';
+  document.getElementById('prompt-input').value = job.input.briefText || '';
+  document.getElementById('requester-input').value = job.input.requesterName || '';
+  const radio = form.querySelector(`input[name="imageMode"][value="${job.input.imageMode}"]`);
+  if (radio) radio.checked = true;
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('prompt-input').focus({ preventScroll: true });
+}
+
+// ---------------------------------------------------------------- vistas
+
+function showFormView() {
+  clearTimeout(pollTimer);
+  currentJob = null;
   history.pushState({}, '', location.pathname);
   viewJob.hidden = true;
   viewForm.hidden = false;
+  hero.hidden = false;
   loadHistory();
+}
+
+document.getElementById('new-job-btn').addEventListener('click', () => {
+  showFormView();
   form.reset();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 });
+document.getElementById('reuse-btn').addEventListener('click', () => {
+  if (currentJob) reuseJob(currentJob);
+});
+window.addEventListener('popstate', () => route());
 
 const PHASE_LABELS = {
   setup: 'Preparando campaña',
-  '01': '01 · Briefing',
-  '02': '02 · Análisis de marca',
-  '03': '03 · Estructura',
-  '04': '04 · Diseño',
-  '05': '05 · Copy',
-  '06': '06 · Datos',
-  '07': '07 · Construcción del HTML',
-  '08': '08 · QA',
-  '09': '09 · Gate de producción',
   standalone: 'Newsletter',
   hermes: 'Hermes',
   system: 'Sistema',
 };
 
 let pollTimer = null;
+let currentJob = null;
 
 function showJobView(id) {
+  clearTimeout(historyTimer);
+  currentJob = id;
   viewForm.hidden = true;
+  hero.hidden = true;
   viewJob.hidden = false;
   document.getElementById('job-result').hidden = true;
   document.getElementById('job-blocked').hidden = true;
+  document.getElementById('preview-frame').removeAttribute('src');
+  document.getElementById('job-title').textContent = '';
+  document.getElementById('job-meta').textContent = '';
+  window.scrollTo({ top: 0 });
   poll(id);
 }
 
 async function poll(id) {
   clearTimeout(pollTimer);
   const res = await fetch(`/api/jobs/${id}`);
-  if (!res.ok) return;
+  if (id !== currentJob) return;
+  if (!res.ok) {
+    document.getElementById('job-title').textContent = 'Trabajo no encontrado';
+    return;
+  }
   const { job, events } = await res.json();
 
+  document.getElementById('job-title').textContent = job.input.clientName;
+  document.getElementById('job-meta').textContent = [
+    new Date(job.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
+    job.input.requesterName,
+    IMAGE_LABELS[job.input.imageMode],
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   const statusEl = document.getElementById('job-status');
-  statusEl.textContent = job.status;
+  statusEl.textContent = STATUS_LABELS[job.status] || job.status;
   statusEl.className = `status-badge status-${job.status}`;
 
   renderProgress(job);
 
   const log = document.getElementById('job-log');
   log.innerHTML = events
-    .map((ev) => `<li class="log-${ev.level}"><strong>${PHASE_LABELS[ev.phase] || ev.phase}</strong> — ${escapeHtml(ev.message)}</li>`)
+    .map((ev) => `<li class="log-${ev.level}"><strong>${escapeHtml(PHASE_LABELS[ev.phase] || ev.phase)}</strong> — ${escapeHtml(ev.message)}</li>`)
     .join('');
   log.scrollTop = log.scrollHeight;
 
   if (job.status === 'completed') {
-    document.getElementById('job-result').hidden = false;
-    document.getElementById('download-link').href = `/api/jobs/${id}/result?download=1`;
-    document.getElementById('preview-frame').src = `/api/jobs/${id}/result`;
+    const resultBox = document.getElementById('job-result');
+    if (resultBox.hidden) {
+      resultBox.hidden = false;
+      document.getElementById('download-link').href = `/api/jobs/${id}/result?download=1`;
+      document.getElementById('open-link').href = `/api/jobs/${id}/result`;
+      document.getElementById('preview-frame').src = `/api/jobs/${id}/result`;
+    }
     return;
   }
 
   if (job.status === 'blocked' || job.status === 'failed') {
     document.getElementById('job-blocked').hidden = false;
     document.getElementById('blocked-reason').textContent = job.blockedReason || job.error || 'Motivo desconocido.';
+    document.querySelector('.log-box').open = true;
     return;
   }
 
@@ -217,18 +360,37 @@ function renderProgress(job) {
       : `${p.detail} · ${p.actions} acciones · ${formatMinutes(p.elapsedSec)} transcurridos`;
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+// ---------------------------------------------------------------- utilidades
+
+function prettyBrand(slug) {
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-const params = new URLSearchParams(location.search);
-if (params.get('job')) {
-  showJobView(params.get('job'));
-} else {
-  // El navegador restaura el formulario anterior (así se coló un prompt de Prozis con la marca
-  // Adeslas seleccionada): cada visita empieza en blanco.
-  form.reset();
-  loadHistory();
+function normalize(str) {
+  return String(str).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').trim();
 }
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML.replace(/"/g, '&quot;');
+}
+
+function route() {
+  const id = new URLSearchParams(location.search).get('job');
+  if (id) {
+    showJobView(id);
+  } else {
+    clearTimeout(pollTimer);
+    currentJob = null;
+    viewJob.hidden = true;
+    viewForm.hidden = false;
+    hero.hidden = false;
+    loadHistory();
+  }
+}
+
+// El navegador restaura el formulario anterior (así se coló un prompt de Prozis con la marca
+// Adeslas seleccionada): cada visita empieza en blanco.
+form.reset();
+route();

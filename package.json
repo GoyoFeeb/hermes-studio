@@ -9,6 +9,7 @@
     "build-newsletter": "node engine/build-newsletter.js",
     "studio": "npx tsx studio/server/index.ts",
     "hermes-worker": "caffeinate -i npx tsx studio/worker/hermes-worker.ts",
+    "hermes-worker:service": "studio/worker/service.sh",
     "production-gate": "npm run production-gate-motor --",
     "check-parity": "npx tsx scripts/check-parity.ts",
     "check-control-files": "npx tsx scripts/check-control-files.ts",

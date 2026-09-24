@@ -1,3 +1,4 @@
 data/
 .env
 worker/.hermes-durations.json
+worker/.worker.lock

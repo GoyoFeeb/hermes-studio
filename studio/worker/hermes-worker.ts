@@ -461,11 +461,47 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
   current = null;
 }
 
+/** Un solo worker a la vez (servicio de launchd + uno abierto a mano en un terminal): con dos, se
+ *  reparten trabajos y el /reset del que arranca marcaba como fallido lo que hacía el otro. */
+const LOCK_FILE = path.join(__dirname, '.worker.lock');
+
+function lockHolder(): number | null {
+  try {
+    const pid = Number(fs.readFileSync(LOCK_FILE, 'utf8'));
+    if (pid && pid !== process.pid) {
+      process.kill(pid, 0); // lanza si el proceso ya no existe
+      return pid;
+    }
+  } catch {
+    // sin candado o de un proceso muerto
+  }
+  return null;
+}
+
+async function acquireLock(): Promise<void> {
+  let warned = false;
+  for (let holder = lockHolder(); holder; holder = lockHolder()) {
+    if (!warned) console.log(`Ya hay otro worker activo (pid ${holder}); espero a que termine para tomar el relevo.`);
+    warned = true;
+    await new Promise((r) => setTimeout(r, 60 * 1000));
+  }
+  fs.writeFileSync(LOCK_FILE, String(process.pid));
+}
+
+function releaseLock(): void {
+  try {
+    if (Number(fs.readFileSync(LOCK_FILE, 'utf8')) === process.pid) fs.rmSync(LOCK_FILE);
+  } catch {
+    // ya no existe
+  }
+}
+
 async function main(): Promise<void> {
   if (!BASE || !TOKEN) {
     console.error('Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en studio/.env — ver studio/README.md.');
     process.exit(1);
   }
+  await acquireLock();
   // Trabajos que este worker dejó a medias en una ejecución anterior (el aviso de Ctrl+C no
   // siempre llega antes de que el proceso muera).
   try {
@@ -504,12 +540,21 @@ async function main(): Promise<void> {
   }
 }
 
-process.on('SIGINT', async () => {
+// Ctrl+C en el terminal (SIGINT) o parada del servicio de launchd (SIGTERM).
+async function shutdown(): Promise<void> {
   currentChild?.kill('SIGTERM');
   if (current) {
-    await api(`/api/worker/jobs/${current}/fail`, { error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.' }).catch(() => undefined);
+    await api(`/api/worker/jobs/${current}/fail`, { error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.' }, 1).catch(() => undefined);
   }
+  releaseLock();
   process.exit(0);
-});
+}
+process.on('SIGINT', () => void shutdown());
+process.on('SIGTERM', () => void shutdown());
+process.on('exit', releaseLock);
+// El 2026-09-24 el worker se cerró sin decir nada tras un 502 de Studio (redespliegue de Railway):
+// un error no controlado se registra y el bucle sigue; si aun así muere, launchd lo relanza.
+process.on('unhandledRejection', (err) => console.error(`[${stamp()}] Error no controlado:`, err));
+process.on('uncaughtException', (err) => console.error(`[${stamp()}] Excepción no controlada:`, err));
 
 if (require.main === module) void main();

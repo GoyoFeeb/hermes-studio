@@ -40,6 +40,11 @@ entrega. `/assets/*` es público y solo sirve imágenes; el HTML se sirve con CS
    ```
 3. Desde `sistema-final/`: `npm run hermes-worker` (usa `caffeinate` para que el Mac no se duerma).
    Mientras esté abierto, el formulario muestra "Hermes conectado".
+4. Recomendado: dejarlo como **servicio de macOS** para no depender de una pestaña de terminal:
+   `studio/worker/service.sh install` (arranca al iniciar sesión y se reinicia solo si se cae).
+   Resto de órdenes: `status`, `logs`, `restart`, `uninstall`. Log: `~/Library/Logs/hermes-worker.log`.
+   Solo corre un worker a la vez (candado `studio/worker/.worker.lock`): si hay otro abierto, el
+   nuevo espera y toma el relevo cuando el primero se cierra.
 
 Un trabajo a la vez. El worker lanza `hermes chat -q … -Q --yolo`: aprueba solo los comandos (no hay
 nadie para confirmarlos), así que Hermes actúa en el Mac igual que en una sesión normal pero sin
@@ -54,7 +59,7 @@ aunque `caffeinate` esté activo. Si la subida final falla, el error indica dón
 Ajuste recomendado en `~/.hermes/config.yaml` (agent): `intent_ack_continuation: true` — evita que
 DeepSeek cierre el turno tras anunciar "Let me..." sin ejecutar nada.
 
-La página principal muestra las últimas 25 newsletters. El desplegable de marcas combina las del
+La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El desplegable de marcas combina las del
 volumen de Railway y las del Mac del worker. Si el prompt no menciona la marca elegida, Studio pide
 confirmación antes de encolarlo.
 

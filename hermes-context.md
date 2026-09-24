@@ -506,3 +506,21 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   (fuera de `~/.hermes/skills` para que Hermes no la cargue).
 - **Vigilar:** que Hermes respete la regla de mantenimiento en las próximas campañas (si `SKILL.md`
   vuelve a crecer, la nota del worker para archivos > 40 KB sigue actuando de red).
+
+### 2026-09-24 (tarde) — Worker como servicio de macOS + interfaz con la identidad de Feebbo
+
+- **Worker robusto:** la tarde del 24 el proceso del worker murió sin error a mitad del trabajo de
+  ASICS (13:44 → ~14:02); al reiniciarlo, el reset lo marcó fallido. Cambios en
+  `studio/worker/hermes-worker.ts`: candado de instancia única (`.worker.lock`; un segundo worker
+  espera y toma el relevo), SIGINT/SIGTERM marcan el trabajo en curso como fallido y matan a Hermes,
+  y los `unhandledRejection`/`uncaughtException` se registran en vez de tumbar el proceso.
+- **Servicio launchd** (`studio/worker/service.sh`, `npm run hermes-worker:service -- install|
+  uninstall|restart|status|logs`): `com.hermes-studio.worker`, arranca con la sesión, KeepAlive
+  (se reinicia solo), `caffeinate -i`, log en `~/Library/Logs/hermes-worker.log`. **Pendiente de
+  instalar** (cerrar antes el worker manual de la terminal).
+- **Interfaz (studio/web):** rediseño con la identidad de feebbodigital.com — azul noche #050C2A,
+  rosa #FB73FF, lila/morado, Work Sans + Barlow en mayúsculas espaciadas, botones píldora, logo y
+  favicon oficiales. Historial: hasta 200 trabajos con buscador (marca/persona), filtro por marca y
+  por estado, duración, motivo del fallo, acciones Ver/Descargar/**Reutilizar** (rellena el
+  formulario con marca, prompt e imágenes; no envía). `/api/jobs` devuelve además clientSlug,
+  imageMode, elapsedSec y error.

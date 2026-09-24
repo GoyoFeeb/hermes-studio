@@ -359,14 +359,18 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
   sweepStaleHermesJobs();
   const jobs = listJobs()
     .filter((j) => j.input.mode === 'standalone')
-    .slice(0, 25)
+    .slice(0, 200)
     .map((j) => ({
       id: j.id,
       createdAt: j.createdAt,
       status: j.status,
       clientName: j.input.clientName,
+      clientSlug: j.input.clientSlug,
       requesterName: j.input.requesterName || null,
+      imageMode: j.input.imageMode || null,
       pct: j.progress?.pct ?? null,
+      elapsedSec: j.progress?.elapsedSec ?? null,
+      error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,
     }));
   res.json({ jobs });
 });
