@@ -439,3 +439,14 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   encargo añade una "nota de entorno" que manda leer del disco con read_file por tramos los .md de
   skills de newsletter > 40 KB. **Pendiente (decisión del usuario):** adelgazar esas dos skills
   (probablemente acumulan aprendizajes por campaña que deberían vivir en `references/`).
+- **Tercer intento de Prozis (12:47) falló tras 3 "continúa":** (1) una llamada a Nous/DeepSeek
+  quedó colgada 8 min — Hermes corta a los 600 s para deepseek-v4-flash; bajarlo por config NO
+  funciona (bug de Hermes: `agent/chat_completion_helpers.py` aplica el suelo de razonamiento con
+  max() aunque haya `stale_timeout_seconds` configurado, contra lo que dice su docstring). Es raro
+  (5 de 8.660 llamadas en los logs), se deja estar. `config.yaml` NO se tocó (copia en
+  `~/.hermes/config.yaml.bak.20260924_125552`). (2) Prozis bloquea Firecrawl (redirección a EE. UU.
+  + 429) y DeepSeek responde "Let me..." sin llamar herramientas → cada turno se cierra sin avanzar.
+  `tool_use_enforcement` ya está activo para deepseek; `intent_ack_continuation` está en auto (solo
+  codex) — activarlo (true) es la corrección nativa de Hermes; pendiente de permiso del usuario.
+  Worker: nota de entorno (webs bloqueadas → browser_navigate desde el Mac; máx. 2 intentos por
+  dato) y "continúa" que exige llamadas a herramientas.

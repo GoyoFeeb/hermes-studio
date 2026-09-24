@@ -269,6 +269,19 @@ const STALL_WARN_SEC = 10 * 60;
  *  (4 skill_view + 3 read_file) y se quedó parado. Leídos del disco son Markdown normal. */
 const LARGE_SKILL_FILE_BYTES = 40 * 1024;
 
+/** Firecrawl (web_extract/web_search) sale desde servidores de EE. UU.: webs españolas que
+ *  redirigen por país o limitan peticiones (Prozis, 2026-09-24: "Go to Prozis USA" y 429)
+ *  devuelven basura, y DeepSeek tiende a anunciar "Let me..." y cerrar el turno. */
+const WEB_ACCESS_NOTE = [
+  '',
+  '## Nota de entorno: webs que bloquean la lectura',
+  '- web_extract/web_search salen desde EE. UU. Si una web oficial devuelve una redirección de país',
+  '  ("Go to ... USA"), un 429 o una página vacía, NO repitas web_extract: ábrela con el navegador',
+  '  (browser_navigate), que sale desde este Mac en España, o busca el dato en otra página oficial.',
+  '- Máximo 2 intentos por dato. Si no aparece, anótalo como pendiente y sigue: la entrega es el HTML.',
+  '- No anuncies lo que vas a hacer ("Let me..."): llama a la herramienta directamente.',
+].join('\n');
+
 function skillReadingNote(): string {
   const skillsDir = path.join(os.homedir(), '.hermes', 'skills');
   const large: string[] = [];
@@ -364,16 +377,17 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
   }, PROGRESS_MS);
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  let turn = await runHermesTurn(job.prompt + skillReadingNote(), null, (id) => (sessionId = sessionId || id));
+  let turn = await runHermesTurn(job.prompt + skillReadingNote() + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})`);
     await api(`/api/worker/jobs/${job.id}/progress`, {
       message: `Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${MAX_CONTINUES}).`,
     }).catch(() => undefined);
     turn = await runHermesTurn(
-      `Continúa con el encargo: todavía no existe ${job.outputDir}/newsletter.html. Sigue trabajando ` +
-        '(reintenta lo que haya fallado o busca otra fuente) hasta dejar ese archivo terminado y revisado. ' +
-        'No te detengas a anunciar lo que vas a hacer: hazlo.',
+      `Todavía no existe ${job.outputDir}/newsletter.html. Tu respuesta anterior anunció una acción pero ` +
+        'no llamó a ninguna herramienta, y eso termina tu turno sin avanzar. Responde AHORA con llamadas a ' +
+        'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
+        'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
       sessionId,
       () => undefined
     );
