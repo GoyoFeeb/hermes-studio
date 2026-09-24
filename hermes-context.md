@@ -311,3 +311,12 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   jobs reales que gpt-5.4-mini respeta el formato de bloques de archivo y pasa QA/gate. No toca
   agentes ni motor.
 
+- **Primer job real con gpt-5.4-mini:** fases 01-07 OK (incluido schema de `campaign-data.json`
+  y build del motor). Falló en 08: "no devolvió el veredicto machine-readable". Causa: el
+  contrato de salida (`buildOutputContract`) dice "EXCLUSIVAMENTE los archivos pedidos" y
+  `__verdict__.json` no estaba en esa lista — Claude lo añadía igual, GPT obedece literal.
+  Fix en `studio/server/phases/qaExportPhase.ts`: el veredicto entra en la lista del contrato;
+  `extractVerdict()` acepta "Aprobado — prueba interna/producción" (formato real que exige
+  `agents/08-qa-specialist.md`, antes se habría rechazado como "no reconocido"), tolera fences
+  ```json, y si falta el bloque JSON cae al `Veredicto:` explícito de `final-checklist.md` (si
+  tampoco existe, falla igual que antes). 6 casos probados.

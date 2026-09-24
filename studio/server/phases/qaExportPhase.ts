@@ -57,7 +57,10 @@ export async function runQaPhase(campaignRelPath: string, brandSlug: string, inp
     '{"verdict": "Aprobado" | "Devuelto" | "Bloqueado", "blockers": ["motivo concreto 1", "..."]}',
     '"blockers" debe estar vacío solo si verdict es "Aprobado". Sé estricto: un compañero de',
     'equipo va a recibir este HTML sin que nadie más lo revise antes.',
-    buildOutputContract(expected),
+    // El veredicto va TAMBIÉN en la lista del contrato: el contrato dice "EXCLUSIVAMENTE los
+    // archivos pedidos", y un modelo que lo sigue al pie de la letra (gpt-5.4-mini, 2026-09-24)
+    // omitía el bloque del veredicto por no estar en esa lista.
+    buildOutputContract([...expected, VERDICT_KEY]),
   ].join('\n');
 
   const userText = [
@@ -79,22 +82,44 @@ export async function runQaPhase(campaignRelPath: string, brandSlug: string, inp
   }
   writeGeneratedFiles(files, [campaignRelPath]);
 
-  if (!verdictRaw) {
+  return extractVerdict(verdictRaw, files[expected[0]]);
+}
+
+/** "Aprobado — prueba interna" / "Aprobado — producción" (agents/08-qa-specialist.md) cuentan
+ *  como Aprobado; el nivel lo decide después el production gate de la fase 09. */
+function normalizeVerdict(value: unknown): QAResult['verdict'] | null {
+  const m = String(value ?? '').trim().match(/^(Aprobado|Devuelto|Bloqueado)\b/i);
+  if (!m) return null;
+  return (m[1][0].toUpperCase() + m[1].slice(1).toLowerCase()) as QAResult['verdict'];
+}
+
+export function extractVerdict(verdictRaw: string | undefined, checklist: string | undefined): QAResult {
+  if (verdictRaw) {
+    let parsed: { verdict?: unknown; blockers?: unknown };
+    try {
+      parsed = JSON.parse(verdictRaw.trim().replace(/^```(?:json)?\s*|\s*```$/g, ''));
+    } catch (err) {
+      throw new Error(`Veredicto de QA no es JSON válido: ${(err as Error).message}`);
+    }
+    const verdict = normalizeVerdict(parsed.verdict);
+    if (!verdict) throw new Error(`Veredicto de QA no reconocido: ${String(parsed.verdict)}`);
+    const blockers = Array.isArray(parsed.blockers) ? parsed.blockers.map(String) : [];
+    return { verdict, blockers };
+  }
+
+  // Sin bloque JSON: el veredicto humano de final-checklist.md es la fuente de verdad del
+  // agente 08 ("Veredicto: ..." — ver agents/08-qa-specialist.md). Solo se acepta si está
+  // declarado explícitamente; si no, se falla en vez de adivinar.
+  const line = checklist?.match(/veredicto[^:\n]*:\s*\**\s*([^\n]+)/i);
+  const verdict = line ? normalizeVerdict(line[1].replace(/\*/g, '')) : null;
+  if (!verdict) {
     throw new Error('La fase 08 no devolvió el veredicto machine-readable esperado.');
   }
-
-  let verdict: QAResult;
-  try {
-    verdict = JSON.parse(verdictRaw.trim());
-  } catch (err) {
-    throw new Error(`Veredicto de QA no es JSON válido: ${(err as Error).message}`);
-  }
-  if (!['Aprobado', 'Devuelto', 'Bloqueado'].includes(verdict.verdict)) {
-    throw new Error(`Veredicto de QA no reconocido: ${verdict.verdict}`);
-  }
-  if (!Array.isArray(verdict.blockers)) verdict.blockers = [];
-
-  return verdict;
+  const blockers =
+    verdict === 'Aprobado'
+      ? []
+      : ['Veredicto tomado de 08-qa/final-checklist.md (sin bloque JSON) — ver ese archivo para los motivos.'];
+  return { verdict, blockers };
 }
 
 export interface GateResult {
