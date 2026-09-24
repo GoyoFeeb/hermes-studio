@@ -330,3 +330,12 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   que luego se descarta. Probado con un `campaign-data.json` real de Adeslas + 5 mutaciones.
   Observación: la fase 06 NO es determinista con este modelo (el job anterior pasó 06 a la
   primera) — la ronda de corrección es la defensa, no un parche puntual.
+- **Tercer job:** 06 pasó (schema OK) pero 07 bloqueó: patrón `institutional` exige `header-logo`
+  como ancla en la posición 1 y el modelo abrió con `hero-centrado`. El schema no comprueba la
+  gramática de patrón, solo el motor. Fix: el validador de la fase 06 llama también a
+  `loadPattern`/`validateModulesAgainstPattern` de `engine/lib/pattern.js` (reutilizado, motor
+  sin tocar), así los fallos de orden entran en la ronda de corrección de la 06. Reproduce el
+  mensaje exacto del job fallido; el `campaign-data.json` real de Adeslas sigue pasando limpio.
+- **Cambio de modelo:** a petición del usuario, `LLM_MODEL=gpt-5.5` en Railway (antes
+  `gpt-5.4-mini` por defecto) tras 3 jobs fallidos por reglas de los agentes mal seguidas.
+  Probado en local (texto + imagen + `reasoning_effort=low`). Más caro por newsletter.

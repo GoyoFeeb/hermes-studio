@@ -12,6 +12,12 @@ import { parseFileBlocks, buildOutputContract } from '../util/fileBlocks';
 import { generateHeroImage, toPublicAssetUrl } from '../heroImage';
 import { sanitizeLandingPrompt } from '../../../scripts/lib/sanitize-hero-prompt';
 import type { JobInput } from '../store';
+import { ROOT } from '../paths';
+// Misma comprobación de gramática de patrón que aplica el motor en la fase 07 (única fuente,
+// no se duplica): así un fallo de orden de módulos entra en la ronda de corrección de la 06 en
+// vez de bloquear el job en la 07.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { loadPattern, validateModulesAgainstPattern } = require('../../../engine/lib/pattern');
 
 const HERO_PLACEHOLDER = '{{GENERATE_HERO}}';
 /** Solo para validar antes de generar el hero; nunca se escribe a disco. */
@@ -21,10 +27,21 @@ const MAX_REPAIRS = 2;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type JsonSchema = any;
 
+function patternErrors(data: JsonSchema, systemRoot: string): string[] {
+  let sequence: unknown;
+  try {
+    ({ sequence } = loadPattern(data.pattern, systemRoot));
+  } catch (err) {
+    return [(err as Error).message];
+  }
+  const check = validateModulesAgainstPattern(sequence, data.modules) as { ok: boolean; errors: string[] };
+  return check.ok ? [] : check.errors.map((e) => `Patrón "${data.pattern}": ${e}`);
+}
+
 /** Valida contra el schema del motor y devuelve errores LEGIBLES. Con `modules.items.oneOf`,
  *  ajv lista los fallos de las ~20 ramas a la vez (cientos de líneas inútiles); aquí cada
  *  módulo inválido se re-valida solo contra la rama de SU componente. */
-export function buildValidator(schemaJson: JsonSchema): (json: string) => string[] {
+export function buildValidator(schemaJson: JsonSchema, systemRoot: string = ROOT): (json: string) => string[] {
   const ajv = new Ajv({ allErrors: true, strict: false });
   const validateAll = ajv.compile(schemaJson);
   const branches: JsonSchema[] = schemaJson?.properties?.modules?.items?.oneOf || [];
@@ -43,7 +60,7 @@ export function buildValidator(schemaJson: JsonSchema): (json: string) => string
     } catch (err) {
       return [`No es JSON válido: ${(err as Error).message}`];
     }
-    if (validateAll(data)) return [];
+    if (validateAll(data)) return patternErrors(data, systemRoot);
 
     const out = new Set<string>();
     for (const e of validateAll.errors || []) {
