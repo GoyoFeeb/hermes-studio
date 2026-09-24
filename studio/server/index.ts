@@ -124,6 +124,21 @@ function standaloneJobForWorker(req: Request, res: Response): ReturnType<typeof 
   return job;
 }
 
+// El worker llama aquí al arrancar: si tenía un trabajo a medias (Ctrl+C, cierre, Mac reiniciado)
+// ese trabajo ya no sigue vivo — sin esto quedaba "running" hasta el límite de 4 h. Hay un solo
+// worker, así que todo standalone en curso es suyo.
+app.post('/api/worker/reset', requireWorker, (_req: Request, res: Response) => {
+  let failed = 0;
+  for (const j of listJobs()) {
+    if (j.input.mode === 'standalone' && j.status === 'running') {
+      hermesLog(j.id, 'El worker de Hermes se reinició a mitad del trabajo.', 'error');
+      updateJob(j.id, { status: 'failed', error: 'El worker de Hermes se reinició a mitad del trabajo. Vuelve a enviarlo.' });
+      failed++;
+    }
+  }
+  res.json({ failed });
+});
+
 app.post('/api/worker/claim', requireWorker, (_req: Request, res: Response) => {
   const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
   for (const j of standalone) {

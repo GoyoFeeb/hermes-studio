@@ -410,6 +410,15 @@ async function main(): Promise<void> {
     console.error('Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en studio/.env — ver studio/README.md.');
     process.exit(1);
   }
+  // Trabajos que este worker dejó a medias en una ejecución anterior (el aviso de Ctrl+C no
+  // siempre llega antes de que el proceso muera).
+  try {
+    const r = await api('/api/worker/reset');
+    const { failed } = r.ok ? ((await r.json()) as { failed: number }) : { failed: 0 };
+    if (failed) console.log(`${failed} trabajo(s) que quedaron a medias marcados como fallidos.`);
+  } catch {
+    // Studio sin la ruta todavía o sin conexión: no impide trabajar.
+  }
   console.log(`Hermes worker conectado a ${BASE} — esperando trabajos (Ctrl+C para salir).`);
   for (;;) {
     try {
