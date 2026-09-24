@@ -55,13 +55,24 @@
         </label>
 
         <button type="submit">Generar newsletter</button>
-        <p class="hint">Hermes investiga la marca, escribe la newsletter, la revisa y la corrige: suele tardar entre 1 y 2 horas. Puedes cerrar esta página y volver con el enlace del trabajo.</p>
+        <p class="hint">Hermes investiga la marca, escribe la newsletter, la revisa y la corrige: suele tardar 15-20 minutos. Puedes cerrar esta página y volver con el enlace del trabajo.</p>
       </form>
     </section>
 
     <section id="view-job" hidden>
       <h2>Progreso</h2>
       <div id="job-status" class="status-badge"></div>
+
+      <div id="job-progress" hidden>
+        <div class="progress-head">
+          <strong id="progress-stage"></strong>
+          <span id="progress-eta"></span>
+        </div>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+          <div id="progress-bar"></div>
+        </div>
+        <p id="progress-detail" class="hint"></p>
+      </div>
       <ol id="job-log"></ol>
 
       <div id="job-result" hidden>

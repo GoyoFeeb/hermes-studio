@@ -410,3 +410,12 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
 - **Probado en local con Hermes real** (encargo mínimo de integración): cola → worker → `hermes -z`
   → HTML en la ruta pedida → subida → imagen publicada (200) → resultado con CSP sandbox. OK.
 
+- **Barra de progreso (mismo día):** el usuario aclara que Hermes tarda normalmente 15-20 min (el
+  "1-2 h" salía de duraciones de sesión que incluyen tiempo ocioso — corregido en la UI). El
+  worker lee cada 30 s la sesión de Hermes (`hermes sessions list/export`; la sesión es la
+  primera creada tras lanzar `hermes -z`) y deduce la fase: preparando → investigando (web/
+  navegador) → escribiendo (primer write/patch de un `.html`; antes Hermes escribe scripts de
+  apoyo que no cuentan) → revisando (vision tras el HTML). % = fase + tiempo frente a la mediana
+  de las últimas duraciones reales (`studio/worker/.hermes-durations.json`, 20 min por defecto).
+  Calibrado con 3 sesiones reales del 23-09. Servidor guarda `job.progress`; UI con barra, fase,
+  acción actual y minutos restantes estimados.

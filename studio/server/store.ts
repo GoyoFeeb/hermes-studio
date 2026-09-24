@@ -37,6 +37,16 @@ export interface Job {
   resultRelPath?: string;
   blockedReason?: string;
   error?: string;
+  /** Progreso estimado de Hermes (lo envía el worker; ver estimateProgress en hermes-worker.ts). */
+  progress?: {
+    pct: number;
+    stage: string;
+    stageLabel: string;
+    detail: string;
+    actions: number;
+    elapsedSec: number;
+    etaSec: number | null;
+  };
 }
 
 export interface JobEvent {

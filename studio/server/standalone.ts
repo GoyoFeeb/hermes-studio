@@ -8,7 +8,7 @@
  *
  * Por qué no una llamada directa al modelo (versión anterior, 2026-09-24 mañana): la calidad de
  * Hermes sale de su bucle de agente — ~100 acciones por newsletter (navegar la web real de la
- * marca, mirar capturas con visión, escribir, renderizar, mirar y corregir). Una sola llamada a
+ * marca, mirar capturas con visión, escribir, renderizar, mirar y corregir; 15-20 min). Una sola llamada a
  * gpt-5.5 producía piezas genéricas "de sistema primitivo" (feedback del usuario).
  *
  * Este módulo: compone el encargo para Hermes (prompt pegado + instrucciones de entrega) y, al
@@ -122,6 +122,7 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
   updateJob(jobId, {
     status: 'completed',
     currentPhase: null,
+    progress: job.progress ? { ...job.progress, pct: 100, stage: 'terminado', stageLabel: 'Terminada', detail: '', etaSec: 0 } : undefined,
     campaignRelPath: outRel,
     resultRelPath: path.join(outRel, 'newsletter.html'),
   });

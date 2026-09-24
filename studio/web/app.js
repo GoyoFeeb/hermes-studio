@@ -111,6 +111,8 @@ async function poll(id) {
   statusEl.textContent = job.status;
   statusEl.className = `status-badge status-${job.status}`;
 
+  renderProgress(job);
+
   const log = document.getElementById('job-log');
   log.innerHTML = events
     .map((ev) => `<li class="log-${ev.level}"><strong>${PHASE_LABELS[ev.phase] || ev.phase}</strong> — ${escapeHtml(ev.message)}</li>`)
@@ -130,7 +132,48 @@ async function poll(id) {
     return;
   }
 
-  pollTimer = setTimeout(() => poll(id), 15000);
+  pollTimer = setTimeout(() => poll(id), 10000);
+}
+
+function formatMinutes(sec) {
+  const min = Math.max(1, Math.round(sec / 60));
+  return `${min} min`;
+}
+
+function renderProgress(job) {
+  const box = document.getElementById('job-progress');
+  const bar = document.getElementById('progress-bar');
+  const track = box.querySelector('.progress-track');
+  const p = job.progress;
+  if (job.status === 'queued') {
+    box.hidden = false;
+    bar.style.width = '0%';
+    track.setAttribute('aria-valuenow', '0');
+    document.getElementById('progress-stage').textContent = 'En cola';
+    document.getElementById('progress-eta').textContent = '';
+    document.getElementById('progress-detail').textContent = 'Esperando a que Hermes lo recoja.';
+    return;
+  }
+  if (!p || (job.status !== 'running' && job.status !== 'completed')) {
+    box.hidden = job.status !== 'running';
+    if (job.status === 'running') {
+      document.getElementById('progress-stage').textContent = 'Arrancando Hermes';
+      document.getElementById('progress-eta').textContent = '';
+      document.getElementById('progress-detail').textContent = 'El progreso aparece en menos de un minuto.';
+      bar.style.width = '2%';
+    }
+    return;
+  }
+  box.hidden = false;
+  bar.style.width = `${p.pct}%`;
+  track.setAttribute('aria-valuenow', String(p.pct));
+  document.getElementById('progress-stage').textContent = `${p.stageLabel} · ${p.pct}%`;
+  document.getElementById('progress-eta').textContent =
+    job.status === 'completed' ? '' : p.etaSec ? `quedan ~${formatMinutes(p.etaSec)} (estimado)` : 'terminando, algo más de lo habitual';
+  document.getElementById('progress-detail').textContent =
+    job.status === 'completed'
+      ? `Hecha en ${formatMinutes(p.elapsedSec)} · ${p.actions} acciones de Hermes.`
+      : `${p.detail} · ${p.actions} acciones · ${formatMinutes(p.elapsedSec)} transcurridos`;
 }
 
 function escapeHtml(str) {

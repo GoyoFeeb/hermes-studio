@@ -137,14 +137,29 @@ app.post('/api/worker/claim', requireWorker, (_req: Request, res: Response) => {
     return;
   }
   const job = updateJob(next.id, { status: 'running', currentPhase: 'hermes' });
-  hermesLog(job.id, 'Hermes ha recogido el trabajo y está trabajando (suele tardar entre 1 y 2 horas).');
+  hermesLog(job.id, 'Hermes ha recogido el trabajo y está trabajando.');
   res.json({ id: job.id, prompt: buildHermesPrompt(job), outputDir: standaloneOutputDir(job) });
 });
 
 app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '64kb' }), (req: Request, res: Response) => {
   const job = standaloneJobForWorker(req, res);
   if (!job) return;
-  updateJob(job.id, {}); // renueva updatedAt: el trabajo sigue vivo
+  const p = req.body?.progress;
+  if (p && typeof p === 'object' && Number.isFinite(p.pct)) {
+    const progress = {
+      pct: Math.max(0, Math.min(100, Math.round(p.pct))),
+      stage: String(p.stage || '').slice(0, 40),
+      stageLabel: String(p.stageLabel || '').slice(0, 120),
+      detail: String(p.detail || '').slice(0, 200),
+      actions: Number(p.actions) || 0,
+      elapsedSec: Number(p.elapsedSec) || 0,
+      etaSec: Number.isFinite(p.etaSec) ? Number(p.etaSec) : null,
+    };
+    if (progress.stage && progress.stage !== job.progress?.stage) hermesLog(job.id, `${progress.stageLabel}…`);
+    updateJob(job.id, { progress });
+  } else {
+    updateJob(job.id, {}); // renueva updatedAt: el trabajo sigue vivo
+  }
   if (req.body?.message) hermesLog(job.id, String(req.body.message).slice(0, 2000));
   res.json({ ok: true });
 });

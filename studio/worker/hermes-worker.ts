@@ -6,6 +6,8 @@
  * de Nous) dentro de sistema-final/, y sube el HTML resultante. Es exactamente el flujo manual
  * del usuario (pegar el prompt en Hermes), automatizado: por eso la calidad es la misma.
  *
+ * Progreso: lee el historial de sesiones de Hermes mientras trabaja (ver "Progreso" abajo).
+ *
  * Uso (desde sistema-final/):   npm run hermes-worker
  * Variables (studio/.env):      STUDIO_WORKER_URL, WORKER_TOKEN
  * Opcionales:                   HERMES_BIN (por defecto "hermes"), HERMES_TIMEOUT_MIN (180)
@@ -14,8 +16,10 @@
  * Hermes actúa en este Mac igual que en una sesión normal, pero sin pedir permiso.
  */
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
-import { spawn } from 'child_process';
+import { spawn, execFile } from 'child_process';
+import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -27,7 +31,11 @@ const TOKEN = process.env.WORKER_TOKEN || '';
 const HERMES_BIN = process.env.HERMES_BIN || 'hermes';
 const TIMEOUT_MS = Number(process.env.HERMES_TIMEOUT_MIN || 180) * 60 * 1000;
 const POLL_MS = 20 * 1000;
-const HEARTBEAT_MS = 5 * 60 * 1000;
+const PROGRESS_MS = 30 * 1000;
+const execFileAsync = promisify(execFile);
+/** Duraciones reales de las últimas newsletters: la estimación de "cuánto queda" sale de aquí. */
+const DURATIONS_FILE = path.join(__dirname, '.hermes-durations.json');
+const DEFAULT_EXPECTED_MIN = 20;
 
 const MIME: Record<string, string> = {
   '.png': 'image/png',
@@ -93,6 +101,146 @@ function newestHtml(dir: string): string | null {
   return files[0] || null;
 }
 
+// --- Progreso -------------------------------------------------------------------------------
+// `hermes -z` no informa de nada hasta terminar, pero Hermes guarda cada acción en su historial
+// de sesiones. Cada PROGRESS_MS se lee esa sesión y se deduce la fase por las herramientas que
+// ha usado: preparar (skills, repo) → investigar (web, navegador) → escribir (HTML, imágenes) →
+// revisar (capturas, render). El porcentaje combina esa fase con el tiempo transcurrido frente a
+// lo que tardan de verdad las newsletters (mediana de las últimas); es una estimación.
+
+type Stage = 'preparando' | 'investigando' | 'escribiendo' | 'revisando';
+const STAGES: Record<Stage, { label: string; from: number; to: number }> = {
+  preparando: { label: 'Preparando: skills y brand pack', from: 2, to: 15 },
+  investigando: { label: 'Investigando la marca', from: 15, to: 45 },
+  escribiendo: { label: 'Escribiendo la newsletter', from: 45, to: 75 },
+  revisando: { label: 'Revisando y corrigiendo', from: 75, to: 97 },
+};
+
+function describeTool(tool: string): string {
+  if (/^browser_/.test(tool)) return 'Navegando la web de la marca';
+  const map: Record<string, string> = {
+    skill_view: 'Cargando skills',
+    skills_list: 'Cargando skills',
+    search_files: 'Consultando el repositorio',
+    read_file: 'Leyendo archivos del repositorio',
+    web_search: 'Buscando en la web',
+    web_extract: 'Leyendo páginas de la marca',
+    write_file: 'Escribiendo el HTML',
+    patch: 'Corrigiendo el HTML',
+    vision_analyze: 'Revisando capturas de la newsletter',
+    terminal: 'Renderizando y comprobando',
+    execute_code: 'Ejecutando comprobaciones',
+    todo: 'Planificando',
+  };
+  return map[tool] || (/image/i.test(tool) ? 'Generando imágenes' : 'Trabajando');
+}
+
+export interface Progress {
+  pct: number;
+  stage: Stage;
+  stageLabel: string;
+  detail: string;
+  actions: number;
+  elapsedSec: number;
+  etaSec: number | null;
+}
+
+export interface ToolCall {
+  name: string;
+  target: string;
+}
+
+export function estimateProgress(calls: ToolCall[], elapsedSec: number, expectedSec: number): Progress {
+  // Antes del primer .html Hermes también escribe scripts de apoyo (preparar el logo, renderizar)
+  // y mira capturas de la web: todo eso es preparación/investigación, no la newsletter.
+  let stage: Stage = 'preparando';
+  let wroteHtml = false;
+  for (const { name, target } of calls) {
+    const isHtmlWrite = (name === 'write_file' || name === 'patch') && /\.html?$/i.test(target);
+    if (isHtmlWrite && !wroteHtml) {
+      wroteHtml = true;
+      stage = 'escribiendo';
+    } else if (wroteHtml && (name === 'vision_analyze' || name === 'browser_vision')) {
+      stage = 'revisando';
+    } else if (!wroteHtml && stage === 'preparando' && (/^web_/.test(name) || /^browser_/.test(name))) {
+      stage = 'investigando';
+    }
+  }
+  const { from, to, label } = STAGES[stage];
+  const byTime = (elapsedSec / expectedSec) * 100;
+  const pct = Math.round(Math.min(to - 1, Math.max(from, byTime)));
+  const last = calls[calls.length - 1];
+  return {
+    pct,
+    stage,
+    stageLabel: label,
+    detail: last ? describeTool(last.name) : 'Arrancando Hermes',
+    actions: calls.length,
+    elapsedSec: Math.round(elapsedSec),
+    etaSec: elapsedSec < expectedSec ? Math.max(60, Math.round(expectedSec - elapsedSec)) : null,
+  };
+}
+
+function expectedSeconds(): number {
+  try {
+    const mins = (JSON.parse(fs.readFileSync(DURATIONS_FILE, 'utf8')) as number[]).slice(-10).sort((a, b) => a - b);
+    if (mins.length) return mins[Math.floor(mins.length / 2)] * 60;
+  } catch {
+    // Sin historial todavía: valor por defecto (lo que suele tardar según el usuario).
+  }
+  return DEFAULT_EXPECTED_MIN * 60;
+}
+
+function recordDuration(minutes: number): void {
+  let all: number[] = [];
+  try {
+    all = JSON.parse(fs.readFileSync(DURATIONS_FILE, 'utf8'));
+  } catch {
+    // primer registro
+  }
+  fs.writeFileSync(DURATIONS_FILE, JSON.stringify([...all, Math.max(1, minutes)].slice(-20)));
+}
+
+function sessionStamp(d: Date): string {
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+
+/** Sesión que abrió este `hermes -z`: la primera creada después de lanzarlo (los IDs de sesión
+ *  empiezan por la fecha y hora local de creación). */
+async function findSessionId(since: Date): Promise<string | null> {
+  const { stdout } = await execFileAsync(HERMES_BIN, ['sessions', 'list'], { timeout: 30000 });
+  const floor = sessionStamp(new Date(since.getTime() - 5000));
+  const ids = [...stdout.matchAll(/(\d{8}_\d{6}_[0-9a-f]+)\s*$/gm)].map((m) => m[1]).filter((id) => id.slice(0, 15) >= floor);
+  return ids.sort()[0] || null;
+}
+
+export function toolCallsFromSession(session: { messages?: unknown[] }): ToolCall[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (session.messages || []).flatMap((m: any) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (m.tool_calls || []).map((tc: any) => {
+      let args: Record<string, unknown> = {};
+      try {
+        args = JSON.parse(tc.function?.arguments || '{}');
+      } catch {
+        // argumentos no JSON: solo importa el nombre
+      }
+      return { name: tc.function?.name || tc.name || '', target: String(args.path || args.file_path || '') };
+    })
+  );
+}
+
+async function sessionToolCalls(sessionId: string): Promise<ToolCall[]> {
+  const tmp = path.join(os.tmpdir(), `hermes-worker-${sessionId}.jsonl`);
+  await execFileAsync(HERMES_BIN, ['sessions', 'export', tmp, '--session-id', sessionId], { timeout: 30000 });
+  try {
+    return toolCallsFromSession(JSON.parse(fs.readFileSync(tmp, 'utf8').split('\n')[0]));
+  } finally {
+    fs.rmSync(tmp, { force: true });
+  }
+}
+
 let current: string | null = null;
 
 async function runJob(job: { id: string; prompt: string; outputDir: string }): Promise<void> {
@@ -108,10 +256,23 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
   child.stdout.on('data', (d) => (stdout += d));
   child.stderr.on('data', (d) => (stderr = (stderr + d).slice(-8000)));
 
-  const heartbeat = setInterval(() => {
-    const min = Math.round((Date.now() - started) / 60000);
-    void api(`/api/worker/jobs/${job.id}/progress`, { message: `Hermes sigue trabajando (${min} min).` }).catch(() => undefined);
-  }, HEARTBEAT_MS);
+  const expected = expectedSeconds();
+  let sessionId: string | null = null;
+  let busy = false;
+  const heartbeat = setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    const elapsed = (Date.now() - started) / 1000;
+    let tools: ToolCall[] = [];
+    try {
+      sessionId = sessionId || (await findSessionId(new Date(started)));
+      if (sessionId) tools = await sessionToolCalls(sessionId);
+    } catch {
+      // Si no se puede leer la sesión, el progreso sigue solo por tiempo.
+    }
+    await api(`/api/worker/jobs/${job.id}/progress`, { progress: estimateProgress(tools, elapsed, expected) }).catch(() => undefined);
+    busy = false;
+  }, PROGRESS_MS);
   const killer = setTimeout(() => child.kill('SIGTERM'), TIMEOUT_MS);
 
   const code: number | null = await new Promise((resolve) => {
@@ -125,8 +286,8 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
   clearTimeout(killer);
   const minutes = Math.round((Date.now() - started) / 60000);
 
-  const expected = path.join(outAbs, 'newsletter.html');
-  const htmlPath = fs.existsSync(expected) ? expected : newestHtml(outAbs);
+  const expectedFile = path.join(outAbs, 'newsletter.html');
+  const htmlPath = fs.existsSync(expectedFile) ? expectedFile : newestHtml(outAbs);
   if (!htmlPath) {
     const why = Date.now() - started >= TIMEOUT_MS ? `se agotó el tiempo (${minutes} min)` : `terminó (código ${code}) sin dejar el HTML en ${job.outputDir}/`;
     await api(`/api/worker/jobs/${job.id}/fail`, {
@@ -144,6 +305,7 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
     });
   }
   const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage: stdout.trim() });
+  if (res.ok) recordDuration(minutes);
   console.log(`[${stamp()}] ${res.ok ? '✓' : '✗'} ${job.id} en ${minutes} min${res.ok ? '' : `: ${await res.text()}`}`);
   current = null;
 }
