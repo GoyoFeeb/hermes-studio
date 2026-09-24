@@ -15,7 +15,7 @@
 
   <main id="app">
     <section id="view-form">
-      <form id="brief-form">
+      <form id="brief-form" autocomplete="off">
         <input type="hidden" name="mode" value="standalone" />
 
         <label>
@@ -57,6 +57,11 @@
         <button type="submit">Generar newsletter</button>
         <p class="hint">Hermes investiga la marca, escribe la newsletter, la revisa y la corrige: suele tardar 15-20 minutos. Puedes cerrar esta página y volver con el enlace del trabajo.</p>
       </form>
+
+      <section id="history" hidden>
+        <h2>Últimas newsletters</h2>
+        <ul id="history-list"></ul>
+      </section>
     </section>
 
     <section id="view-job" hidden>

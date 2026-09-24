@@ -48,11 +48,23 @@ form.addEventListener('submit', async (e) => {
     const fd = new FormData(form);
     const payload = Object.fromEntries(fd.entries());
 
-    const res = await fetch('/api/jobs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    const send = () =>
+      fetch('/api/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    let res = await send();
+
+    // El prompt no menciona la marca elegida: se pide confirmación en vez de enviarlo a ciegas.
+    if (res.status === 409) {
+      const err = await res.json().catch(() => ({}));
+      if (err.code === 'brand_mismatch') {
+        if (!confirm(`${err.error}\n\nAceptar = enviar igualmente · Cancelar = revisar la marca`)) return;
+        payload.confirmBrand = true;
+        res = await send();
+      }
+    }
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -68,10 +80,39 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
+const STATUS_LABELS = {
+  queued: 'En cola',
+  running: 'Trabajando',
+  completed: 'Lista',
+  failed: 'Fallida',
+  blocked: 'Bloqueada',
+};
+
+async function loadHistory() {
+  try {
+    const { jobs } = await (await fetch('/api/jobs')).json();
+    const box = document.getElementById('history');
+    box.hidden = jobs.length === 0;
+    document.getElementById('history-list').innerHTML = jobs
+      .map((j) => {
+        const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+        const who = j.requesterName ? ` · ${escapeHtml(j.requesterName)}` : '';
+        const pct = j.status === 'running' && j.pct != null ? ` ${j.pct}%` : '';
+        return `<li><a href="?job=${encodeURIComponent(j.id)}">${escapeHtml(j.clientName)}</a>
+          <span class="hint">${when}${who}</span>
+          <span class="status-badge status-${escapeHtml(j.status)}">${STATUS_LABELS[j.status] || escapeHtml(j.status)}${pct}</span></li>`;
+      })
+      .join('');
+  } catch (err) {
+    console.error('No se pudo cargar el historial', err);
+  }
+}
+
 document.getElementById('new-job-btn').addEventListener('click', () => {
   history.pushState({}, '', location.pathname);
   viewJob.hidden = true;
   viewForm.hidden = false;
+  loadHistory();
   form.reset();
 });
 
@@ -185,4 +226,9 @@ function escapeHtml(str) {
 const params = new URLSearchParams(location.search);
 if (params.get('job')) {
   showJobView(params.get('job'));
+} else {
+  // El navegador restaura el formulario anterior (así se coló un prompt de Prozis con la marca
+  // Adeslas seleccionada): cada visita empieza en blanco.
+  form.reset();
+  loadHistory();
 }

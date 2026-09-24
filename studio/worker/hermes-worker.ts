@@ -23,6 +23,13 @@ import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 
 const ROOT = path.resolve(__dirname, '..', '..');
+/** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
+ *  API, WORKER_TOKEN). Hermes ejecuta comandos sin pedir permiso y lee webs de terceros: una página
+ *  con instrucciones ocultas no debe poder llevarse esos secretos (auditoría 2026-09-24). Los
+ *  scripts del repo que necesiten claves las cargan ellos mismos desde .env. */
+const HERMES_ENV: NodeJS.ProcessEnv = { ...process.env };
+delete HERMES_ENV.WORKER_TOKEN;
+delete HERMES_ENV.STUDIO_WORKER_URL;
 loadEnv(ROOT);
 loadEnv(path.join(ROOT, 'studio'));
 
@@ -60,7 +67,7 @@ async function api(route: string, body?: unknown, attempts = 3): Promise<Respons
       });
     } catch (err) {
       if (i >= attempts) throw err;
-      await new Promise((r) => setTimeout(r, 5000 * i));
+      await new Promise((r) => setTimeout(r, Math.min(60000, 5000 * 2 ** (i - 1))));
     }
   }
 }
@@ -201,13 +208,15 @@ function expectedSeconds(): number {
 }
 
 function recordDuration(minutes: number): void {
+  // Una newsletter real tarda bastante más: los trabajos de prueba no deben falsear la estimación.
+  if (minutes < 3) return;
   let all: number[] = [];
   try {
     all = JSON.parse(fs.readFileSync(DURATIONS_FILE, 'utf8'));
   } catch {
     // primer registro
   }
-  fs.writeFileSync(DURATIONS_FILE, JSON.stringify([...all, Math.max(1, minutes)].slice(-20)));
+  fs.writeFileSync(DURATIONS_FILE, JSON.stringify([...all, minutes].slice(-20)));
 }
 
 function sessionStamp(d: Date): string {
@@ -218,7 +227,7 @@ function sessionStamp(d: Date): string {
 /** Sesión que abrió este `hermes -z`: la primera creada después de lanzarlo (los IDs de sesión
  *  empiezan por la fecha y hora local de creación). */
 async function findSessionId(since: Date): Promise<string | null> {
-  const { stdout } = await execFileAsync(HERMES_BIN, ['sessions', 'list'], { timeout: 30000 });
+  const { stdout } = await execFileAsync(HERMES_BIN, ['sessions', 'list'], { timeout: 30000, env: HERMES_ENV });
   const floor = sessionStamp(new Date(since.getTime() - 5000));
   const ids = [...stdout.matchAll(/(\d{8}_\d{6}_[0-9a-f]+)\s*$/gm)].map((m) => m[1]).filter((id) => id.slice(0, 15) >= floor);
   return ids.sort()[0] || null;
@@ -242,7 +251,7 @@ export function toolCallsFromSession(session: { messages?: unknown[] }): ToolCal
 
 async function sessionToolCalls(sessionId: string): Promise<ToolCall[]> {
   const tmp = path.join(os.tmpdir(), `hermes-worker-${sessionId}.jsonl`);
-  await execFileAsync(HERMES_BIN, ['sessions', 'export', tmp, '--session-id', sessionId], { timeout: 30000 });
+  await execFileAsync(HERMES_BIN, ['sessions', 'export', tmp, '--session-id', sessionId], { timeout: 30000, env: HERMES_ENV });
   try {
     return toolCallsFromSession(JSON.parse(fs.readFileSync(tmp, 'utf8').split('\n')[0]));
   } finally {
@@ -260,6 +269,16 @@ function newestHtmlSince(dir: string, sinceMs: number): string | null {
     .filter((f): f is string => !!f && fs.statSync(f).mtimeMs >= sinceMs)
     .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
   return found[0] || null;
+}
+
+/** Marcas que existen en este Mac (donde Hermes trabaja): Studio las muestra en el desplegable. */
+function localBrands(): string[] {
+  const dir = path.join(ROOT, 'brands');
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && /^[a-z0-9][a-z0-9-]{0,59}$/.test(e.name))
+    .map((e) => e.name);
 }
 
 let current: string | null = null;
@@ -322,7 +341,7 @@ function runHermesTurn(
   onSession: (id: string) => void
 ): Promise<{ code: number | null; output: string; stderr: string }> {
   const args = ['chat', '-q', query, '-Q', '--yolo', ...(resumeId ? ['--resume', resumeId] : [])];
-  const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: HERMES_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
   currentChild = child;
   let stdout = '';
   let stderr = '';
@@ -422,9 +441,23 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
       message: `Aviso: ${missing.length} imagen(es) referenciadas que no existen en el Mac: ${missing.slice(0, 5).join(', ')}`,
     });
   }
-  const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage: turn.output });
-  if (res.ok) recordDuration(minutes);
-  console.log(`[${stamp()}] ${res.ok ? '✓' : '✗'} ${job.id} en ${minutes} min${res.ok ? '' : `: ${await res.text()}`}`);
+  // Subida con más reintentos: un corte de red aquí perdía en Studio una newsletter ya terminada.
+  let uploadError = '';
+  try {
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage: turn.output }, 6);
+    if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
+  } catch (err) {
+    uploadError = (err as Error).message;
+  }
+  if (uploadError) {
+    await api(`/api/worker/jobs/${job.id}/fail`, {
+      error: `La newsletter está terminada en el Mac del worker (${path.relative(ROOT, htmlPath)}) pero no se pudo subir a Studio: ${uploadError}`,
+    }).catch(() => undefined);
+    console.log(`[${stamp()}] ✗ ${job.id}: terminada en ${path.relative(ROOT, htmlPath)} pero no se pudo subir (${uploadError})`);
+  } else {
+    recordDuration(minutes);
+    console.log(`[${stamp()}] ✓ ${job.id} en ${minutes} min`);
+  }
   current = null;
 }
 
@@ -436,7 +469,7 @@ async function main(): Promise<void> {
   // Trabajos que este worker dejó a medias en una ejecución anterior (el aviso de Ctrl+C no
   // siempre llega antes de que el proceso muera).
   try {
-    const r = await api('/api/worker/reset');
+    const r = await api('/api/worker/reset', { brands: localBrands() });
     const { failed } = r.ok ? ((await r.json()) as { failed: number }) : { failed: 0 };
     if (failed) console.log(`${failed} trabajo(s) que quedaron a medias marcados como fallidos.`);
   } catch {
@@ -445,9 +478,18 @@ async function main(): Promise<void> {
   console.log(`Hermes worker conectado a ${BASE} — esperando trabajos (Ctrl+C para salir).`);
   for (;;) {
     try {
-      const res = await api('/api/worker/claim');
+      const res = await api('/api/worker/claim', { brands: localBrands() });
       if (res.status === 200) {
-        await runJob((await res.json()) as { id: string; prompt: string; outputDir: string });
+        const job = (await res.json()) as { id: string; prompt: string; outputDir: string };
+        try {
+          await runJob(job);
+        } catch (err) {
+          // Un error inesperado no debe dejar el trabajo colgado en "running" ni tumbar el worker.
+          currentChild?.kill('SIGTERM');
+          console.error(`[${stamp()}] ✗ ${job.id}: ${(err as Error).message}`);
+          await api(`/api/worker/jobs/${job.id}/fail`, { error: `Error del worker: ${(err as Error).message}` }).catch(() => undefined);
+          current = null;
+        }
         continue;
       }
       if (res.status === 401) {

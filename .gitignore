@@ -19,3 +19,7 @@ newsletters/*/*/*/09-exports/final-inline.html
 /*.png
 /*.jpg
 /*.jpeg
+# Hermes Studio (2026-09-24): capturas de revisión y archivos auxiliares que Hermes deja junto a
+# cada newsletter standalone. La newsletter (newsletter.html) y sus imágenes sí se trackean.
+newsletters/*/*/hermes/*/preview-*.png
+newsletters/*/*/hermes/*/_trabajo/

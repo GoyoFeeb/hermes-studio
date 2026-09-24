@@ -41,12 +41,26 @@ entrega. `/assets/*` es público y solo sirve imágenes; el HTML se sirve con CS
 3. Desde `sistema-final/`: `npm run hermes-worker` (usa `caffeinate` para que el Mac no se duerma).
    Mientras esté abierto, el formulario muestra "Hermes conectado".
 
-Un trabajo a la vez. `hermes -z` aprueba solo los comandos (no hay nadie para confirmarlos):
-Hermes actúa en el Mac igual que en una sesión normal, pero sin pedir permiso. Si el worker se
-cierra a mitad, el trabajo se marca fallido; si el Mac se apaga, Studio lo da por perdido a las 4 h.
+Un trabajo a la vez. El worker lanza `hermes chat -q … -Q --yolo`: aprueba solo los comandos (no hay
+nadie para confirmarlos), así que Hermes actúa en el Mac igual que en una sesión normal pero sin
+pedir permiso. Por eso recibe un entorno **sin** las claves del `.env` del repo ni el `WORKER_TOKEN`
+(una web con instrucciones ocultas no puede llevárselas), y solo el equipo debe tener la contraseña.
+
+Robustez: si Hermes termina sin entregar, el worker retoma la sesión con "continúa" (hasta 3 veces);
+si el worker se cierra, al volver a arrancar marca como fallido lo que dejó a medias; si el Mac se
+apaga o duerme, Studio lo da por perdido tras 10 min sin señales. Cerrar la tapa del Mac lo duerme
+aunque `caffeinate` esté activo. Si la subida final falla, el error indica dónde está el HTML en el Mac.
+
+Ajuste recomendado en `~/.hermes/config.yaml` (agent): `intent_ack_continuation: true` — evita que
+DeepSeek cierre el turno tras anunciar "Let me..." sin ejecutar nada.
+
+La página principal muestra las últimas 25 newsletters. El desplegable de marcas combina las del
+volumen de Railway y las del Mac del worker. Si el prompt no menciona la marca elegida, Studio pide
+confirmación antes de encolarlo.
 
 El pipeline de 9 fases descrito abajo sigue en el código (`runner.ts`) pero ya no se ofrece en
-la interfaz.
+la interfaz y la API lo rechaza salvo con `PIPELINE_ENABLED=true`. Sin él, Railway ya no necesita
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` ni las variables `LLM_*`.
 
 ## Cómo funciona (resumen)
 

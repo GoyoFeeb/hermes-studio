@@ -56,12 +56,32 @@ export interface JobEvent {
   message: string;
 }
 
+/** Formato real de los ids (ver createJob). El id llega en la URL y acaba en una ruta de disco:
+ *  sin esta comprobación, `/api/jobs/..%2F..%2Falgo` leía cualquier .json del servidor
+ *  (auditoría 2026-09-24). */
+const JOB_ID_RE = /^[a-z0-9]{6,12}-[a-z0-9]{4,8}$/;
+
+export function isValidJobId(id: unknown): id is string {
+  return typeof id === 'string' && JOB_ID_RE.test(id);
+}
+
 function jobFile(id: string): string {
+  if (!isValidJobId(id)) throw new Error(`Id de trabajo no válido: ${String(id).slice(0, 40)}`);
   return path.join(JOBS_DIR, `${id}.json`);
 }
 
 function eventsFile(id: string): string {
+  if (!isValidJobId(id)) throw new Error(`Id de trabajo no válido: ${String(id).slice(0, 40)}`);
   return path.join(JOBS_DIR, `${id}.events.ndjson`);
+}
+
+/** Escritura atómica: un corte a mitad de escritura dejaba un .json truncado que hacía fallar
+ *  listJobs() — y con él la cola del worker y el historial (auditoría 2026-09-24). */
+function writeJobFile(id: string, job: Job): void {
+  const file = jobFile(id);
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(job, null, 2));
+  fs.renameSync(tmp, file);
 }
 
 function ensureStore(): void {
@@ -73,12 +93,13 @@ export function createJob(input: JobInput): Job {
   const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const now = new Date().toISOString();
   const job: Job = { id, createdAt: now, updatedAt: now, input, status: 'queued', currentPhase: null };
-  fs.writeFileSync(jobFile(id), JSON.stringify(job, null, 2));
+  writeJobFile(id, job);
   fs.writeFileSync(eventsFile(id), '');
   return job;
 }
 
 export function getJob(id: string): Job | null {
+  if (!isValidJobId(id)) return null;
   try {
     return JSON.parse(fs.readFileSync(jobFile(id), 'utf8'));
   } catch {
@@ -90,7 +111,7 @@ export function updateJob(id: string, patch: Partial<Job>): Job {
   const job = getJob(id);
   if (!job) throw new Error(`Job ${id} no encontrado`);
   const updated: Job = { ...job, ...patch, updatedAt: new Date().toISOString() };
-  fs.writeFileSync(jobFile(id), JSON.stringify(updated, null, 2));
+  writeJobFile(id, updated);
   return updated;
 }
 
@@ -99,7 +120,13 @@ export function listJobs(): Job[] {
   return fs
     .readdirSync(JOBS_DIR)
     .filter((f) => f.endsWith('.json'))
-    .map((f) => JSON.parse(fs.readFileSync(path.join(JOBS_DIR, f), 'utf8')) as Job)
+    .flatMap((f) => {
+      try {
+        return [JSON.parse(fs.readFileSync(path.join(JOBS_DIR, f), 'utf8')) as Job];
+      } catch {
+        return []; // un archivo dañado no debe tumbar la lista entera
+      }
+    })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -110,6 +137,7 @@ export function appendEvent(id: string, ev: Omit<JobEvent, 'ts'>): void {
 }
 
 export function readEvents(id: string): JobEvent[] {
+  if (!isValidJobId(id)) return [];
   try {
     return fs
       .readFileSync(eventsFile(id), 'utf8')

@@ -3,7 +3,7 @@
  *
  * El compañero pega el prompt de dirección creativa que genera la skill
  * `newsletter-creative-brief`. El trabajo queda en cola aquí; un worker en el Mac del usuario
- * (studio/worker/hermes-worker.ts) lo recoge, lanza `hermes -z` con SU instalación (config,
+ * (studio/worker/hermes-worker.ts) lo recoge, lanza `hermes chat -q` con SU instalación (config,
  * skills, memoria, suscripción de Nous) dentro de sistema-final/ y devuelve el HTML.
  *
  * Por qué no una llamada directa al modelo (versión anterior, 2026-09-24 mañana): la calidad de
@@ -17,8 +17,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { ROOT } from './paths';
-import { getJob, updateJob, appendEvent, type Job } from './store';
+import { ROOT, DATA_DIR } from './paths';
+import { getJob, updateJob, appendEvent, listJobs, type Job } from './store';
 import { toPublicAssetUrl } from './heroImage';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
@@ -41,7 +41,7 @@ export function standaloneOutputDir(job: Job): string {
   return path.join('newsletters', job.createdAt.slice(0, 4), job.input.clientSlug, 'hermes', standaloneCampaignSlug(job));
 }
 
-/** Encargo completo para `hermes -z`: el prompt pegado, tal cual, más las reglas de entrega. */
+/** Encargo completo para Hermes: el prompt pegado, tal cual, más las reglas de entrega. */
 export function buildHermesPrompt(job: Job): string {
   const outDir = standaloneOutputDir(job);
   const images =
@@ -62,8 +62,60 @@ export function buildHermesPrompt(job: Job): string {
     '  Revisa el resultado renderizado (capturas) y corrígelo antes de darlo por terminado, como haces siempre.',
     '- Imágenes en ese HTML: rutas locales (relativas al HTML o dentro del repo) o URLs https. No hace',
     '  falta subirlas ni incrustarlas en base64: Studio las publica al recibir la newsletter.',
+    '- Footer: incluye SIEMPRE un enlace de baja con href="{{unsubscribe_url}}" (obligatorio en un',
+    '  email comercial; el ESP sustituye la variable) y, si procede, el aviso legal de la marca.',
+    `- Scripts y archivos auxiliares (conversiones, comprobaciones, capturas): en ${outDir}/_trabajo/`,
+    '  o en /tmp. Nunca en scripts/, en la raíz del repo ni en brands/ (ahí solo logos e imágenes de marca).',
     '- Respuesta final: breve — concepto, fuentes de los datos verificados y lo que quede pendiente.',
   ].join('\n');
+}
+
+/** El prompt tiene que hablar de la marca elegida: el 2026-09-24 se envió un prompt de Prozis con
+ *  la marca Adeslas seleccionada (el navegador había rellenado el formulario) y Hermes recibió
+ *  "usa solo assets de Adeslas" para una campaña de Prozis. */
+export function promptMentionsBrand(prompt: string, clientName: string, clientSlug: string): boolean {
+  const norm = (t: string): string =>
+    t.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const text = ` ${norm(prompt)} `;
+  return [clientName, clientSlug.replace(/-/g, ' ')].map(norm).some((n) => n.length > 1 && text.includes(` ${n} `));
+}
+
+/** Con el worker enviando progreso cada 30 s, 10 min sin señales = trabajo perdido (Mac apagado o
+ *  dormido, worker cerrado). Antes eran 4 h y solo se comprobaba cuando el worker pedía trabajo:
+ *  con el Mac apagado, la página se quedaba en "running" indefinidamente. */
+export const HERMES_STALE_MS = 10 * 60 * 1000;
+
+export function sweepStaleHermesJobs(): void {
+  for (const j of listJobs()) {
+    if (j.input.mode === 'standalone' && j.status === 'running' && Date.now() - Date.parse(j.updatedAt) > HERMES_STALE_MS) {
+      log(j.id, 'Hermes dejó de dar señales de vida (¿Mac apagado, dormido o worker cerrado?).', 'error');
+      updateJob(j.id, { status: 'failed', error: 'Hermes dejó de responder (¿Mac apagado, dormido o worker cerrado?). Vuelve a enviarlo.' });
+    }
+  }
+}
+
+// Marcas que existen en el Mac del worker (donde trabaja Hermes). El desplegable mostraba las del
+// volumen de Railway, que no incluyen lo que Hermes descarga en el Mac (p. ej. brands/prozis).
+const WORKER_BRANDS_FILE = path.join(DATA_DIR, 'worker-brands.json');
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,59}$/;
+
+export function saveWorkerBrands(brands: unknown): void {
+  if (!Array.isArray(brands)) return;
+  const clean = [...new Set(brands.filter((b): b is string => typeof b === 'string' && SLUG_RE.test(b)))].slice(0, 1000).sort();
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(WORKER_BRANDS_FILE, JSON.stringify(clean));
+  } catch {
+    // no crítico: el desplegable seguirá con las marcas de Railway
+  }
+}
+
+export function readWorkerBrands(): string[] {
+  try {
+    return JSON.parse(fs.readFileSync(WORKER_BRANDS_FILE, 'utf8'));
+  } catch {
+    return [];
+  }
 }
 
 /** Avisos no bloqueantes: se muestran en el progreso para que el compañero los revise. */

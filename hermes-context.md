@@ -460,3 +460,28 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   promo verificada (IMBACK, hasta 40 %, hasta 27/09; envío gratis > 24,99 €), 13 KB.
   Observaciones: sin enlace de baja en el footer (el prompt no lo pedía) y posible desbordamiento
   del párrafo del colágeno a 600 px. ETA de la barra ahora por ritmo real (a 75 % en 8 min → ~3 min).
+
+### 2026-09-24 (tarde) — Auditoría de Hermes Studio (web + servidor + worker) y correcciones
+
+Aplicado con aprobación del usuario (puntos 1-10 y 12 de la auditoría; 11 = skills, aparte):
+1. **Path traversal** en `/api/jobs/:id` (y rutas del worker): el id acababa en una ruta de disco sin
+   validar → `isValidJobId` en `store.ts` + `app.param('id')`. Probado: `..%2F..%2Fpackage` → 404.
+2. **Secretos al entorno de Hermes**: el worker cargaba el `.env` del repo y se lo pasaba (con el
+   `WORKER_TOKEN`) a Hermes, que ejecuta comandos sin aprobación y lee webs de terceros → entorno
+   limpio (`HERMES_ENV`). Probado con un Hermes simulado: ni token ni claves, sí PATH.
+3. **Pipeline de 9 fases aún invocable por API** (gasto de OpenAI) → `PIPELINE_ENABLED`.
+4. **Trabajos colgados**: 4 h y solo al hacer claim → 10 min sin señales, barrido también al
+   consultar trabajos (`sweepStaleHermesJobs`).
+5. **Subida final**: 6 reintentos con backoff exponencial y, si falla, error con la ruta del HTML en
+   el Mac; errores inesperados de `runJob` ya no dejan el trabajo en "running".
+6. **Almacén de trabajos**: escritura atómica (tmp + rename) y `listJobs` tolerante a archivos dañados.
+7. **Marcas**: el worker envía las de su Mac (`studio/data/worker-brands.json`); el desplegable las une.
+8. **Marca equivocada**: 409 `brand_mismatch` si el prompt no menciona la marca (con acentos y
+   mayúsculas normalizados), confirmación en la UI; el formulario se vacía al abrirse.
+9-10. **Encargo a Hermes**: enlace de baja `{{unsubscribe_url}}` obligatorio; scripts auxiliares en
+   `{salida}/_trabajo/` o /tmp, nunca en scripts/, raíz ni brands/. `.gitignore` para capturas y _trabajo.
+12. **Historial** de las últimas 25 newsletters en la página principal.
+Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpiado el archivo).
+**Pendiente del usuario:** plan de pago de Railway (~16 días de prueba); quitar de Railway
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` y `LLM_*`; revisar las dos skills de ~98 KB.
+

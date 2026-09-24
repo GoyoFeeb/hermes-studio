@@ -16,11 +16,20 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
-import { createJob, getJob, listJobs, readEvents, updateJob } from './store';
+import { createJob, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
 import { enqueue, recoverOnStartup } from './queue';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
-import { buildHermesPrompt, completeStandaloneJob, standaloneOutputDir, log as hermesLog } from './standalone';
+import {
+  buildHermesPrompt,
+  completeStandaloneJob,
+  standaloneOutputDir,
+  log as hermesLog,
+  promptMentionsBrand,
+  sweepStaleHermesJobs,
+  saveWorkerBrands,
+  readWorkerBrands,
+} from './standalone';
 
 loadEnv(ROOT);
 loadEnv(STUDIO_DIR);
@@ -28,6 +37,9 @@ loadEnv(STUDIO_DIR);
 const PORT = Number(process.env.PORT || 3000);
 const ACCESS_PASSWORD = process.env.APP_ACCESS_PASSWORD;
 const ALLOW_NO_AUTH = process.env.ALLOW_NO_AUTH === 'true';
+/** El pipeline de 9 fases ya no se ofrece en la interfaz, pero seguía aceptándose por API y
+ *  gastando la clave de OpenAI de Railway (auditoría 2026-09-24). Solo con PIPELINE_ENABLED=true. */
+const PIPELINE_ENABLED = process.env.PIPELINE_ENABLED === 'true';
 
 if (!ACCESS_PASSWORD && !ALLOW_NO_AUTH) {
   console.error(
@@ -101,9 +113,16 @@ app.use('/assets', (req: Request, res: Response, next: NextFunction) => {
 // con `hermes -z` y devuelve el HTML. Autenticación propia con WORKER_TOKEN (Bearer), distinta de
 // la contraseña del equipo; sin WORKER_TOKEN estas rutas no existen. Van antes del Basic Auth.
 const WORKER_TOKEN = process.env.WORKER_TOKEN || '';
-/** Un trabajo que Hermes no toca en este tiempo se da por perdido (Mac apagado, worker caído). */
-const HERMES_STALE_MS = 4 * 60 * 60 * 1000;
 let lastWorkerSeen = 0;
+
+// Cualquier ruta con :id valida el formato antes de tocar el disco (ver isValidJobId).
+app.param('id', (req: Request, res: Response, next: NextFunction, id: string) => {
+  if (!isValidJobId(id)) {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  next();
+});
 
 function requireWorker(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization || '';
@@ -127,7 +146,8 @@ function standaloneJobForWorker(req: Request, res: Response): ReturnType<typeof 
 // El worker llama aquí al arrancar: si tenía un trabajo a medias (Ctrl+C, cierre, Mac reiniciado)
 // ese trabajo ya no sigue vivo — sin esto quedaba "running" hasta el límite de 4 h. Hay un solo
 // worker, así que todo standalone en curso es suyo.
-app.post('/api/worker/reset', requireWorker, (_req: Request, res: Response) => {
+app.post('/api/worker/reset', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {
+  saveWorkerBrands(req.body?.brands);
   let failed = 0;
   for (const j of listJobs()) {
     if (j.input.mode === 'standalone' && j.status === 'running') {
@@ -139,13 +159,10 @@ app.post('/api/worker/reset', requireWorker, (_req: Request, res: Response) => {
   res.json({ failed });
 });
 
-app.post('/api/worker/claim', requireWorker, (_req: Request, res: Response) => {
+app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {
+  if (req.body?.brands) saveWorkerBrands(req.body.brands);
+  sweepStaleHermesJobs();
   const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
-  for (const j of standalone) {
-    if (j.status === 'running' && Date.now() - Date.parse(j.updatedAt) > HERMES_STALE_MS) {
-      updateJob(j.id, { status: 'failed', error: 'Hermes dejó de responder (¿Mac apagado o worker cerrado?). Vuelve a enviarlo.' });
-    }
-  }
   const next = standalone.filter((j) => j.status === 'queued').sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
   if (!next) {
     res.status(204).end();
@@ -234,13 +251,14 @@ const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,59}$/;
 // Modo standalone: vale cualquier marca con carpeta en brands/ (logos/imágenes), aunque no
 // tenga brand-tokens.json — el pack completo solo lo exigía el pipeline de 9 fases.
 app.get('/api/brands', (_req: Request, res: Response) => {
-  const brands = fs.existsSync(BRANDS_DIR)
+  const local = fs.existsSync(BRANDS_DIR)
     ? fs
         .readdirSync(BRANDS_DIR, { withFileTypes: true })
         .filter((e) => e.isDirectory() && SLUG_RE.test(e.name))
         .map((e) => e.name)
-        .sort()
     : [];
+  // Las del Mac del worker primero: es donde Hermes busca brands/{marca}/.
+  const brands = [...new Set([...readWorkerBrands(), ...local])].sort();
   res.json({ brands });
 });
 
@@ -271,9 +289,17 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       res.status(400).json({ error: 'Elige de dónde salen las imágenes: assets oficiales o IA.' });
       return;
     }
+    const clientSlug = body.existingBrand || slugify(body.clientName);
+    if (!body.confirmBrand && !promptMentionsBrand(String(body.promptText), String(body.clientName), clientSlug)) {
+      res.status(409).json({
+        code: 'brand_mismatch',
+        error: `El prompt no menciona "${body.clientName}". ¿Seguro que la marca elegida es la correcta?`,
+      });
+      return;
+    }
     const job = createJob({
       mode: 'standalone',
-      clientSlug: body.existingBrand || slugify(body.clientName),
+      clientSlug,
       clientName: body.clientName,
       brandMode: body.existingBrand ? 'existing' : 'new',
       briefText: body.promptText,
@@ -288,6 +314,11 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
         : 'En cola: Hermes no está conectado ahora mismo — empezará en cuanto el Mac del worker se conecte.'
     );
     res.status(201).json({ id: job.id });
+    return;
+  }
+
+  if (!PIPELINE_ENABLED) {
+    res.status(400).json({ error: 'El pipeline de 9 fases está desactivado (PIPELINE_ENABLED). Usa el modo standalone.' });
     return;
   }
 
@@ -323,11 +354,25 @@ app.get('/api/status', (_req: Request, res: Response) => {
   res.json({ hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000 });
 });
 
+/** Historial ligero para la página principal (sin el prompt completo de cada trabajo). */
 app.get('/api/jobs', (_req: Request, res: Response) => {
-  res.json({ jobs: listJobs() });
+  sweepStaleHermesJobs();
+  const jobs = listJobs()
+    .filter((j) => j.input.mode === 'standalone')
+    .slice(0, 25)
+    .map((j) => ({
+      id: j.id,
+      createdAt: j.createdAt,
+      status: j.status,
+      clientName: j.input.clientName,
+      requesterName: j.input.requesterName || null,
+      pct: j.progress?.pct ?? null,
+    }));
+  res.json({ jobs });
 });
 
 app.get('/api/jobs/:id', (req: Request, res: Response) => {
+  sweepStaleHermesJobs();
   const job = getJob(req.params.id);
   if (!job) {
     res.status(404).json({ error: 'No encontrado' });
@@ -353,7 +398,7 @@ app.get('/api/jobs/:id/result', (req: Request, res: Response) => {
   res.sendFile(abs);
 });
 
-recoverOnStartup();
+if (PIPELINE_ENABLED) recoverOnStartup();
 
 app.listen(PORT, () => {
   console.log(`Hermes Studio escuchando en http://localhost:${PORT}`);
