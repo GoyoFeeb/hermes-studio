@@ -38,6 +38,9 @@ async function drain(): Promise<void> {
  *  que seguían "queued" se re-encolan. */
 export function recoverOnStartup(): void {
   for (const job of listJobs()) {
+    // Los trabajos standalone los ejecuta Hermes en el Mac del usuario (worker), no este proceso:
+    // un reinicio de Railway no los interrumpe ni debe re-encolarlos aquí.
+    if (job.input.mode === 'standalone') continue;
     if (job.status === 'running') {
       updateJob(job.id, { status: 'failed', error: 'Interrumpido por un reinicio del servicio.' });
       appendEvent(job.id, {

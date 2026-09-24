@@ -8,23 +8,42 @@ Ver el diseño completo y las decisiones detrás de esta implementación en el p
 funcionalidad correspondiente (arquitectura, alcance v1 vs. iteraciones futuras). Este README
 es la guía operativa: cómo correrlo y qué limitaciones conocidas tiene hoy.
 
-## Modo standalone (el que muestra la interfaz desde 2026-09-24)
+## Modo standalone con Hermes (el que muestra la interfaz desde 2026-09-24)
 
 El compañero elige la marca, pega el prompt de dirección creativa generado con la skill
-`newsletter-creative-brief` y elige de dónde salen las imágenes: **assets oficiales** de la marca
-(`brands/{marca}/`, o URLs de su web oficial) o **generadas con IA** (gpt-image, máx. 3; el logo
-siempre es el oficial). `server/standalone.ts` llama a la Responses API de OpenAI con búsqueda
-web (modo background, `gpt-5.5` vía `LLM_MODEL`, esfuerzo `STANDALONE_REASONING_EFFORT`, por
-defecto `medium`) y el modelo devuelve el HTML de email completo. Studio lo pasa a inline con
-juice, avisa de problemas típicos (peso > 102 KB, imágenes sin https, sin enlace de baja, datos
-pendientes) y lo entrega. No pasa por el motor ni por los gates: es el flujo de "HTML suelto".
+`newsletter-creative-brief` y elige de dónde salen las imágenes (assets oficiales o IA). El
+trabajo queda **en cola** en Studio y lo ejecuta **Hermes Agent en el Mac del usuario**:
 
-Salida en `newsletters/{año}/{marca}/standalone/{fecha}-{slug}/`: `prompt.md`,
-`newsletter.html`, `newsletter-inline.html` y `notas.md` (concepto, fuentes con URL y pendientes).
+```
+Studio (Railway) ──cola──▶ studio/worker/hermes-worker.ts (Mac) ──▶ hermes -z "<prompt + entrega>"
+      ▲                                                                   │ (cwd = sistema-final/)
+      └──────── HTML + imágenes (base64) ◀── newsletters/{año}/{marca}/hermes/{campaña}/newsletter.html
+```
 
-`/assets/*` es público y solo sirve imágenes (sin él, el correo del destinatario no cargaría el
-logo ni el hero); el resto de `brands/` sigue detrás de la contraseña. El HTML generado se sirve
-con `Content-Security-Policy: sandbox`.
+Es el mismo flujo que pegar el prompt en Hermes a mano, automatizado: misma instalación, config,
+skills, memoria y suscripción de Nous → misma calidad y mismo tiempo (1-2 h por newsletter). Una
+versión anterior llamaba directamente a gpt-5.5 en una sola llamada y producía piezas genéricas:
+la calidad de Hermes sale de su bucle de agente (navegar la web real, mirar capturas, corregir).
+
+Al recibir la newsletter, Studio publica sus imágenes en `/assets` (Gmail no muestra imágenes
+`data:`), avisa de problemas típicos (peso > 102 KB, imágenes sin https, sin enlace de baja) y la
+entrega. `/assets/*` es público y solo sirve imágenes; el HTML se sirve con CSP `sandbox`.
+
+### Poner en marcha el worker (en el Mac con Hermes instalado)
+
+1. Railway: variable `WORKER_TOKEN` (secreto largo aleatorio). Sin ella las rutas `/api/worker/*`
+   no aceptan nada.
+2. `studio/.env` en el Mac (no se sube a git):
+   ```
+   STUDIO_WORKER_URL=https://<servicio>.up.railway.app
+   WORKER_TOKEN=<el mismo valor que en Railway>
+   ```
+3. Desde `sistema-final/`: `npm run hermes-worker` (usa `caffeinate` para que el Mac no se duerma).
+   Mientras esté abierto, el formulario muestra "Hermes conectado".
+
+Un trabajo a la vez. `hermes -z` aprueba solo los comandos (no hay nadie para confirmarlos):
+Hermes actúa en el Mac igual que en una sesión normal, pero sin pedir permiso. Si el worker se
+cierra a mitad, el trabajo se marca fallido; si el Mac se apaga, Studio lo da por perdido a las 4 h.
 
 El pipeline de 9 fases descrito abajo sigue en el código (`runner.ts`) pero ya no se ofrece en
 la interfaz.

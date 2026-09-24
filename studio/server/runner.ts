@@ -17,7 +17,6 @@ import { runDataPhase } from './phases/dataPhase';
 import { runBuildPhase } from './phases/buildPhase';
 import { runQaPhase, runProductionGate, writeDeliveryNotes } from './phases/qaExportPhase';
 import { ROOT } from './paths';
-import { runStandaloneJob } from './standalone';
 
 function log(jobId: string, phase: string, message: string, level: 'info' | 'error' | 'success' = 'info'): void {
   appendEvent(jobId, { phase, level, message });
@@ -35,11 +34,6 @@ export async function runJob(jobId: string): Promise<void> {
   const brandSlug = clientSlug; // 1 marca = 1 slug de cliente, coherente con brands/{slug}/
 
   try {
-    if (input.mode === 'standalone') {
-      await runStandaloneJob(jobId, input);
-      return;
-    }
-
     updateJob(jobId, { currentPhase: 'setup' });
     log(jobId, 'setup', 'Creando estructura de campaña...');
     const campaignSlug = `${new Date().toISOString().slice(0, 10)}-${slugify(input.briefText).slice(0, 30)}-${jobId.slice(-4)}`;

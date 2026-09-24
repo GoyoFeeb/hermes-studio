@@ -388,3 +388,25 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   sobrescribir lo del volumen). Subidas SOLO las imágenes de marca (104 archivos, 14 MB):
   fuera scripts `.js` sueltos, HTML de captura, capturas de pantalla y 3 imágenes de Fitness
   Park de 3,7-6,4 MB (inservibles en email; Studio ignora > 2,5 MB).
+
+### 2026-09-24 (tarde) — Studio ejecuta Hermes de verdad (worker en el Mac)
+
+- **Feedback del usuario:** las newsletters del modo standalone de una sola llamada (gpt-5.5 +
+  web_search) salían "muy genéricas, de sistema primitivo". Sospecha correcta: no era Hermes.
+- **Diagnóstico con datos** (`hermes sessions export` de sus sesiones reales del 23-09 —
+  MyProtein, Ray-Ban Meta, Alfa Romeo, iPhone 18 Pro, LG): Hermes usa DeepSeek v4 Flash vía Nous
+  y hace **~40-100 acciones por newsletter** (browser_navigate, web_extract, vision_analyze sobre
+  capturas, terminal para renderizar, write_file + patch iterando), 1-2 h, **0,03-0,27 $** cada
+  una. La calidad sale del bucle de agente, no del modelo.
+- **Decisión del usuario:** Hermes corre en su Mac; se retira la llamada directa a gpt-5.5.
+- **Implementación:** `studio/worker/hermes-worker.ts` (nuevo; `npm run hermes-worker`, con
+  `caffeinate`) reclama trabajos, lanza `hermes -z` con cwd=sistema-final, incrusta en base64 las
+  imágenes locales y sube el HTML. Servidor: rutas `/api/worker/{claim,jobs/:id/progress,
+  complete,fail}` con `WORKER_TOKEN` (Bearer, timing-safe, antes del Basic Auth), `/api/status`
+  (Hermes conectado si hubo contacto < 2 min), trabajos colgados > 4 h → fallidos.
+  `standalone.ts` reescrito: compone el encargo (prompt pegado + reglas de entrega: ruta de
+  salida, modo de imágenes, sin preguntas) y publica las imágenes `data:` en `/assets`.
+  `callResearchAgent` eliminado; `queue.recoverOnStartup` ignora trabajos standalone.
+- **Probado en local con Hermes real** (encargo mínimo de integración): cola → worker → `hermes -z`
+  → HTML en la ruta pedida → subida → imagen publicada (200) → resultado con CSP sandbox. OK.
+

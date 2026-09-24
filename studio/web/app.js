@@ -18,6 +18,20 @@ async function loadBrands() {
 }
 loadBrands();
 
+async function loadHermesStatus() {
+  const el = document.getElementById('hermes-status');
+  try {
+    const { hermesOnline } = await (await fetch('/api/status')).json();
+    el.textContent = hermesOnline
+      ? '🟢 Hermes conectado.'
+      : '🟠 Hermes no está conectado ahora mismo: puedes enviar igualmente, empezará cuando se conecte.';
+  } catch {
+    el.textContent = '';
+  }
+}
+loadHermesStatus();
+setInterval(loadHermesStatus, 60000);
+
 // Al elegir una marca existente se rellena el nombre (editable, p. ej. "El Corte Inglés").
 existingBrandSelect.addEventListener('change', () => {
   if (existingBrandSelect.value && !clientNameInput.value) {
@@ -73,6 +87,7 @@ const PHASE_LABELS = {
   '08': '08 · QA',
   '09': '09 · Gate de producción',
   standalone: 'Newsletter',
+  hermes: 'Hermes',
   system: 'Sistema',
 };
 
@@ -115,7 +130,7 @@ async function poll(id) {
     return;
   }
 
-  pollTimer = setTimeout(() => poll(id), 3000);
+  pollTimer = setTimeout(() => poll(id), 15000);
 }
 
 function escapeHtml(str) {

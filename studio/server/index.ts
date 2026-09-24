@@ -16,10 +16,11 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
-import { createJob, getJob, listJobs, readEvents } from './store';
+import { createJob, getJob, listJobs, readEvents, updateJob } from './store';
 import { enqueue, recoverOnStartup } from './queue';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
+import { buildHermesPrompt, completeStandaloneJob, standaloneOutputDir, log as hermesLog } from './standalone';
 
 loadEnv(ROOT);
 loadEnv(STUDIO_DIR);
@@ -57,7 +58,11 @@ const app = express();
 // X-Forwarded-For y esquivar el limitador por IP (la contraseña sigue siendo obligatoria).
 const TRUST_PROXY_HOPS = Number(process.env.TRUST_PROXY_HOPS || 1);
 app.set('trust proxy', Number.isInteger(TRUST_PROXY_HOPS) && TRUST_PROXY_HOPS >= 0 ? TRUST_PROXY_HOPS : 1);
-app.use(express.json({ limit: '2mb' }));
+// Las rutas del worker llevan su propio parser (la newsletter llega con las imágenes en base64).
+const jsonSmall = express.json({ limit: '2mb' });
+app.use((req: Request, res: Response, next: NextFunction) =>
+  req.path.startsWith('/api/worker/') ? next() : jsonSmall(req, res, next)
+);
 
 // Límite de intentos de contraseña (auditoría 2026-09-23, BUG-H09): antes la única barrera de
 // acceso era una contraseña compartida sin ningún límite — fuerza-bruteable sin fricción si el
@@ -90,6 +95,84 @@ app.use('/assets', (req: Request, res: Response, next: NextFunction) => {
   // Un SVG puede llevar <script>: en sandbox no se ejecuta nada ni accede al origen de Studio.
   setHeaders: (res) => res.setHeader('Content-Security-Policy', 'sandbox'),
 }));
+
+// --- Worker de Hermes (2026-09-24) -------------------------------------------------------
+// El Mac del usuario (studio/worker/hermes-worker.ts) recoge los trabajos standalone, los ejecuta
+// con `hermes -z` y devuelve el HTML. Autenticación propia con WORKER_TOKEN (Bearer), distinta de
+// la contraseña del equipo; sin WORKER_TOKEN estas rutas no existen. Van antes del Basic Auth.
+const WORKER_TOKEN = process.env.WORKER_TOKEN || '';
+/** Un trabajo que Hermes no toca en este tiempo se da por perdido (Mac apagado, worker caído). */
+const HERMES_STALE_MS = 4 * 60 * 60 * 1000;
+let lastWorkerSeen = 0;
+
+function requireWorker(req: Request, res: Response, next: NextFunction): void {
+  const header = req.headers.authorization || '';
+  if (!WORKER_TOKEN || !header.startsWith('Bearer ') || !safeEqual(header.slice(7), WORKER_TOKEN)) {
+    res.status(401).json({ error: 'Token de worker no válido.' });
+    return;
+  }
+  lastWorkerSeen = Date.now();
+  next();
+}
+
+function standaloneJobForWorker(req: Request, res: Response): ReturnType<typeof getJob> {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone' || job.status !== 'running') {
+    res.status(404).json({ error: 'Trabajo no encontrado o no está en curso.' });
+    return null;
+  }
+  return job;
+}
+
+app.post('/api/worker/claim', requireWorker, (_req: Request, res: Response) => {
+  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
+  for (const j of standalone) {
+    if (j.status === 'running' && Date.now() - Date.parse(j.updatedAt) > HERMES_STALE_MS) {
+      updateJob(j.id, { status: 'failed', error: 'Hermes dejó de responder (¿Mac apagado o worker cerrado?). Vuelve a enviarlo.' });
+    }
+  }
+  const next = standalone.filter((j) => j.status === 'queued').sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+  if (!next) {
+    res.status(204).end();
+    return;
+  }
+  const job = updateJob(next.id, { status: 'running', currentPhase: 'hermes' });
+  hermesLog(job.id, 'Hermes ha recogido el trabajo y está trabajando (suele tardar entre 1 y 2 horas).');
+  res.json({ id: job.id, prompt: buildHermesPrompt(job), outputDir: standaloneOutputDir(job) });
+});
+
+app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '64kb' }), (req: Request, res: Response) => {
+  const job = standaloneJobForWorker(req, res);
+  if (!job) return;
+  updateJob(job.id, {}); // renueva updatedAt: el trabajo sigue vivo
+  if (req.body?.message) hermesLog(job.id, String(req.body.message).slice(0, 2000));
+  res.json({ ok: true });
+});
+
+app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '80mb' }), (req: Request, res: Response) => {
+  const job = standaloneJobForWorker(req, res);
+  if (!job) return;
+  if (typeof req.body?.html !== 'string' || !/<html[\s>]/i.test(req.body.html)) {
+    res.status(400).json({ error: 'Falta el HTML de la newsletter.' });
+    return;
+  }
+  try {
+    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''));
+    res.json({ ok: true });
+  } catch (err) {
+    updateJob(job.id, { status: 'failed', error: (err as Error).message });
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
+
+app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {
+  const job = standaloneJobForWorker(req, res);
+  if (!job) return;
+  const error = String(req.body?.error || 'Hermes no pudo terminar la newsletter.').slice(0, 4000);
+  hermesLog(job.id, error, 'error');
+  updateJob(job.id, { status: 'failed', error });
+  res.json({ ok: true });
+});
 
 if (ACCESS_PASSWORD) {
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -167,7 +250,13 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       imageMode: body.imageMode,
       requesterName: body.requesterName || undefined,
     });
-    enqueue(job.id);
+    // No pasa por la cola interna: lo recoge el worker de Hermes (ver /api/worker/claim).
+    hermesLog(
+      job.id,
+      Date.now() - lastWorkerSeen < 2 * 60 * 1000
+        ? 'En cola: Hermes lo recogerá en unos segundos.'
+        : 'En cola: Hermes no está conectado ahora mismo — empezará en cuanto el Mac del worker se conecte.'
+    );
     res.status(201).json({ id: job.id });
     return;
   }
@@ -198,6 +287,10 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
 
   enqueue(job.id);
   res.status(201).json({ id: job.id });
+});
+
+app.get('/api/status', (_req: Request, res: Response) => {
+  res.json({ hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000 });
 });
 
 app.get('/api/jobs', (_req: Request, res: Response) => {
