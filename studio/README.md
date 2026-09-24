@@ -18,6 +18,10 @@ sobre el repo. El backend parsea la respuesta y escribe los archivos él mismo, 
 de la campaña o del brand pack correspondiente (`campaignFs.writeGeneratedFiles` rechaza
 cualquier ruta fuera de esos límites).
 
+- Proveedor del modelo configurable (`server/llmClient.ts`): Anthropic por defecto, u OpenAI (o
+  cualquier API compatible) con `LLM_PROVIDER=openai` — ver `studio/.env.example`. Los prompts de
+  los agentes se escribieron con Claude: con otro modelo, QA y el production gate pueden rechazar
+  más al principio.
 - Fases 01/03/04/05: llamada de texto puro.
 - Fase 02: Playwright captura la web real de la marca (screenshots + `getComputedStyle` de
   selectores clave) y Claude interpreta esos datos — no conduce el navegador turno a turno.
@@ -71,7 +75,7 @@ la raíz del repo) — no hace falta tocar nada del Dockerfile para esto. Pasos:
    las campañas y brand packs generados).
 
 4. **Variables de entorno** (dashboard → Variables, o `railway variables --set CLAVE=valor`):
-   - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`
+   - `ANTHROPIC_API_KEY` (o `LLM_PROVIDER=openai` para usar solo OpenAI), `OPENAI_API_KEY`
    - `APP_ACCESS_PASSWORD` (contraseña compartida real para el equipo, no la dejes vacía aquí)
    - `STUDIO_PUBLIC_BASE_URL` — la URL pública que Railway te asigna (o tu dominio propio si
      conectas uno), siempre `https://...`

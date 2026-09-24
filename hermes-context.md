@@ -296,3 +296,18 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
 - **Pendiente:** Railway sigue corriendo `c1f30a8` (sin el limitador de BUG-H09 ni
   `TRUST_PROXY_HOPS`); hay que llevar `5e52ac9` + cambios de hoy a `Javifeebbo/hermes-studio`.
   Railway está en periodo de prueba (16 días / 4,03 $ a 2026-09-24).
+
+### 2026-09-24 (continuación) — Studio: proveedor de modelo configurable (OpenAI)
+
+- **Motivo:** la cuenta de Anthropic de la clave de Railway se quedó sin saldo (primer job real
+  desde Vercel falló en la fase 01 con `credit balance is too low`). El usuario quiere la opción
+  más barata sin la API de Anthropic y eligió OpenAI (clave ya configurada en Railway).
+- **Cambio:** `studio/server/anthropicClient.ts` → `studio/server/llmClient.ts`. `callAgent()`
+  elige proveedor por `LLM_PROVIDER` (`openai` = chat completions por fetch, sin dependencia
+  nueva; sin definir = Anthropic, comportamiento original). Modelo por defecto OpenAI:
+  `gpt-5.4-mini` (verificado disponible en `/v1/models`). Margen de 8000 tokens extra para
+  razonamiento y error explícito si `finish_reason=length`. Probado en local con texto + imagen.
+- **Riesgo abierto:** los prompts de `agents/0N-*.md` se ajustaron con Claude; falta validar con
+  jobs reales que gpt-5.4-mini respeta el formato de bloques de archivo y pasa QA/gate. No toca
+  agentes ni motor.
+

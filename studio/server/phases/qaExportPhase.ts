@@ -17,7 +17,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { ROOT } from '../paths';
 import { readRepoFile, writeGeneratedFiles } from '../campaignFs';
-import { callAgent } from '../anthropicClient';
+import { callAgent } from '../llmClient';
 import { parseFileBlocks, buildOutputContract } from '../util/fileBlocks';
 import type { JobInput } from '../store';
 

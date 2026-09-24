@@ -6,7 +6,7 @@
 import * as path from 'path';
 import { readRepoFile, writeGeneratedFiles } from '../campaignFs';
 import { captureBrandSite } from '../brandCapture';
-import { callAgent } from '../anthropicClient';
+import { callAgent } from '../llmClient';
 import { parseFileBlocks, buildOutputContract } from '../util/fileBlocks';
 import type { JobInput } from '../store';
 

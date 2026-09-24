@@ -5,7 +5,7 @@
  * system prompt (agente + contrato de salida), llamar al modelo, parsear y escribir.
  */
 import { readRepoFile, writeGeneratedFiles } from '../campaignFs';
-import { callAgent } from '../anthropicClient';
+import { callAgent } from '../llmClient';
 import { parseFileBlocks, buildOutputContract } from '../util/fileBlocks';
 import type { JobInput } from '../store';
 

@@ -7,7 +7,7 @@
 import * as path from 'path';
 import Ajv from 'ajv';
 import { readRepoFile, readRepoFilesGlobLike, writeGeneratedFiles } from '../campaignFs';
-import { callAgent } from '../anthropicClient';
+import { callAgent } from '../llmClient';
 import { parseFileBlocks, buildOutputContract } from '../util/fileBlocks';
 import { generateHeroImage, toPublicAssetUrl } from '../heroImage';
 import { sanitizeLandingPrompt } from '../../../scripts/lib/sanitize-hero-prompt';
