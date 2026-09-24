@@ -516,8 +516,9 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   y los `unhandledRejection`/`uncaughtException` se registran en vez de tumbar el proceso.
 - **Servicio launchd** (`studio/worker/service.sh`, `npm run hermes-worker:service -- install|
   uninstall|restart|status|logs`): `com.hermes-studio.worker`, arranca con la sesión, KeepAlive
-  (se reinicia solo), `caffeinate -i`, log en `~/Library/Logs/hermes-worker.log`. **Pendiente de
-  instalar** (cerrar antes el worker manual de la terminal).
+  (se reinicia solo), `caffeinate -i`, log en `~/Library/Logs/hermes-worker.log`. **Instalado el
+  2026-09-24 ~15:45**; verificado: conecta con Railway y, tras matar el proceso con kill -9, launchd
+  lo relanza en ~20 s.
 - **Interfaz (studio/web):** rediseño con la identidad de feebbodigital.com — azul noche #050C2A,
   rosa #FB73FF, lila/morado, Work Sans + Barlow en mayúsculas espaciadas, botones píldora, logo y
   favicon oficiales. Historial: hasta 200 trabajos con buscador (marca/persona), filtro por marca y
