@@ -450,3 +450,7 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   codex) — activarlo (true) es la corrección nativa de Hermes; pendiente de permiso del usuario.
   Worker: nota de entorno (webs bloqueadas → browser_navigate desde el Mac; máx. 2 intentos por
   dato) y "continúa" que exige llamadas a herramientas.
+- **Aplicado con permiso del usuario:** `agent.intent_ack_continuation: true` en
+  `~/.hermes/config.yaml` (única línea cambiada; verificado con el loader de Hermes). Afecta
+  también a la app de escritorio. Copias: `config.yaml.bak.20260924_125552` y la del momento del
+  cambio.
