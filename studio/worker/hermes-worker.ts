@@ -177,8 +177,17 @@ export function estimateProgress(calls: ToolCall[], elapsedSec: number, expected
     detail: last ? describeTool(last.name) : 'Arrancando Hermes',
     actions: calls.length,
     elapsedSec: Math.round(elapsedSec),
-    etaSec: elapsedSec < expectedSec ? Math.max(60, Math.round(expectedSec - elapsedSec)) : null,
+    etaSec: estimateEta(pct, elapsedSec, expectedSec),
   };
+}
+
+/** Lo que queda según el ritmo real (75 % en 8 min → ~3 min), acotado por la duración habitual.
+ *  Antes solo se usaba la duración habitual y a 75 % podía decir "quedan 13 min". */
+function estimateEta(pct: number, elapsedSec: number, expectedSec: number): number | null {
+  const byPace = pct >= 5 ? (elapsedSec * (100 - pct)) / pct : Infinity;
+  const byHabit = expectedSec - elapsedSec;
+  const eta = Math.min(byPace, byHabit > 0 ? byHabit : Infinity);
+  return Number.isFinite(eta) ? Math.max(60, Math.round(eta)) : null;
 }
 
 function expectedSeconds(): number {

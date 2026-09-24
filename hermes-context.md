@@ -454,3 +454,9 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   `~/.hermes/config.yaml` (única línea cambiada; verificado con el loader de Hermes). Afecta
   también a la app de escritorio. Copias: `config.yaml.bak.20260924_125552` y la del momento del
   cambio.
+- **Cuarto intento de Prozis (13:02) — ÉXITO:** 10 min, 71 llamadas al modelo, 0 "continúa",
+  navegador local para la web de Prozis, escribió + renderizó (320/375/600/dark) + revisó con
+  visión + corrigió. Resultado con concepto único, fotos oficiales de producto, logo real,
+  promo verificada (IMBACK, hasta 40 %, hasta 27/09; envío gratis > 24,99 €), 13 KB.
+  Observaciones: sin enlace de baja en el footer (el prompt no lo pedía) y posible desbordamiento
+  del párrafo del colágeno a 600 px. ETA de la barra ahora por ritmo real (a 75 % en 8 min → ~3 min).
