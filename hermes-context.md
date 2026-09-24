@@ -380,3 +380,11 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   añadidas después en local y sin trackear (p. ej. `brands/adeslas/design-input/`) pueden no
   estar allí — el log del job dice cuántas imágenes oficiales encontró.
 
+- **Imágenes de marca en Railway:** el logo de Adeslas daba 404 en Railway por dos causas:
+  (1) 211 archivos de `brands/` (44 MB) nunca se habían subido a git; (2) `docker-entrypoint.sh`
+  solo sembraba `brands/`/`newsletters/` en el volumen la PRIMERA vez, así que nada posterior al
+  2026-09-09 llegaba a Railway (ni siquiera lo trackeado, como los brand packs repoblados en la
+  auditoría). Fix: el entrypoint copia en cada arranque los archivos que falten (`cp -rn`, sin
+  sobrescribir lo del volumen). Subidas SOLO las imágenes de marca (104 archivos, 14 MB):
+  fuera scripts `.js` sueltos, HTML de captura, capturas de pantalla y 3 imágenes de Fitness
+  Park de 3,7-6,4 MB (inservibles en email; Studio ignora > 2,5 MB).

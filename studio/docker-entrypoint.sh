@@ -24,6 +24,13 @@ for dir in newsletters brands; do
   if [ ! -d "$DATA_DIR/$dir" ]; then
     echo "[entrypoint] Sembrando $DATA_DIR/$dir con el contenido de la imagen..."
     cp -r "/app/$dir" "$DATA_DIR/$dir"
+  else
+    # 2026-09-24: antes solo se sembraba la primera vez, así que nada nuevo del repo (brand packs,
+    # logos, imágenes) llegaba nunca al volumen. Ahora se copian los archivos que FALTAN, sin
+    # sobrescribir nada de lo que ya hay (lo generado en Railway manda). `|| true`: según la
+    # versión de coreutils, `cp -n` puede salir con error al saltarse archivos existentes.
+    echo "[entrypoint] Añadiendo a $DATA_DIR/$dir los archivos nuevos de la imagen (sin sobrescribir)..."
+    cp -rn "/app/$dir/." "$DATA_DIR/$dir/" 2>/dev/null || true
   fi
   rm -rf "/app/$dir"
   ln -s "$DATA_DIR/$dir" "/app/$dir"
