@@ -430,3 +430,12 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
   salida corta (`{fecha}-{6 chars del id}`) y búsqueda tolerante porque DeepSeek escribió
   "integradon" por "integracion" al copiar la ruta larga. Hermes, además, deja scripts auxiliares
   en el repo (p. ej. `scripts/generate-*.js`): limpiados los de las pruebas.
+- **Segundo intento de Prozis (12:36) atascado en "Preparando":** causa real en la SKILL de
+  Hermes, no en Studio. `~/.hermes/skills/creative/newsletter-pipeline/SKILL.md` y
+  `references/standalone-creative-newsletter-brief.md` han crecido a ~98 KB cada uno; por
+  `skill_view` llegan como una sola línea JSON de 100 KB que Hermes guarda en un temporal y no
+  puede leer por tramos (read_file devuelve siempre la línea recortada) → bucle de 4 skill_view +
+  3 read_file y después > 7 min esperando al modelo con contexto enorme. Fix en el worker: el
+  encargo añade una "nota de entorno" que manda leer del disco con read_file por tramos los .md de
+  skills de newsletter > 40 KB. **Pendiente (decisión del usuario):** adelgazar esas dos skills
+  (probablemente acumulan aprendizajes por campaña que deberían vivir en `references/`).

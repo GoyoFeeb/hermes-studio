@@ -263,6 +263,35 @@ const MAX_CONTINUES = 3;
 /** Sin ninguna actividad en la sesión durante este tiempo, la barra avisa de que parece atascado. */
 const STALL_WARN_SEC = 10 * 60;
 
+/** Las skills de newsletter de Hermes han crecido a ~100 KB por archivo. Por `skill_view` llegan
+ *  como UNA línea JSON de 100 KB que Hermes guarda en un temporal y no consigue leer por tramos
+ *  (read_file devuelve siempre la misma línea recortada): el 2026-09-24 entró en bucle
+ *  (4 skill_view + 3 read_file) y se quedó parado. Leídos del disco son Markdown normal. */
+const LARGE_SKILL_FILE_BYTES = 40 * 1024;
+
+function skillReadingNote(): string {
+  const skillsDir = path.join(os.homedir(), '.hermes', 'skills');
+  const large: string[] = [];
+  const walk = (dir: string, depth: number): void => {
+    if (depth > 4 || !fs.existsSync(dir)) return;
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, e.name);
+      if (e.isDirectory()) walk(abs, depth + 1);
+      else if (e.name.endsWith('.md') && /newsletter/i.test(abs) && fs.statSync(abs).size > LARGE_SKILL_FILE_BYTES) large.push(abs);
+    }
+  };
+  walk(skillsDir, 0);
+  if (!large.length) return '';
+  return [
+    '',
+    '## Nota de entorno (worker de Hermes Studio)',
+    'Estos archivos de skill son demasiado grandes para skill_view (llegan como una sola línea que no',
+    'se puede leer por tramos). Léelos DIRECTAMENTE del disco con read_file, por tramos con offset/limit,',
+    'y solo las secciones que necesites:',
+    ...large.map((f) => `- ${f}`),
+  ].join('\n');
+}
+
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
  *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
 function runHermesTurn(
@@ -335,7 +364,7 @@ async function runJob(job: { id: string; prompt: string; outputDir: string }): P
   }, PROGRESS_MS);
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  let turn = await runHermesTurn(job.prompt, null, (id) => (sessionId = sessionId || id));
+  let turn = await runHermesTurn(job.prompt + skillReadingNote(), null, (id) => (sessionId = sessionId || id));
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})`);
     await api(`/api/worker/jobs/${job.id}/progress`, {
