@@ -358,6 +358,7 @@ async function poll(id) {
       document.getElementById('download-link').href = `/api/jobs/${id}/result?download=1`;
       document.getElementById('open-link').href = `/api/jobs/${id}/result`;
       document.getElementById('preview-frame').src = `/api/jobs/${id}/result`;
+      applyPreviewView(readPreviewView());
     }
     return;
   }
@@ -370,6 +371,59 @@ async function poll(id) {
   }
 
   pollTimer = setTimeout(() => poll(id), 10000);
+}
+
+// ---------------------------------------------------------------- vista previa escritorio / móvil
+
+const PREVIEW_VIEWS = {
+  desktop: { width: 800, label: 'Escritorio · 800 px' },
+  mobile: { width: 375, label: 'Móvil · 375 px (iPhone)' },
+};
+
+function readPreviewView() {
+  try {
+    return localStorage.getItem('previewView') === 'mobile' ? 'mobile' : 'desktop';
+  } catch {
+    return 'desktop';
+  }
+}
+
+function applyPreviewView(view) {
+  const device = document.getElementById('preview-device');
+  const stage = document.getElementById('preview-stage');
+  device.classList.toggle('is-mobile', view === 'mobile');
+  document.querySelector(`input[name="previewView"][value="${view}"]`).checked = true;
+  device.style.transform = '';
+  stage.style.height = '';
+  // Si el ancho real no cabe (pantallas pequeñas), se escala todo el dispositivo en vez de
+  // estrecharlo: así el email se ve exactamente como a ese ancho.
+  const available = stage.clientWidth - 32;
+  const needed = device.offsetWidth;
+  const scale = needed > available && available > 0 ? available / needed : 1;
+  if (scale < 1) {
+    device.style.transform = `scale(${scale})`;
+    stage.style.height = `${Math.ceil(device.offsetHeight * scale) + 48}px`;
+  }
+  document.getElementById('preview-size').textContent =
+    PREVIEW_VIEWS[view].label + (scale < 1 ? ` · al ${Math.round(scale * 100)} %` : '');
+}
+
+document.querySelectorAll('input[name="previewView"]').forEach((r) =>
+  r.addEventListener('change', () => {
+    try {
+      localStorage.setItem('previewView', r.value);
+    } catch {
+      // sin almacenamiento: solo dura esta visita
+    }
+    applyPreviewView(r.value);
+  })
+);
+new ResizeObserver(() => {
+  if (!document.getElementById('job-result').hidden) applyPreviewView(readCheckedView());
+}).observe(document.getElementById('preview-stage'));
+
+function readCheckedView() {
+  return document.querySelector('input[name="previewView"]:checked')?.value || 'desktop';
 }
 
 function formatMinutes(sec) {

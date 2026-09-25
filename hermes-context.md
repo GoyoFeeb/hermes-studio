@@ -570,3 +570,11 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   del brand pack solo si se confirma que están publicadas. Autoauditoría por escrito obligatoria en
   `notas.md` (concepto → titular, fuente de cada precio/cifra, origen de cada imagen, preguntas del
   prompt); si falta, el worker pide un turno más. Studio guarda y muestra esas notas.
+
+### 2026-09-25 — Studio: vista previa en escritorio y móvil
+
+- Selector "Escritorio / Móvil" sobre la vista previa. El iframe se pinta al ancho real (800 px /
+  375 px, con marco de teléfono) para que salten las media queries del email, y se escala si no
+  cabe en la pantalla (p. ej. al 33 % en un móvil). La elección se recuerda en el navegador.
+- Primer hallazgo con la vista móvil: la newsletter de Adidas (2026-09-24) se sale por la derecha a
+  375 px (imágenes con width="600" fijo y sin regla responsive) — la autoauditoría de Hermes no lo vio.
