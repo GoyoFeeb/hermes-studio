@@ -21,6 +21,7 @@ import * as path from 'path';
 import { spawn, execFile } from 'child_process';
 import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
+import { chromium } from 'playwright';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -366,6 +367,51 @@ function runHermesTurn(
   });
 }
 
+/** Ancho de móvil de referencia (iPhone): la vista previa móvil de Studio usa el mismo. */
+const MOBILE_WIDTH = 375;
+const MOBILE_FIX_ATTEMPTS = 2;
+
+/** Se ejecuta dentro de Chromium. Va como texto: tsx añade `__name(...)` a las funciones y eso no
+ *  existe en la página ("ReferenceError: __name is not defined").
+ *  Devuelve los elementos más internos que se salen (ninguno de sus hijos se sale): son la causa —
+ *  p. ej. una <img width="600"> — y no las tablas que la contienen, que solo heredan el ancho. */
+const MEASURE_OVERFLOW_JS = `function (limit) {
+  function overflows(el) { var r = el.getBoundingClientRect(); return r.width > 0 && r.right > limit + 1; }
+  var seen = {}, offenders = [], all = document.body.querySelectorAll('*');
+  for (var i = 0; i < all.length && offenders.length < 6; i++) {
+    var el = all[i];
+    if (!overflows(el) || Array.prototype.some.call(el.children, overflows)) continue;
+    var w = el.getAttribute('width'), cls = el.getAttribute('class');
+    var text = el.tagName === 'IMG' ? (el.getAttribute('alt') || '') : (el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 40);
+    var desc = '<' + el.tagName.toLowerCase() + (w ? ' width="' + w + '"' : '') + (cls ? ' class="' + cls + '"' : '') + '> ' +
+      Math.round(el.getBoundingClientRect().width) + ' px' + (text ? ' («' + text + '»)' : '');
+    if (seen[desc]) continue;
+    seen[desc] = true;
+    offenders.push(desc);
+  }
+  return { docWidth: document.documentElement.scrollWidth, offenders: offenders };
+}`;
+
+/** Renderiza el HTML a 375 px y devuelve qué se sale del ancho (null si cabe). La newsletter de
+ *  Adidas (2026-09-24) salió con imágenes de width="600" fijo y titular y CTA cortados en móvil, y
+ *  la autoauditoría de Hermes no lo vio: ahora lo mide el worker. Si Chromium no arranca, no bloquea. */
+export async function mobileOverflow(htmlPath: string): Promise<string | null> {
+  let browser;
+  try {
+    browser = await chromium.launch();
+    const page = await browser.newPage({ viewport: { width: MOBILE_WIDTH, height: 800 } });
+    await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
+    const result = (await page.evaluate(`(${MEASURE_OVERFLOW_JS})(${MOBILE_WIDTH})`)) as { docWidth: number; offenders: string[] };
+    if (result.docWidth <= MOBILE_WIDTH + 1 && !result.offenders.length) return null;
+    return `A ${MOBILE_WIDTH} px la página mide ${result.docWidth} px de ancho. Se salen: ${result.offenders.join('; ') || '(sin detalle)'}`;
+  } catch (err) {
+    console.log(`[${stamp()}] No se pudo comprobar la versión móvil: ${(err as Error).message.slice(0, 200)}`);
+    return null;
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}
+
 interface ClaimedJob {
   id: string;
   outputDir: string;
@@ -597,6 +643,27 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       sessionId,
       () => undefined
     );
+  }
+  // Comprobación móvil medida (no la declarada por Hermes): si se sale del ancho, se le devuelve.
+  let mobileProblem = htmlReady() ? await mobileOverflow(htmlReady()!) : null;
+  for (let i = 1; i <= MOBILE_FIX_ATTEMPTS && mobileProblem && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+    console.log(`[${stamp()}] ${job.id}: se sale del ancho en móvil — corrección ${i}/${MOBILE_FIX_ATTEMPTS}`);
+    await api(`/api/worker/jobs/${job.id}/progress`, {
+      message: `La versión móvil se sale del ancho (${MOBILE_WIDTH} px): se le pide a Hermes que la corrija (${i}/${MOBILE_FIX_ATTEMPTS}).`,
+    }).catch(() => undefined);
+    await runHermesTurn(
+      `Comprobación automática: ${mobileProblem}.\n\nCorrige ${job.outputDir}/newsletter.html para que a ` +
+        `${MOBILE_WIDTH} px nada se salga del ancho: en la media query de móvil, imágenes con width:100% ` +
+        '!important y height:auto; tablas y celdas con width:100% (o max-width) en vez de anchos fijos; ' +
+        'botones y titulares que puedan partir línea. Mantén el aspecto de escritorio. Renderiza a ' +
+        `${MOBILE_WIDTH} px para comprobarlo y actualiza notas.md.`,
+      sessionId,
+      () => undefined
+    );
+    mobileProblem = htmlReady() ? await mobileOverflow(htmlReady()!) : null;
+  }
+  if (mobileProblem) {
+    await api(`/api/worker/jobs/${job.id}/progress`, { message: `Aviso: la versión móvil sigue sin caber. ${mobileProblem}` }).catch(() => undefined);
   }
   clearInterval(heartbeat);
   clearTimeout(killer);

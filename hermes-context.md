@@ -578,3 +578,10 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   cabe en la pantalla (p. ej. al 33 % en un móvil). La elección se recuerda en el navegador.
 - Primer hallazgo con la vista móvil: la newsletter de Adidas (2026-09-24) se sale por la derecha a
   375 px (imágenes con width="600" fijo y sin regla responsive) — la autoauditoría de Hermes no lo vio.
+- **Comprobación móvil obligatoria (aprobada):** el encargo exige renderizar a 375 px y anotar el
+  resultado en `notas.md` (punto 4). Además el worker lo **mide** con Playwright antes de subir
+  (`mobileOverflow`: ancho del documento y los elementos más internos que se salen, p. ej.
+  `<img width="600">`); si se sale, devuelve la pieza a Hermes con ese detalle (hasta 2 veces) y,
+  si sigue sin caber, lo deja como aviso en el trabajo. Verificado: detecta Adidas (600 px) y la
+  Adeslas del 24-sep (648 px); un email con media query correcta pasa. Aplicado tras terminar el
+  trabajo de Inglesina (19 min) para no cortarlo.
