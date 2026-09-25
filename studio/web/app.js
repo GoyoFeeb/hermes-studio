@@ -185,7 +185,7 @@ function renderHistory() {
     .map((j) => {
       const id = encodeURIComponent(j.id);
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
-      const meta = [when, j.requesterName, j.fromInstruction ? 'Desde instrucción' : null, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
+      const meta = [when, j.requesterName, j.mobileFixOf ? 'Adaptación a móvil' : j.fromInstruction ? 'Desde instrucción' : null, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
@@ -280,6 +280,22 @@ document.getElementById('new-job-btn').addEventListener('click', () => {
 document.getElementById('reuse-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob);
 });
+// "Adaptar a móvil": Hermes retoca esta misma pieza (no la rehace) y el resultado es un trabajo nuevo.
+document.getElementById('mobile-fix-btn').addEventListener('click', async (e) => {
+  if (!currentJob) return;
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/mobile-fix`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(data.error || 'No se pudo lanzar la adaptación a móvil.');
+    history.pushState({}, '', `?job=${data.id}`);
+    showJobView(data.id);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 document.getElementById('use-brief-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob, { useBrief: true });
 });
@@ -323,7 +339,7 @@ async function poll(id) {
   }
   const { job, events } = await res.json();
 
-  document.getElementById('job-title').textContent = job.input.clientName;
+  document.getElementById('job-title').textContent = job.input.mobileFixOf ? `${job.input.clientName} · adaptación a móvil` : job.input.clientName;
   document.getElementById('job-meta').textContent = [
     new Date(job.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
     job.input.requesterName,
@@ -358,7 +374,8 @@ async function poll(id) {
       document.getElementById('download-link').href = `/api/jobs/${id}/result?download=1`;
       document.getElementById('open-link').href = `/api/jobs/${id}/result`;
       document.getElementById('preview-frame').src = `/api/jobs/${id}/result`;
-      applyPreviewView(readPreviewView());
+      applyPreviewView(job.input.mobileFixOf ? 'mobile' : readPreviewView());
+      document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
     }
     return;
   }
@@ -442,7 +459,9 @@ function renderProgress(job) {
     track.setAttribute('aria-valuenow', '0');
     document.getElementById('progress-stage').textContent = 'En cola';
     document.getElementById('progress-eta').textContent = '';
-    document.getElementById('progress-detail').textContent = job.input.instruction
+    document.getElementById('progress-detail').textContent = job.input.mobileFixOf
+      ? 'Esperando a que Hermes lo recoja. Solo adapta la versión móvil: unos minutos.'
+      : job.input.instruction
       ? 'Esperando a que Hermes lo recoja. Primero escribirá el brief creativo.'
       : 'Esperando a que Hermes lo recoja.';
     return;

@@ -23,6 +23,8 @@ import { createRateLimiter } from './rateLimit';
 import {
   buildHermesPrompt,
   buildBriefPrompt,
+  buildMobileFixPrompt,
+  readResultHtml,
   needsBrief,
   completeStandaloneJob,
   standaloneOutputDir,
@@ -177,7 +179,11 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
     outputDir: standaloneOutputDir(job),
     // Instrucción básica: el worker ejecuta primero briefPrompt y luego pide el encargo final
     // a /brief. Con prompt pegado, el encargo va directamente.
-    ...(needsBrief(job) ? { briefPrompt: buildBriefPrompt(job) } : { prompt: buildHermesPrompt(job) }),
+    ...(job.input.mobileFixOf
+      ? { prompt: buildMobileFixPrompt(job), sourceHtml: readResultHtml(getJob(job.input.mobileFixOf) || job) || '' }
+      : needsBrief(job)
+        ? { briefPrompt: buildBriefPrompt(job) }
+        : { prompt: buildHermesPrompt(job) }),
   });
 });
 
@@ -214,7 +220,7 @@ app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '
   } else {
     updateJob(job.id, {}); // renueva updatedAt: el trabajo sigue vivo
   }
-  if (req.body?.message) hermesLog(job.id, String(req.body.message).slice(0, 2000));
+  if (req.body?.message) hermesLog(job.id, String(req.body.message).slice(0, 2000), req.body.level === 'error' ? 'error' : 'info');
   res.json({ ok: true });
 });
 
@@ -393,6 +399,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       requesterName: j.input.requesterName || null,
       imageMode: j.input.imageMode || null,
       fromInstruction: !!j.input.instruction,
+      mobileFixOf: j.input.mobileFixOf || null,
       pct: j.progress?.pct ?? null,
       elapsedSec: j.progress?.elapsedSec ?? null,
       error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,
@@ -408,6 +415,27 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
     return;
   }
   res.json({ job, events: readEvents(job.id) });
+});
+
+// "Adaptar a móvil": nuevo trabajo que parte del HTML de uno terminado (ver buildMobileFixPrompt).
+app.post('/api/jobs/:id/mobile-fix', createJobRateLimit.middleware, (req: Request, res: Response) => {
+  const source = getJob(req.params.id);
+  if (!source || source.input.mode !== 'standalone' || !readResultHtml(source)) {
+    res.status(404).json({ error: 'Solo se puede adaptar una newsletter terminada.' });
+    return;
+  }
+  const job = createJob({
+    mode: 'standalone',
+    clientSlug: source.input.clientSlug,
+    clientName: source.input.clientName,
+    brandMode: source.input.brandMode,
+    briefText: source.input.briefText,
+    imageMode: source.input.imageMode,
+    requesterName: source.input.requesterName,
+    mobileFixOf: source.id,
+  });
+  hermesLog(job.id, `Adaptación a móvil de la newsletter ${source.id}: en cola.`);
+  res.status(201).json({ id: job.id });
 });
 
 app.get('/api/jobs/:id/result', (req: Request, res: Response) => {

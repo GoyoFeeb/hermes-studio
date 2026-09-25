@@ -124,6 +124,45 @@ export function buildBriefPrompt(job: Job): string {
   ].join('\n');
 }
 
+/** HTML publicado de un trabajo terminado (con las imágenes ya en URLs https de /assets). */
+export function readResultHtml(job: Job): string | null {
+  if (job.status !== 'completed' || !job.resultRelPath) return null;
+  try {
+    return fs.readFileSync(path.join(ROOT, job.resultRelPath), 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** Encargo de "Adaptar a móvil": el worker deja el HTML original en `_trabajo/original.html`
+ *  (fuera de la carpeta raíz para que no cuente como entrega) y Hermes escribe la versión adaptada.
+ *  Las newsletters hechas antes de la comprobación móvil (Adidas, Inglesina…) eran tablas fijas de
+ *  600 px sin ninguna media query: rehacerlas costaba 20 min; esto, unos minutos. */
+export function buildMobileFixPrompt(job: Job): string {
+  const outDir = standaloneOutputDir(job);
+  return [
+    `Adapta a móvil la newsletter de ${job.input.clientName} que está en ${outDir}/_trabajo/original.html.`,
+    'Es una pieza ya aprobada: NO la rediseñes, NO cambies textos, imágenes, colores ni orden, NO investigues',
+    'la marca ni cargues skills. La versión de escritorio (600 px) debe quedar idéntica.',
+    '',
+    '## Qué hacer',
+    '- Añade (o corrige) un bloque <style> con @media only screen and (max-width: 620px) y clases en el HTML:',
+    '  contenedor principal al 100 %; imágenes con width:100% !important y height:auto !important;',
+    '  columnas apiladas (display:block; width:100%); paddings laterales de ~20 px; titulares más pequeños',
+    '  que puedan partir línea; botones que no se salgan (ancho automático o 100 %).',
+    '- Sustituye anchos fijos que impidan encoger (width="600" en tablas contenedoras → width="100%" con',
+    '  max-width:600px, o la clase de la media query). Mantén los atributos width de las imágenes para Outlook.',
+    '- Mantén las URLs de las imágenes tal cual (ya están publicadas).',
+    '',
+    '## Entrega',
+    `- Guarda el resultado en ${outDir}/newsletter.html (write_file). Scripts y capturas en ${outDir}/_trabajo/.`,
+    '- Renderízalo a 375 px y a 600 px y míralo: a 375 px nada puede salirse del ancho ni quedar cortado, y a',
+    '  600 px debe verse igual que el original. Studio lo mide al recibirlo y te lo devolverá si se sale.',
+    `- Escribe ${outDir}/notas.md con los cambios hechos y el resultado de las comprobaciones a 375 y 600 px.`,
+    '- Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
+  ].join('\n');
+}
+
 /** El prompt tiene que hablar de la marca elegida: el 2026-09-24 se envió un prompt de Prozis con
  *  la marca Adeslas seleccionada (el navegador había rellenado el formulario) y Hermes recibió
  *  "usa solo assets de Adeslas" para una campaña de Prozis. */

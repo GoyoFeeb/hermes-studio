@@ -425,7 +425,12 @@ interface ClaimedJob {
   prompt?: string;
   /** Solo con instrucción básica: paso previo en el que Hermes escribe el brief con la skill. */
   briefPrompt?: string;
+  /** Solo en "Adaptar a móvil": HTML publicado de la newsletter original. */
+  sourceHtml?: string;
 }
+
+/** Una adaptación a móvil es un retoque, no una newsletter: la barra estima con esto. */
+const MOBILE_FIX_EXPECTED_SEC = 6 * 60;
 
 /** Parte de la barra que ocupa el paso del brief cuando el trabajo llega como instrucción básica. */
 const BRIEF_SHARE = 12;
@@ -576,6 +581,16 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     prompt = brief.prompt;
     briefSec = brief.seconds;
   }
+  const isMobileFix = claimed.sourceHtml !== undefined;
+  if (isMobileFix) {
+    if (!claimed.sourceHtml) {
+      await api(`/api/worker/jobs/${claimed.id}/fail`, { error: 'No se encontró el HTML de la newsletter original.' }).catch(() => undefined);
+      current = null;
+      return;
+    }
+    fs.mkdirSync(path.join(outAbs, '_trabajo'), { recursive: true });
+    fs.writeFileSync(path.join(outAbs, '_trabajo', 'original.html'), claimed.sourceHtml);
+  }
   const job = { id: claimed.id, outputDir: claimed.outputDir, prompt };
   const scale = (p: Progress): Progress =>
     briefSec ? { ...p, pct: Math.round(BRIEF_SHARE + (p.pct * (100 - BRIEF_SHARE)) / 100), elapsedSec: Math.round(p.elapsedSec + briefSec) } : p;
@@ -586,7 +601,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const htmlReady = (): string | null =>
     fs.existsSync(expectedFile) ? expectedFile : newestHtml(outAbs) || newestHtmlSince(path.dirname(outAbs), started);
 
-  const expected = expectedSeconds();
+  const expected = isMobileFix ? MOBILE_FIX_EXPECTED_SEC : expectedSeconds();
   let sessionId: string | null = null;
   let lastCount = -1;
   let lastChange = Date.now();
@@ -622,7 +637,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   }, PROGRESS_MS);
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  let turn = await runHermesTurn(job.prompt + skillReadingNote() + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE, null, (id) => (sessionId = sessionId || id));
+  const envNotes = isMobileFix ? '' : skillReadingNote() + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE;
+  let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id));
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})`);
     await api(`/api/worker/jobs/${job.id}/progress`, {
@@ -671,7 +687,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     mobileProblem = htmlReady() ? await mobileOverflow(htmlReady()!) : null;
   }
   if (mobileProblem) {
-    await api(`/api/worker/jobs/${job.id}/progress`, { message: `Aviso: la versión móvil sigue sin caber. ${mobileProblem}` }).catch(() => undefined);
+    await api(`/api/worker/jobs/${job.id}/progress`, { message: `Aviso: la versión móvil sigue sin caber. ${mobileProblem}`, level: 'error' }).catch(() => undefined);
   }
   clearInterval(heartbeat);
   clearTimeout(killer);
@@ -710,7 +726,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     }).catch(() => undefined);
     console.log(`[${stamp()}] ✗ ${job.id}: terminada en ${path.relative(ROOT, htmlPath)} pero no se pudo subir (${uploadError})`);
   } else {
-    recordDuration(minutes);
+    if (!isMobileFix) recordDuration(minutes);
     console.log(`[${stamp()}] ✓ ${job.id} en ${minutes} min`);
   }
   current = null;

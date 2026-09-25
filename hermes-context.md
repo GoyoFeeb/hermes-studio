@@ -594,3 +594,17 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   `lastActionAt` (hora de la última acción de Hermes). La web muestra "recta final: revisando a su
   ritmo" y "última acción hace X" en el detalle; si pasan 3 min sin actividad, "sin actividad desde
   hace X" en amarillo. La barra lleva un brillo animado mientras Hermes trabaja.
+
+### 2026-09-25 — "Adaptar a móvil" para newsletters ya terminadas
+
+- **Por qué:** las piezas hechas antes de la comprobación móvil (Adidas, Inglesina) son tablas fijas
+  de 600 px sin media query; en la vista móvil se cortan. Rehacerlas costaba ~20 min.
+- **Qué:** botón "Adaptar a móvil" en la página de una newsletter terminada → `POST /api/jobs/:id/mobile-fix`
+  crea un trabajo con `mobileFixOf`. El claim entrega `sourceHtml` (HTML publicado, imágenes ya en
+  /assets) y `buildMobileFixPrompt`: no rediseñar ni cambiar textos/imágenes, solo media query
+  (contenedor 100 %, imágenes fluidas, columnas apiladas, paddings), escritorio idéntico, notas.md.
+  El worker deja el original en `_trabajo/original.html`, no añade notas de skills/marca, estima
+  6 min y no registra la duración; pasa la medición a 375 px como cualquier pieza. La web lo titula
+  "{marca} · adaptación a móvil", abre en vista móvil y el historial lo marca.
+- El aviso "la versión móvil sigue sin caber" se registra en rojo (nivel error).
+- **Verificado en local** con Hermes simulado (original fija → 2 correcciones + aviso; adaptación → pasa).

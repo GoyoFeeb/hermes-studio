@@ -26,6 +26,9 @@ export interface JobInput {
   /** Instrucción básica ("quiero una newsletter de Adeslas", 2026-09-24): Hermes genera primero el
    *  brief con la skill newsletter-creative-brief y lo guarda en briefText (vacío hasta entonces). */
   instruction?: string;
+  /** Adaptación a móvil de una newsletter ya terminada (2026-09-25): id del trabajo original.
+   *  Hermes parte de su HTML publicado y solo añade/corrige la versión móvil. */
+  mobileFixOf?: string;
 }
 
 export interface Job {
