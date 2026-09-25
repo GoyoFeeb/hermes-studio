@@ -459,20 +459,39 @@ function renderProgress(job) {
   }
   box.hidden = false;
   bar.style.width = `${p.pct}%`;
+  bar.classList.toggle('is-live', job.status === 'running');
   track.setAttribute('aria-valuenow', String(p.pct));
   document.getElementById('progress-stage').textContent = `${p.stageLabel} · ${p.pct}%`;
-  document.getElementById('progress-eta').textContent =
-    job.status === 'completed'
-      ? ''
-      : p.stage === 'brief'
-        ? 'después, la newsletter (~15-20 min)'
-        : p.etaSec
-          ? `quedan ~${formatMinutes(p.etaSec)} (estimado)`
-          : 'terminando, algo más de lo habitual';
+  const eta = document.getElementById('progress-eta');
+  eta.classList.remove('is-idle');
+  if (job.status === 'completed') {
+    eta.textContent = '';
+  } else if (p.stage === 'brief') {
+    eta.textContent = 'después, la newsletter (~15-20 min)';
+  } else if (p.etaSec) {
+    eta.textContent = `quedan ~${formatMinutes(p.etaSec)} (estimado)`;
+  } else {
+    // Recta final (Hermes revisa y corrige a su ritmo): en vez de un tiempo que no se cumple,
+    // si sigue trabajando o si lleva rato parado.
+    const idle = idleSeconds(p);
+    eta.textContent = idle != null && idle >= 180 ? `sin actividad desde hace ${formatAgo(idle)}` : 'recta final: revisando a su ritmo';
+    eta.classList.toggle('is-idle', idle != null && idle >= 180);
+  }
+  const idle = idleSeconds(p);
   document.getElementById('progress-detail').textContent =
     job.status === 'completed'
       ? `Hecha en ${formatMinutes(p.elapsedSec)} · ${p.actions} acciones de Hermes.`
-      : `${p.detail} · ${p.actions} acciones · ${formatMinutes(p.elapsedSec)} transcurridos`;
+      : [p.detail, idle != null ? `última acción hace ${formatAgo(idle)}` : null, `${p.actions} acciones`, `${formatMinutes(p.elapsedSec)} transcurridos`]
+          .filter(Boolean)
+          .join(' · ');
+}
+
+function idleSeconds(p) {
+  return p.lastActionAt ? Math.max(0, (Date.now() - p.lastActionAt) / 1000) : null;
+}
+
+function formatAgo(sec) {
+  return sec < 60 ? `${Math.max(5, Math.round(sec / 5) * 5)} s` : `${Math.round(sec / 60)} min`;
 }
 
 // ---------------------------------------------------------------- utilidades

@@ -260,6 +260,16 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
   box-shadow: 0 0 16px rgba(251, 115, 255, 0.5);
   transition: width 0.6s ease;
 }
+/* Brillo que recorre la barra mientras Hermes trabaja: se ve vivo aunque el % no cambie. */
+#progress-bar.is-live {
+  background:
+    linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%) -40% 0 / 40% 100% no-repeat,
+    linear-gradient(90deg, var(--purple), var(--pink));
+  animation: progress-shine 1.8s linear infinite;
+}
+@keyframes progress-shine { to { background-position: 140% 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) { #progress-bar.is-live { animation: none; } }
+.progress-head span.is-idle { color: var(--warning); }
 
 .result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .result-bar p { margin: 0 auto 0 0; font-weight: 600; color: var(--success); }

@@ -151,6 +151,8 @@ export interface Progress {
   actions: number;
   elapsedSec: number;
   etaSec: number | null;
+  /** Hora (epoch ms) de la última acción de Hermes: la web muestra "última acción hace X". */
+  lastActionAt?: number;
 }
 
 export interface ToolCall {
@@ -176,6 +178,7 @@ export function estimateProgress(calls: ToolCall[], elapsedSec: number, expected
   }
   const { from, to, label } = STAGES[stage];
   const byTime = (elapsedSec / expectedSec) * 100;
+  const capped = byTime >= to - 1;
   const pct = Math.round(Math.min(to - 1, Math.max(from, byTime)));
   const last = calls[calls.length - 1];
   return {
@@ -185,7 +188,10 @@ export function estimateProgress(calls: ToolCall[], elapsedSec: number, expected
     detail: last ? describeTool(last.name) : 'Arrancando Hermes',
     actions: calls.length,
     elapsedSec: Math.round(elapsedSec),
-    etaSec: estimateEta(pct, elapsedSec, expectedSec),
+    // Con el porcentaje en el tope de su fase, el cálculo daba siempre "quedan ~1 min" aunque
+    // Hermes siguiera revisando 5 minutos más (Inglesina, 2026-09-25): sin estimación, la web
+    // muestra la última actividad en su lugar.
+    etaSec: capped ? null : estimateEta(pct, elapsedSec, expectedSec),
   };
 }
 
@@ -522,6 +528,7 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
       actions: tools.length,
       elapsedSec: Math.round(elapsed),
       etaSec: null,
+      lastActionAt: lastChange,
     };
     await api(`/api/worker/jobs/${job.id}/progress`, { progress }).catch(() => undefined);
     busy = false;
@@ -600,6 +607,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       lastChange = Date.now();
     }
     const progress = scale(estimateProgress(tools, elapsed, expected));
+    progress.lastActionAt = lastChange;
     const idleSec = (Date.now() - lastChange) / 1000;
     if (idleSec >= STALL_WARN_SEC) {
       progress.detail = `Hermes lleva ${Math.round(idleSec / 60)} min sin avanzar (esperando al modelo)`;

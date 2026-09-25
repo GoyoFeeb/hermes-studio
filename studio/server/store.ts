@@ -49,6 +49,7 @@ export interface Job {
     actions: number;
     elapsedSec: number;
     etaSec: number | null;
+    lastActionAt?: number | null;
   };
 }
 

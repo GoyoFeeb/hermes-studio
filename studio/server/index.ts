@@ -207,6 +207,7 @@ app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '
       actions: Number(p.actions) || 0,
       elapsedSec: Number(p.elapsedSec) || 0,
       etaSec: Number.isFinite(p.etaSec) ? Number(p.etaSec) : null,
+      lastActionAt: Number.isFinite(p.lastActionAt) ? Number(p.lastActionAt) : null,
     };
     if (progress.stage && progress.stage !== job.progress?.stage) hermesLog(job.id, `${progress.stageLabel}…`);
     updateJob(job.id, { progress });

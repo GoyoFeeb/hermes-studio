@@ -585,3 +585,12 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   si sigue sin caber, lo deja como aviso en el trabajo. Verificado: detecta Adidas (600 px) y la
   Adeslas del 24-sep (648 px); un email con media query correcta pasa. Aplicado tras terminar el
   trabajo de Inglesina (19 min) para no cortarlo.
+
+### 2026-09-25 — Barra de progreso: recta final y última actividad
+
+- **Problema (Inglesina):** en la revisión final la barra llegaba al tope de su fase (96 %) y el
+  cálculo daba siempre "quedan ~1 min" durante 5+ min: parecía colgado sin estarlo.
+- **Cambio:** con el % en el tope de su fase el worker ya no estima tiempo (`etaSec: null`) y envía
+  `lastActionAt` (hora de la última acción de Hermes). La web muestra "recta final: revisando a su
+  ritmo" y "última acción hace X" en el detalle; si pasan 3 min sin actividad, "sin actividad desde
+  hace X" en amarillo. La barra lleva un brillo animado mientras Hermes trabaja.
