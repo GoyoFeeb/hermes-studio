@@ -608,3 +608,10 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   "{marca} · adaptación a móvil", abre en vista móvil y el historial lo marca.
 - El aviso "la versión móvil sigue sin caber" se registra en rojo (nivel error).
 - **Verificado en local** con Hermes simulado (original fija → 2 correcciones + aviso; adaptación → pasa).
+
+### 2026-09-25 — "Sin actividad" no es cuelgue
+
+- Talaria: la barra marcó "sin actividad desde hace 5 min" mientras el modelo generaba una sola
+  respuesta de 7.200 tokens (llamada de 304 s). Sin tool calls no hay señal de vida, pero no es cuelgue.
+- Web: 3-10 min sin acciones → "generando respuesta · sin acciones desde hace X" (gris); ≥10 min →
+  "sin actividad" (amarillo). Worker: `STALL_KILL_SEC` 12 → 20 min para no cortar respuestas largas.

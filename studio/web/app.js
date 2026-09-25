@@ -492,9 +492,14 @@ function renderProgress(job) {
   } else {
     // Recta final (Hermes revisa y corrige a su ritmo): en vez de un tiempo que no se cumple,
     // si sigue trabajando o si lleva rato parado.
-    const idle = idleSeconds(p);
-    eta.textContent = idle != null && idle >= 180 ? `sin actividad desde hace ${formatAgo(idle)}` : 'recta final: revisando a su ritmo';
-    eta.classList.toggle('is-idle', idle != null && idle >= 180);
+    eta.textContent = 'recta final: revisando a su ritmo';
+  }
+  // Sin acciones no es lo mismo que colgado: el modelo puede estar escribiendo una respuesta larga
+  // (Talaria, 2026-09-25: 5 min generando). Gris a partir de 3 min, amarillo a partir de 10.
+  const quiet = idleSeconds(p);
+  if (job.status === 'running' && quiet != null && quiet >= 180) {
+    eta.textContent = quiet >= 600 ? `sin actividad desde hace ${formatAgo(quiet)}` : `generando respuesta · sin acciones desde hace ${formatAgo(quiet)}`;
+    eta.classList.toggle('is-idle', quiet >= 600);
   }
   const idle = idleSeconds(p);
   document.getElementById('progress-detail').textContent =

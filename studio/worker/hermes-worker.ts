@@ -298,8 +298,10 @@ const MAX_CONTINUES = 3;
 /** Sin ninguna actividad en la sesión durante este tiempo, la barra avisa de que parece atascado. */
 const STALL_WARN_SEC = 10 * 60;
 /** Sin actividad este tiempo, se corta el turno de Hermes y se retoma la sesión: una llamada al
- *  modelo colgada no siempre la corta Hermes (Adidas, 2026-09-24: 14 min esperando sin respuesta). */
-const STALL_KILL_SEC = 12 * 60;
+ *  modelo colgada no siempre la corta Hermes (Adidas, 2026-09-24: 14 min esperando sin respuesta).
+ *  "Sin acciones" no siempre es cuelgue: el modelo puede estar generando una respuesta larga
+ *  (Talaria, 2026-09-25: una llamada de 5 min y 7.200 tokens). 20 min deja margen a eso. */
+const STALL_KILL_SEC = 20 * 60;
 
 /** Las skills de newsletter de Hermes han crecido a ~100 KB por archivo. Por `skill_view` llegan
  *  como UNA línea JSON de 100 KB que Hermes guarda en un temporal y no consigue leer por tramos
@@ -625,7 +627,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     progress.lastActionAt = lastChange;
     const idleSec = (Date.now() - lastChange) / 1000;
     if (idleSec >= STALL_WARN_SEC) {
-      progress.detail = `Hermes lleva ${Math.round(idleSec / 60)} min sin avanzar (esperando al modelo)`;
+      progress.detail = `Hermes lleva ${Math.round(idleSec / 60)} min sin acciones (esperando al modelo)`;
     }
     if (idleSec >= STALL_KILL_SEC && currentChild) {
       console.log(`[${stamp()}] ${job.id}: Hermes sin actividad ${Math.round(idleSec / 60)} min — se corta el turno y se retoma`);
