@@ -839,3 +839,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   claro, 4,99); automático probado con el sistema en claro y en oscuro; tema recordado al recargar;
   registro con el aviso real de calidad y filtro (1 de 6). `npm test` 98/98.
 
+- **Desplegado (con permiso del usuario):** `50c1753` publicado en Vercel (3 archivos idénticos al local)
+  y subido a `Javifeebbo/hermes-studio`. Worker sin cambios.
