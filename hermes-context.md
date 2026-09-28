@@ -652,3 +652,7 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   trabajo en curso); launchd lo relanzó en segundos, ya con el código nuevo (compatible con el servidor
   de Railway anterior).
 
+- **Desplegado (con permiso del usuario):** `af6f3a5` subido a `Javifeebbo/hermes-studio` → Railway
+  SUCCESS 10:03; interfaz publicada en Vercel (`hermes-studio-beta.vercel.app` sirve el panel nuevo);
+  worker reiniciado (launchd) y leyendo el token de `~/.config/hermes-studio/.env` (sin aviso de
+  `studio/.env`). **Pendiente:** primer trabajo real con Hermes para ver el control y el panel en vivo.
