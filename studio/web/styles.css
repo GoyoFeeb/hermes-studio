@@ -454,6 +454,8 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 }
 #preview-frame-before { display: block; width: 800px; height: 720px; border: 0; border-radius: 6px; background: #fff; }
 .preview-device.is-mobile #preview-frame-before { width: 375px; height: 740px; border-radius: 22px; }
+.theme-hint { margin: -4px 0 14px; }
+.preview-stage.is-dark { background: #000; }
 .toggle { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; cursor: pointer; }
 .toggle input { accent-color: var(--pink); width: 16px; height: 16px; margin: 0; }
 #preview-frame {

@@ -738,3 +738,22 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `8508d77` publicado en Vercel (`app.js` e `index.html`
   servidos idénticos al local) y subido a `Javifeebbo/hermes-studio` (Railway redespliega sin cambios de
   servidor). Worker sin cambios.
+
+### 2026-09-28 (continuación) — Mejoras de interfaz 9 y 10: modo oscuro y altura real en la vista previa
+
+- **Elegidas por el usuario.** Solo la web de Studio.
+- **10. Altura real:** la vista previa pasa de `src` (URL con CSP sandbox, no medible) a `srcdoc` con el HTML
+  ya descargado en `<iframe sandbox="allow-same-origin">` SIN `allow-scripts` (probado: los scripts no se
+  ejecutan). Se mide `scrollHeight` al cargar y al cambiar Escritorio/Móvil (encoge y crece: 3.125 px a 800,
+  2.948 a 375 con la pieza real de Puma). Vale también para "Antes y después".
+- **9. Modo de color:** Claro / Oscuro (como Apple Mail) / Invertido (aproximación a Gmail/Outlook en móvil:
+  `invert + hue-rotate` en el body y deshecho en imágenes). **Hallazgo:** el marco sigue el modo del SISTEMA
+  de quien mira, y `color-scheme` en el `<iframe>` no lo cambia (con el Mac en oscuro, "Claro" aplicaba los
+  estilos oscuros). Solución: `forceScheme` reescribe en el HTML de la vista previa `(prefers-color-scheme:
+  X)` a una condición siempre cierta o siempre falsa según el modo elegido, y `html{color-scheme}` según la
+  pieza declare `<meta name="color-scheme" … dark>`. Aviso bajo la vista previa si la pieza no define estilos
+  oscuros (las 8 de la auditoría no los tienen). La descarga y "Copiar HTML" no se tocan.
+- **Verificación:** copia aislada con la pieza real de Puma y una variante con estilos oscuros; resultados
+  idénticos con el navegador emulando sistema claro y oscuro. Las capturas ya muestran la vista previa (antes
+  salía en blanco por el marco aislado por URL).
+

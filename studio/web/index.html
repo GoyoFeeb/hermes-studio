@@ -219,23 +219,29 @@
             <label><input type="radio" name="previewView" value="desktop" checked /><span>Escritorio</span></label>
             <label><input type="radio" name="previewView" value="mobile" /><span>Móvil</span></label>
           </div>
+          <div class="segmented theme-toggle" role="radiogroup" aria-label="Modo de color de la vista previa">
+            <label title="Como se ve con el modo claro"><input type="radio" name="previewTheme" value="light" checked /><span>Claro</span></label>
+            <label title="Como Apple Mail o iOS Mail en modo oscuro: la pieza usa sus propios estilos oscuros"><input type="radio" name="previewTheme" value="dark" /><span>Oscuro</span></label>
+            <label title="Aproximación a Gmail y Outlook en móvil con modo oscuro: invierten los colores"><input type="radio" name="previewTheme" value="invert" /><span>Invertido</span></label>
+          </div>
           <label class="toggle" id="compare-toggle-wrap" hidden>
             <input type="checkbox" id="compare-toggle" />
             <span>Antes y después</span>
           </label>
           <span class="hint" id="preview-size"></span>
         </div>
+        <p class="hint theme-hint" id="theme-hint" hidden></p>
         <div class="preview-stage" id="preview-stage">
           <div class="preview-col" id="preview-col-before" hidden>
             <p class="preview-label" id="preview-label-before"></p>
             <div class="preview-device" id="preview-device-before">
-              <iframe id="preview-frame-before" sandbox title="Versión anterior de la newsletter"></iframe>
+              <iframe id="preview-frame-before" sandbox="allow-same-origin" title="Versión anterior de la newsletter"></iframe>
             </div>
           </div>
           <div class="preview-col" id="preview-col-after">
             <p class="preview-label" id="preview-label-after" hidden></p>
             <div class="preview-device" id="preview-device">
-              <iframe id="preview-frame" sandbox title="Previsualización de la newsletter"></iframe>
+              <iframe id="preview-frame" sandbox="allow-same-origin" title="Previsualización de la newsletter"></iframe>
             </div>
           </div>
         </div>

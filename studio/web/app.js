@@ -583,7 +583,7 @@ function showJobView(id) {
   reviseBox.reset();
   reviseBtn.setAttribute('aria-expanded', 'false');
   resetCancel();
-  document.getElementById('preview-frame').removeAttribute('src');
+  resetFrame(document.getElementById('preview-frame'));
   resetCompare();
   document.getElementById('versions').hidden = true;
   document.getElementById('job-parent').hidden = true;
@@ -652,12 +652,16 @@ async function poll(id) {
       resultBox.hidden = false;
       document.getElementById('download-link').href = `/api/jobs/${id}/result?download=1`;
       document.getElementById('open-link').href = `/api/jobs/${id}/result`;
-      document.getElementById('preview-frame').src = `/api/jobs/${id}/result`;
       applyPreviewView(job.input.mobileFixOf ? 'mobile' : readPreviewView());
+      document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes);
       renderMeta(meta);
-      loadResultHtml(id);
+      loadResultHtml(id).then(() => {
+        if (id !== currentJob) return;
+        updateThemeHint();
+        renderFrame('after');
+      });
       setupCompare(job, versions || []);
     }
     return;
@@ -970,7 +974,8 @@ function resetCompare() {
   document.getElementById('preview-stage').classList.remove('is-compare');
   document.getElementById('preview-col-before').hidden = true;
   document.getElementById('preview-label-after').hidden = true;
-  document.getElementById('preview-frame-before').removeAttribute('src');
+  resetFrame(document.getElementById('preview-frame-before'));
+  compareBeforeHtml = null;
 }
 
 async function fetchResult(id) {
@@ -995,6 +1000,7 @@ async function setupCompare(job, versions) {
   }
   if (id !== currentJob) return;
   compareParent = parent;
+  compareBeforeHtml = before;
   const diff = window.HermesCompare.compareVersions(before, after);
   const items = [];
   const group = (title, list) => {
@@ -1031,8 +1037,7 @@ document.getElementById('compare-toggle').addEventListener('change', (e) => {
   document.getElementById('preview-stage').classList.toggle('is-compare', on);
   document.getElementById('preview-col-before').hidden = !on;
   document.getElementById('preview-label-after').hidden = !on;
-  const before = document.getElementById('preview-frame-before');
-  if (on && !before.getAttribute('src')) before.src = `/api/jobs/${encodeURIComponent(compareParent.id)}/result`;
+  if (on) renderFrame('before');
   applyPreviewView(readCheckedView());
 });
 
@@ -1044,11 +1049,130 @@ document.querySelectorAll('input[name="previewView"]').forEach((r) =>
       // sin almacenamiento: solo dura esta visita
     }
     applyPreviewView(r.value);
+    // Al cambiar el ancho, el contenido se recoloca (media queries): se vuelve a medir la altura.
+    requestAnimationFrame(() => requestAnimationFrame(fitFrames));
   })
 );
 new ResizeObserver(() => {
   if (!document.getElementById('job-result').hidden) applyPreviewView(readCheckedView());
 }).observe(document.getElementById('preview-stage'));
+
+// ---------------------------------------------------------------- vista previa: altura real y modo oscuro
+// La vista previa se pinta desde el HTML ya descargado (srcdoc) en un marco con sandbox="allow-same-origin"
+// y SIN allow-scripts: ningún script de la pieza se ejecuta (el HTML lo escribe un modelo que ha leído
+// webs), pero Studio puede medir su altura y mostrarla entera, sin barra de scroll interna (2026-09-28).
+// Antes era un marco de 720 px con la pieza cargada por URL (CSP sandbox: no se podía medir).
+
+let compareBeforeHtml = null;
+
+/** Aproximación a Gmail y Outlook en móvil con modo oscuro: invierten fondos y textos claros y dejan
+ *  las fotos como están. El fondo exterior imita el de esas apps. */
+const INVERT_CSS =
+  '<style data-studio-preview>' +
+  'html{background:#121212!important}' +
+  'body{filter:invert(1) hue-rotate(180deg)!important;min-height:100vh}' +
+  'img,picture,video,[background],[style*="background-image"],[style*="background:url"],[style*="background: url"]{filter:invert(1) hue-rotate(180deg)!important}' +
+  '</style>';
+
+function readTheme() {
+  try {
+    const t = localStorage.getItem('previewTheme');
+    return t === 'dark' || t === 'invert' ? t : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+function currentTheme() {
+  return document.querySelector('input[name="previewTheme"]:checked')?.value || 'light';
+}
+
+/** El marco sigue el modo claro/oscuro del sistema de quien mira, no el elegido aquí (probado: con el Mac
+ *  en oscuro, "Claro" aplicaba los estilos oscuros; color-scheme en el <iframe> no lo cambia). Por eso
+ *  las condiciones de la pieza se fijan en el propio HTML: (prefers-color-scheme: X) pasa a una
+ *  condición que siempre se cumple o nunca, según el modo elegido. */
+function forceScheme(html, scheme) {
+  return html.replace(/\(\s*prefers-color-scheme\s*:\s*(dark|light)\s*\)/gi, (_m, v) =>
+    v.toLowerCase() === scheme ? '(min-width: 0px)' : '(max-width: 0px)'
+  );
+}
+
+/** Declara la pieza que admite modo oscuro (<meta name="color-scheme" content="light dark">)? */
+function declaresDark(html) {
+  return [...html.matchAll(/<meta\b[^>]*>/gi)].some(
+    (m) => /name\s*=\s*["']?(color-scheme|supported-color-schemes)/i.test(m[0]) && /content\s*=\s*["'][^"']*dark/i.test(m[0])
+  );
+}
+
+function themedHtml(html, theme) {
+  const out = forceScheme(html, theme === 'dark' ? 'dark' : 'light');
+  // Colores por defecto del navegador (fondo, texto, formularios): oscuros solo si la pieza lo declara.
+  const scheme = theme === 'dark' && declaresDark(html) ? 'dark' : 'light';
+  const css = `<style data-studio-preview>html{color-scheme:${scheme}!important}</style>${theme === 'invert' ? INVERT_CSS : ''}`;
+  return /<\/head>/i.test(out) ? out.replace(/<\/head>/i, `${css}</head>`) : css + out;
+}
+
+function resetFrame(frame) {
+  frame.removeAttribute('src');
+  frame.removeAttribute('srcdoc');
+  frame.style.height = '';
+  frame.style.colorScheme = '';
+}
+
+/** Pinta una de las dos vistas previas ('after' = esta versión, 'before' = la anterior al comparar).
+ *  El modo oscuro no se aplica en caliente a un documento ya cargado: se recarga el marco. */
+function renderFrame(which) {
+  const frame = document.getElementById(which === 'before' ? 'preview-frame-before' : 'preview-frame');
+  const html = which === 'before' ? compareBeforeHtml : currentHtml;
+  if (!html) return;
+  const theme = currentTheme();
+  frame.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+  frame.onload = fitFrames;
+  frame.srcdoc = themedHtml(html, theme);
+}
+
+/** Alto de cada vista previa = alto real de la pieza a ese ancho. */
+function fitFrames() {
+  for (const id of ['preview-frame', 'preview-frame-before']) {
+    const frame = document.getElementById(id);
+    const doc = frame.getAttribute('srcdoc') ? frame.contentDocument : null;
+    if (!doc || !doc.documentElement) continue;
+    frame.style.height = '200px';
+    void frame.offsetHeight; // aplica el alto mínimo antes de medir: así la medida también puede encoger
+    const h = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0);
+    frame.style.height = `${Math.max(200, Math.ceil(h))}px`;
+  }
+  applyPreviewView(readCheckedView());
+}
+
+function updateThemeHint() {
+  const theme = currentTheme();
+  const hint = document.getElementById('theme-hint');
+  document.getElementById('preview-stage').classList.toggle('is-dark', theme !== 'light');
+  hint.hidden = theme === 'light';
+  if (theme === 'dark') {
+    const hasDark = /prefers-color-scheme\s*:\s*dark/i.test(currentHtml || '');
+    hint.textContent = hasDark
+      ? 'Como Apple Mail o iOS Mail en modo oscuro: la pieza usa sus propios estilos oscuros.'
+      : 'Como Apple Mail o iOS Mail en modo oscuro. Esta newsletter no define estilos oscuros (@media prefers-color-scheme), así que se ve igual que en claro.';
+  } else if (theme === 'invert') {
+    hint.textContent =
+      'Aproximación a Gmail y Outlook en móvil con modo oscuro: invierten fondos y textos claros y dejan las fotos como están. El resultado real varía según la app.';
+  }
+}
+
+document.querySelectorAll('input[name="previewTheme"]').forEach((r) =>
+  r.addEventListener('change', () => {
+    try {
+      localStorage.setItem('previewTheme', r.value);
+    } catch {
+      // sin almacenamiento: solo dura esta visita
+    }
+    updateThemeHint();
+    renderFrame('after');
+    if (document.getElementById('preview-stage').classList.contains('is-compare')) renderFrame('before');
+  })
+);
 
 function readCheckedView() {
   return document.querySelector('input[name="previewView"]:checked')?.value || 'desktop';

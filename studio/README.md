@@ -97,6 +97,12 @@ versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la 
 (`studio/web/compare.js`, con tests) y "Antes y después" muestra las dos vistas previas lado a lado.
 El historial agrupa cada familia (la original y debajo sus versiones).
 
+**Vista previa** (2026-09-28): se pinta desde el HTML descargado en un marco `sandbox="allow-same-origin"`
+sin scripts, con la altura real de la pieza (sin scroll interno). Modos de color: Claro, Oscuro (como Apple
+Mail: aplica los `@media (prefers-color-scheme: dark)` de la pieza; se fijan en el HTML de la vista previa
+porque el marco sigue el modo del sistema de quien mira) e Invertido (aproximación a Gmail/Outlook en
+móvil). Solo afecta a la vista previa: la descarga y "Copiar HTML" son la pieza tal cual.
+
 La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El campo de marca (uno solo desde el 2026-09-28) sugiere
 las del volumen de Railway y las del Mac del worker y dice debajo si lo escrito es una marca del
 sistema (usa su carpeta de `brands/`) o una nueva. En "Instrucción rápida" hay ejemplos pulsables. Si el prompt no menciona la marca elegida, Studio pide
