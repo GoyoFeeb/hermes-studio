@@ -799,3 +799,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   sin HTML colado), barra fija a 800 y 375 px, enlaces de la vista previa, reintento (misma marca,
   instrucción e imágenes), copiar enlace con clic real y nombre recordado. `npm test` 98/98.
 
+- **Desplegado (con permiso del usuario):** `9c2272d` publicado en Vercel (4 archivos idénticos al local;
+  `markdown.test.js` no se publica) y subido a `Javifeebbo/hermes-studio`. Worker sin cambios.
