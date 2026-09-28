@@ -777,3 +777,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Verificación:** copia aislada: anuncios en lista / en cola / cancelada / en marcha, foco, aria-pressed,
   375 px sin desbordes ni textos partidos. `npm test` 93/93.
 
+- **Desplegado (con permiso del usuario):** `8a4c901` → Vercel (4 archivos idénticos al local), Railway
+  SUCCESS 11:25 y worker reiniciado (launchd) sin errores.
