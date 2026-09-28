@@ -185,6 +185,17 @@ export interface ToolCall {
   target: string;
 }
 
+/** ¿Esta acción ya es trabajo sobre la pieza, no preparación? Mirar capturas cuenta siempre (las de la
+ *  web de la marca o las de la versión original). En "Pedir cambios" y "Adaptar a móvil" Hermes no navega:
+ *  recorta imágenes, ejecuta scripts y renderiza la pieza que ya tiene. Antes solo contaban web_/browser_ y
+ *  en un cambio la barra se quedaba en "Preparando · 14 %" hasta guardar el HTML (Nike, 2026-09-28: 31
+ *  acciones y 10 min sin moverse). */
+function startsWork(name: string, target: string, isEdit: boolean): boolean {
+  if (/^web_/.test(name) || /^browser_/.test(name) || name === 'vision_analyze') return true;
+  if (!isEdit) return false;
+  return name === 'terminal' || name === 'execute_code' || ((name === 'write_file' || name === 'patch') && !/\.md$/i.test(target));
+}
+
 export function estimateProgress(calls: ToolCall[], elapsedSec: number, expectedSec: number, isEdit = false): Progress {
   // Antes del primer .html Hermes también escribe scripts de apoyo (preparar el logo, renderizar)
   // y mira capturas de la web: todo eso es preparación/investigación, no la newsletter.
@@ -197,7 +208,7 @@ export function estimateProgress(calls: ToolCall[], elapsedSec: number, expected
       stage = 'escribiendo';
     } else if (wroteHtml && (name === 'vision_analyze' || name === 'browser_vision')) {
       stage = 'revisando';
-    } else if (!wroteHtml && stage === 'preparando' && (/^web_/.test(name) || /^browser_/.test(name))) {
+    } else if (!wroteHtml && stage === 'preparando' && startsWork(name, target, isEdit)) {
       stage = 'investigando';
     }
   }
