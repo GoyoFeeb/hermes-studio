@@ -676,3 +676,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   nota de credenciales; resultado con 0 errores de calidad). Interfaz probada a 800 y 375 px.
   `npm test` 87/87.
 
+- **Desplegado (con permiso del usuario):** `4d4967d` → Railway SUCCESS 10:18; Vercel sirve la interfaz
+  nueva; worker reiniciado (launchd) sin errores. **Pendiente:** primer uso real de cancelar y pedir
+  cambios con Hermes de verdad.
