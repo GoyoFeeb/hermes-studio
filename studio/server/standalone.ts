@@ -22,7 +22,7 @@ import { getJob, updateJob, appendEvent, listJobs, type Job } from './store';
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
 import { findPreheader, staticChecks } from '../worker/qualityCheck';
-import { applyTextEdits, type TextEdit } from './textEdit';
+import { applyTextEdits, type TextEdit, type AltEdit } from './textEdit';
 import { createJob } from './store';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
@@ -538,10 +538,10 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
  * versión de origen (editar el texto no cambia URLs; el móvil se midió con el mismo diseño).
  * Todo síncrono: el worker no puede recoger el trabajo entre que se crea y se marca terminado.
  */
-export function createTextEditVersion(source: Job, edits: TextEdit[], subject: string | null, requesterName?: string): Job {
+export function createTextEditVersion(source: Job, edits: TextEdit[], subject: string | null, requesterName?: string, alts: AltEdit[] = []): Job {
   const html = readResultHtml(source);
   if (!html) throw new Error('La newsletter de origen no está disponible.');
-  const { html: out, changes, outlookCopies } = applyTextEdits(html, edits, subject);
+  const { html: out, changes, outlookCopies } = applyTextEdits(html, edits, subject, alts);
   if (!changes.length) throw new TextEditNoChanges('No hay cambios que guardar.');
 
   const clip = (t: string): string => (t.length > 160 ? `${t.slice(0, 159)}…` : t);

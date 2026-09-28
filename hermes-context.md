@@ -869,6 +869,17 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-28 (tarde) — Comparar con cualquier versión, ancho libre y texto alternativo
+
+- "Comparar con" (selector en "Qué ha cambiado"): cualquier versión terminada de la familia; textos propios
+  cuando no es la de la que sale ("lo que solo está en la N / en esta").
+- Vista previa "Libre" 320–1000 px (presets 320/375/414/600/768), altura re-medida en cada cambio.
+- Texto alternativo en "Editar texto": clic en la imagen → campo junto a ella; `alts` en `/text-edit`
+  (índice entre las `<img>`, comprobación del alt de partida, se añade si no existía). Escribir con una
+  imagen seleccionada ya no puede borrarla.
+- Probado en copia aislada con Chrome 154 (414/600/900 px, comparar v3↔v1 y original↔v3, alt de la imagen 5
+  de Nike guardado como versión nueva). 135/135 tests. Despliegue: Vercel + Railway; el worker no cambia.
+
 ### 2026-09-28 (tarde) — Exportar para la plataforma, UTM, aprobar para envío y archivar
 
 - **Exportar** (`studio/web/export.js` + tests): variables de Hermes → Mailchimp (`*|UNSUB|*`, `*|ARCHIVE|*`,

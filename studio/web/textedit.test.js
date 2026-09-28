@@ -35,14 +35,14 @@ function textNode(root, needle) {
   return null;
 }
 
-function applyOnServer(html, edits, subject) {
+function applyOnServer(html, edits, subject, alts) {
   const code = `
     const t = require(${JSON.stringify(path.join(ROOT, 'studio', 'server', 'textEdit.ts'))});
     const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-    try { process.stdout.write(JSON.stringify(t.applyTextEdits(input.html, input.edits, input.subject))); }
+    try { process.stdout.write(JSON.stringify(t.applyTextEdits(input.html, input.edits, input.subject, input.alts))); }
     catch (e) { process.stdout.write(JSON.stringify({ error: e.message, textEditError: e instanceof t.TextEditError })); }
   `;
-  return JSON.parse(execFileSync(TSX_BIN, ['-e', code], { cwd: ROOT, input: JSON.stringify({ html, edits, subject }), encoding: 'utf8' }));
+  return JSON.parse(execFileSync(TSX_BIN, ['-e', code], { cwd: ROOT, input: JSON.stringify({ html, edits, subject, alts }), encoding: 'utf8' }));
 }
 
 test('ida y vuelta con la pieza real: titular, párrafo, botón y preheader; el resto, byte a byte igual', () => {
@@ -122,4 +122,27 @@ test('sin cambios de verdad (solo espacios) no hay nada que guardar; comentarios
   assert.deepEqual(diff(before, snapshot(body)), { edits: [] });
   body.childNodes.splice(1, 1); // desaparece el comentario
   assert.ok(diff(before, snapshot(body)).brokenAt !== undefined);
+});
+
+test('texto alternativo: se cambia solo el atributo alt; sin alt, se añade; un alt que no coincide se rechaza', () => {
+  const html = '<html><head><title>t</title></head><body><img src="a.png" alt="Logo &amp; marca" width="100"><p>x</p><img src="b.png" width="50"></body></html>';
+  const out = applyOnServer(html, [], null, [
+    { index: 0, before: 'Logo & marca', after: 'Logo de Nike "Swoosh"' },
+    { index: 1, before: '', after: 'Zapatilla verde' },
+  ]);
+  assert.equal(out.error, undefined, out.error);
+  assert.equal(out.html, '<html><head><title>t</title></head><body><img src="a.png" alt="Logo de Nike &quot;Swoosh&quot;" width="100"><p>x</p><img alt="Zapatilla verde" src="b.png" width="50"></body></html>');
+  assert.equal(out.changes.length, 2);
+  const bad = applyOnServer(html, [], null, [{ index: 0, before: 'Otro', after: 'X' }]);
+  assert.equal(bad.textEditError, true);
+});
+
+test('texto alternativo en la pieza real: la imagen nº 5 de Nike (la del recorte)', () => {
+  const imgs = [...NIKE.matchAll(/<img\b[^>]*>/gi)];
+  const alt = imgs[4][0].match(/alt="([^"]*)"/)[1];
+  const out = applyOnServer(NIKE, [], null, [{ index: 4, before: alt, after: 'Mediasuela Air Zoom del Pegasus 42' }]);
+  assert.equal(out.error, undefined, out.error);
+  const outImgs = [...out.html.matchAll(/<img\b[^>]*>/gi)];
+  assert.match(outImgs[4][0], /alt="Mediasuela Air Zoom del Pegasus 42"/);
+  assert.equal(out.html.replace(/alt="[^"]*"/g, ''), NIKE.replace(/alt="[^"]*"/g, ''));
 });

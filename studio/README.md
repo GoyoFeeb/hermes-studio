@@ -107,6 +107,13 @@ versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la 
 "Resaltar cambios" marca sobre la propia pieza lo añadido (verde) y, en "Antes y después", lo quitado en
 la versión anterior (rojo).
 
+**Comparar con cualquier versión, ancho libre y texto alternativo** (2026-09-28): "Comparar con" en
+"Qué ha cambiado" elige la versión de referencia (por defecto, de la que sale; en la original, ninguna
+hasta elegirla) para la lista, el resaltado y "Antes y después". La vista previa tiene un tercer modo,
+"Libre", de 320 a 1000 px con anchos habituales a un clic (se recuerda). En "Editar texto", clic en una
+imagen abre su texto alternativo junto a ella; el servidor cambia solo el atributo `alt` (o lo añade) de
+la n-ésima `<img>` (`AltEdit` en `textEdit.ts`, con tests).
+
 **Exportar para la plataforma de envío** (2026-09-28): "Exportar para" (Mailchimp, Brevo, HubSpot,
 Klaviyo, Salesforce MC o genérico) traduce al copiar y descargar las variables de Hermes
 (`{{unsubscribe_url}}`, `{{view_url}}`, `{{preferences_url}}`); las que una plataforma no tiene con un

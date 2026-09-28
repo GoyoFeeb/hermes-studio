@@ -22,13 +22,28 @@ export interface TextEdit {
   after: string;
 }
 
+/** Texto alternativo de una imagen: `index` es su posición entre todas las <img> del documento (desde 0),
+ *  igual que la cuenta la vista previa. */
+export interface AltEdit {
+  index: number;
+  before: string;
+  after: string;
+}
+
 export class TextEditError extends Error {}
 
-type Loc = { startOffset: number; endOffset: number; startTag?: { endOffset: number }; endTag?: { startOffset: number } };
+type Loc = {
+  startOffset: number;
+  endOffset: number;
+  startTag?: { startOffset: number; endOffset: number };
+  endTag?: { startOffset: number };
+  attrs?: Record<string, { startOffset: number; endOffset: number }>;
+};
 type PNode = {
   nodeName: string;
   tagName?: string;
   value?: string;
+  attrs?: { name: string; value: string }[];
   /** Contenido de un comentario (parse5 lo guarda en `data`). */
   data?: string;
   childNodes?: PNode[];
@@ -150,6 +165,19 @@ function outlookCopies(doc: PNode, html: string, before: string, after: string):
   return out;
 }
 
+function images(root: PNode, out: PNode[] = []): PNode[] {
+  for (const c of root.childNodes || []) {
+    if (c.tagName === 'img') out.push(c);
+    images(c, out);
+  }
+  return out;
+}
+
+/** Valor de atributo escapado para ir entre comillas dobles. */
+function escapeAttr(text: string): string {
+  return escapeText(text).replace(/"/g, '&quot;');
+}
+
 function elementAt(body: PNode, path: number[]): PNode {
   let el = body;
   for (const i of path) {
@@ -167,7 +195,8 @@ function elementAt(body: PNode, path: number[]): PNode {
 export function applyTextEdits(
   html: string,
   edits: TextEdit[],
-  subject?: string | null
+  subject?: string | null,
+  alts: AltEdit[] = []
 ): { html: string; changes: { before: string; after: string }[]; outlookCopies: number } {
   const doc = parse(html, { sourceCodeLocationInfo: true }) as unknown as PNode;
   const body = find(doc, 'body');
@@ -190,6 +219,27 @@ export function applyTextEdits(
     const copies = outlookCopies(doc, html, gap.text, edit.after);
     replacements.push(...copies);
     outlook += copies.length;
+  }
+
+  if (alts.length) {
+    const imgs = images(doc);
+    for (const alt of alts) {
+      const img = imgs[alt.index];
+      const loc = img?.sourceCodeLocation;
+      if (!img || !loc?.startTag) throw new TextEditError('La pieza no coincide con la vista previa (¿ha cambiado mientras editabas?).');
+      const current = img.attrs?.find((a) => a.name === 'alt');
+      if (normalizeText(current?.value ?? '') !== normalizeText(alt.before)) {
+        throw new TextEditError(`El texto alternativo de la imagen ${alt.index + 1} no coincide con el de la pieza: recarga la página y vuelve a editar.`);
+      }
+      const clean = alt.after.replace(/\s+/g, ' ').trim();
+      const attrLoc = loc.attrs?.alt;
+      if (attrLoc) replacements.push({ start: attrLoc.startOffset, end: attrLoc.endOffset, text: `alt="${escapeAttr(clean)}"` });
+      else {
+        const at = loc.startTag.startOffset + 4; // justo después de "<img"
+        replacements.push({ start: at, end: at, text: ` alt="${escapeAttr(clean)}"` });
+      }
+      changes.push({ before: `Texto alternativo de la imagen ${alt.index + 1}: ${normalizeText(current?.value ?? '') || '(sin texto)'}`, after: `Texto alternativo de la imagen ${alt.index + 1}: ${clean || '(vacío: imagen decorativa)'}` });
+    }
   }
 
   if (subject != null) {

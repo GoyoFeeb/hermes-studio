@@ -49,7 +49,7 @@ import {
   saveWorkerBrands,
   readWorkerBrands,
 } from './standalone';
-import { TextEditError, type TextEdit } from './textEdit';
+import { TextEditError, type TextEdit, type AltEdit } from './textEdit';
 
 loadEnv(ROOT);
 loadEnv(STUDIO_DIR);
@@ -561,14 +561,20 @@ app.post('/api/jobs/:id/text-edit', createJobRateLimit.middleware, (req: Request
     if (typeof e.before !== 'string' || typeof e.after !== 'string' || e.after.length > 5000 || e.before.length > 20000) continue;
     edits.push({ path: e.path, gap: e.gap, before: e.before, after: e.after });
   }
-  if (edits.length !== raw.length) {
+  const rawAlts = Array.isArray(req.body?.alts) ? req.body.alts : [];
+  const alts: AltEdit[] = [];
+  for (const a of rawAlts.slice(0, 200)) {
+    if (!a || !isInt(a.index) || typeof a.before !== 'string' || typeof a.after !== 'string' || a.after.length > 500 || a.before.length > 2000) continue;
+    alts.push({ index: a.index, before: a.before, after: a.after });
+  }
+  if (edits.length !== raw.length || alts.length !== rawAlts.length) {
     res.status(400).json({ error: 'Cambios no válidos.' });
     return;
   }
   const subject = typeof req.body?.subject === 'string' ? req.body.subject.slice(0, 300) : null;
   const requester = typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : undefined;
   try {
-    const job = createTextEditVersion(source, edits, subject, requester);
+    const job = createTextEditVersion(source, edits, subject, requester, alts);
     res.status(201).json({ id: job.id });
   } catch (err) {
     if (err instanceof TextEditError || err instanceof TextEditNoChanges) {

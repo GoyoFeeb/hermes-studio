@@ -261,7 +261,7 @@
         </form>
         <form id="textedit-box" class="revise-box textedit-box" hidden>
           <p class="label">Editar el texto</p>
-          <p class="hint">Haz clic en cualquier texto de la vista previa y escribe encima. Solo cambia el texto: diseño, imágenes y enlaces se quedan igual. Se guarda como versión nueva al momento, sin Hermes, y pasa la revisión automática.</p>
+          <p class="hint">Haz clic en cualquier texto de la vista previa y escribe encima; en una imagen, para cambiar su texto alternativo. Solo cambia el texto: diseño, imágenes y enlaces se quedan igual. Se guarda como versión nueva al momento, sin Hermes, y pasa la revisión automática.</p>
           <label>
             <span class="label">Asunto</span>
             <input type="text" id="te-subject" maxlength="300" />
@@ -335,6 +335,10 @@
             <h3 id="compare-title">Qué ha cambiado</h3>
             <span id="compare-summary" class="review-summary"></span>
           </div>
+          <label class="compare-with">
+            <span class="label">Comparar con</span>
+            <select id="compare-with"></select>
+          </label>
           <p id="compare-base" class="hint"></p>
           <ul id="compare-list" class="compare-list"></ul>
         </section>
@@ -343,6 +347,7 @@
           <div class="segmented view-toggle" role="radiogroup" aria-label="Tamaño de la vista previa">
             <label><input type="radio" name="previewView" value="desktop" checked /><span>Escritorio</span></label>
             <label><input type="radio" name="previewView" value="mobile" /><span>Móvil</span></label>
+            <label title="Cualquier ancho entre 320 y 1000 px"><input type="radio" name="previewView" value="free" /><span>Libre</span></label>
           </div>
           <div class="segmented theme-toggle" role="radiogroup" aria-label="Modo de color de la vista previa">
             <label title="Como se ve con el modo claro"><input type="radio" name="previewTheme" value="light" checked /><span>Claro</span></label>
@@ -358,6 +363,17 @@
             <span>Resaltar cambios</span>
           </label>
           <span class="hint" id="preview-size"></span>
+        </div>
+        <div class="free-width" id="free-width" hidden>
+          <label for="free-width-range" class="free-width-label">Ancho <strong id="free-width-value"></strong></label>
+          <input type="range" id="free-width-range" min="320" max="1000" step="1" />
+          <span class="free-width-presets" role="group" aria-label="Anchos habituales">
+            <button type="button" class="chip" data-width="320">320</button>
+            <button type="button" class="chip" data-width="375">375</button>
+            <button type="button" class="chip" data-width="414">414</button>
+            <button type="button" class="chip" data-width="600">600</button>
+            <button type="button" class="chip" data-width="768">768</button>
+          </span>
         </div>
         <p class="hint theme-hint" id="theme-hint" hidden></p>
         <div class="pick-banner te-banner" id="te-banner" hidden>
@@ -427,6 +443,17 @@
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Texto alternativo de una imagen, en "Editar texto" (2026-09-28): se abre junto a la imagen pulsada. -->
+  <div id="alt-pop" class="alt-pop" role="dialog" aria-labelledby="alt-pop-title" hidden>
+    <label for="alt-pop-input" class="label" id="alt-pop-title">Texto alternativo · imagen <span id="alt-pop-n"></span></label>
+    <input type="text" id="alt-pop-input" maxlength="300" placeholder="Describe la imagen (vacío si es decorativa)" />
+    <p class="hint">Lo leen los lectores de pantalla y se ve cuando el correo bloquea las imágenes.</p>
+    <div class="alt-pop-actions">
+      <button type="button" id="alt-pop-ok" class="btn btn-primary btn-sm">Aplicar</button>
+      <button type="button" id="alt-pop-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
+    </div>
+  </div>
 
   <!-- Barra de acciones que se queda visible al bajar por la vista previa (la pieza entera ocupa miles de px). -->
   <div id="sticky-actions" class="sticky-actions" hidden>

@@ -1175,14 +1175,16 @@ document.addEventListener('keydown', (e) => {
 /** "Editar texto": la vista previa se vuelve editable y al guardar se manda solo lo que cambió (ver
  *  textedit.js y studio/server/textEdit.ts). Se bloquea lo que rompería la estructura (saltos de línea,
  *  negritas, pegar HTML, arrastrar); si aun así se rompe, no se guarda y se dice dónde. */
-const te = { active: false, before: null, pre: null, confirmCancel: false };
+const te = { active: false, before: null, pre: null, confirmCancel: false, altBefore: [], alts: new Map() };
 const teBox = document.getElementById('textedit-box');
 const teBtn = document.getElementById('edit-text-btn');
 const PREVIEW_CONTROLS = '.preview-head input';
 const TE_CSS =
   'body[contenteditable]{caret-color:#e6007e;outline:none}' +
   'body[contenteditable] a{cursor:text!important}' +
-  'body[contenteditable] *:focus{outline:none}';
+  'body[contenteditable] *:focus{outline:none}' +
+  'body[contenteditable] img{cursor:pointer!important}' +
+  '[data-studio-alt]{outline:3px dashed #ffb020!important;outline-offset:-3px}';
 
 /** El bloque oculto del preheader (misma idea que findPreheader en qualityCheck.ts). */
 function findPreheaderEl(doc) {
@@ -1201,7 +1203,7 @@ function teEdits() {
 
 function teRenderStatus() {
   const { edits, brokenAt } = teEdits();
-  const n = (edits || []).length;
+  const n = (edits || []).length + te.alts.size;
   const text = brokenAt !== undefined ? 'Se ha borrado o partido un bloque: no se podrá guardar así.' : n ? `${n} texto${n === 1 ? '' : 's'} cambiado${n === 1 ? '' : 's'}.` : 'Sin cambios en la pieza todavía.';
   document.getElementById('te-status').textContent = text;
   document.getElementById('te-banner-count').textContent = text;
@@ -1291,6 +1293,16 @@ function armTextEdit(doc) {
     if (!replaceInTextNode(doc, text)) doc.execCommand('insertText', false, text);
   });
   doc.addEventListener('drop', (e) => te.active && e.preventDefault());
+  // Clic en una imagen: su texto alternativo, en un campo junto a ella.
+  doc.addEventListener(
+    'click',
+    (e) => {
+      if (!te.active || e.target.tagName !== 'IMG') return;
+      e.preventDefault();
+      openAltPop(doc, e.target);
+    },
+    true
+  );
   // Toda escritura y borrado dentro de un trozo de texto la hace Studio (replaceInTextNode), no el navegador:
   // Chrome saca fuera del enlace lo que se escribe al final de un botón, borra el <a> al vaciarlo y fusiona
   // bloques al borrar al principio de un texto. Así la estructura de la pieza no puede cambiar.
@@ -1312,6 +1324,8 @@ function armTextEdit(doc) {
       if (inText) {
         e.preventDefault();
         replaceInTextNode(doc, text);
+      } else if (!r.collapsed) {
+        e.preventDefault(); // una imagen seleccionada: escribir la borraría
       }
       return;
     }
@@ -1389,6 +1403,8 @@ function teOpen() {
     const d = previewDoc();
     if (!d?.body) return;
     te.before = HermesTextEdit.snapshot(d.body);
+    te.altBefore = [...d.querySelectorAll('img')].map((img) => img.getAttribute('alt') ?? '');
+    te.alts = new Map();
     armTextEdit(d);
     // Sin los contornos de "Resaltar cambios" mientras se escribe: vuelven al guardar o cancelar.
     d.querySelectorAll('[data-studio-added]').forEach((el) => el.removeAttribute('data-studio-added'));
@@ -1418,6 +1434,8 @@ function teOpen() {
 /** Sale del modo edición. Con `discard`, la vista previa se vuelve a pintar desde el HTML original. */
 function teClose({ discard = true } = {}) {
   if (!te.active && teBox.hidden) return;
+  closeAltPop();
+  te.alts = new Map();
   te.active = false;
   te.before = null;
   te.confirmCancel = false;
@@ -1430,7 +1448,7 @@ function teClose({ discard = true } = {}) {
 }
 
 function teCancel() {
-  const dirty = (teEdits().edits || []).length || teEdits().brokenAt !== undefined;
+  const dirty = (teEdits().edits || []).length || te.alts.size || teEdits().brokenAt !== undefined;
   if (dirty && !te.confirmCancel) {
     te.confirmCancel = true;
     document.getElementById('te-cancel').textContent = 'Descartar los cambios';
@@ -1471,7 +1489,8 @@ async function teSave() {
   }
   const subjectInput = document.getElementById('te-subject').value.trim();
   const subject = subjectInput && subjectInput !== (currentMeta?.subject || '') ? subjectInput : null;
-  if (!edits.length && !subject) {
+  const alts = [...te.alts].map(([index, after]) => ({ index, before: te.altBefore[index], after }));
+  if (!edits.length && !subject && !alts.length) {
     errorEl.textContent = 'No has cambiado nada todavía.';
     errorEl.hidden = false;
     return;
@@ -1482,7 +1501,7 @@ async function teSave() {
     const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/text-edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ edits, subject, requesterName: savedRequester() || undefined }),
+      body: JSON.stringify({ edits, subject, alts, requesterName: savedRequester() || undefined }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -1501,6 +1520,66 @@ async function teSave() {
     buttons.forEach((b) => (b.disabled = false));
   }
 }
+
+// ---- texto alternativo (2026-09-28)
+const altPop = document.getElementById('alt-pop');
+let altTarget = null;
+
+function openAltPop(doc, img) {
+  const index = [...doc.querySelectorAll('img')].indexOf(img);
+  if (index < 0) return;
+  altTarget = { img, index };
+  document.getElementById('alt-pop-n').textContent = `${index + 1} de ${te.altBefore.length}`;
+  const input = document.getElementById('alt-pop-input');
+  input.value = te.alts.has(index) ? te.alts.get(index) : te.altBefore[index];
+  // Junto a la imagen, en coordenadas de la página (el marco puede estar escalado).
+  const frame = document.getElementById('preview-frame');
+  const t = getComputedStyle(frame.closest('.preview-device')).transform;
+  const scale = t && t !== 'none' ? new DOMMatrix(t).a : 1;
+  const fr = frame.getBoundingClientRect();
+  const r = img.getBoundingClientRect();
+  altPop.hidden = false;
+  const width = altPop.offsetWidth;
+  const left = Math.min(Math.max(8, fr.left + r.left * scale), document.documentElement.clientWidth - width - 8);
+  const below = fr.top + (r.top + Math.min(r.height, 120)) * scale + 8;
+  altPop.style.left = `${left + window.scrollX}px`;
+  altPop.style.top = `${below + window.scrollY}px`;
+  input.focus();
+  input.select();
+}
+
+function closeAltPop() {
+  altPop.hidden = true;
+  altTarget = null;
+}
+
+function applyAlt() {
+  if (!altTarget) return;
+  const value = document.getElementById('alt-pop-input').value.replace(/\s+/g, ' ').trim();
+  const { img, index } = altTarget;
+  if (value === te.altBefore[index].replace(/\s+/g, ' ').trim()) {
+    te.alts.delete(index);
+    img.removeAttribute('data-studio-alt');
+  } else {
+    te.alts.set(index, value);
+    img.setAttribute('data-studio-alt', '');
+  }
+  img.setAttribute('alt', value);
+  closeAltPop();
+  teRenderStatus();
+}
+
+document.getElementById('alt-pop-ok').addEventListener('click', applyAlt);
+document.getElementById('alt-pop-cancel').addEventListener('click', closeAltPop);
+document.getElementById('alt-pop-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    applyAlt();
+  } else if (e.key === 'Escape') {
+    e.stopPropagation();
+    closeAltPop();
+  }
+});
 
 teBtn.addEventListener('click', () => (te.active ? teCancel() : teOpen()));
 teBox.addEventListener('submit', (e) => {
@@ -2175,15 +2254,50 @@ function renderReview(quality, notes) {
 const PREVIEW_VIEWS = {
   desktop: { width: 800, label: 'Escritorio · 800 px' },
   mobile: { width: 375, label: 'Móvil · 375 px (iPhone)' },
+  free: { width: null, label: 'Libre' },
 };
 
 function readPreviewView() {
   try {
-    return localStorage.getItem('previewView') === 'mobile' ? 'mobile' : 'desktop';
+    const v = localStorage.getItem('previewView');
+    return v === 'mobile' || v === 'free' ? v : 'desktop';
   } catch {
     return 'desktop';
   }
 }
+
+// Ancho libre (2026-09-28): ver dónde se rompe el diseño entre móvil y escritorio (tablets, ventanas
+// estrechas de webmail). Se recuerda en el navegador.
+const FREE_MIN = 320;
+const FREE_MAX = 1000;
+function readFreeWidth() {
+  try {
+    const w = Number(localStorage.getItem('previewFreeWidth'));
+    return w >= FREE_MIN && w <= FREE_MAX ? w : 600;
+  } catch {
+    return 600;
+  }
+}
+let freeWidth = readFreeWidth();
+
+function setFreeWidth(w) {
+  freeWidth = Math.max(FREE_MIN, Math.min(FREE_MAX, Math.round(w)));
+  try {
+    localStorage.setItem('previewFreeWidth', String(freeWidth));
+  } catch {
+    // sin almacenamiento
+  }
+  document.getElementById('free-width-range').value = String(freeWidth);
+  applyPreviewView('free');
+  // Otro ancho, otra altura (el texto se recoloca): se vuelve a medir.
+  cancelAnimationFrame(setFreeWidth.raf);
+  setFreeWidth.raf = requestAnimationFrame(() => requestAnimationFrame(fitFrames));
+}
+document.getElementById('free-width-range').addEventListener('input', (e) => setFreeWidth(Number(e.target.value)));
+document.querySelector('.free-width-presets').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-width]');
+  if (b) setFreeWidth(Number(b.dataset.width));
+});
 
 function applyPreviewView(view) {
   const stage = document.getElementById('preview-stage');
@@ -2198,6 +2312,14 @@ function applyPreviewView(view) {
     device.style.transform = '';
     col.style.width = '';
     col.style.height = '';
+    device.querySelector('iframe').style.width = view === 'free' ? `${freeWidth}px` : '';
+  }
+  const freeBox = document.getElementById('free-width');
+  freeBox.hidden = view !== 'free';
+  if (view === 'free') {
+    document.getElementById('free-width-range').value = String(freeWidth);
+    document.getElementById('free-width-value').textContent = `${freeWidth} px`;
+    freeBox.querySelectorAll('[data-width]').forEach((b) => b.classList.toggle('is-active', Number(b.dataset.width) === freeWidth));
   }
   // Si el ancho real no cabe (pantallas pequeñas, o dos versiones lado a lado), se escala todo el
   // dispositivo en vez de estrecharlo: así el email se ve exactamente como a ese ancho.
@@ -2217,7 +2339,7 @@ function applyPreviewView(view) {
     }
   }
   document.getElementById('preview-size').textContent =
-    PREVIEW_VIEWS[view].label + (scale < 1 ? ` · al ${Math.round(scale * 100)} %` : '');
+    (view === 'free' ? `Libre · ${freeWidth} px` : PREVIEW_VIEWS[view].label) + (scale < 1 ? ` · al ${Math.round(scale * 100)} %` : '');
 }
 
 // ---------------------------------------------------------------- versiones y comparación
@@ -2278,20 +2400,52 @@ async function fetchResult(id) {
 
 // "Qué ha cambiado" respecto a la versión de la que sale (compare.js): texto por bloques, enlaces e
 // imágenes. Sirve para confirmar que Hermes solo tocó lo pedido.
-async function setupCompare(job, versions) {
+/** "Qué ha cambiado" y "Antes y después" contra cualquier otra versión terminada (2026-09-28). Por
+ *  defecto, la versión de la que sale; en la original, se elige. `baseId`: la elegida en "Comparar con"
+ *  (null = ninguna; sin definir = la de por defecto). */
+async function setupCompare(job, versions, baseId) {
   const self = versions.find((v) => v.id === job.id);
-  const parent = self && versions.find((v) => v.id === self.parentId);
-  if (!parent || parent.status !== 'completed' || !window.HermesCompare) return;
+  const others = versions.filter((v) => v.id !== job.id && v.status === 'completed');
+  if (!self || !others.length || !window.HermesCompare) return;
+  const parent = versions.find((v) => v.id === self.parentId && v.status === 'completed') || null;
+  const base = baseId === undefined ? parent : versions.find((v) => v.id === baseId) || null;
+  const select = document.getElementById('compare-with');
+  select.innerHTML =
+    (parent ? '' : '<option value="">Elige una versión…</option>') +
+    others
+      .map((v) => {
+        const what = v.id === self.parentId ? 'de la que sale' : VERSION_KIND[v.kind] + (v.approved ? ' · aprobada' : '');
+        return `<option value="${escapeHtml(v.id)}">Versión ${v.number} (${escapeHtml(what)})</option>`;
+      })
+      .join('');
+  select.value = base ? base.id : '';
+  document.getElementById('compare').hidden = false;
+  if (!base) {
+    compareParent = null;
+    compareDiff = null;
+    compareLocs = [];
+    compareBeforeHtml = null;
+    document.getElementById('compare-list').innerHTML = '';
+    document.getElementById('compare-summary').textContent = '';
+    document.getElementById('compare-base').textContent = 'Elige con qué versión compararla: verás qué cambia en texto, enlaces e imágenes, y las dos lado a lado.';
+    if (document.getElementById('compare-toggle').checked) document.getElementById('compare-toggle').click();
+    document.getElementById('compare-toggle-wrap').hidden = true;
+    document.getElementById('highlight-toggle-wrap').hidden = true;
+    markChanges('after');
+    annotateLocations();
+    return;
+  }
   const id = job.id;
   let before;
   let after;
   try {
-    [before, after] = await Promise.all([fetchResult(parent.id), fetchResult(id)]);
+    [before, after] = await Promise.all([fetchResult(base.id), fetchResult(id)]);
   } catch {
     return;
   }
-  if (id !== currentJob) return;
-  compareParent = parent;
+  if (id !== currentJob || select.value !== base.id) return;
+  const parentOrBase = base;
+  compareParent = parentOrBase;
   compareBeforeHtml = before;
   const diff = window.HermesCompare.compareVersions(before, after);
   compareDiff = diff;
@@ -2320,17 +2474,21 @@ async function setupCompare(job, versions) {
   const summary = document.getElementById('compare-summary');
   summary.textContent = diff.unchanged ? 'Sin cambios de contenido' : `${changes} cambio${changes === 1 ? '' : 's'}`;
   summary.className = `review-summary ${diff.unchanged ? 'is-warning' : 'is-ok'}`;
+  const isParent = base.id === self.parentId;
   document.getElementById('compare-base').textContent = diff.unchanged
-    ? `El texto, los enlaces y las imágenes son iguales que en la versión ${parent.number}${job.input.mobileFixOf ? ' (normal en una adaptación a móvil: solo cambia el diseño).' : '. Puede que solo cambiara el diseño.'}`
-    : `Respecto a la versión ${parent.number}. En rojo lo que se quitó y en verde lo que se añadió.`;
+    ? `El texto, los enlaces y las imágenes son iguales que en la versión ${base.number}${isParent && job.input.mobileFixOf ? ' (normal en una adaptación a móvil: solo cambia el diseño).' : '. Puede que solo cambiara el diseño.'}`
+    : isParent
+    ? `Respecto a la versión ${base.number}. En rojo lo que se quitó y en verde lo que se añadió.`
+    : `Respecto a la versión ${base.number}. En rojo lo que solo está en la ${base.number}; en verde lo que solo está en esta (la ${self.number}).`;
   document.getElementById('compare-list').innerHTML = items.join('');
   document.getElementById('compare').hidden = false;
   document.getElementById('compare-toggle-wrap').hidden = false;
   document.getElementById('highlight-toggle-wrap').hidden = diff.unchanged;
   markChanges('after');
   annotateLocations();
-  document.getElementById('preview-label-before').textContent = `Antes · versión ${parent.number}`;
-  document.getElementById('preview-label-after').textContent = `Después · versión ${self.number}`;
+  document.getElementById('preview-label-before').textContent = isParent ? `Antes · versión ${base.number}` : `Versión ${base.number}`;
+  document.getElementById('preview-label-after').textContent = isParent ? `Después · versión ${self.number}` : `Versión ${self.number} (esta)`;
+  if (document.getElementById('compare-toggle').checked) renderFrame('before');
 }
 
 // ---------------------------------------------------------------- avisos y cambios → sitio en la pieza
@@ -2446,6 +2604,10 @@ document.getElementById('compare-list').addEventListener('click', (e) => {
   if (!btn) return;
   const entry = compareLocs[Number(btn.closest('li[data-loc]').dataset.loc)];
   if (entry) goToLocation(entry.loc, entry.side);
+});
+
+document.getElementById('compare-with').addEventListener('change', (e) => {
+  if (currentJobData) setupCompare(currentJobData, currentVersions, e.target.value || null);
 });
 
 document.getElementById('compare-toggle').addEventListener('change', (e) => {

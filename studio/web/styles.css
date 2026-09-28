@@ -985,3 +985,25 @@ body.has-sticky .foot { padding-bottom: 88px; }
   .export-field { flex: 1 1 100%; }
   .export-field select { flex: 1; min-width: 0; }
 }
+
+/* ---------------------------------------------------------------- Ancho libre (2026-09-28) */
+.free-width { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: -4px 0 14px; font-size: 14px; }
+.free-width-label { margin: 0; white-space: nowrap; color: var(--muted); }
+.free-width-label strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.free-width input[type="range"] { flex: 1 1 220px; accent-color: var(--pink); margin: 0; }
+.free-width-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.free-width-presets .chip { padding: 3px 10px; font-size: 12px; }
+.compare-with { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 10px; }
+.compare-with .label { margin: 0; }
+.compare-with select { width: auto; min-width: 240px; max-width: 100%; }
+
+/* ---------------------------------------------------------------- Texto alternativo en "Editar texto" (2026-09-28) */
+.alt-pop {
+  position: absolute; z-index: 60; width: min(380px, calc(100vw - 16px)); padding: 14px 16px;
+  border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel);
+  box-shadow: 0 20px 50px var(--shadow-strong);
+}
+.alt-pop .label { display: block; margin: 0 0 8px; }
+.alt-pop input { width: 100%; }
+.alt-pop .hint { margin: 8px 0 10px; font-size: 12px; }
+.alt-pop-actions { display: flex; gap: 8px; }
