@@ -757,3 +757,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   idénticos con el navegador emulando sistema claro y oscuro. Las capturas ya muestran la vista previa (antes
   salía en blanco por el marco aislado por URL).
 
+- **Desplegado (con permiso del usuario):** `2d53b48` publicado en Vercel (`app.js`, `index.html` y
+  `styles.css` idénticos al local) y subido a `Javifeebbo/hermes-studio`. Worker sin cambios.
