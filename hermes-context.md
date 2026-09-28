@@ -881,4 +881,12 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   el control no puede ver:** la foto cuadrada de la zapatilla verde deja >400 px de blanco arriba y abajo.
 - **Falso positivo corregido:** `outlookCheck` contaba `font-family` dentro de `@font-face` (el NOMBRE de la
   fuente) como "tipografía sin alternativa". Ahora se ignoran esos bloques; test de regresión (12/12).
+- **Nike, "Pedir cambios"** (`mulbpi8o-at86sp`, 16:09-16:25, 16 min; "recorta el blanco de la tercera
+  imagen"): Hermes identificó la imagen midiendo píxeles (42 % vacío arriba, 27 % abajo), la recortó a
+  960×440 desde la foto oficial de static.nike.com con ~10 % de margen y no tocó nada más. "Qué ha cambiado":
+  1 imagen sustituida, 0 cambios de texto o enlaces. Calidad 0/0. Altura 2989 → 2609 px.
+- **Fallos de la vista de progreso que destapó la prueba** (corregidos con tests y desplegados a las 16:40 en
+  Vercel, Railway y worker; commits 8d0b791, 4120b42, a39d539): el porcentaje se quedaba en "Preparando · 14 %"
+  en cambios y adaptaciones (recortar, renderizar o mirar capturas no contaba como trabajo); "recta final"
+  salía al 14 %; los retoques mostraban la fase "skills y brand pack"; "Copiar enlace" partía en dos líneas.
 
