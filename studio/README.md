@@ -107,6 +107,22 @@ versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la 
 "Resaltar cambios" marca sobre la propia pieza lo añadido (verde) y, en "Antes y después", lo quitado en
 la versión anterior (rojo).
 
+**Exportar para la plataforma de envío** (2026-09-28): "Exportar para" (Mailchimp, Brevo, HubSpot,
+Klaviyo, Salesforce MC o genérico) traduce al copiar y descargar las variables de Hermes
+(`{{unsubscribe_url}}`, `{{view_url}}`, `{{preferences_url}}`); las que una plataforma no tiene con un
+equivalente seguro se dejan y se avisan. "Añadir UTM" pone source, medium, campaign (propuesta: marca y
+fecha) y content opcional en todos los enlaces, también en los botones VML de Outlook, sin pisar los UTM
+que ya lleven. La newsletter guardada no cambia (`studio/web/export.js`, con tests sobre la pieza real).
+
+**Aprobar para envío** (2026-09-28): tras una lista de 5 comprobaciones (móvil, oscuro, enlaces, asunto y
+preheader, datos), una versión queda aprobada (`approvedAt`, `approvedBy`, `approvalChecklist`); solo una
+por newsletter: aprobar otra quita la anterior. Se ve en la página, en la lista de versiones, en el
+historial y con el filtro "Aprobadas"; en las demás versiones se avisa de cuál es la aprobada.
+
+**Archivar** (2026-09-28): saca del historial una newsletter con todas sus versiones (`archivedAt`), sin
+borrar nada; se recupera desde el chip "Archivadas" o desde su página. No se puede archivar mientras una
+versión esté en cola o en marcha.
+
 **Editar texto** (2026-09-28): en una newsletter terminada, la vista previa se vuelve editable y el
 asunto y el preheader salen como campos. Al guardar se crea una versión nueva al momento, sin Hermes
 (`textEditOf`), que pasa la revisión automática (comprobaciones sin red de nuevo; enlaces, imágenes y

@@ -441,7 +441,7 @@ const IMAGE_LABELS = { official: 'Assets oficiales', ai: 'Imágenes con IA' };
 // ---------------------------------------------------------------- historial
 
 const HISTORY_PAGE = 20;
-const historyState = { jobs: [], query: '', brand: '', status: '', mine: false, shown: HISTORY_PAGE };
+const historyState = { jobs: [], query: '', brand: '', status: '', mine: false, archived: false, shown: HISTORY_PAGE };
 
 // "Mis trabajos" (2026-09-28): el nombre que recuerda el formulario. Sin nombre, el filtro no aparece.
 function savedRequester() {
@@ -512,6 +512,9 @@ function filteredJobs() {
     if (historyState.status === 'active' && j.status !== 'running' && j.status !== 'queued') return false;
     if (historyState.status === 'completed' && j.status !== 'completed') return false;
     if (historyState.status === 'failed' && j.status !== 'failed' && j.status !== 'blocked') return false;
+    if (historyState.status === 'approved' && !j.approvedAt) return false;
+    // Archivadas (2026-09-28): fuera del historial salvo con el chip "Archivadas".
+    if (!!j.archivedAt !== historyState.archived) return false;
     if (q && !normalize(`${j.clientName} ${j.requesterName || ''}`).includes(q)) return false;
     if (historyState.mine && normalize(j.requesterName || '') !== normalize(savedRequester())) return false;
     return true;
@@ -601,9 +604,17 @@ function renderHistory() {
   groups.sort((a, b) => b.latest.localeCompare(a.latest) || a.root.localeCompare(b.root));
 
   const visible = groups.slice(0, historyState.shown);
-  const totalJobs = historyState.jobs.length;
-  const count = families.size === totalJobs ? `${totalJobs} newsletter${totalJobs === 1 ? '' : 's'}` : `${families.size} newsletters · ${totalJobs} versiones`;
-  document.getElementById('history-count').textContent = groups.length === families.size ? count : `${groups.length} de ${families.size} newsletters`;
+  // Las cuentas, de lo que está a la vista (archivadas o no); el chip dice cuántas hay archivadas.
+  const scoped = [...families.values()].filter((m) => m.some((j) => !!j.archivedAt === historyState.archived));
+  const archivedFamilies = [...families.values()].filter((m) => m.every((j) => j.archivedAt)).length;
+  const archivedChip = document.getElementById('archived-chip');
+  archivedChip.hidden = !archivedFamilies && !historyState.archived;
+  archivedChip.textContent = `Archivadas (${archivedFamilies})`;
+  archivedChip.setAttribute('aria-pressed', String(historyState.archived));
+  const scopedJobs = scoped.reduce((n, m) => n + m.length, 0);
+  const newsletters = (n) => `${n} newsletter${n === 1 ? '' : 's'}${historyState.archived ? (n === 1 ? ' archivada' : ' archivadas') : ''}`;
+  const count = scoped.length === scopedJobs ? newsletters(scopedJobs) : `${newsletters(scoped.length)} · ${scopedJobs} versiones`;
+  document.getElementById('history-count').textContent = groups.length === scoped.length ? count : `${groups.length} de ${newsletters(scoped.length)}`;
   document.getElementById('history-empty').hidden = groups.length > 0;
   document.getElementById('history-more').hidden = groups.length <= visible.length;
 
@@ -613,7 +624,17 @@ function renderHistory() {
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
       const fam = info.get(j.id);
       const version = fam.size > 1 ? `<span class="version-tag">Versión ${fam.number} de ${fam.size}</span> · ` : '';
-      const meta = version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j)]
+      const approvedJob = [j, ...others].find((x) => x.approvedAt);
+      const approved = approvedJob
+        ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (versión ${info.get(approvedJob.id).number})` : ''}</span> · `
+        : '';
+      const busy = [j, ...others].some((x) => x.status === 'queued' || x.status === 'running');
+      const archiveBtn = j.archivedAt
+        ? `<button type="button" class="btn btn-ghost" data-unarchive="${escapeHtml(j.id)}">Recuperar</button>`
+        : busy
+        ? ''
+        : `<button type="button" class="btn btn-ghost" data-archive="${escapeHtml(j.id)}" title="Sacarla del historial con todas sus versiones (no se borra)">Archivar</button>`;
+      const meta = approved + version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j)]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
@@ -654,7 +675,7 @@ function renderHistory() {
           <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}</a>
           <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>
           <p class="meta">${meta}</p>
-          <div class="row-actions">${jobActions(j)}</div>
+          <div class="row-actions">${jobActions(j)}${archiveBtn}</div>
           ${running ? `<div class="mini-track" aria-hidden="true"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}
           ${j.error ? `<p class="err">${escapeHtml(j.error)}</p>` : ''}
           ${older}
@@ -681,6 +702,11 @@ document.getElementById('history-status').addEventListener('click', (e) => {
     c.setAttribute('aria-pressed', String(c === chip));
   });
   historyState.status = chip.dataset.status;
+  historyState.shown = HISTORY_PAGE;
+  renderHistory();
+});
+document.getElementById('archived-chip').addEventListener('click', () => {
+  historyState.archived = !historyState.archived;
   historyState.shown = HISTORY_PAGE;
   renderHistory();
 });
@@ -712,6 +738,12 @@ document.getElementById('history-list').addEventListener(
   true
 );
 document.getElementById('history-list').addEventListener('click', (e) => {
+  const arch = e.target.closest('[data-archive], [data-unarchive]');
+  if (arch) {
+    const archived = !!arch.dataset.archive;
+    setArchived(arch.dataset.archive || arch.dataset.unarchive, archived).then((ok) => ok && loadHistory());
+    return;
+  }
   const fam = e.target.closest('[data-family]');
   if (fam) {
     const root = fam.dataset.family;
@@ -1342,7 +1374,7 @@ function armTextEdit(doc) {
 function setEditControls(disabled) {
   document.querySelectorAll(PREVIEW_CONTROLS).forEach((i) => (i.disabled = disabled));
   // Lo que abriría otro trabajo o recargaría la vista previa perdería lo escrito sin guardar.
-  for (const id of ['revise-btn', 'sticky-revise', 'mobile-fix-btn']) document.getElementById(id).disabled = disabled;
+  for (const id of ['revise-btn', 'sticky-revise', 'mobile-fix-btn', 'approve-btn']) document.getElementById(id).disabled = disabled;
   document.getElementById('preview-stage').classList.toggle('is-editing', disabled);
   document.getElementById('te-banner').hidden = !disabled;
 }
@@ -1480,6 +1512,226 @@ document.getElementById('te-cancel').addEventListener('click', teCancel);
 document.getElementById('te-banner-cancel').addEventListener('click', teCancel);
 ['te-subject', 'te-preheader'].forEach((id) => document.getElementById(id).addEventListener('input', () => (te.confirmCancel = false)));
 
+// ---------------------------------------------------------------- exportar para la plataforma (2026-09-28)
+// Copiar y Descargar salen con las variables de la plataforma elegida y, si se pide, con UTM (export.js).
+// La newsletter guardada no cambia. Plataforma, "Añadir UTM", source y medium se recuerdan en el navegador;
+// la campaña se propone por newsletter (marca y fecha).
+const EXPORT_PREFS = 'exportPrefs';
+const exportPlatform = document.getElementById('export-platform');
+const exportUtm = document.getElementById('export-utm');
+const UTM_IDS = ['utm-source', 'utm-medium', 'utm-campaign', 'utm-content'];
+let currentJobData = null;
+let currentVersions = [];
+
+exportPlatform.innerHTML = Object.entries(HermesExport.PLATFORMS)
+  .map(([key, p]) => `<option value="${key}">${escapeHtml(p.label)}</option>`)
+  .join('');
+
+function readExportPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(EXPORT_PREFS) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveExportPrefs() {
+  try {
+    localStorage.setItem(
+      EXPORT_PREFS,
+      JSON.stringify({
+        platform: exportPlatform.value,
+        utm: exportUtm.checked,
+        source: document.getElementById('utm-source').value.trim(),
+        medium: document.getElementById('utm-medium').value.trim(),
+      })
+    );
+  } catch {
+    // sin almacenamiento: solo dura esta visita
+  }
+}
+
+function setupExport(job) {
+  const prefs = readExportPrefs();
+  exportPlatform.value = HermesExport.PLATFORMS[prefs.platform] ? prefs.platform : 'generic';
+  exportUtm.checked = !!prefs.utm;
+  document.getElementById('utm-source').value = prefs.source || 'newsletter';
+  document.getElementById('utm-medium').value = prefs.medium || 'email';
+  document.getElementById('utm-campaign').value = HermesExport.defaultCampaign(job.input.clientName, job.createdAt);
+  document.getElementById('utm-content').value = '';
+  document.getElementById('utm-fields').hidden = !exportUtm.checked;
+  renderExportSummary();
+}
+
+function exportOptions() {
+  const val = (id) => document.getElementById(id).value.trim();
+  return {
+    platform: exportPlatform.value,
+    utm: exportUtm.checked ? { source: val('utm-source'), medium: val('utm-medium'), campaign: val('utm-campaign'), content: val('utm-content') } : null,
+  };
+}
+
+function exportedHtml() {
+  return HermesExport.prepare(currentHtml || '', exportOptions());
+}
+
+const VAR_NAMES = { unsubscribe_url: 'baja', view_url: 'ver online', preferences_url: 'preferencias' };
+
+function renderExportSummary() {
+  const el = document.getElementById('export-summary');
+  const opts = exportOptions();
+  if (!currentHtml || (opts.platform === 'generic' && !opts.utm)) {
+    el.textContent = '';
+    return;
+  }
+  const r = exportedHtml();
+  const p = HermesExport.PLATFORMS[opts.platform];
+  const parts = [];
+  if (opts.platform !== 'generic') {
+    const done = Object.keys(r.replaced).map((k) => `${VAR_NAMES[k]} → ${p.vars[k]}`);
+    parts.push(done.length ? `Copiar y Descargar salen para ${p.label}: ${done.join(', ')}.` : `Copiar y Descargar salen para ${p.label}.`);
+    for (const k of r.missing) parts.push(`«${VAR_NAMES[k]}» se queda como {{${k}}}: ${p.label} no tiene una variable equivalente segura; cámbialo allí.`);
+    if (!r.replaced.unsubscribe_url && !r.missing.includes('unsubscribe_url')) parts.push(`La pieza no tiene {{unsubscribe_url}}: pon el enlace de baja en ${p.label}.`);
+  }
+  if (opts.utm) parts.push(`UTM en ${r.utmLinks} enlace${r.utmLinks === 1 ? '' : 's'} (también en los botones de Outlook).`);
+  el.textContent = parts.join(' ');
+}
+
+exportPlatform.addEventListener('change', () => {
+  saveExportPrefs();
+  renderExportSummary();
+});
+exportUtm.addEventListener('change', () => {
+  document.getElementById('utm-fields').hidden = !exportUtm.checked;
+  saveExportPrefs();
+  renderExportSummary();
+});
+UTM_IDS.forEach((id) =>
+  document.getElementById(id).addEventListener('input', () => {
+    saveExportPrefs();
+    renderExportSummary();
+  })
+);
+
+/** Descargar: tal cual desde el servidor, o preparado en el navegador si hay plataforma o UTM. */
+async function exportDownload(e) {
+  const opts = exportOptions();
+  if (opts.platform === 'generic' && !opts.utm) return; // enlace normal del servidor
+  e.preventDefault();
+  if (!currentHtml) await loadResultHtml(currentJob);
+  if (!currentHtml) return showToast('No se pudo descargar el HTML.', 'error');
+  const blob = new Blob([exportedHtml().html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${currentJobData?.input.clientSlug || 'newsletter'}-${currentJob}${opts.platform === 'generic' ? '' : `-${opts.platform}`}${opts.utm ? '-utm' : ''}.html`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+document.getElementById('download-link').addEventListener('click', exportDownload);
+document.getElementById('sticky-download').addEventListener('click', exportDownload);
+
+// ---------------------------------------------------------------- aprobar para envío (2026-09-28)
+// Una sola versión aprobada por newsletter: la que se envía. Se aprueba tras una lista de comprobación.
+const APPROVAL_CHECKS = [
+  'Revisada en móvil (vista «Móvil»)',
+  'Revisada en modo oscuro («Oscuro» e «Invertido»)',
+  'Enlaces y botones llevan a donde deben',
+  'Asunto y preheader revisados (y cómo se ven en la bandeja)',
+  'Precios, fechas, nombres y claims comprobados',
+];
+const approveBox = document.getElementById('approve-box');
+const approveBtn = document.getElementById('approve-btn');
+
+function renderApproval(job, versions) {
+  const banner = document.getElementById('approved-banner');
+  banner.hidden = !job.approvedAt;
+  if (job.approvedAt) {
+    const when = new Date(job.approvedAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
+    document.getElementById('approved-text').textContent = `✓ Aprobada para envío${job.approvedBy ? ` por ${job.approvedBy}` : ''} · ${when}`;
+    banner.title = (job.approvalChecklist || []).length ? `Comprobado: ${job.approvalChecklist.join(' · ')}` : '';
+  }
+  approveBtn.hidden = !!job.approvedAt || job.status !== 'completed';
+  const other = versions.find((v) => v.approved && v.id !== job.id);
+  const elsewhere = document.getElementById('approved-elsewhere');
+  elsewhere.hidden = !other;
+  if (other) {
+    elsewhere.innerHTML = `Ojo: la versión aprobada para envío es la <a href="?job=${encodeURIComponent(other.id)}">versión ${other.number}</a>, no esta.`;
+  }
+  if (job.approvedAt && !approveBox.hidden) toggleApprove(false);
+}
+
+function toggleApprove(open) {
+  approveBox.hidden = !open;
+  approveBtn.setAttribute('aria-expanded', String(open));
+  if (!open) return;
+  document.getElementById('approve-checklist').innerHTML = APPROVAL_CHECKS.map(
+    (c, i) => `<li><label><input type="checkbox" data-check-item="${i}" /><span>${escapeHtml(c)}</span></label></li>`
+  ).join('');
+  document.getElementById('approve-submit').disabled = true;
+  const errors = currentJobData?.quality?.errors || 0;
+  const q = document.getElementById('approve-quality');
+  q.hidden = !errors;
+  q.textContent = errors ? `La revisión automática tiene ${plural(errors, 'error', 'errores')} sin resolver. Revísalos antes de aprobar.` : '';
+  approveBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+approveBtn.addEventListener('click', () => toggleApprove(approveBox.hidden));
+document.getElementById('approve-close').addEventListener('click', () => toggleApprove(false));
+approveBox.addEventListener('change', () => {
+  const boxes = [...approveBox.querySelectorAll('[data-check-item]')];
+  document.getElementById('approve-submit').disabled = !boxes.every((b) => b.checked);
+});
+approveBox.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const checklist = [...approveBox.querySelectorAll('[data-check-item]:checked')].map((b) => APPROVAL_CHECKS[Number(b.dataset.checkItem)]);
+  const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ checklist, by: savedRequester() || undefined }),
+  }).catch(() => null);
+  if (!res?.ok) return showToast('No se pudo aprobar. Inténtalo de nuevo.', 'error');
+  toggleApprove(false);
+  showToast('Versión aprobada para envío.');
+  poll(currentJob);
+});
+document.getElementById('unapprove-btn').addEventListener('click', async () => {
+  const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/unapprove`, { method: 'POST' }).catch(() => null);
+  if (!res?.ok) return showToast('No se pudo quitar la aprobación.', 'error');
+  showToast('Ya no está aprobada.');
+  poll(currentJob);
+});
+
+// ---------------------------------------------------------------- archivar (2026-09-28)
+async function setArchived(id, archived) {
+  const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/archive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ archived }),
+  }).catch(() => null);
+  const data = await res?.json().catch(() => ({}));
+  if (!res?.ok) {
+    showToast(data?.error || 'No se pudo archivar.', 'error');
+    return false;
+  }
+  showToast(archived ? 'Archivada con todas sus versiones. Está en «Archivadas» del historial.' : 'Recuperada: vuelve a salir en el historial.');
+  return true;
+}
+
+function renderArchived(job) {
+  document.getElementById('job-archived').hidden = !job.archivedAt;
+  document.getElementById('archive-btn').hidden = !!job.archivedAt || job.status === 'queued' || job.status === 'running';
+}
+
+document.getElementById('archive-btn').addEventListener('click', async () => {
+  if (currentJob && (await setArchived(currentJob, true))) poll(currentJob);
+});
+document.getElementById('unarchive-btn').addEventListener('click', async () => {
+  if (currentJob && (await setArchived(currentJob, false))) poll(currentJob);
+});
+
 document.getElementById('use-brief-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob, { useBrief: true });
 });
@@ -1513,6 +1765,8 @@ function showJobView(id) {
   reviseBtn.setAttribute('aria-expanded', 'false');
   resetPicks();
   if (te.active || !teBox.hidden) teClose({ discard: false });
+  approveBox.hidden = true;
+  approveBtn.setAttribute('aria-expanded', 'false');
   resetCancel();
   resetFrame(document.getElementById('preview-frame'));
   resetCompare();
@@ -1544,6 +1798,10 @@ async function poll(id) {
   }
   const { job, events, notes, meta, queue, hermesOnline, versions } = await res.json();
   renderVersions(job, versions || []);
+  currentJobData = job;
+  currentVersions = versions || [];
+  renderApproval(job, currentVersions);
+  renderArchived(job);
   updateTabTitle(job);
   maybeNotify(job);
 
@@ -1608,10 +1866,12 @@ async function poll(id) {
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes);
       renderMeta(meta, job.input.clientName);
+      setupExport(job);
       loadResultHtml(id).then(() => {
         if (id !== currentJob) return;
         updateThemeHint();
         renderFrame('after');
+        renderExportSummary();
       });
       setupCompare(job, versions || []);
     }
@@ -1775,7 +2035,11 @@ document.getElementById('copy-html-btn').addEventListener('click', async (e) => 
   if (!currentJob) return;
   if (!currentHtml) await loadResultHtml(currentJob);
   if (!currentHtml) return showToast('No se pudo descargar el HTML para copiarlo.', 'error');
-  copyText(currentHtml, 'HTML copiado: pégalo en tu plataforma de envío.');
+  const platform = document.getElementById('export-platform').value;
+  copyText(
+    exportedHtml().html,
+    platform === 'generic' ? 'HTML copiado: pégalo en tu plataforma de envío.' : `HTML copiado para ${HermesExport.PLATFORMS[platform].label}.`
+  );
 });
 
 // ---------------------------------------------------------------- título de la pestaña y aviso al terminar
@@ -1981,6 +2245,7 @@ function renderVersions(job, versions) {
           <a href="?job=${encodeURIComponent(v.id)}">Versión ${v.number}</a>
           <span class="v-desc">${escapeHtml(desc)}</span>
           ${state ? `<span class="v-state">${escapeHtml(state)}</span>` : ''}
+          ${v.approved ? '<span class="v-approved">✓ Aprobada</span>' : ''}
         </li>`;
     })
     .join('');

@@ -34,6 +34,8 @@ import {
   typicalSeconds,
   durationSec,
   createTextEditVersion,
+  approveVersion,
+  archiveFamily,
   TextEditNoChanges,
   saveThumbnail,
   pendingThumbnails,
@@ -470,6 +472,9 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       pct: j.progress?.pct ?? null,
       elapsedSec: j.progress?.elapsedSec ?? null,
       error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,
+      approvedAt: j.approvedAt || null,
+      approvedBy: j.approvedBy || null,
+      archivedAt: j.archivedAt || null,
     }));
   res.json({ jobs });
 });
@@ -571,6 +576,47 @@ app.post('/api/jobs/:id/text-edit', createJobRateLimit.middleware, (req: Request
       return;
     }
     throw err;
+  }
+});
+
+// "Aprobar para envío": una sola versión aprobada por familia (ver approveVersion).
+app.post('/api/jobs/:id/approve', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone' || job.status !== 'completed') {
+    res.status(404).json({ error: 'Solo se puede aprobar una newsletter terminada.' });
+    return;
+  }
+  const raw = Array.isArray(req.body?.checklist) ? req.body.checklist : [];
+  const checklist = raw.filter((c: unknown): c is string => typeof c === 'string' && c.trim().length > 0).map((c: string) => c.trim().slice(0, 160)).slice(0, 12);
+  const by = typeof req.body?.by === 'string' && req.body.by.trim() ? req.body.by.trim().slice(0, 80) : undefined;
+  const updated = approveVersion(job, checklist, by);
+  res.json({ ok: true, approvedAt: updated.approvedAt });
+});
+
+app.post('/api/jobs/:id/unapprove', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone') {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (job.approvedAt) {
+    updateJob(job.id, { approvedAt: undefined, approvedBy: undefined, approvalChecklist: undefined });
+    hermesLog(job.id, 'Se quitó la aprobación para envío.');
+  }
+  res.json({ ok: true });
+});
+
+// Archivar / recuperar: la familia entera (la original y todas sus versiones). No se borra nada.
+app.post('/api/jobs/:id/archive', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone') {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  try {
+    res.json({ ok: true, changed: archiveFamily(job, req.body?.archived !== false) });
+  } catch (err) {
+    res.status(409).json({ error: (err as Error).message });
   }
 });
 

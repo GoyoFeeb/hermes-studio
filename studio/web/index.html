@@ -130,8 +130,12 @@
             <button type="button" class="chip" data-status="active" aria-pressed="false">En curso</button>
             <button type="button" class="chip" data-status="completed" aria-pressed="false">Listas</button>
             <button type="button" class="chip" data-status="failed" aria-pressed="false">Fallidas</button>
+            <button type="button" class="chip" data-status="approved" aria-pressed="false">Aprobadas</button>
           </div>
-          <button type="button" class="chip" id="mine-chip" aria-pressed="false" hidden>Mis trabajos</button>
+          <span class="chips-side">
+            <button type="button" class="chip" id="mine-chip" aria-pressed="false" hidden>Mis trabajos</button>
+            <button type="button" class="chip" id="archived-chip" aria-pressed="false" hidden>Archivadas</button>
+          </span>
         </div>
         <ul id="history-list"></ul>
         <p id="history-empty" class="hint" hidden>Ningún trabajo coincide con el filtro.</p>
@@ -147,6 +151,7 @@
           <p id="job-meta" class="hint"></p>
           <p id="job-change" class="change-request" hidden></p>
           <p id="job-parent" class="hint" hidden>Hecha a partir de <a id="job-parent-link" href="#"></a>.</p>
+          <p id="job-archived" class="archived-note" hidden>Archivada con todas sus versiones: no sale en el historial. <button type="button" id="unarchive-btn" class="btn btn-ghost btn-sm">Recuperar</button></p>
         </div>
         <div class="job-head-side">
           <div id="job-status" class="status-badge"></div>
@@ -195,6 +200,39 @@
           <button id="revise-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="revise-box">Pedir cambios</button>
           <button id="edit-text-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="textedit-box" title="Cambia el texto tú mismo sobre la vista previa: versión nueva al momento, sin Hermes">Editar texto</button>
           <button id="mobile-fix-btn" type="button" class="btn btn-secondary" title="Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (unos minutos)">Adaptar a móvil</button>
+          <button id="approve-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="approve-box">Aprobar para envío</button>
+        </div>
+
+        <div class="approval" id="approved-banner" hidden>
+          <span id="approved-text"></span>
+          <button type="button" id="unapprove-btn" class="btn btn-ghost btn-sm">Quitar aprobación</button>
+        </div>
+        <p class="approval-elsewhere" id="approved-elsewhere" hidden></p>
+
+        <form id="approve-box" class="revise-box" hidden>
+          <p class="label">Aprobar para envío</p>
+          <p class="hint">Marca lo que has comprobado. Solo una versión de cada newsletter puede estar aprobada: si otra lo estaba, deja de estarlo.</p>
+          <p class="approve-quality" id="approve-quality" hidden></p>
+          <ul class="approve-checklist" id="approve-checklist"></ul>
+          <div class="actions">
+            <button type="submit" class="btn btn-primary" id="approve-submit" disabled>Aprobar esta versión</button>
+            <button type="button" id="approve-close" class="btn btn-ghost">Cancelar</button>
+          </div>
+        </form>
+
+        <div class="export-row" id="export-row">
+          <label class="export-field">
+            <span class="label">Exportar para</span>
+            <select id="export-platform" aria-describedby="export-summary"></select>
+          </label>
+          <label class="toggle"><input type="checkbox" id="export-utm" /><span>Añadir UTM a los enlaces</span></label>
+          <p class="hint export-summary" id="export-summary" aria-live="polite"></p>
+          <div class="utm-fields" id="utm-fields" hidden>
+            <label><span>utm_source</span><input type="text" id="utm-source" maxlength="80" /></label>
+            <label><span>utm_medium</span><input type="text" id="utm-medium" maxlength="80" /></label>
+            <label><span>utm_campaign</span><input type="text" id="utm-campaign" maxlength="120" /></label>
+            <label><span>utm_content <em>(opcional)</em></span><input type="text" id="utm-content" maxlength="80" /></label>
+          </div>
         </div>
 
         <form id="revise-box" class="revise-box" hidden>
@@ -379,6 +417,7 @@
       <div class="actions job-actions">
         <button id="reuse-btn" type="button" class="btn btn-secondary">Reutilizar este prompt</button>
         <button id="new-job-btn" type="button" class="btn btn-ghost">Generar otra newsletter</button>
+        <button id="archive-btn" type="button" class="btn btn-ghost" title="La saca del historial con todas sus versiones. No se borra nada: se recupera desde «Archivadas».">Archivar</button>
       </div>
     </section>
   </main>
@@ -404,6 +443,7 @@
   <script src="/locate.js"></script>
   <script src="/formcheck.js"></script>
   <script src="/textedit.js"></script>
+  <script src="/export.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

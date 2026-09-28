@@ -958,3 +958,30 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .te-banner-actions { display: flex; gap: 8px; flex: none; }
 .preview-stage.is-editing .preview-device { box-shadow: 0 0 0 3px var(--purple); }
 #edit-text-btn[aria-expanded="true"], #revise-btn[aria-expanded="true"] { border-color: var(--pink); }
+
+/* ---------------------------------------------------------------- Exportar, aprobar y archivar (2026-09-28) */
+.export-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--field); }
+.export-field { display: flex; align-items: center; gap: 10px; margin: 0; }
+.export-field .label { margin: 0; white-space: nowrap; }
+.export-field select { width: auto; min-width: 200px; }
+.export-row .toggle { margin: 0; }
+.export-summary { flex: 1 1 100%; margin: 0; }
+.export-summary:empty { display: none; }
+.utm-fields { flex: 1 1 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.utm-fields label { margin: 0; font-size: 12px; color: var(--muted); }
+.utm-fields label span { display: block; margin-bottom: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.approval { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--success); border-radius: 10px; background: rgba(79, 209, 165, 0.1); color: var(--text); font-size: 14px; font-weight: 600; }
+.approval-elsewhere { margin: 0 0 16px; padding: 10px 16px; border: 1px solid rgba(255, 204, 0, 0.45); border-radius: 10px; background: rgba(255, 204, 0, 0.08); font-size: 14px; }
+.approve-checklist { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+.approve-checklist label { display: flex; gap: 10px; align-items: flex-start; margin: 0; font-size: 14px; cursor: pointer; }
+.approve-checklist input { margin-top: 3px; }
+.approve-quality { margin: 0 0 12px; font-size: 14px; color: var(--warning); }
+.approved-tag { color: var(--success); font-weight: 600; }
+.v-approved { margin-left: 8px; padding: 1px 8px; border-radius: var(--pill); background: rgba(79, 209, 165, 0.15); color: var(--success); font-size: 12px; font-weight: 600; }
+.archived-note { margin: 10px 0 0; font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chips-side { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip[aria-pressed="true"]#archived-chip { background: var(--lilac); border-color: var(--lilac); color: var(--on-accent); }
+@media (max-width: 640px) {
+  .export-field { flex: 1 1 100%; }
+  .export-field select { flex: 1; min-width: 0; }
+}

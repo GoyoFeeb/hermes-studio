@@ -869,6 +869,20 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-28 (tarde) — Exportar para la plataforma, UTM, aprobar para envío y archivar
+
+- **Exportar** (`studio/web/export.js` + tests): variables de Hermes → Mailchimp (`*|UNSUB|*`, `*|ARCHIVE|*`,
+  `*|UPDATE_PROFILE|*`), Brevo (`{{ unsubscribe }}`, `{{ mirror }}`, `{{ update_profile }}`), HubSpot
+  (`{{ unsubscribe_link_all }}`, `{{ view_as_page_url }}`, `{{ unsubscribe_link }}`), Klaviyo (`{% unsubscribe_url %}`,
+  `{% manage_preferences_url %}`; "ver online" sin equivalente seguro: se avisa) y Salesforce MC (`%%unsub_center_url%%`,
+  `%%view_email_url%%`, `%%profile_center_url%%`). **Pendiente**: confirmar las variables con la plataforma que use
+  cada cliente antes del primer envío real. UTM en <a> y VML de Outlook, sin pisar los existentes.
+- **Aprobar para envío**: rutas `/approve` y `/unapprove`; una aprobada por familia; checklist guardada.
+- **Archivar**: ruta `/archive` (familia entera; 409 si hay algo en cola o en marcha); chip "Archivadas (N)".
+- Probado en copia aislada con Chrome 154 (copiar = descargar, 6 enlaces con UTM en Nike, aprobar/quitar,
+  aviso en otras versiones, filtro, archivar/recuperar, rechazo con trabajo en cola). 133/133 tests.
+- Despliegue: Vercel + Railway (rutas y campos nuevos). El worker no cambia.
+
 ### 2026-09-28 (tarde) — Editar texto sin Hermes y duraciones reales
 
 - **Editar texto** (`studio/web/textedit.js`, `studio/server/textEdit.ts`, ruta `POST /api/jobs/:id/text-edit`,

@@ -421,6 +421,7 @@ export interface JobVersion {
   kind: 'original' | 'revision' | 'mobile-fix' | 'text-edit';
   parentId: string | null;
   changeRequest: string | null;
+  approved: boolean;
 }
 
 function parentIdOf(job: Job): string | null {
@@ -454,6 +455,7 @@ export function versionFamily(job: Job): JobVersion[] {
       kind: j.input.revisionOf ? 'revision' : j.input.mobileFixOf ? 'mobile-fix' : j.input.textEditOf ? 'text-edit' : 'original',
       parentId: parentIdOf(j),
       changeRequest: j.input.changeRequest ? j.input.changeRequest.slice(0, 300) : null,
+      approved: !!j.approvedAt,
     }));
 }
 
@@ -598,3 +600,40 @@ export function createTextEditVersion(source: Job, edits: TextEdit[], subject: s
 }
 
 export class TextEditNoChanges extends Error {}
+
+/** Todos los trabajos de la familia de versiones de `job` (la original y sus cambios y adaptaciones). */
+export function familyJobs(job: Job): Job[] {
+  return versionFamily(job)
+    .map((v) => getJob(v.id))
+    .filter((j): j is Job => !!j);
+}
+
+/** Aprueba una versión para envío y quita la aprobación de las demás de su familia: solo una se envía. */
+export function approveVersion(job: Job, checklist: string[], by?: string): Job {
+  const now = new Date().toISOString();
+  for (const other of familyJobs(job)) {
+    if (other.id !== job.id && other.approvedAt) {
+      updateJob(other.id, { approvedAt: undefined, approvedBy: undefined, approvalChecklist: undefined });
+      log(other.id, `Ya no es la versión aprobada: se aprobó otra (${job.id}).`);
+    }
+  }
+  log(job.id, `Aprobada para envío${by ? ` por ${by}` : ''}.`, 'success');
+  return updateJob(job.id, { approvedAt: now, approvedBy: by, approvalChecklist: checklist });
+}
+
+/** Archiva (o recupera) la familia entera. Devuelve cuántos trabajos cambiaron. */
+export function archiveFamily(job: Job, archived: boolean): number {
+  const members = familyJobs(job);
+  if (archived && members.some((j) => j.status === 'queued' || j.status === 'running')) {
+    throw new Error('Hay una versión en cola o en marcha: cancélala o espera a que termine antes de archivar.');
+  }
+  const at = archived ? new Date().toISOString() : undefined;
+  let changed = 0;
+  for (const j of members) {
+    if (!!j.archivedAt === archived) continue;
+    updateJob(j.id, { archivedAt: at });
+    log(j.id, archived ? 'Archivada.' : 'Recuperada del archivo.');
+    changed++;
+  }
+  return changed;
+}
