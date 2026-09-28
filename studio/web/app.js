@@ -90,12 +90,40 @@ const brandsReady = loadBrands();
 // porcentaje y cuántas esperan; si está trabajando, la píldora lleva a ese trabajo.
 let statusTimer = null;
 
+// ---------------------------------------------------------------- lo que suele tardar (2026-09-28)
+// Mediana real de los últimos trabajos de cada tipo (servidor, typicalDurations). Sin datos, lo de siempre.
+let typicalDurations = null;
+
+function etaText(kind) {
+  const t = typicalDurations?.[kind];
+  if (!t) return null;
+  return `~${Math.max(1, Math.round(t.sec / 60))} min`;
+}
+
+function renderEtaHints() {
+  const kind = form.querySelector('input[name="inputKind"]:checked')?.value === 'brief' ? 'brief' : 'instruction';
+  const t = typicalDurations?.[kind];
+  document.getElementById('eta-hint').textContent = t
+    ? t.n
+      ? `Suele tardar ${etaText(kind)} (mediana de las últimas ${t.n} con ${kind === 'brief' ? 'prompt completo' : 'instrucción rápida'}). `
+      : `Suele tardar ${etaText(kind)}. `
+    : '';
+  document.querySelectorAll('[data-eta="new"]').forEach((el) => (el.textContent = t ? etaText(kind) : 'unos 20 minutos'));
+  document.querySelectorAll('[data-eta="revision"]').forEach((el) => (el.textContent = typicalDurations ? `suele tardar ${etaText('revision')}` : 'unos minutos'));
+  const fix = etaText('mobile-fix');
+  if (fix) document.getElementById('mobile-fix-btn').title = `Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (suele tardar ${fix})`;
+}
+
 async function loadHermesStatus() {
   clearTimeout(statusTimer);
   const el = document.getElementById('hermes-status');
   let busy = false;
   try {
-    const { hermesOnline, current, queued = 0 } = await (await fetch('/api/status')).json();
+    const { hermesOnline, current, queued = 0, typical } = await (await fetch('/api/status')).json();
+    if (typical) {
+      typicalDurations = typical;
+      renderEtaHints();
+    }
     const waiting = queued ? ` · ${queued} en cola` : '';
     busy = !!current;
     if (current) {
@@ -155,7 +183,12 @@ function applyKind() {
   input.style.minHeight = kind === 'instruction' ? '0' : '';
   updateExamples();
 }
-form.querySelectorAll('input[name="inputKind"]').forEach((r) => r.addEventListener('change', applyKind));
+form.querySelectorAll('input[name="inputKind"]').forEach((r) =>
+  r.addEventListener('change', () => {
+    applyKind();
+    renderEtaHints();
+  })
+);
 form.addEventListener('reset', () =>
   setTimeout(() => {
     applyKind();
@@ -489,7 +522,7 @@ function filteredJobs() {
  *  de la que sale. Número de versión por orden de creación y fecha de la última versión de la familia. */
 function familyInfo(jobs) {
   const byId = new Map(jobs.map((j) => [j.id, j]));
-  const parentOf = (j) => j.revisionOf || j.mobileFixOf || null;
+  const parentOf = (j) => j.revisionOf || j.mobileFixOf || j.textEditOf || null;
   const rootOf = (j) => {
     let cur = j;
     for (let i = 0; i < 50; i++) {
@@ -519,7 +552,15 @@ function familyInfo(jobs) {
 const openFamilies = new Set();
 
 function jobKindLabel(j) {
-  return j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.fromInstruction ? 'Desde instrucción' : null;
+  return j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.textEditOf ? 'Texto editado' : j.fromInstruction ? 'Desde instrucción' : null;
+}
+
+/** "tardó 9 min" (de que Hermes lo recoge a que termina); los retoques de texto son al momento. */
+function durationLabel(j) {
+  if (j.status !== 'completed') return null;
+  if (j.textEditOf) return 'sin Hermes';
+  const sec = j.durationSec ?? j.elapsedSec;
+  return sec ? `tardó ${formatMinutes(sec)}` : null;
 }
 
 function jobActions(j, { compact = false } = {}) {
@@ -572,7 +613,7 @@ function renderHistory() {
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
       const fam = info.get(j.id);
       const version = fam.size > 1 ? `<span class="version-tag">Versión ${fam.number} de ${fam.size}</span> · ` : '';
-      const meta = version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
+      const meta = version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j)]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
@@ -595,7 +636,7 @@ function renderHistory() {
           <ol class="family-list" id="${listId}"${open ? '' : ' hidden'}>${others
             .map((o) => {
               const oWhen = new Date(o.createdAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
-              const oMeta = [oWhen, jobKindLabel(o) || 'Original', o.status === 'completed' && o.elapsedSec ? formatMinutes(o.elapsedSec) : null]
+              const oMeta = [oWhen, jobKindLabel(o) || 'Original', durationLabel(o)]
                 .filter(Boolean)
                 .map(escapeHtml)
                 .join(' · ');
@@ -874,6 +915,7 @@ const reviseError = document.getElementById('revise-error');
 
 function toggleRevise(open) {
   if (!open) resetPicks();
+  if (open && te.active) teClose();
   reviseBox.hidden = !open;
   reviseBtn.setAttribute('aria-expanded', String(open));
   reviseError.hidden = true;
@@ -1080,6 +1122,7 @@ function resetPicks() {
 
 document.getElementById('pick-btn').addEventListener('click', () => {
   if (pick.active) return setPicking(false);
+  if (te.active) return;
   if (!previewDoc()) return showToast('La vista previa aún se está cargando.');
   // Solo la versión actual se puede señalar: al comparar, la columna de la izquierda es la anterior.
   if (document.getElementById('compare-toggle').checked) document.getElementById('compare-toggle').click();
@@ -1092,7 +1135,350 @@ document.getElementById('pick-cancel').addEventListener('click', () => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && pick.active) setPicking(false);
+  else if (e.key === 'Escape' && te.active && document.activeElement?.closest?.('#textedit-box') === null) teCancel();
 });
+
+// ---------------------------------------------------------------- editar texto (2026-09-28)
+
+/** "Editar texto": la vista previa se vuelve editable y al guardar se manda solo lo que cambió (ver
+ *  textedit.js y studio/server/textEdit.ts). Se bloquea lo que rompería la estructura (saltos de línea,
+ *  negritas, pegar HTML, arrastrar); si aun así se rompe, no se guarda y se dice dónde. */
+const te = { active: false, before: null, pre: null, confirmCancel: false };
+const teBox = document.getElementById('textedit-box');
+const teBtn = document.getElementById('edit-text-btn');
+const PREVIEW_CONTROLS = '.preview-head input';
+const TE_CSS =
+  'body[contenteditable]{caret-color:#e6007e;outline:none}' +
+  'body[contenteditable] a{cursor:text!important}' +
+  'body[contenteditable] *:focus{outline:none}';
+
+/** El bloque oculto del preheader (misma idea que findPreheader en qualityCheck.ts). */
+function findPreheaderEl(doc) {
+  for (const el of doc.body.querySelectorAll('div, span, td, p')) {
+    const style = (el.getAttribute('style') || '').toLowerCase().replace(/\s+/g, '');
+    const hidden = /display:none/.test(style) || /mso-hide:all/.test(style) || (/max-height:0/.test(style) && /overflow:hidden/.test(style));
+    if ((hidden || /preheader/i.test(el.className || '')) && HermesTextEdit.norm(el.textContent).length >= 10) return el;
+  }
+  return null;
+}
+
+function teEdits() {
+  const doc = previewDoc();
+  return doc && te.before ? HermesTextEdit.diff(te.before, HermesTextEdit.snapshot(doc.body)) : { edits: [] };
+}
+
+function teRenderStatus() {
+  const { edits, brokenAt } = teEdits();
+  const n = (edits || []).length;
+  const text = brokenAt !== undefined ? 'Se ha borrado o partido un bloque: no se podrá guardar así.' : n ? `${n} texto${n === 1 ? '' : 's'} cambiado${n === 1 ? '' : 's'}.` : 'Sin cambios en la pieza todavía.';
+  document.getElementById('te-status').textContent = text;
+  document.getElementById('te-banner-count').textContent = text;
+  te.confirmCancel = false;
+  document.getElementById('te-cancel').textContent = 'Cancelar';
+  document.getElementById('te-banner-cancel').textContent = 'Cancelar';
+}
+let teStatusTimer = null;
+
+/** Sustituye la selección (dentro de un único trozo de texto) por `text`, sin dejar que el navegador
+ *  reorganice los elementos: al reemplazar TODO el texto de un botón, Chrome borra el <a> y deja el texto
+ *  fuera. Devuelve false si la selección no está en un solo trozo de texto. */
+function replaceInTextNode(doc, text) {
+  const sel = doc.getSelection();
+  if (!sel || !sel.rangeCount) return false;
+  const r = sel.getRangeAt(0);
+  const n = r.startContainer;
+  if (n.nodeType !== 3 || r.endContainer !== n) return false;
+  // Las posiciones se leen ANTES de cambiar el texto: al cambiarlo, el navegador lleva la selección a 0.
+  // Un texto que se queda vacío guarda un marcador invisible (HermesTextEdit.PLACEHOLDER): sin él, Chrome
+  // saca el cursor del enlace vacío y lo siguiente que se escribe queda fuera del botón. No llega a la pieza.
+  const P = HermesTextEdit.PLACEHOLDER;
+  const start = r.startOffset;
+  const end = r.endOffset;
+  const head = (n.data.slice(0, start) + text).split(P).join('');
+  const tail = n.data.slice(end).split(P).join('');
+  n.data = head + tail || P;
+  const caret = doc.createRange();
+  caret.setStart(n, head + tail ? head.length : 1);
+  caret.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(caret);
+  clearTimeout(teStatusTimer);
+  teStatusTimer = setTimeout(teRenderStatus, 300);
+  return true;
+}
+
+/** Una selección que abarca varios trozos de texto (triple clic en un titular, arrastrar de un bloque a
+ *  otro) se recorta al trozo pulsado (o al primero): escribir encima cambia ese texto y no se lleva el
+ *  bloque de al lado. Se llama al cambiar la selección y otra vez justo antes de escribir o borrar, porque
+ *  quien escribe rápido tras un triple clic llega antes que el aviso de selección. */
+function clampSelection(doc) {
+  const sel = doc.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const r = sel.getRangeAt(0);
+  if (r.collapsed || (r.startContainer === r.endContainer && r.startContainer.nodeType === 3)) return;
+  const walker = doc.createTreeWalker(r.commonAncestorContainer, 4 /* NodeFilter.SHOW_TEXT */);
+  let node = walker.currentNode.nodeType === 3 ? walker.currentNode : walker.nextNode();
+  const pointed = te.pointNode && te.pointNode.isConnected && r.intersectsNode(te.pointNode) && te.pointNode.data.trim() ? te.pointNode : null;
+  for (; node; node = walker.nextNode()) {
+    if (pointed && node !== pointed) continue;
+    if (!r.intersectsNode(node) || !node.data.trim()) continue;
+    const start = node === r.startContainer ? r.startOffset : 0;
+    const end = node === r.endContainer ? r.endOffset : node.data.length;
+    if (end <= start) continue;
+    const clamped = doc.createRange();
+    clamped.setStart(node, start);
+    clamped.setEnd(node, end);
+    sel.removeAllRanges();
+    sel.addRange(clamped);
+    return;
+  }
+}
+
+function armTextEdit(doc) {
+  if (doc.studioEditArmed) return;
+  doc.studioEditArmed = true;
+  const style = doc.createElement('style');
+  style.setAttribute('data-studio-edit', '');
+  style.textContent = TE_CSS;
+  (doc.head || doc.documentElement).appendChild(style);
+  doc.addEventListener('keydown', (e) => {
+    if (!te.active) return;
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      showToast('Aquí no se pueden añadir líneas ni bloques: para eso, «Pedir cambios».');
+    } else if ((e.metaKey || e.ctrlKey) && /^[biu]$/i.test(e.key)) {
+      e.preventDefault(); // negrita, cursiva, subrayado: cambiarían la estructura
+    } else if (e.key === 'Escape') {
+      teCancel();
+    }
+  });
+  doc.addEventListener('paste', (e) => {
+    if (!te.active) return;
+    e.preventDefault();
+    const text = (e.clipboardData?.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ');
+    if (!replaceInTextNode(doc, text)) doc.execCommand('insertText', false, text);
+  });
+  doc.addEventListener('drop', (e) => te.active && e.preventDefault());
+  // Toda escritura y borrado dentro de un trozo de texto la hace Studio (replaceInTextNode), no el navegador:
+  // Chrome saca fuera del enlace lo que se escribe al final de un botón, borra el <a> al vaciarlo y fusiona
+  // bloques al borrar al principio de un texto. Así la estructura de la pieza no puede cambiar.
+  doc.addEventListener('beforeinput', (e) => {
+    if (!te.active) return;
+    const type = e.inputType;
+    if (type === 'insertParagraph' || type === 'insertLineBreak' || /^format/.test(type) || /^history/.test(type)) {
+      e.preventDefault();
+      return;
+    }
+    clampSelection(doc);
+    const sel = doc.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const r = sel.getRangeAt(0);
+    const n = r.startContainer;
+    const inText = n.nodeType === 3 && r.endContainer === n;
+    if (/^insert(Text|ReplacementText|FromPaste|FromDrop)$/.test(type)) {
+      const text = (e.data ?? e.dataTransfer?.getData('text/plain') ?? '').replace(/\s*\n\s*/g, ' ');
+      if (inText) {
+        e.preventDefault();
+        replaceInTextNode(doc, text);
+      }
+      return;
+    }
+    if (!/^delete/.test(type)) return;
+    e.preventDefault();
+    if (!inText) return;
+    if (!r.collapsed) {
+      replaceInTextNode(doc, '');
+      return;
+    }
+    const off = r.startOffset;
+    const data = n.data;
+    const surrogate = (code) => code >= 0xdc00 && code <= 0xdfff;
+    let from = off;
+    let to = off;
+    if (type === 'deleteContentBackward') from = off - (off > 1 && surrogate(data.charCodeAt(off - 1)) ? 2 : 1);
+    else if (type === 'deleteContentForward') to = off + (surrogate(data.charCodeAt(off + 1)) ? 2 : 1);
+    else if (type === 'deleteWordBackward') from = off - data.slice(0, off).match(/\S*\s*$/)[0].length;
+    else if (type === 'deleteWordForward') to = off + data.slice(off).match(/^\s*\S*/)[0].length;
+    else return; // borrar la línea entera: no
+    from = Math.max(0, from);
+    to = Math.min(data.length, to);
+    if (from >= to) return; // al principio o al final del texto: no se fusiona con el de al lado
+    const range = doc.createRange();
+    range.setStart(n, from);
+    range.setEnd(n, to);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    replaceInTextNode(doc, '');
+  });
+  // El trozo de texto bajo el puntero: con triple clic se selecciona la línea entera y el que cuenta es el pulsado.
+  doc.addEventListener('mousedown', (e) => {
+    const at = doc.caretRangeFromPoint?.(e.clientX, e.clientY) || null;
+    te.pointNode = at && at.startContainer.nodeType === 3 ? at.startContainer : null;
+  });
+  // Clic en el relleno de un botón o de una celda (fuera de las letras): el cursor quedaría fuera del texto
+  // y lo escrito, al lado del botón. Se lleva al final del texto del elemento pulsado.
+  doc.addEventListener('mouseup', (e) => {
+    if (!te.active) return;
+    const sel = doc.getSelection();
+    if (!sel) return;
+    if (sel.rangeCount && (!sel.getRangeAt(0).collapsed || sel.getRangeAt(0).startContainer.nodeType === 3)) return;
+    const walker = doc.createTreeWalker(e.target, 4 /* NodeFilter.SHOW_TEXT */);
+    let last = null;
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) if (t.data.trim()) last = t;
+    if (!last) return;
+    const caret = doc.createRange();
+    caret.setStart(last, last.data.replace(/\s+$/, '').length);
+    caret.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(caret);
+  });
+  doc.addEventListener('selectionchange', () => te.active && clampSelection(doc));
+  doc.addEventListener('input', () => {
+    clearTimeout(teStatusTimer);
+    teStatusTimer = setTimeout(teRenderStatus, 300);
+  });
+}
+
+function setEditControls(disabled) {
+  document.querySelectorAll(PREVIEW_CONTROLS).forEach((i) => (i.disabled = disabled));
+  // Lo que abriría otro trabajo o recargaría la vista previa perdería lo escrito sin guardar.
+  for (const id of ['revise-btn', 'sticky-revise', 'mobile-fix-btn']) document.getElementById(id).disabled = disabled;
+  document.getElementById('preview-stage').classList.toggle('is-editing', disabled);
+  document.getElementById('te-banner').hidden = !disabled;
+}
+
+function teOpen() {
+  const doc = previewDoc();
+  if (!doc?.body) return showToast('La vista previa aún se está cargando.');
+  toggleRevise(false);
+  if (document.getElementById('compare-toggle').checked) document.getElementById('compare-toggle').click();
+  // El marco de "Antes y después" se recarga al cambiar: se espera a tener el documento definitivo.
+  requestAnimationFrame(() => {
+    const d = previewDoc();
+    if (!d?.body) return;
+    te.before = HermesTextEdit.snapshot(d.body);
+    armTextEdit(d);
+    // Sin los contornos de "Resaltar cambios" mientras se escribe: vuelven al guardar o cancelar.
+    d.querySelectorAll('[data-studio-added]').forEach((el) => el.removeAttribute('data-studio-added'));
+    d.body.setAttribute('contenteditable', 'true');
+    d.body.spellcheck = true;
+    te.active = true;
+    te.pre = null;
+    const preEl = findPreheaderEl(d);
+    if (preEl) {
+      const prePath = pathOf(preEl).join('.');
+      const candidates = te.before.gaps.filter((g) => g.path.join('.') === prePath || g.path.join('.').startsWith(prePath ? `${prePath}.` : ''));
+      const best = candidates.sort((a, b) => HermesTextEdit.visiblePart(b.text).length - HermesTextEdit.visiblePart(a.text).length)[0];
+      if (best && HermesTextEdit.visiblePart(best.text)) te.pre = { gap: best, visible: HermesTextEdit.visiblePart(best.text) };
+    }
+    document.getElementById('te-subject').value = currentMeta?.subject || '';
+    document.getElementById('te-preheader').value = te.pre?.visible || '';
+    document.getElementById('te-preheader-wrap').hidden = !te.pre;
+    document.getElementById('te-error').hidden = true;
+    teBox.hidden = false;
+    teBtn.setAttribute('aria-expanded', 'true');
+    setEditControls(true);
+    teRenderStatus();
+    teBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+/** Sale del modo edición. Con `discard`, la vista previa se vuelve a pintar desde el HTML original. */
+function teClose({ discard = true } = {}) {
+  if (!te.active && teBox.hidden) return;
+  te.active = false;
+  te.before = null;
+  te.confirmCancel = false;
+  teBox.hidden = true;
+  teBtn.setAttribute('aria-expanded', 'false');
+  setEditControls(false);
+  const doc = previewDoc();
+  doc?.body?.removeAttribute('contenteditable');
+  if (discard && doc) renderFrame('after');
+}
+
+function teCancel() {
+  const dirty = (teEdits().edits || []).length || teEdits().brokenAt !== undefined;
+  if (dirty && !te.confirmCancel) {
+    te.confirmCancel = true;
+    document.getElementById('te-cancel').textContent = 'Descartar los cambios';
+    document.getElementById('te-banner-cancel').textContent = 'Descartar';
+    return;
+  }
+  teClose();
+}
+
+async function teSave() {
+  const doc = previewDoc();
+  const errorEl = document.getElementById('te-error');
+  errorEl.hidden = true;
+  if (!doc || !te.before) return;
+  const result = HermesTextEdit.diff(te.before, HermesTextEdit.snapshot(doc.body));
+  if (result.brokenAt !== undefined) {
+    const el = byPath(doc, result.brokenAt ? result.brokenAt.split('.').map(Number) : []);
+    const near = el ? HermesTextEdit.norm(el.textContent).slice(0, 60) : '';
+    errorEl.textContent =
+      'Solo se puede cambiar el texto, no borrar ni partir bloques' +
+      (near ? ` (cerca de «${near}»)` : '') +
+      '. Cancela para volver a empezar; para cambios de estructura, «Pedir cambios».';
+    errorEl.hidden = false;
+    if (el) {
+      el.setAttribute('data-studio-flash', '');
+      setTimeout(() => el.removeAttribute('data-studio-flash'), 3000);
+    }
+    return;
+  }
+  const edits = result.edits;
+  const newPre = document.getElementById('te-preheader').value.trim();
+  if (te.pre && newPre && newPre !== te.pre.visible) {
+    const g = te.pre.gap;
+    const already = edits.find((e) => e.path.join('.') === g.path.join('.') && e.gap === g.gap);
+    const after = HermesTextEdit.replaceVisible(g.text, newPre);
+    if (already) already.after = after;
+    else edits.push({ path: g.path, gap: g.gap, before: g.text, after });
+  }
+  const subjectInput = document.getElementById('te-subject').value.trim();
+  const subject = subjectInput && subjectInput !== (currentMeta?.subject || '') ? subjectInput : null;
+  if (!edits.length && !subject) {
+    errorEl.textContent = 'No has cambiado nada todavía.';
+    errorEl.hidden = false;
+    return;
+  }
+  const buttons = [teBox.querySelector('button[type="submit"]'), document.getElementById('te-banner-save')];
+  buttons.forEach((b) => (b.disabled = true));
+  try {
+    const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/text-edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ edits, subject, requesterName: savedRequester() || undefined }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      errorEl.textContent = data.error || 'No se pudo guardar.';
+      errorEl.hidden = false;
+      return;
+    }
+    teClose({ discard: false });
+    history.pushState({}, '', `?job=${data.id}`);
+    showJobView(data.id);
+    showToast('Versión nueva guardada.');
+  } catch {
+    errorEl.textContent = 'No se pudo conectar con Studio. Tus cambios siguen en la vista previa: inténtalo de nuevo.';
+    errorEl.hidden = false;
+  } finally {
+    buttons.forEach((b) => (b.disabled = false));
+  }
+}
+
+teBtn.addEventListener('click', () => (te.active ? teCancel() : teOpen()));
+teBox.addEventListener('submit', (e) => {
+  e.preventDefault();
+  teSave();
+});
+document.getElementById('te-banner-save').addEventListener('click', teSave);
+document.getElementById('te-cancel').addEventListener('click', teCancel);
+document.getElementById('te-banner-cancel').addEventListener('click', teCancel);
+['te-subject', 'te-preheader'].forEach((id) => document.getElementById(id).addEventListener('input', () => (te.confirmCancel = false)));
 
 document.getElementById('use-brief-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob, { useBrief: true });
@@ -1126,6 +1512,7 @@ function showJobView(id) {
   reviseBox.reset();
   reviseBtn.setAttribute('aria-expanded', 'false');
   resetPicks();
+  if (te.active || !teBox.hidden) teClose({ discard: false });
   resetCancel();
   resetFrame(document.getElementById('preview-frame'));
   resetCompare();
@@ -1164,15 +1551,27 @@ async function poll(id) {
     ? `${job.input.clientName} · cambios`
     : job.input.mobileFixOf
     ? `${job.input.clientName} · adaptación a móvil`
+    : job.input.textEditOf
+    ? `${job.input.clientName} · texto editado`
     : job.input.clientName;
   const changeEl = document.getElementById('job-change');
   changeEl.hidden = !job.input.changeRequest;
-  changeEl.textContent = job.input.changeRequest ? `Cambios pedidos: «${job.input.changeRequest}»` : '';
+  changeEl.textContent = !job.input.changeRequest
+    ? ''
+    : job.input.textEditOf
+    ? `Texto cambiado en Studio, sin Hermes:\n${job.input.changeRequest}`
+    : `Cambios pedidos: «${job.input.changeRequest}»`;
   document.getElementById('cancel-row').hidden = job.status !== 'queued' && job.status !== 'running';
   document.getElementById('job-meta').textContent = [
     new Date(job.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
     job.input.requesterName,
     IMAGE_LABELS[job.input.imageMode],
+    durationLabel({
+      status: job.status,
+      textEditOf: job.input.textEditOf,
+      durationSec: job.startedAt && job.finishedAt ? (Date.parse(job.finishedAt) - Date.parse(job.startedAt)) / 1000 : null,
+      elapsedSec: job.progress?.elapsedSec,
+    }),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -1559,7 +1958,7 @@ function applyPreviewView(view) {
 
 // ---------------------------------------------------------------- versiones y comparación
 
-const VERSION_KIND = { original: 'Original', revision: 'Cambios', 'mobile-fix': 'Adaptación a móvil' };
+const VERSION_KIND = { original: 'Original', revision: 'Cambios', 'mobile-fix': 'Adaptación a móvil', 'text-edit': 'Texto editado' };
 
 function renderVersions(job, versions) {
   const self = versions.find((v) => v.id === job.id);

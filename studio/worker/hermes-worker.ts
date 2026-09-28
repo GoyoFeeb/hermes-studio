@@ -498,6 +498,8 @@ interface ClaimedJob {
   sourceHtml?: string;
   /** Tipo de retoque sobre una newsletter terminada (sin definir en Studio anteriores = mobile-fix). */
   editKind?: 'mobile-fix' | 'revision';
+  /** Lo que suelen tardar los trabajos de este tipo (mediana real en Studio, 2026-09-28). */
+  expectedSec?: number;
   /** Solo en "Pedir cambios": notas.md de la versión original (fuentes de cada dato). */
   sourceNotes?: string;
 }
@@ -685,7 +687,12 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const htmlReady = (): string | null =>
     fs.existsSync(expectedFile) ? expectedFile : newestHtml(outAbs) || newestHtmlSince(path.dirname(outAbs), started);
 
-  const expected = isMobileFix ? MOBILE_FIX_EXPECTED_SEC : isRevision ? REVISION_EXPECTED_SEC : expectedSeconds();
+  // Cambios y adaptaciones: la mediana real que manda Studio (antes, 8 y 6 min fijos; la revisión de Nike
+  // tardó 16). Las newsletters nuevas siguen con las duraciones medidas aquí, que no incluyen el brief.
+  const serverExpected = claimed.expectedSec && claimed.expectedSec >= 60 ? claimed.expectedSec : null;
+  const expected = isMobileFix || isRevision
+    ? serverExpected ?? (isMobileFix ? MOBILE_FIX_EXPECTED_SEC : REVISION_EXPECTED_SEC)
+    : expectedSeconds();
   let sessionId: string | null = null;
   let lastCount = -1;
   let lastChange = Date.now();

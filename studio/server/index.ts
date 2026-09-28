@@ -30,6 +30,11 @@ import {
   resultMeta,
   queueInfo,
   versionFamily,
+  typicalDurations,
+  typicalSeconds,
+  durationSec,
+  createTextEditVersion,
+  TextEditNoChanges,
   saveThumbnail,
   pendingThumbnails,
   sanitizeQuality,
@@ -42,6 +47,7 @@ import {
   saveWorkerBrands,
   readWorkerBrands,
 } from './standalone';
+import { TextEditError, type TextEdit } from './textEdit';
 
 loadEnv(ROOT);
 loadEnv(STUDIO_DIR);
@@ -185,11 +191,14 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
     res.status(204).end();
     return;
   }
-  const job = updateJob(next.id, { status: 'running', currentPhase: 'hermes' });
+  const job = updateJob(next.id, { status: 'running', currentPhase: 'hermes', startedAt: new Date().toISOString() });
   hermesLog(job.id, 'Hermes ha recogido el trabajo y está trabajando.');
   res.json({
     id: job.id,
     outputDir: standaloneOutputDir(job),
+    // Lo que suelen tardar los de su tipo (mediana real): el worker lo usa para el porcentaje y la
+    // estimación de los cambios y adaptaciones (2026-09-28).
+    expectedSec: typicalSeconds(job),
     // Instrucción básica: el worker ejecuta primero briefPrompt y luego pide el encargo final
     // a /brief. Con prompt pegado, el encargo va directamente.
     ...(job.input.revisionOf
@@ -434,6 +443,7 @@ app.get('/api/status', (_req: Request, res: Response) => {
       ? { id: running.id, clientName: running.input.clientName, pct: running.progress?.pct ?? null, stageLabel: running.progress?.stageLabel ?? null }
       : null,
     queued: standalone.filter((j) => j.status === 'queued').length,
+    typical: typicalDurations(),
   });
 });
 
@@ -454,6 +464,8 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       fromInstruction: !!j.input.instruction,
       mobileFixOf: j.input.mobileFixOf || null,
       revisionOf: j.input.revisionOf || null,
+      textEditOf: j.input.textEditOf || null,
+      durationSec: durationSec(j),
       hasThumb: !!j.thumbRelPath,
       pct: j.progress?.pct ?? null,
       elapsedSec: j.progress?.elapsedSec ?? null,
@@ -527,6 +539,39 @@ app.post('/api/jobs/:id/revise', createJobRateLimit.middleware, (req: Request, r
   });
   hermesLog(job.id, `Cambios sobre la newsletter ${source.id}: en cola.`);
   res.status(201).json({ id: job.id });
+});
+
+// "Editar texto": versión nueva al momento, sin Hermes (ver createTextEditVersion y textEdit.ts).
+app.post('/api/jobs/:id/text-edit', createJobRateLimit.middleware, (req: Request, res: Response) => {
+  const source = getJob(req.params.id);
+  if (!source || source.input.mode !== 'standalone' || source.status !== 'completed' || !readResultHtml(source)) {
+    res.status(404).json({ error: 'Solo se puede editar el texto de una newsletter terminada.' });
+    return;
+  }
+  const raw = Array.isArray(req.body?.edits) ? req.body.edits : [];
+  const isInt = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) < 100000;
+  const edits: TextEdit[] = [];
+  for (const e of raw.slice(0, 300)) {
+    if (!e || !Array.isArray(e.path) || e.path.length > 80 || !e.path.every(isInt) || !isInt(e.gap)) continue;
+    if (typeof e.before !== 'string' || typeof e.after !== 'string' || e.after.length > 5000 || e.before.length > 20000) continue;
+    edits.push({ path: e.path, gap: e.gap, before: e.before, after: e.after });
+  }
+  if (edits.length !== raw.length) {
+    res.status(400).json({ error: 'Cambios no válidos.' });
+    return;
+  }
+  const subject = typeof req.body?.subject === 'string' ? req.body.subject.slice(0, 300) : null;
+  const requester = typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : undefined;
+  try {
+    const job = createTextEditVersion(source, edits, subject, requester);
+    res.status(201).json({ id: job.id });
+  } catch (err) {
+    if (err instanceof TextEditError || err instanceof TextEditNoChanges) {
+      res.status(err instanceof TextEditNoChanges ? 400 : 409).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });
 
 // Cancelar: en cola, al momento; en curso, el worker lo ve en su siguiente aviso de progreso

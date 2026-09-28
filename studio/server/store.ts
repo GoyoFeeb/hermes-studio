@@ -35,6 +35,9 @@ export interface JobInput {
    *  Hermes parte del HTML publicado, sus notas.md y el brief original, en una sesión nueva. */
   revisionOf?: string;
   changeRequest?: string;
+  /** "Editar texto" (2026-09-28): versión hecha en Studio, sin Hermes, retocando el texto del trabajo
+   *  indicado (ver studio/server/textEdit.ts). Nace terminada. */
+  textEditOf?: string;
 }
 
 export interface Job {
@@ -67,6 +70,9 @@ export interface Job {
   thumbRelPath?: string;
   /** El worker no pudo generarla: no se le vuelve a pedir. */
   thumbFailed?: boolean;
+  /** Cuándo lo recogió Hermes y cuándo terminó (2026-09-28): la duración real, sin la espera en cola. */
+  startedAt?: string;
+  finishedAt?: string;
 }
 
 export interface JobEvent {

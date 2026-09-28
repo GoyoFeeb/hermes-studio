@@ -107,6 +107,25 @@ versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la 
 "Resaltar cambios" marca sobre la propia pieza lo añadido (verde) y, en "Antes y después", lo quitado en
 la versión anterior (rojo).
 
+**Editar texto** (2026-09-28): en una newsletter terminada, la vista previa se vuelve editable y el
+asunto y el preheader salen como campos. Al guardar se crea una versión nueva al momento, sin Hermes
+(`textEditOf`), que pasa la revisión automática (comprobaciones sin red de nuevo; enlaces, imágenes y
+móvil heredados). El navegador manda solo los trozos de texto que cambiaron, con su sitio (ruta de
+elementos desde `<body>` y hueco entre hijos; `studio/web/textedit.js`), y el servidor los aplica sobre
+el HTML publicado sin tocar nada más (`studio/server/textEdit.ts`, con parse5 y sus posiciones en el
+código; tests de ida y vuelta con la pieza real de Nike en `studio/server/fixtures/`). También cambia la
+copia del texto de los botones para Outlook (VML dentro de `<!--[if mso]>`). Escribir y borrar dentro
+de un texto lo hace Studio, no el navegador (Chrome saca del enlace lo escrito al final de un botón y
+fusiona bloques al borrar); las selecciones se recortan a un solo trozo de texto; Enter, negrita y
+pegar HTML no hacen nada. Si aun así cambia la estructura, no se guarda y se dice dónde.
+
+**Duraciones reales** (2026-09-28): cada trabajo guarda cuándo lo recogió Hermes y cuándo terminó
+(`startedAt`/`finishedAt`). Lo que suele tardar cada tipo (instrucción, prompt completo, cambios,
+adaptación a móvil) es la mediana de los últimos 10 terminados (`typicalDurations`, mínimo 2; si no,
+los valores de antes). Se usa en la cola, en el porcentaje de cambios y adaptaciones (el worker recibe
+`expectedSec`), en el formulario ("Suele tardar ~9 min…"), en "Pedir cambios" y en el historial
+("tardó 12 min").
+
 **Ver en la pieza** (2026-09-28): cada aviso de la revisión automática que apunta a un sitio concreto
 (enlace roto, imagen, claim, imagen sin alt o sin width, flex, desborde en móvil) y cada línea de "Qué ha
 cambiado" llevan un botón "Ver" que baja hasta ese elemento en la vista previa y lo hace parpadear. El

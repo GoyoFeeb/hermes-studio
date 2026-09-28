@@ -869,6 +869,26 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-28 (tarde) — Editar texto sin Hermes y duraciones reales
+
+- **Editar texto** (`studio/web/textedit.js`, `studio/server/textEdit.ts`, ruta `POST /api/jobs/:id/text-edit`,
+  `createTextEditVersion`): versión nueva al momento (`textEditOf`) con los retoques aplicados sobre el HTML
+  publicado por posición (parse5), sin reserializar: en la prueba con Nike solo cambiaron las 6 líneas
+  editadas (asunto, preheader, titular, párrafo, botón, pie). También se cambia la copia del texto del botón
+  en el VML de Outlook. Revisión automática: comprobaciones sin red de nuevo + enlaces/imágenes/móvil
+  heredados. Dependencia nueva directa: `parse5` (ya estaba instalada vía juice).
+- **Lo que costó que funcionara con Chrome real** (probado con Playwright y Chrome 154, no con el Chromium
+  reducido: las acciones de Playwright sobre el marco sin scripts fallan, hay que hacer clic por
+  coordenadas): Chrome saca fuera del enlace lo escrito al final de un botón, borra el `<a>` al vaciarlo,
+  fusiona bloques al borrar al principio y el triple clic selecciona el bloque siguiente. Solución: Studio
+  hace toda escritura/borrado dentro del nodo de texto (`replaceInTextNode`, marcador U+2060 si queda
+  vacío), recorta selecciones a un trozo (también justo antes de escribir) y lleva el cursor al texto si se
+  pulsa el relleno de un botón. Si aun así cambia la estructura, no se guarda y se dice dónde.
+- **Duraciones reales**: `startedAt`/`finishedAt`; mediana de los últimos 10 por tipo (`typicalDurations`) en
+  cola, formulario, "Pedir cambios", adaptación y el historial ("tardó N min"); el worker usa `expectedSec`
+  para el porcentaje de cambios y adaptaciones (antes 8 y 6 min fijos; la revisión de Nike tardó 16).
+- Despliegue: Vercel + Railway (servidor y dependencia) + reiniciar el worker. 126/126 tests.
+
 ### 2026-09-28 (tarde) — Formulario: borrador guardado y aviso de instrucción poco concreta
 
 - **Borrador**: se guarda en localStorage (400 ms tras escribir; caduca a los 14 días) y se recupera con un

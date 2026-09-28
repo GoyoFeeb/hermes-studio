@@ -21,7 +21,9 @@ import { ROOT, DATA_DIR } from './paths';
 import { getJob, updateJob, appendEvent, listJobs, type Job } from './store';
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
-import { findPreheader } from '../worker/qualityCheck';
+import { findPreheader, staticChecks } from '../worker/qualityCheck';
+import { applyTextEdits, type TextEdit } from './textEdit';
+import { createJob } from './store';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
 const GMAIL_CLIP_BYTES = 102 * 1024;
@@ -352,11 +354,47 @@ export function resultMeta(job: Job): { subject: string | null; preheader: strin
   return { subject: subject || null, preheader: findPreheader(html) };
 }
 
-/** Lo que suele tardar cada tipo de trabajo (orientativo: las duraciones reales viven en el Mac). */
-function typicalSeconds(job: Job): number {
-  if (job.input.mobileFixOf) return 6 * 60;
-  if (job.input.revisionOf) return 8 * 60;
-  return (job.input.instruction ? 25 : 20) * 60;
+export type JobKind = 'instruction' | 'brief' | 'revision' | 'mobile-fix';
+
+export function jobKind(job: Job): JobKind | null {
+  if (job.input.textEditOf) return null; // sin Hermes: no cuenta para las duraciones
+  if (job.input.mobileFixOf) return 'mobile-fix';
+  if (job.input.revisionOf) return 'revision';
+  return job.input.instruction ? 'instruction' : 'brief';
+}
+
+/** Duración real de un trabajo terminado: de que Hermes lo recoge a que termina. Los anteriores al
+ *  2026-09-28 no guardan esas horas: se usa el último tiempo que mandó el worker con el progreso. */
+export function durationSec(job: Job): number | null {
+  if (job.startedAt && job.finishedAt) return Math.max(1, Math.round((Date.parse(job.finishedAt) - Date.parse(job.startedAt)) / 1000));
+  return job.status === 'completed' && job.progress?.elapsedSec ? job.progress.elapsedSec : null;
+}
+
+/** Valores por defecto mientras no hay al menos 2 trabajos terminados de ese tipo. */
+const DEFAULT_SECONDS: Record<JobKind, number> = { instruction: 25 * 60, brief: 20 * 60, revision: 8 * 60, 'mobile-fix': 6 * 60 };
+const TYPICAL_SAMPLE = 10;
+
+/** Lo que suele tardar cada tipo (2026-09-28): la mediana de los últimos 10 terminados de ese tipo. */
+export function typicalDurations(): Record<JobKind, { sec: number; n: number }> {
+  const byKind: Record<JobKind, number[]> = { instruction: [], brief: [], revision: [], 'mobile-fix': [] };
+  const done = listJobs() // más recientes primero
+    .filter((j) => j.input.mode === 'standalone' && j.status === 'completed');
+  for (const j of done) {
+    const kind = jobKind(j);
+    const sec = durationSec(j);
+    if (kind && sec && byKind[kind].length < TYPICAL_SAMPLE) byKind[kind].push(sec);
+  }
+  const out = {} as Record<JobKind, { sec: number; n: number }>;
+  for (const kind of Object.keys(byKind) as JobKind[]) {
+    const list = byKind[kind].sort((a, b) => a - b);
+    out[kind] = list.length >= 2 ? { sec: list[Math.floor(list.length / 2)], n: list.length } : { sec: DEFAULT_SECONDS[kind], n: 0 };
+  }
+  return out;
+}
+
+export function typicalSeconds(job: Job): number {
+  const kind = jobKind(job);
+  return kind ? typicalDurations()[kind].sec : 0;
 }
 
 /** Posición en la cola de un trabajo standalone en espera y cuándo empezará, estimado: lo que le
@@ -380,13 +418,13 @@ export interface JobVersion {
   number: number;
   createdAt: string;
   status: Job['status'];
-  kind: 'original' | 'revision' | 'mobile-fix';
+  kind: 'original' | 'revision' | 'mobile-fix' | 'text-edit';
   parentId: string | null;
   changeRequest: string | null;
 }
 
 function parentIdOf(job: Job): string | null {
-  return job.input.revisionOf || job.input.mobileFixOf || null;
+  return job.input.revisionOf || job.input.mobileFixOf || job.input.textEditOf || null;
 }
 
 /** Todas las versiones de una newsletter (2026-09-28): la original y los "Pedir cambios" y "Adaptar
@@ -413,7 +451,7 @@ export function versionFamily(job: Job): JobVersion[] {
       number: i + 1,
       createdAt: j.createdAt,
       status: j.status,
-      kind: j.input.revisionOf ? 'revision' : j.input.mobileFixOf ? 'mobile-fix' : 'original',
+      kind: j.input.revisionOf ? 'revision' : j.input.mobileFixOf ? 'mobile-fix' : j.input.textEditOf ? 'text-edit' : 'original',
       parentId: parentIdOf(j),
       changeRequest: j.input.changeRequest ? j.input.changeRequest.slice(0, 300) : null,
     }));
@@ -477,6 +515,7 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
   updateJob(jobId, {
     status: 'completed',
     currentPhase: null,
+    finishedAt: new Date().toISOString(),
     progress: job.progress ? { ...job.progress, pct: 100, stage: 'terminado', stageLabel: 'Terminada', detail: '', etaSec: 0 } : undefined,
     campaignRelPath: outRel,
     resultRelPath: path.join(outRel, 'newsletter.html'),
@@ -489,3 +528,73 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
   if (thumbRelPath) updateJob(jobId, { thumbRelPath });
   log(jobId, 'Newsletter lista.', 'success');
 }
+
+/**
+ * "Editar texto" (2026-09-28): versión nueva hecha en Studio, sin Hermes. Aplica los retoques sobre el HTML
+ * publicado del trabajo de origen (textEdit.ts) y la deja terminada en el acto, con su revisión automática:
+ * las comprobaciones sin red se repiten sobre el HTML nuevo; enlaces, imágenes y móvil se heredan de la
+ * versión de origen (editar el texto no cambia URLs; el móvil se midió con el mismo diseño).
+ * Todo síncrono: el worker no puede recoger el trabajo entre que se crea y se marca terminado.
+ */
+export function createTextEditVersion(source: Job, edits: TextEdit[], subject: string | null, requesterName?: string): Job {
+  const html = readResultHtml(source);
+  if (!html) throw new Error('La newsletter de origen no está disponible.');
+  const { html: out, changes, outlookCopies } = applyTextEdits(html, edits, subject);
+  if (!changes.length) throw new TextEditNoChanges('No hay cambios que guardar.');
+
+  const clip = (t: string): string => (t.length > 160 ? `${t.slice(0, 159)}…` : t);
+  const summary = changes.map((c) => `«${clip(c.before)}» → «${clip(c.after)}»`).join('\n');
+  const job = createJob({
+    mode: 'standalone',
+    clientSlug: source.input.clientSlug,
+    clientName: source.input.clientName,
+    brandMode: source.input.brandMode,
+    briefText: source.input.briefText,
+    imageMode: source.input.imageMode,
+    requesterName: requesterName || source.input.requesterName,
+    textEditOf: source.id,
+    changeRequest: summary.slice(0, 4000),
+  });
+
+  const outRel = standaloneOutputDir(job);
+  const outAbs = path.join(ROOT, outRel);
+  fs.mkdirSync(outAbs, { recursive: true });
+  fs.writeFileSync(path.join(outAbs, 'newsletter.html'), out, 'utf8');
+  fs.writeFileSync(path.join(outAbs, 'prompt.md'), job.input.briefText, 'utf8');
+  fs.writeFileSync(path.join(outAbs, 'cambios.md'), summary + '\n', 'utf8');
+  const who = job.input.requesterName ? ` por ${job.input.requesterName}` : '';
+  const notes = [
+    (readResultNotes(source) || '').trim(),
+    `## Retoque de texto en Studio (${new Date().toISOString().slice(0, 16).replace('T', ' ')}${who}, sin Hermes)`,
+    ...changes.map((c) => `- «${c.before}» → «${c.after}»`),
+    '',
+    'Solo cambió el texto: diseño, imágenes y enlaces son los de la versión anterior. Los datos nuevos que',
+    'se hayan escrito aquí no tienen fuente anotada.',
+  ]
+    .filter((l, i) => i > 0 || l)
+    .join('\n');
+  fs.writeFileSync(path.join(outAbs, 'notas.md'), notes + '\n', 'utf8');
+
+  const carried = (source.quality?.checks || []).filter((c) => c.id === 'links' || c.id === 'images' || c.id === 'mobile');
+  const checks = [...carried.filter((c) => c.id !== 'mobile'), ...staticChecks(out), ...carried.filter((c) => c.id === 'mobile')];
+  const quality: QualityReport = {
+    checkedAt: new Date().toISOString(),
+    errors: checks.filter((c) => c.status === 'error').length,
+    warnings: checks.filter((c) => c.status === 'warning').length,
+    checks,
+  };
+  const now = new Date().toISOString();
+  log(job.id, `Retoque de texto${who} sobre la newsletter ${source.id}: ${changes.length} cambio(s), sin Hermes.`, 'success');
+  if (outlookCopies) log(job.id, `También en la versión para Outlook de ${outlookCopies} botón(es) (VML).`, 'success');
+  return updateJob(job.id, {
+    status: 'completed',
+    currentPhase: null,
+    campaignRelPath: outRel,
+    resultRelPath: path.join(outRel, 'newsletter.html'),
+    quality,
+    startedAt: now,
+    finishedAt: now,
+  });
+}
+
+export class TextEditNoChanges extends Error {}

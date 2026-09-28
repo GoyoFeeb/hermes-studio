@@ -563,7 +563,7 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .cancel-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -8px 0 24px; }
 .cancel-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; }
 .job-cancelled p { margin: 0 0 8px; color: var(--muted); }
-.change-request { margin: 8px 0 0; font-size: 14px; color: var(--lilac); overflow-wrap: anywhere; }
+.change-request { margin: 8px 0 0; font-size: 14px; color: var(--lilac); overflow-wrap: anywhere; white-space: pre-line; }
 .revise-box { margin: 0 0 20px; padding: 18px 20px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--field); }
 .revise-box label { margin-bottom: 12px; }
 .revise-box textarea { min-height: 110px; }
@@ -950,3 +950,11 @@ body.has-sticky .foot { padding-bottom: 88px; }
   font: inherit; font-size: 12px; font-weight: 600; color: var(--text); text-decoration: none;
 }
 .locate-btn:hover { border-color: var(--pink); color: var(--accent-text); }
+
+/* ---------------------------------------------------------------- Editar texto (2026-09-28) */
+.textedit-box input[type="text"] { width: 100%; }
+.textedit-box label { display: block; margin-bottom: 12px; }
+.te-status { margin: 0 0 12px; }
+.te-banner-actions { display: flex; gap: 8px; flex: none; }
+.preview-stage.is-editing .preview-device { box-shadow: 0 0 0 3px var(--purple); }
+#edit-text-btn[aria-expanded="true"], #revise-btn[aria-expanded="true"] { border-color: var(--pink); }

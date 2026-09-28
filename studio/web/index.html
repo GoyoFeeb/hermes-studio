@@ -33,7 +33,7 @@
     <section class="hero">
       <p class="eyebrow">Hermes Studio</p>
       <h1>Newsletters de marca, <span class="accent">con Hermes</span></h1>
-      <p class="lead">Pide la newsletter con una frase o pega un prompt creativo completo. Hermes investiga la marca, escribe la newsletter, la revisa y la corrige: suele tardar 15-25 minutos.</p>
+      <p class="lead">Pide la newsletter con una frase o pega un prompt creativo completo. Hermes investiga la marca, escribe la newsletter, la revisa y la corrige.</p>
     </section>
 
     <section id="view-form">
@@ -91,7 +91,7 @@
         </label>
 
         <div id="vague-warning" class="form-warning" role="alert" hidden>
-          <p>Hermes tardará unos 20 minutos, y con esta instrucción tendrá que suponer cosas:</p>
+          <p>Hermes tardará <span data-eta="new">unos 20 minutos</span>, y con esta instrucción tendrá que suponer cosas:</p>
           <ul id="vague-list"></ul>
           <div class="warning-actions">
             <button type="button" id="vague-complete" class="btn btn-secondary btn-sm">Completar la instrucción</button>
@@ -109,7 +109,7 @@
 
         <div class="actions">
           <button type="submit" class="btn btn-primary">Generar newsletter</button>
-          <p class="hint">Puedes cerrar esta página y volver con el enlace del trabajo.</p>
+          <p class="hint"><span id="eta-hint"></span>Puedes cerrar esta página y volver con el enlace del trabajo.</p>
         </div>
       </form>
 
@@ -193,6 +193,7 @@
           <button id="copy-html-btn" type="button" class="btn btn-secondary">Copiar HTML</button>
           <a id="open-link" class="btn btn-ghost" href="#" target="_blank" rel="noopener">Abrir en pestaña</a>
           <button id="revise-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="revise-box">Pedir cambios</button>
+          <button id="edit-text-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="textedit-box" title="Cambia el texto tú mismo sobre la vista previa: versión nueva al momento, sin Hermes">Editar texto</button>
           <button id="mobile-fix-btn" type="button" class="btn btn-secondary" title="Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (unos minutos)">Adaptar a móvil</button>
         </div>
 
@@ -217,7 +218,25 @@
           <div class="actions">
             <button type="submit" class="btn btn-primary">Enviar cambios</button>
             <button type="button" id="revise-close" class="btn btn-ghost">Cancelar</button>
-            <p class="hint">Hermes retoca esta misma pieza en un trabajo nuevo (unos minutos). Esta versión no cambia.</p>
+            <p class="hint">Hermes retoca esta misma pieza en un trabajo nuevo (<span data-eta="revision">unos minutos</span>). Esta versión no cambia. Para cambiar solo un texto, «Editar texto» es inmediato.</p>
+          </div>
+        </form>
+        <form id="textedit-box" class="revise-box textedit-box" hidden>
+          <p class="label">Editar el texto</p>
+          <p class="hint">Haz clic en cualquier texto de la vista previa y escribe encima. Solo cambia el texto: diseño, imágenes y enlaces se quedan igual. Se guarda como versión nueva al momento, sin Hermes, y pasa la revisión automática.</p>
+          <label>
+            <span class="label">Asunto</span>
+            <input type="text" id="te-subject" maxlength="300" />
+          </label>
+          <label id="te-preheader-wrap">
+            <span class="label">Preheader</span>
+            <input type="text" id="te-preheader" maxlength="300" />
+          </label>
+          <p id="te-status" class="hint te-status" aria-live="polite"></p>
+          <p id="te-error" class="form-error" role="alert" hidden></p>
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Guardar versión nueva</button>
+            <button type="button" id="te-cancel" class="btn btn-ghost">Cancelar</button>
           </div>
         </form>
         <dl class="email-meta" id="email-meta" hidden>
@@ -303,6 +322,13 @@
           <span class="hint" id="preview-size"></span>
         </div>
         <p class="hint theme-hint" id="theme-hint" hidden></p>
+        <div class="pick-banner te-banner" id="te-banner" hidden>
+          <span>Editando el texto: haz clic en la pieza y escribe. <span class="hint" id="te-banner-count"></span></span>
+          <span class="te-banner-actions">
+            <button type="button" id="te-banner-save" class="btn btn-primary btn-sm">Guardar</button>
+            <button type="button" id="te-banner-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
+          </span>
+        </div>
         <div class="pick-banner" id="pick-banner" role="status" hidden>
           <span>Haz clic en lo que quieres cambiar. <span class="hint">Esc para salir.</span></span>
           <button type="button" id="pick-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
@@ -377,6 +403,7 @@
   <script src="/pick.js"></script>
   <script src="/locate.js"></script>
   <script src="/formcheck.js"></script>
+  <script src="/textedit.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
