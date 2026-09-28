@@ -441,7 +441,12 @@ const IMAGE_LABELS = { official: 'Assets oficiales', ai: 'Imágenes con IA' };
 // ---------------------------------------------------------------- historial
 
 const HISTORY_PAGE = 20;
-const historyState = { jobs: [], query: '', brand: '', status: '', mine: false, archived: false, shown: HISTORY_PAGE };
+const historyState = { jobs: [], query: '', brand: '', status: '', mine: false, archived: false, shown: HISTORY_PAGE, view: 'list' };
+try {
+  historyState.view = localStorage.getItem('historyView') === 'gallery' ? 'gallery' : 'list';
+} catch {
+  // sin almacenamiento
+}
 
 // "Mis trabajos" (2026-09-28): el nombre que recuerda el formulario. Sin nombre, el filtro no aparece.
 function savedRequester() {
@@ -618,7 +623,14 @@ function renderHistory() {
   document.getElementById('history-empty').hidden = groups.length > 0;
   document.getElementById('history-more').hidden = groups.length <= visible.length;
 
-  document.getElementById('history-list').innerHTML = visible
+  const listEl = document.getElementById('history-list');
+  listEl.classList.toggle('is-gallery', historyState.view === 'gallery');
+  document.querySelectorAll('[data-history-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.historyView === historyState.view)));
+  if (historyState.view === 'gallery') {
+    listEl.innerHTML = renderGallery(visible, info);
+    return;
+  }
+  listEl.innerHTML = visible
     .map(({ root, lead: j, others }) => {
       const id = encodeURIComponent(j.id);
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
@@ -683,6 +695,65 @@ function renderHistory() {
     })
     .join('');
 }
+
+/** Galería (2026-09-28): miniaturas grandes agrupadas por marca, con la misma selección y orden que la
+ *  lista (cada marca, en la posición de su newsletter más reciente). La tarjeta lleva a la versión que
+ *  representa la familia; las acciones (descargar, archivar…) siguen en la vista de lista. */
+function renderGallery(groups, info) {
+  const byBrand = new Map();
+  for (const g of groups) {
+    const key = g.lead.clientSlug || g.lead.clientName;
+    if (!byBrand.has(key)) byBrand.set(key, { name: g.lead.clientName, groups: [] });
+    byBrand.get(key).groups.push(g);
+  }
+  return [...byBrand.values()]
+    .map(({ name, groups: gs }) => {
+      const cards = gs
+        .map(({ lead: j, others }) => {
+          const id = encodeURIComponent(j.id);
+          const fam = info.get(j.id);
+          const withThumb = [j, ...others].find((x) => x.hasThumb);
+          const initials = String(j.clientName || '?')
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((w) => w[0].toUpperCase())
+            .join('');
+          const thumb = withThumb
+            ? `<span class="thumb"><img src="/api/jobs/${encodeURIComponent(withThumb.id)}/thumb" alt="" loading="lazy" width="150" height="200" data-initials="${escapeHtml(initials)}"></span>`
+            : `<span class="thumb thumb-empty">${escapeHtml(initials)}</span>`;
+          const approved = [j, ...others].find((x) => x.approvedAt);
+          const when = new Date(j.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+          const bits = [
+            when,
+            fam.size > 1 ? `${fam.size} versiones` : null,
+            jobKindLabel(j),
+          ].filter(Boolean);
+          const status = j.status === 'completed' ? '' : `<span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>`;
+          return `<li><a class="g-card" href="?job=${id}" title="${escapeHtml(`${j.clientName} · ${new Date(j.createdAt).toLocaleString('es-ES')}`)}">
+              ${thumb}
+              <span class="g-meta">${escapeHtml(bits.join(' · '))}</span>
+              ${approved ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (v${info.get(approved.id).number})` : ''}</span>` : ''}
+              ${status}
+            </a></li>`;
+        })
+        .join('');
+      return `<li class="g-brand"><h4 class="g-brand-name">${escapeHtml(name)} <span class="hint">${gs.length}</span></h4><ul class="g-grid">${cards}</ul></li>`;
+    })
+    .join('');
+}
+
+document.querySelectorAll('[data-history-view]').forEach((b) =>
+  b.addEventListener('click', () => {
+    historyState.view = b.dataset.historyView;
+    try {
+      localStorage.setItem('historyView', historyState.view);
+    } catch {
+      // sin almacenamiento
+    }
+    renderHistory();
+  })
+);
 
 document.getElementById('history-search').addEventListener('input', (e) => {
   historyState.query = e.target.value;
@@ -794,6 +865,7 @@ async function reuseJob(id, { useBrief = false } = {}) {
 function showFormView() {
   clearTimeout(pollTimer);
   currentJob = null;
+  setFaviconStatus(null);
   history.pushState({}, '', location.pathname);
   viewJob.hidden = true;
   viewForm.hidden = false;
@@ -1811,6 +1883,72 @@ document.getElementById('unarchive-btn').addEventListener('click', async () => {
   if (currentJob && (await setArchived(currentJob, false))) poll(currentJob);
 });
 
+// ---------------------------------------------------------------- atajos de teclado (2026-09-28)
+const shortcuts = document.getElementById('shortcuts');
+
+function toggleShortcuts(open) {
+  shortcuts.hidden = !open;
+  if (open) document.getElementById('shortcuts-close').focus();
+  else document.getElementById('shortcuts-btn').focus({ preventScroll: true });
+}
+document.getElementById('shortcuts-btn').addEventListener('click', () => toggleShortcuts(true));
+document.getElementById('shortcuts-close').addEventListener('click', () => toggleShortcuts(false));
+shortcuts.addEventListener('click', (e) => {
+  if (e.target === shortcuts) toggleShortcuts(false);
+});
+
+/** Pulsa un control si se puede usar ahora (visible y activo). */
+function pressIfUsable(id) {
+  const el = document.getElementById(id);
+  if (!el || el.disabled || el.hidden || el.closest('[hidden]') || !el.offsetParent) return false;
+  el.click();
+  return true;
+}
+
+function cycleRadio(name, values) {
+  const current = document.querySelector(`input[name="${name}"]:checked`)?.value;
+  const next = values[(values.indexOf(current) + 1) % values.length];
+  const radio = document.querySelector(`input[name="${name}"][value="${next}"]`);
+  if (!radio || radio.disabled) return;
+  radio.checked = true;
+  radio.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+  const t = e.target;
+  if (t.closest?.('input, textarea, select, [contenteditable]') || t.isContentEditable) return;
+  if (!shortcuts.hidden) {
+    if (e.key === 'Escape' || e.key === '?') {
+      e.preventDefault();
+      toggleShortcuts(false);
+    }
+    return;
+  }
+  if (viewJob.hidden || te.active || pick.active) return;
+  const result = !document.getElementById('job-result').hidden;
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  let done = false;
+  if (key === '?') {
+    toggleShortcuts(true);
+    done = true;
+  } else if (!result) {
+    return;
+  } else if (key === 'e') done = pressIfUsable('edit-text-btn');
+  else if (key === 'c') done = reviseBox.hidden ? pressIfUsable('revise-btn') : false;
+  else if (key === 'd') done = pressIfUsable('download-link');
+  else if (key === 'v') {
+    cycleRadio('previewView', ['desktop', 'mobile', 'free']);
+    done = true;
+  } else if (key === 'o') {
+    cycleRadio('previewTheme', ['light', 'dark', 'invert']);
+    done = true;
+  } else if (key === 'b') {
+    done = pressIfUsable('compare-toggle');
+  }
+  if (done) e.preventDefault();
+});
+
 document.getElementById('use-brief-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob, { useBrief: true });
 });
@@ -2125,7 +2263,44 @@ document.getElementById('copy-html-btn').addEventListener('click', async (e) => 
 
 const BASE_TITLE = document.title;
 
+// ---------------------------------------------------------------- estado en el icono de la pestaña (2026-09-28)
+// Un punto sobre el icono de Studio: azul trabajando o en cola, verde lista, rojo fallida o bloqueada. Se ve
+// desde otra pestaña sin tener que leer el título.
+const FAVICON_COLORS = { running: '#3d8bff', queued: '#3d8bff', completed: '#1db980', failed: '#e5484d', blocked: '#e5484d' };
+const faviconLink = document.querySelector('link[rel="icon"]');
+const faviconBase = new Image();
+faviconBase.src = '/favicon.png';
+let faviconState = null;
+
+function setFaviconStatus(status) {
+  const color = FAVICON_COLORS[status] || null;
+  if (color === faviconState) return;
+  faviconState = color;
+  if (!color) {
+    faviconLink.href = '/favicon.png';
+    return;
+  }
+  const draw = () => {
+    const c = document.createElement('canvas');
+    c.width = 32;
+    c.height = 32;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(faviconBase, 0, 0, 32, 32);
+    ctx.beginPath();
+    ctx.arc(24, 24, 7.5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    if (faviconState === color) faviconLink.href = c.toDataURL('image/png');
+  };
+  if (faviconBase.complete && faviconBase.naturalWidth) draw();
+  else faviconBase.addEventListener('load', draw, { once: true });
+}
+
 function updateTabTitle(job) {
+  setFaviconStatus(job.status);
   const name = job.input.clientName;
   const pct = job.progress?.pct;
   document.title =
@@ -2994,6 +3169,7 @@ function route() {
   } else {
     clearTimeout(pollTimer);
     currentJob = null;
+    setFaviconStatus(null);
     viewJob.hidden = true;
     viewForm.hidden = false;
     hero.hidden = false;

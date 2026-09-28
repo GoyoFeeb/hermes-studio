@@ -869,6 +869,13 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-28 (tarde) — Galería del historial, estado en el icono de la pestaña y atajos de teclado
+
+- Galería (Lista/Galería en el historial, agrupada por marca), punto de estado en el favicon (canvas sobre
+  favicon.png) y atajos E/C/D/V/O/B/? con ayuda en diálogo. Solo web (Vercel).
+- Probado en copia aislada con Chrome 154 (galería con filtros, colores del icono leídos del propio icono,
+  cada atajo y que no actúan escribiendo). 135/135 tests.
+
 ### 2026-09-28 (tarde) — Comparar con cualquier versión, ancho libre y texto alternativo
 
 - "Comparar con" (selector en "Qué ha cambiado"): cualquier versión terminada de la familia; textos propios

@@ -116,7 +116,13 @@
       <section id="history" hidden>
         <div class="section-head">
           <p class="eyebrow">Historial</p>
-          <span id="history-count" class="hint"></span>
+          <span class="section-head-side">
+            <span id="history-count" class="hint"></span>
+            <span class="segmented view-switch" role="group" aria-label="Vista del historial">
+              <button type="button" class="seg-btn" data-history-view="list" aria-pressed="true">Lista</button>
+              <button type="button" class="seg-btn" data-history-view="gallery" aria-pressed="false">Galería</button>
+            </span>
+          </span>
         </div>
         <div class="history-tools">
           <input type="search" id="history-search" placeholder="Buscar por marca o persona…" aria-label="Buscar en el historial" />
@@ -434,6 +440,7 @@
         <button id="reuse-btn" type="button" class="btn btn-secondary">Reutilizar este prompt</button>
         <button id="new-job-btn" type="button" class="btn btn-ghost">Generar otra newsletter</button>
         <button id="archive-btn" type="button" class="btn btn-ghost" title="La saca del historial con todas sus versiones. No se borra nada: se recupera desde «Archivadas».">Archivar</button>
+        <button id="shortcuts-btn" type="button" class="btn btn-ghost" aria-haspopup="dialog">Atajos de teclado <kbd>?</kbd></button>
       </div>
     </section>
   </main>
@@ -443,6 +450,25 @@
   </footer>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Atajos de teclado de la página del trabajo (2026-09-28). -->
+  <div id="shortcuts" class="shortcuts-backdrop" hidden>
+    <div class="shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title">
+      <h3 id="shortcuts-title">Atajos de teclado</h3>
+      <dl class="shortcuts-list">
+        <div><dt><kbd>E</kbd></dt><dd>Editar texto</dd></div>
+        <div><dt><kbd>C</kbd></dt><dd>Pedir cambios</dd></div>
+        <div><dt><kbd>D</kbd></dt><dd>Descargar HTML (con la plataforma y los UTM elegidos)</dd></div>
+        <div><dt><kbd>V</kbd></dt><dd>Vista: escritorio → móvil → libre</dd></div>
+        <div><dt><kbd>O</kbd></dt><dd>Color: claro → oscuro → invertido</dd></div>
+        <div><dt><kbd>B</kbd></dt><dd>Antes y después (si hay otra versión)</dd></div>
+        <div><dt><kbd>?</kbd></dt><dd>Esta ayuda</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Cerrar o salir del modo en curso</dd></div>
+      </dl>
+      <p class="hint">No funcionan mientras escribes en un campo ni al editar el texto de la pieza.</p>
+      <button type="button" id="shortcuts-close" class="btn btn-secondary btn-sm">Cerrar</button>
+    </div>
+  </div>
 
   <!-- Texto alternativo de una imagen, en "Editar texto" (2026-09-28): se abre junto a la imagen pulsada. -->
   <div id="alt-pop" class="alt-pop" role="dialog" aria-labelledby="alt-pop-title" hidden>

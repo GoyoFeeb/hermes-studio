@@ -107,6 +107,12 @@ versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la 
 "Resaltar cambios" marca sobre la propia pieza lo añadido (verde) y, en "Antes y después", lo quitado en
 la versión anterior (rojo).
 
+**Galería, icono de estado y atajos** (2026-09-28): el historial tiene vista "Galería" (miniaturas grandes
+agrupadas por marca, mismos filtros y orden; se recuerda). En la página de un trabajo, el icono de la
+pestaña lleva un punto: azul trabajando o en cola, verde lista, rojo fallida. Atajos en esa página: E
+editar texto, C pedir cambios, D descargar, V vista, O color, B antes y después, ? ayuda (no actúan al
+escribir en un campo ni al editar la pieza).
+
 **Comparar con cualquier versión, ancho libre y texto alternativo** (2026-09-28): "Comparar con" en
 "Qué ha cambiado" elige la versión de referencia (por defecto, de la que sale; en la original, ninguna
 hasta elegirla) para la lista, el resaltado y "Antes y después". La vista previa tiene un tercer modo,
