@@ -868,3 +868,17 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
+
+### 2026-09-28 (tarde) — Primeras newsletters reales con el circuito nuevo
+
+- **El Corte Inglés** (`mul3g4nb-rmzstb`, 12:17-12:48, 25 min, desde instrucción): 11/11 comprobaciones a
+  la primera, modo oscuro y Outlook incluidos (el encargo nuevo bastó: sin ronda de calidad). La medición
+  móvil cazó un desborde real (415 px: padding sumado al 100 %) y Hermes lo corrigió y lo documentó en
+  notas.md. Un "continúa" a mitad (Hermes paró sin entregar). Modo oscuro revisado con capturas: bien
+  resuelto (logo blanco, fondos y CTA invertidos); solo el hero queda blanco (foto con texto incrustado).
+- **Nike** (`mulb8ljo-1zjdpc`, 15:56-16:05, 9 min; brief en 1 min porque reutilizó el brand pack y la
+  investigación previa del Pegasus 42): 11/11. Modo oscuro bien resuelto. **Punto débil de composición que
+  el control no puede ver:** la foto cuadrada de la zapatilla verde deja >400 px de blanco arriba y abajo.
+- **Falso positivo corregido:** `outlookCheck` contaba `font-family` dentro de `@font-face` (el NOMBRE de la
+  fuente) como "tipografía sin alternativa". Ahora se ignoran esos bloques; test de regresión (12/12).
+

@@ -217,7 +217,10 @@ export function outlookCheck(html: string): QualityCheckItem {
   if (/background-image\s*:\s*url/i.test(html) && !/<v:(rect|fill|roundrect|image)\b/i.test(html)) {
     warnings.push('Hay fondos con background-image sin alternativa VML (<v:rect>/<v:fill>): Outlook de escritorio no los mostrará.');
   }
-  const fonts = [...new Set([...html.matchAll(/font-family\s*:\s*([^;"}]+)/gi)].map((m) => decodeEntities(m[1]).trim()))].filter((f) => !GENERIC_FONT.test(f));
+  // Dentro de @font-face, font-family es el NOMBRE de la fuente que se declara, no una lista con
+  // alternativas: contaba como aviso falso (Nike, 2026-09-28: 'Inter' declarada y usada con Helvetica, Arial).
+  const withoutFontFace = html.replace(/@font-face\s*\{[^}]*\}/gi, '');
+  const fonts = [...new Set([...withoutFontFace.matchAll(/font-family\s*:\s*([^;"}]+)/gi)].map((m) => decodeEntities(m[1]).trim()))].filter((f) => !GENERIC_FONT.test(f));
   for (const f of fonts.slice(0, 3)) warnings.push(`Tipografía sin alternativa genérica ("${f.slice(0, 60)}"): añade p. ej. Arial, sans-serif o Outlook pondrá Times New Roman.`);
   const result = item('outlook', 'Outlook', errors, warnings);
   if (!errors.length && !warnings.length) result.details.push('Bloque <!--[if mso]>, 96 ppp, tablas e imágenes con width.');

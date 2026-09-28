@@ -131,6 +131,12 @@ test('outlookCheck: con mso pero sin 96 ppp, fondo CSS sin VML y fuente sin alte
   assert.equal(r.details.length, 3);
 });
 
+test('outlookCheck: la fuente declarada en @font-face no cuenta como tipografía sin alternativa (Nike)', () => {
+  const html = `<!--[if mso]><xml><o:PixelsPerInch>96</o:PixelsPerInch></xml><![endif]--><style>@font-face { font-family: 'Inter'; src: url(https://x.es/i.woff2); }</style><td style="font-family:'Inter',Helvetica,Arial,sans-serif">x</td>`;
+  const r = run(`process.stdout.write(JSON.stringify(q.outlookCheck(${JSON.stringify(html)})));`);
+  assert.equal(r.status, 'ok', JSON.stringify(r.details));
+});
+
 test('collectUrls: ignora variables del ESP, mailto y rutas locales', () => {
   const html = `<a href="{{unsubscribe_url}}">b</a><a href="mailto:a@b.es">m</a><a href="https://a.es/x?a=1&amp;b=2">x</a>
     <img src="img/logo.png"><img src="https://c.es/i.png"><td background="https://c.es/bg.jpg">`;
