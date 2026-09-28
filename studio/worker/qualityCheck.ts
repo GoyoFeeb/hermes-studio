@@ -10,6 +10,11 @@
  * Errores (se devuelven a Hermes): enlace o imagen que da 404/410/5xx o cuyo dominio no existe,
  * imagen local que no existe, sin preheader, sin {{unsubscribe_url}}, imagen sin alt, enlace vacío
  * o a "#", más de 102 KB (Gmail lo recorta), se sale del ancho en móvil.
+ * Modo oscuro y Outlook (2026-09-28): error si falta <meta name="color-scheme" content="light dark"> o el
+ * bloque @media (prefers-color-scheme: dark) — ninguna de las 8 newsletters de la auditoría lo tenía —,
+ * si no hay ningún <!--[if mso]> (las 3 de Inglesina), si hay display:flex/grid en línea o imágenes sin
+ * atributo width. Aviso: "light only" explícito (Gmail y Outlook móvil invierten igualmente), sin ajuste de
+ * 96 ppp, background-image sin VML y tipografías sin alternativa genérica (Outlook pone Times New Roman).
  * Avisos (no se devuelven): claims de riesgo — la regla da falsos positivos, p. ej. "potencia" en la
  * ficha técnica de una moto (Talaria) — y webs que bloquean a los robots (403/429: Prozis, Adeslas),
  * que en un navegador normal funcionan.
@@ -149,10 +154,74 @@ export function staticChecks(html: string, missingLocal: string[] = []): Quality
   });
   checks.push(item('claims', 'Claims de riesgo', [], claims));
 
+  checks.push(darkModeCheck(html), outlookCheck(html));
+
   if (missingLocal.length) {
     checks.push(item('local-images', 'Imágenes locales', missingLocal.map((r) => `La imagen ${r} no existe en el Mac.`)));
   }
   return checks;
+}
+
+/** Modo oscuro: la pieza tiene que declarar que lo admite y definir sus colores en oscuro. Sin eso, Apple
+ *  Mail la muestra en claro y Gmail/Outlook en móvil invierten sus colores a ciegas (logos, CTA). */
+export function darkModeCheck(html: string): QualityCheckItem {
+  const contents = [...html.matchAll(/<meta\b[^>]*>/gi)]
+    .map((m) => m[0])
+    .filter((t) => /name\s*=\s*["']?(color-scheme|supported-color-schemes)/i.test(t))
+    .map((t) => (attr(t, 'content') || '').toLowerCase());
+  const lightOnly = contents.some((c) => /\bonly\b/.test(c) && !/dark/.test(c));
+  const declaresDark = contents.some((c) => /dark/.test(c));
+  const darkCss = /prefers-color-scheme\s*:\s*dark/i.test(html);
+  if (lightOnly) {
+    return item('dark-mode', 'Modo oscuro', [], [
+      'La pieza fija solo el modo claro ("light only"): Apple Mail lo respeta, pero Gmail y Outlook en móvil invertirán sus colores igualmente.',
+    ]);
+  }
+  const errors: string[] = [];
+  if (!declaresDark) {
+    errors.push(
+      'Falta declarar el modo oscuro en <head>: <meta name="color-scheme" content="light dark"> y <meta name="supported-color-schemes" content="light dark">' +
+        (contents.length ? ` (ahora declara "${contents[0]}").` : '.')
+    );
+  }
+  if (!darkCss) {
+    errors.push(
+      'Falta un bloque @media (prefers-color-scheme: dark) con los colores de la pieza en oscuro (fondos, textos, CTA y, si hace falta, una versión clara del logo).'
+    );
+  }
+  const result = item('dark-mode', 'Modo oscuro', errors);
+  if (!errors.length) result.details.push('Declara "light dark" y define estilos oscuros.');
+  return result;
+}
+
+const GENERIC_FONT = /\b(sans-serif|serif|monospace|cursive|system-ui|arial|helvetica|georgia|verdana|tahoma|trebuchet|times|courier)\b/i;
+
+/** Outlook de escritorio (Word como motor): sin <!--[if mso]> la pieza se estira a todo el ancho, ignora
+ *  flex/grid, pinta las imágenes a su tamaño real si no llevan width y no muestra fondos CSS. */
+export function outlookCheck(html: string): QualityCheckItem {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  if (!/<!--\[if[^\]]*mso/i.test(html)) {
+    errors.push(
+      'No hay ajustes para Outlook de escritorio: falta un bloque <!--[if mso]> (tabla "fantasma" de 600 px alrededor del contenido; sin ella Outlook ignora max-width y estira la pieza).'
+    );
+  } else if (!/PixelsPerInch/i.test(html)) {
+    warnings.push('Falta el ajuste de 96 ppp (<o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch> dentro de <!--[if mso]> en <head>): en pantallas de alta resolución Outlook escala la pieza.');
+  }
+  const flex = [...html.matchAll(/<[a-z][^>]*\bstyle\s*=\s*("[^"]*"|'[^']*')[^>]*>/gi)].filter((m) => /display\s*:\s*(inline-)?(flex|grid)\b/i.test(m[1]));
+  if (flex.length) {
+    errors.push(`${flex.length} elemento(s) con display:flex/grid en línea: Outlook no los entiende; usa tablas. P. ej.: ${snippet(flex[0][0])}`);
+  }
+  const noWidth = [...html.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]).filter((t) => attr(t, 'width') === null);
+  for (const t of noWidth.slice(0, 5)) errors.push(`Imagen sin atributo width (Outlook la pinta a su tamaño real): ${snippet(t)}`);
+  if (/background-image\s*:\s*url/i.test(html) && !/<v:(rect|fill|roundrect|image)\b/i.test(html)) {
+    warnings.push('Hay fondos con background-image sin alternativa VML (<v:rect>/<v:fill>): Outlook de escritorio no los mostrará.');
+  }
+  const fonts = [...new Set([...html.matchAll(/font-family\s*:\s*([^;"}]+)/gi)].map((m) => decodeEntities(m[1]).trim()))].filter((f) => !GENERIC_FONT.test(f));
+  for (const f of fonts.slice(0, 3)) warnings.push(`Tipografía sin alternativa genérica ("${f.slice(0, 60)}"): añade p. ej. Arial, sans-serif o Outlook pondrá Times New Roman.`);
+  const result = item('outlook', 'Outlook', errors, warnings);
+  if (!errors.length && !warnings.length) result.details.push('Bloque <!--[if mso]>, 96 ppp, tablas e imágenes con width.');
+  return result;
 }
 
 /** URLs a comprobar: destinos de los enlaces e imágenes (src, background, url()). Las variables

@@ -22,7 +22,7 @@ import { spawn, execFile } from 'child_process';
 import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 import { chromium } from 'playwright';
-import { runQualityCheck, describeErrors, type QualityReport } from './qualityCheck';
+import { runQualityCheck, describeErrors, staticChecks, type QualityReport } from './qualityCheck';
 import { renderThumbnail } from './thumbnail';
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -419,9 +419,10 @@ const MOBILE_FIX_ATTEMPTS = 2;
 /** Rondas en las que se le devuelven a Hermes los errores del control de calidad (qualityCheck.ts). */
 const QUALITY_FIX_ATTEMPTS = 2;
 
-/** Errores que Hermes puede corregir en otra ronda: el móvil tiene su propio bucle. */
-function fixableErrors(report: QualityReport): QualityReport {
-  const checks = report.checks.filter((c) => c.status === 'error' && c.id !== 'mobile');
+/** Errores que Hermes puede corregir en otra ronda: el móvil tiene su propio bucle, y `inherited` son los
+ *  que ya traía la versión original en un "Pedir cambios" (ver runJob). */
+function fixableErrors(report: QualityReport, inherited: Set<string> = new Set()): QualityReport {
+  const checks = report.checks.filter((c) => c.status === 'error' && c.id !== 'mobile' && !inherited.has(c.id));
   return { ...report, errors: checks.length, checks };
 }
 
@@ -773,9 +774,18 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     return runQualityCheck(raw, { missingLocal: embedLocalImages(raw, path.dirname(p), ROOT).missing, mobileProblem });
   };
   if (cancelled) return finishCancelled();
+  // En "Pedir cambios", modo oscuro y Outlook que ya faltaban en la original no se fuerzan: añadirlos
+  // cambiaría la pieza más allá de lo pedido. Se ven en el panel de revisión y se pueden pedir aparte.
+  const inherited = new Set(
+    isRevision && claimed.sourceHtml
+      ? staticChecks(claimed.sourceHtml)
+          .filter((c) => c.status === 'error' && (c.id === 'dark-mode' || c.id === 'outlook'))
+          .map((c) => c.id)
+      : []
+  );
   let quality = await qualityOf();
-  for (let i = 1; i <= QUALITY_FIX_ATTEMPTS && quality && fixableErrors(quality).errors && !isMobileFix && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
-    const fixable = fixableErrors(quality);
+  for (let i = 1; i <= QUALITY_FIX_ATTEMPTS && quality && fixableErrors(quality, inherited).errors && !isMobileFix && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+    const fixable = fixableErrors(quality, inherited);
     console.log(`[${stamp()}] ${job.id}: ${fixable.errors} error(es) de calidad — corrección ${i}/${QUALITY_FIX_ATTEMPTS}`);
     await api(`/api/worker/jobs/${job.id}/progress`, {
       message: `Control de calidad: ${fixable.checks.map((c) => c.label.toLowerCase()).join(', ')} con errores — se le devuelven a Hermes (${i}/${QUALITY_FIX_ATTEMPTS}).`,
@@ -786,8 +796,12 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         'Pautas: un enlace que da 404 o no existe → busca la URL oficial correcta con el navegador (browser_navigate) o ' +
         'enlaza a la página de categoría o a la home de la marca; nunca inventes una URL. Una imagen rota → sustitúyela por ' +
         'otra oficial. Sin preheader → añade al principio del <body> un bloque oculto (display:none; max-height:0; ' +
-        'overflow:hidden; mso-hide:all) con una frase que complemente al asunto. No cambies el diseño. Actualiza notas.md ' +
-        'con lo que has corregido.',
+        'overflow:hidden; mso-hide:all) con una frase que complemente al asunto. Modo oscuro → en <head>, <meta ' +
+        'name="color-scheme" content="light dark"> y <meta name="supported-color-schemes" content="light dark">, y un ' +
+        '@media (prefers-color-scheme: dark) con fondos, textos y CTA en oscuro coherentes con la marca (logo claro si ' +
+        'hace falta). Outlook → tabla fantasma de 600 px en <!--[if mso]>, ajuste de 96 ppp en <head>, width en cada ' +
+        '<img>, tablas en vez de flex/grid. Renderiza también en oscuro para comprobarlo. No cambies el diseño en ' +
+        'claro. Actualiza notas.md con lo que has corregido.',
       sessionId,
       () => undefined
     );

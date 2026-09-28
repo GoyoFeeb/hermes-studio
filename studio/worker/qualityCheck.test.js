@@ -25,7 +25,10 @@ function run(code) {
   return JSON.parse(execFileSync(TSX_BIN, ['-e', wrapped], { cwd: ROOT, encoding: 'utf-8' }));
 }
 
-const GOOD = `<!doctype html><html lang="es"><head><title>x</title><style>@media (max-width:620px){.a{width:100%}}</style></head><body>
+const GOOD = `<!doctype html><html lang="es"><head><title>x</title>
+<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<style>@media (max-width:620px){.a{width:100%}} @media (prefers-color-scheme: dark){body{background:#111}}</style></head><body>
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">El primer viaje también es un descanso para ti</div>
 <table><tr><td><img src="https://cdn.example.org/hero.jpg" alt="Hero" width="600">
 <p>Texto de la pieza.</p><a href="https://www.marca.es/producto">Descubre</a>
@@ -93,6 +96,39 @@ test('findPreheader: quita el relleno invisible (&zwnj;&nbsp;) del preheader rea
 </div><p>x</p></body>`;
   const r = run(`process.stdout.write(JSON.stringify(q.findPreheader(${JSON.stringify(html)})));`);
   assert.equal(r, 'La nueva zapatilla de estabilidad de PUMA Running ya está aquí.');
+});
+
+test('darkModeCheck: como las 8 newsletters de la auditoría (content="light", sin @media dark) es error', () => {
+  const html = `<head><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"></head><body>x</body>`;
+  const r = run(`process.stdout.write(JSON.stringify(q.darkModeCheck(${JSON.stringify(html)})));`);
+  assert.equal(r.status, 'error');
+  assert.equal(r.errorCount, 2);
+  assert.match(r.details[0], /ahora declara "light"/);
+});
+
+test('darkModeCheck: "light only" explícito es solo aviso; "light dark" + @media dark, correcto', () => {
+  const only = run(`process.stdout.write(JSON.stringify(q.darkModeCheck('<meta name="color-scheme" content="light only">')));`);
+  assert.equal(only.status, 'warning');
+  const ok = run(`process.stdout.write(JSON.stringify(q.darkModeCheck(${JSON.stringify(GOOD)})));`);
+  assert.equal(ok.status, 'ok');
+});
+
+test('outlookCheck: sin <!--[if mso]> (como Inglesina), flex en línea e imagen sin width son errores', () => {
+  const html = `<body><div style="display:flex;gap:8px"><img src="https://x.es/a.jpg" alt="a"></div></body>`;
+  const r = run(`process.stdout.write(JSON.stringify(q.outlookCheck(${JSON.stringify(html)})));`);
+  assert.equal(r.status, 'error');
+  assert.equal(r.errorCount, 3);
+  assert.ok(r.details.some((d) => d.includes('<!--[if mso]>')));
+  assert.ok(r.details.some((d) => d.includes('display:flex')));
+  assert.ok(r.details.some((d) => d.includes('sin atributo width')));
+});
+
+test('outlookCheck: con mso pero sin 96 ppp, fondo CSS sin VML y fuente sin alternativa → solo avisos', () => {
+  const html = `<!--[if mso]><table width="600"><tr><td><![endif]--><td style="background-image:url(https://x.es/b.jpg);font-family:'Work Sans'">x</td>`;
+  const r = run(`process.stdout.write(JSON.stringify(q.outlookCheck(${JSON.stringify(html)})));`);
+  assert.equal(r.status, 'warning');
+  assert.equal(r.errorCount, 0);
+  assert.equal(r.details.length, 3);
 });
 
 test('collectUrls: ignora variables del ESP, mailto y rutas locales', () => {
