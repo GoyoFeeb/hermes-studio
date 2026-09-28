@@ -273,6 +273,65 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 
 .result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .result-bar p { margin: 0 auto 0 0; font-weight: 600; color: var(--success); }
+/* Revisión automática: control de calidad del worker + autoauditoría de Hermes (notas.md). */
+.review { margin: 4px 0 24px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--field); }
+.review-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 12px; }
+.review-head h3 {
+  margin: 0;
+  font-family: 'Barlow', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--pink-soft);
+}
+.review-summary { font-size: 14px; font-weight: 600; }
+.review-summary.is-ok { color: var(--success); }
+.review-summary.is-warning { color: var(--warning); }
+.review-summary.is-error { color: var(--error); }
+.review .hint { margin: 0; }
+.review-list { list-style: none; margin: 0; padding: 0; }
+.review-list > li { border-top: 1px solid var(--border); }
+.review-list > li:first-child { border-top: none; }
+.review-list summary, .review-list .check-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  font-size: 14px;
+  list-style: none;
+}
+.review-list summary { cursor: pointer; }
+.review-list summary::-webkit-details-marker { display: none; }
+.review-list summary::after { content: '▾'; margin-left: 6px; color: var(--muted); font-size: 12px; }
+.review-list details[open] summary::after { content: '▴'; }
+.check-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.check-ok .check-dot { background: var(--success); }
+.check-warning .check-dot { background: var(--warning); }
+.check-error .check-dot { background: var(--error); }
+.check-label { font-weight: 600; }
+.check-state { margin-left: auto; font-size: 13px; color: var(--muted); }
+.check-error .check-state { color: var(--error); }
+.check-warning .check-state { color: var(--warning); }
+.check-details { margin: 0 0 10px 20px; padding: 0; list-style: none; font-size: 13px; color: var(--lilac); overflow-wrap: anywhere; }
+.check-details li { padding: 3px 0; }
+.check-details li.is-error { color: var(--text); }
+.notes-box { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+.notes-box summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.notes-box summary span { margin-left: 6px; font-weight: 400; color: var(--muted); font-size: 13px; }
+#notes-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 420px;
+  overflow-y: auto;
+  margin: 12px 0 0;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--lilac);
+}
+.result-bar p.has-errors { color: var(--warning); }
+
 /* Vista previa: el iframe se pinta al ancho real del cliente de correo (escritorio 800 px, móvil
    375 px) para que salten las media queries del email, y se escala si no cabe en la tarjeta. */
 .preview-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }

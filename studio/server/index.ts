@@ -25,6 +25,8 @@ import {
   buildBriefPrompt,
   buildMobileFixPrompt,
   readResultHtml,
+  readResultNotes,
+  sanitizeQuality,
   needsBrief,
   completeStandaloneJob,
   standaloneOutputDir,
@@ -232,7 +234,7 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     return;
   }
   try {
-    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''));
+    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality));
     res.json({ ok: true });
   } catch (err) {
     updateJob(job.id, { status: 'failed', error: (err as Error).message });
@@ -414,7 +416,7 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
     res.status(404).json({ error: 'No encontrado' });
     return;
   }
-  res.json({ job, events: readEvents(job.id) });
+  res.json({ job, events: readEvents(job.id), notes: readResultNotes(job) });
 });
 
 // "Adaptar a móvil": nuevo trabajo que parte del HTML de uno terminado (ver buildMobileFixPrompt).

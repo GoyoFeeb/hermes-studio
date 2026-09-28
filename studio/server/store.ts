@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { JOBS_DIR } from './paths';
+import type { QualityReport } from '../worker/qualityCheck';
 
 export type JobStatus = 'queued' | 'running' | 'blocked' | 'failed' | 'completed';
 
@@ -54,6 +55,9 @@ export interface Job {
     etaSec: number | null;
     lastActionAt?: number | null;
   };
+  /** Control de calidad del worker al terminar (2026-09-28, ver studio/worker/qualityCheck.ts).
+   *  Sin definir en las newsletters anteriores a ese control. */
+  quality?: QualityReport;
 }
 
 export interface JobEvent {

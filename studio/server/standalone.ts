@@ -20,6 +20,7 @@ import * as crypto from 'crypto';
 import { ROOT, DATA_DIR } from './paths';
 import { getJob, updateJob, appendEvent, listJobs, type Job } from './store';
 import { toPublicAssetUrl } from './heroImage';
+import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
 const GMAIL_CLIP_BYTES = 102 * 1024;
@@ -65,6 +66,10 @@ export function buildHermesPrompt(job: Job): string {
     '  Revisa el resultado renderizado (capturas) y corrígelo antes de darlo por terminado, como haces siempre.',
     '- Imágenes en ese HTML: rutas locales (relativas al HTML o dentro del repo) o URLs https. No hace',
     '  falta subirlas ni incrustarlas en base64: Studio las publica al recibir la newsletter.',
+    '- Preheader OBLIGATORIO: al principio del <body>, un bloque oculto (display:none; max-height:0;',
+    '  overflow:hidden; mso-hide:all) con una frase que complemente al asunto (se ve junto a él en la bandeja).',
+    '- Enlaces: cada href debe llevar a una página que exista (compruébalo con el navegador); nunca inventes',
+    '  una URL. Studio comprueba enlaces e imágenes al recibir la pieza y te devolverá los que den 404.',
     '- Footer: incluye SIEMPRE un enlace de baja con href="{{unsubscribe_url}}" (obligatorio en un',
     '  email comercial; el ESP sustituye la variable) y, si procede, el aviso legal de la marca.',
     `- Scripts y archivos auxiliares (conversiones, comprobaciones, capturas): en ${outDir}/_trabajo/`,
@@ -248,7 +253,42 @@ export function publishEmbeddedImages(html: string, job: Job): { html: string; c
   return { html: out, count: byHash.size };
 }
 
-export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessage: string): void {
+/** El informe llega del worker por la red: se guarda solo lo que tiene la forma esperada, acotado. */
+export function sanitizeQuality(raw: unknown): QualityReport | undefined {
+  if (!raw || typeof raw !== 'object' || !Array.isArray((raw as QualityReport).checks)) return undefined;
+  const statuses = ['ok', 'warning', 'error'];
+  const checks: QualityCheckItem[] = (raw as QualityReport).checks
+    .filter((c) => c && typeof c === 'object' && statuses.includes(c.status))
+    .slice(0, 20)
+    .map((c) => {
+      const details = (Array.isArray(c.details) ? c.details : []).slice(0, 30).map((d) => String(d).slice(0, 600));
+      return {
+        id: String(c.id || '').slice(0, 40),
+        label: String(c.label || '').slice(0, 80),
+        status: c.status,
+        details,
+        errorCount: Math.max(0, Math.min(details.length, Number(c.errorCount) || 0)),
+      };
+    });
+  return {
+    checkedAt: String((raw as QualityReport).checkedAt || new Date().toISOString()).slice(0, 40),
+    errors: checks.filter((c) => c.status === 'error').length,
+    warnings: checks.filter((c) => c.status === 'warning').length,
+    checks,
+  };
+}
+
+/** Autoauditoría de Hermes (notas.md) de un trabajo terminado, para el panel de revisión. */
+export function readResultNotes(job: Job): string | null {
+  if (job.status !== 'completed' || !job.campaignRelPath) return null;
+  try {
+    return fs.readFileSync(path.join(ROOT, job.campaignRelPath, 'notas.md'), 'utf8').slice(0, 60000);
+  } catch {
+    return null;
+  }
+}
+
+export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessage: string, quality?: QualityReport): void {
   const job = getJob(jobId);
   if (!job) throw new Error(`Job ${jobId} no encontrado`);
   const outRel = standaloneOutputDir(job);
@@ -272,6 +312,7 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
     progress: job.progress ? { ...job.progress, pct: 100, stage: 'terminado', stageLabel: 'Terminada', detail: '', etaSec: 0 } : undefined,
     campaignRelPath: outRel,
     resultRelPath: path.join(outRel, 'newsletter.html'),
+    ...(quality ? { quality } : {}),
   });
   log(jobId, 'Newsletter lista.', 'success');
 }

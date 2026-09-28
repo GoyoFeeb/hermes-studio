@@ -337,7 +337,7 @@ async function poll(id) {
     document.getElementById('job-title').textContent = 'Trabajo no encontrado';
     return;
   }
-  const { job, events } = await res.json();
+  const { job, events, notes } = await res.json();
 
   document.getElementById('job-title').textContent = job.input.mobileFixOf ? `${job.input.clientName} · adaptación a móvil` : job.input.clientName;
   document.getElementById('job-meta').textContent = [
@@ -376,6 +376,7 @@ async function poll(id) {
       document.getElementById('preview-frame').src = `/api/jobs/${id}/result`;
       applyPreviewView(job.input.mobileFixOf ? 'mobile' : readPreviewView());
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
+      renderReview(job.quality, notes);
     }
     return;
   }
@@ -388,6 +389,60 @@ async function poll(id) {
   }
 
   pollTimer = setTimeout(() => poll(id), 10000);
+}
+
+// ---------------------------------------------------------------- revisión automática
+
+const CHECK_STATE = { ok: 'Correcto', warning: 'Revisar', error: 'Error' };
+const CHECK_ORDER = { error: 0, warning: 1, ok: 2 };
+
+function plural(n, one, many) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+// Control de calidad del worker (studio/worker/qualityCheck.ts) y autoauditoría de Hermes (notas.md):
+// lo que tiene que mirar quien revisa la pieza antes de enviarla, sin abrir el registro.
+function renderReview(quality, notes) {
+  const summary = document.getElementById('review-summary');
+  const list = document.getElementById('review-list');
+  const message = document.getElementById('result-message');
+  document.getElementById('review-empty').hidden = !!quality;
+  message.textContent = 'La newsletter está lista.';
+  message.classList.remove('has-errors');
+
+  if (!quality) {
+    summary.textContent = '';
+    list.innerHTML = '';
+  } else {
+    const level = quality.errors ? 'error' : quality.warnings ? 'warning' : 'ok';
+    summary.className = `review-summary is-${level}`;
+    summary.textContent =
+      level === 'ok'
+        ? 'Todo correcto'
+        : [quality.errors ? plural(quality.errors, 'error', 'errores') : null, quality.warnings ? plural(quality.warnings, 'aviso', 'avisos') : null]
+            .filter(Boolean)
+            .join(' · ');
+    if (quality.errors) {
+      message.textContent = 'La newsletter está lista, pero tiene errores por revisar.';
+      message.classList.add('has-errors');
+    }
+    list.innerHTML = [...quality.checks]
+      .sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status])
+      .map((c) => {
+        const head = `<span class="check-dot" aria-hidden="true"></span><span class="check-label">${escapeHtml(c.label)}</span><span class="check-state">${escapeHtml(CHECK_STATE[c.status] || c.status)}</span>`;
+        if (!c.details.length) return `<li class="check-${escapeHtml(c.status)}"><div class="check-line">${head}</div></li>`;
+        const details = c.details
+          .map((d, i) => `<li class="${i < (c.errorCount || 0) ? 'is-error' : ''}">${escapeHtml(d)}</li>`)
+          .join('');
+        return `<li class="check-${escapeHtml(c.status)}"><details${c.status === 'ok' ? '' : ' open'}><summary>${head}</summary><ul class="check-details">${details}</ul></details></li>`;
+      })
+      .join('');
+  }
+
+  const notesBox = document.getElementById('notes-box');
+  notesBox.hidden = !notes;
+  notesBox.open = false;
+  document.getElementById('notes-text').textContent = notes || '';
 }
 
 // ---------------------------------------------------------------- vista previa escritorio / móvil

@@ -25,19 +25,29 @@ skills, memoria y suscripción de Nous → misma calidad y mismo tiempo (1-2 h p
 versión anterior llamaba directamente a gpt-5.5 en una sola llamada y producía piezas genéricas:
 la calidad de Hermes sale de su bucle de agente (navegar la web real, mirar capturas, corregir).
 
+Antes de subirla, el worker pasa el **control de calidad** (`studio/worker/qualityCheck.ts`):
+enlaces e imágenes que responden (404/410/5xx o dominio inexistente = error; 403/429 de webs que
+bloquean robots = aviso), preheader, enlace `{{unsubscribe_url}}`, `alt`, enlaces vacíos o a "#",
+peso > 102 KB (Gmail lo recorta) y móvil a 375 px. Los errores se le devuelven a Hermes (hasta 2
+rondas, como el móvil); los claims de riesgo solo se avisan (la regla da falsos positivos). El informe
+se guarda con el trabajo y se ve en el **panel de revisión** del resultado, junto a la autoauditoría
+de Hermes (`notas.md`).
+
 Al recibir la newsletter, Studio publica sus imágenes en `/assets` (Gmail no muestra imágenes
-`data:`), avisa de problemas típicos (peso > 102 KB, imágenes sin https, sin enlace de baja) y la
-entrega. `/assets/*` es público y solo sirve imágenes; el HTML se sirve con CSP `sandbox`.
+`data:`) y la entrega. `/assets/*` es público y solo sirve imágenes; el HTML se sirve con CSP `sandbox`.
 
 ### Poner en marcha el worker (en el Mac con Hermes instalado)
 
 1. Railway: variable `WORKER_TOKEN` (secreto largo aleatorio). Sin ella las rutas `/api/worker/*`
    no aceptan nada.
-2. `studio/.env` en el Mac (no se sube a git):
+2. `~/.config/hermes-studio/.env` en el Mac, **fuera del repo** (carpeta 700, archivo 600):
    ```
    STUDIO_WORKER_URL=https://<servicio>.up.railway.app
    WORKER_TOKEN=<el mismo valor que en Railway>
    ```
+   Hermes trabaja dentro del repo con `--yolo`: en `studio/.env` podía leer el token desde el disco.
+   Si el worker aún lo encuentra en `studio/.env`, lo usa pero avisa en el log. Otra carpeta:
+   `HERMES_WORKER_ENV_DIR`.
 3. Desde `sistema-final/`: `npm run hermes-worker` (usa `caffeinate` para que el Mac no se duerma).
    Mientras esté abierto, el formulario muestra "Hermes conectado".
 4. Recomendado: dejarlo como **servicio de macOS** para no depender de una pestaña de terminal:
@@ -48,8 +58,12 @@ entrega. `/assets/*` es público y solo sirve imágenes; el HTML se sirve con CS
 
 Un trabajo a la vez. El worker lanza `hermes chat -q … -Q --yolo`: aprueba solo los comandos (no hay
 nadie para confirmarlos), así que Hermes actúa en el Mac igual que en una sesión normal pero sin
-pedir permiso. Por eso recibe un entorno **sin** las claves del `.env` del repo ni el `WORKER_TOKEN`
-(una web con instrucciones ocultas no puede llevárselas), y solo el equipo debe tener la contraseña.
+pedir permiso. Por eso recibe un entorno **sin** las claves del `.env` del repo ni el `WORKER_TOKEN`,
+las credenciales del worker viven fuera del repo y el encargo le prohíbe leer archivos de
+credenciales (una web con instrucciones ocultas no debe poder llevárselas). Es una mitigación, no un
+aislamiento: Hermes corre con el mismo usuario del Mac. Aislarlo del todo exige otro usuario de macOS
+o el backend Docker de Hermes (pendiente, cambia cómo trabaja Hermes). Solo el equipo debe tener la
+contraseña.
 
 Robustez: si Hermes termina sin entregar, el worker retoma la sesión con "continúa" (hasta 3 veces);
 si el worker se cierra, al volver a arrancar marca como fallido lo que dejó a medias; si el Mac se

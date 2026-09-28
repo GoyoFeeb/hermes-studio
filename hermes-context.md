@@ -7,7 +7,7 @@
 > qué se diagnosticó, qué se decidió arreglar, y qué sigue abierto — para que una futura sesión de
 > esta skill no repita el mismo diagnóstico desde cero.
 
-**Última actualización:** 2026-09-24 (frontend de Studio en Vercel preparado; BUG-H13 abierto)
+**Última actualización:** 2026-09-28 (auditoría de sistema completo: ruta real Studio + worker + salidas de Hermes; BUG-H14 a H18 abiertos)
 
 ---
 
@@ -70,6 +70,11 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
 | BUG-H11 | Escala (producción) | 15/32 carpetas de marca sin `brand-tokens.json`; de los 17-18 restantes, solo `converse` tenía `colors.source`/`typography.source`. Gate 8 (bloqueante) hace fallar `production-gate` para prácticamente todas las marcas reales. | `brands/*/` | **Parcialmente cerrado 2026-09-23** — 3 lotes con navegación real + `getComputedStyle`: lote 1 (Nike, BMW, Tarifalo), lote 2 (Audi, Para y Compara, Apple), lote 3 (Mercedes-AMG, New Balance, UAX — ver changelog "tercer lote"). **10 de 18 packs reales pasan Gate 8 limpio ahora** (apple, audi, bmw, converse, mercedes-amg, new-balance, nike, paraycompara, tarifalo, uax). Quedan 8: adeslas, adidas, aesop, feebboletter, optica2000, rolex, spotify, wornwear — deuda de contenido real del agente 02, no de código. **2 hallazgos no anticipados, no corregidos, declarados para 02**: (1) `paraycompara` diverge de forma significativa de la web real (probable rediseño no reflejado en el pack, afecta a 2 campañas reales); (2) `uax` usa realmente 'PT Sans' (Google Font embebible) pero el pack no lo declara como `webFont`, mismo patrón que el hallazgo de 'Alexandria' en paraycompara — dos indicios de que ningún pack real ha revisado su fuente `webFont` contra la fuente real desde que la sustitución de fuentes se implementó. |
 | BUG-H12 | CI (cobertura) | `.github/workflows/ci.yml` solo corre `npm test` + `check-engine-integrity` — nunca ejecuta `production-gate-motor` de forma visible con una aserción explícita de qué debe pasar. | `.github/workflows/ci.yml` | **Cerrado 2026-09-23** — nuevo step de CI + `scripts/ci-example-campaign-gate.ts`: corre `production-gate-motor` en modo exploración contra `campaign-data.example.json` y falla si algún gate de CÓDIGO (schema/build/claims/column-balance/contrast/hero-decision/engine-integrity) deja de pasar; tolera explícitamente `brand-pack-completeness`/`structural-differentiation` (deuda de contenido conocida, ver BUG-H11). Nota de corrección: mi hallazgo original decía que CI "nunca ejecuta production-gate-motor" — impreciso, `npm test` ya lo ejercitaba indirectamente (`gates.smoke.test.js`); el hueco real era la falta de una aserción positiva de qué debe seguir pasando, que es lo que este step añade. |
 | BUG-H13 | Infra (studio) | `/assets` (hero y logos generados por Studio, referenciados por URL absoluta `STUDIO_PUBLIC_BASE_URL/assets/...` en `campaign-data.json`) se sirve DESPUÉS del middleware de Basic Auth — un cliente de correo real recibe 401 y la newsletter llega sin imágenes. No depende de Vercel (pasa igual con Railway/Docker solos). | `studio/server/index.ts` (orden: auth → `express.static(BRANDS_DIR)` en `/assets`) | **Cerrado 2026-09-24** — `/assets` se sirve ANTES del auth, solo extensiones de imagen, sin dotfiles y con CSP sandbox (SVG). (Detectado 2026-09-24 al preparar el frontend en Vercel.) Opciones a decidir: servir `/assets` antes del auth (expone todo `brands/`, incluidos `.md`/tokens — habría que limitarlo a imágenes), o subir las imágenes a un hosting público/CDN en fase 06/09. |
+| BUG-H14 | Seguridad (worker) | Hermes corre con `--yolo` y cwd=sistema-final: aunque `HERMES_ENV` quita los secretos de las variables de entorno, puede leer `studio/.env` (WORKER_TOKEN) y `.env` del repo desde disco. Una web con instrucciones ocultas puede llevárselos. | `studio/worker/hermes-worker.ts:31-35` + `.env` en el repo | **Mitigado 2026-09-28** — credenciales del worker en `~/.config/hermes-studio/.env` (700/600, fuera del repo; fallback a `studio/.env` con aviso), el worker ya no carga el `.env` de la raíz y el encargo prohíbe leer archivos de credenciales. Sigue abierto el aislamiento real (otro usuario de macOS o backend Docker de Hermes). |
+| BUG-H15 | Calidad (salida standalone) | La ruta que se usa de verdad (Studio → Hermes) no pasa ningún gate determinista salvo el de móvil. Medido el 2026-09-28 sobre las 8 newsletters de Hermes: CTA de producto con 404 en las 3 versiones de Inglesina (`/products/base-darwin-360-isize`), 5/8 sin preheader, 0/8 con modo oscuro, 3/8 sin condicionales de Outlook; la regla de claims "potencia" salta en Adidas y Talaria (en Talaria es un dato técnico: la regla necesita contexto). | `studio/worker/hermes-worker.ts` (solo `mobileOverflow`), `studio/server/standalone.ts` (`checkEmailHtml`, solo avisos) | **Parcialmente cerrado 2026-09-28** — `studio/worker/qualityCheck.ts`: enlaces/imágenes (404/410/5xx/DNS = error; 403/429 = aviso), preheader, baja, alt, enlaces vacíos, peso Gmail → errores devueltos a Hermes (2 rondas); claims solo aviso. Detecta el 404 y el preheader reales de Inglesina. Preheader y enlaces verificados, obligatorios en el encargo. Pendiente: modo oscuro y Outlook. |
+| BUG-H16 | Infra (entrega) | Las imágenes de las newsletters enviadas se sirven desde el dominio de Railway (`STUDIO_PUBLIC_BASE_URL`), en periodo de prueba (vence hacia el 2026-10-10). Si el servicio cae o cambia de dominio, los emails ya enviados se quedan sin imágenes. | `studio/server/standalone.ts` (`publishEmbeddedImages`) | Abierto |
+| BUG-H17 | UX (studio) | No se puede cancelar un trabajo en cola o en curso; la única iteración posible es "Adaptar a móvil"; los avisos de calidad y la autoauditoría (`notas.md`) solo aparecen en el registro plegado; errores con `alert`/`confirm` nativos; sin posición en la cola. | `studio/web/app.js`, `studio/server/index.ts` | **Parcialmente cerrado 2026-09-28** — panel de revisión (control de calidad + autoauditoría `notas.md`) en el resultado. Pendiente: cancelar, pedir cambios, posición en cola, mensajes sin `alert`. |
+| BUG-H18 | Tooling | `npx tsc --noEmit` falla con TS5107 (`moduleResolution=node10` obsoleto en TypeScript 6); el worker (833 líneas) no tiene ningún test. | `tsconfig.json:5`, `studio/worker/` | Abierto |
 
 ---
 
@@ -615,3 +620,35 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   respuesta de 7.200 tokens (llamada de 304 s). Sin tool calls no hay señal de vida, pero no es cuelgue.
 - Web: 3-10 min sin acciones → "generando respuesta · sin acciones desde hace X" (gris); ≥10 min →
   "sin actividad" (amarillo). Worker: `STALL_KILL_SEC` 12 → 20 min para no cortar respuestas largas.
+
+### 2026-09-28 — Auditoría del sistema completo (funcionalidad e interfaces)
+
+- **Alcance:** ruta real de producción (Vercel → Railway → worker del Mac → Hermes), código de Studio
+  (servidor, worker, web) y medición de las 8 newsletters producidas por Hermes. El motor y los
+  agentes 00-09 ya se auditaron el 2026-09-23 (BUG-H01 a H13).
+- **Estado verificado:** `npm test` 81/81; `deploy/main` al día con `main`; Railway y Vercel
+  responden (401 sin contraseña, como debe ser). El log del worker tuvo cortes de conexión el
+  2026-09-28 por la mañana, sin trabajos afectados. Desde la regla del 24-09, Hermes no ha dejado
+  scripts sueltos fuera de `_trabajo/`.
+- **Hallazgos nuevos:** BUG-H14 a H18 (tabla de arriba). Informe con mejoras priorizadas entregado
+  en el chat. **No se ha aplicado ningún cambio**: pendiente de lo que elija el usuario.
+
+### 2026-09-28 (continuación) — Control de calidad, credenciales fuera del repo y panel de revisión
+
+- **Aprobado por el usuario:** los 3 puntos recomendados de la auditoría (BUG-H15, H14, H17).
+- **Control de calidad** (`studio/worker/qualityCheck.ts` + `qualityCheck.test.js`, 6 tests): el worker
+  lo corre tras la comprobación móvil; los errores vuelven a Hermes (`QUALITY_FIX_ATTEMPTS = 2`), no en
+  "Adaptar a móvil" (ahí solo informa). El informe viaja en `/complete` (`quality`) y se guarda en el
+  trabajo (`sanitizeQuality`). Encargo (`buildHermesPrompt`): preheader obligatorio y enlaces que existan.
+- **Credenciales:** `~/.config/hermes-studio/.env` (movidas desde `studio/.env`; `HERMES_WORKER_ENV_DIR`
+  para otra ruta); `SECRETS_NOTE` en el primer turno de brief, newsletter y adaptación móvil.
+- **Panel de revisión** (`studio/web/`): lista ordenada error → aviso → correcto, resumen, mensaje del
+  resultado en ámbar si hay errores, autoauditoría desplegable; `GET /api/jobs/:id` devuelve `notes`.
+- **Verificación:** `npm test` 87/87; typecheck sin errores nuevos (los 35 preexistentes siguen); panel
+  probado en el navegador a 800 y 375 px con el HTML real de Inglesina (2 errores reales) y con una
+  newsletter antigua (sin revisión); circuito completo en una copia aislada con un Hermes simulado:
+  pieza con 404 + sin preheader → 1 ronda de corrección → "Control de calidad superado".
+- **Incidencia:** durante la prueba un `pkill` demasiado amplio cerró el worker real a las 09:59 (sin
+  trabajo en curso); launchd lo relanzó en segundos, ya con el código nuevo (compatible con el servidor
+  de Railway anterior).
+
