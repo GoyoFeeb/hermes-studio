@@ -14,6 +14,8 @@
   function decodeEntities(text) {
     return text
       .replace(/&nbsp;|&#160;/gi, ' ')
+      .replace(/&(zwnj|zwj|shy|lrm|rlm);/gi, '')
+      .replace(/&(ensp|emsp|thinsp);/gi, ' ')
       .replace(/&amp;/gi, '&')
       .replace(/&quot;/gi, '"')
       .replace(/&#39;|&apos;/gi, "'")

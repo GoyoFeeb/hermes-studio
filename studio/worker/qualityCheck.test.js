@@ -87,6 +87,14 @@ test('staticChecks: el peso se mide con las imágenes base64 ya sustituidas por 
   assert.equal(r2.find((c) => c.id === 'size').status, 'error');
 });
 
+test('findPreheader: quita el relleno invisible (&zwnj;&nbsp;) del preheader real de Puma', () => {
+  const html = `<body><div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">
+  La nueva zapatilla de estabilidad de PUMA Running ya está aquí.&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
+</div><p>x</p></body>`;
+  const r = run(`process.stdout.write(JSON.stringify(q.findPreheader(${JSON.stringify(html)})));`);
+  assert.equal(r, 'La nueva zapatilla de estabilidad de PUMA Running ya está aquí.');
+});
+
 test('collectUrls: ignora variables del ESP, mailto y rutas locales', () => {
   const html = `<a href="{{unsubscribe_url}}">b</a><a href="mailto:a@b.es">m</a><a href="https://a.es/x?a=1&amp;b=2">x</a>
     <img src="img/logo.png"><img src="https://c.es/i.png"><td background="https://c.es/bg.jpg">`;

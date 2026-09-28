@@ -759,3 +759,21 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 
 - **Desplegado (con permiso del usuario):** `2d53b48` publicado en Vercel (`app.js`, `index.html` y
   `styles.css` idénticos al local) y subido a `Javifeebbo/hermes-studio`. Worker sin cambios.
+
+### 2026-09-28 (continuación) — Mejoras de interfaz 11 y 12: lectores de pantalla y botones en móvil
+
+- **Elegidas por el usuario.** Web de Studio + un arreglo en `studio/worker/qualityCheck.ts`.
+- **11. Lectores de pantalla:** región `#sr-status` (`role=status`, `aria-live=polite`) que anuncia solo
+  cambios con sentido (estado, fase, puesto en la cola, resultado con la revisión automática), no cada
+  punto del porcentaje; barra con `aria-labelledby` + `aria-valuetext`; el foco va al título al abrir un
+  trabajo; filtros del historial con `aria-pressed`; "Quitado:/Añadido:" en texto oculto en "Qué ha
+  cambiado"; flechas decorativas sin texto alternativo; barra mini del historial `aria-hidden`; contorno
+  de foco uniforme para teclado.
+- **12. Botones en móvil:** en el resultado, "Descargar HTML" a lo ancho y los otros cuatro de dos en dos
+  (antes cinco apilados); "Enviar cambios" + "Cancelar" en una fila; `.btn-sm` a su medida.
+- **Arreglo encontrado de paso:** el preheader salía con `&zwnj;` literal (relleno invisible que Hermes
+  pone tras el preheader: la pieza real de Puma). `decodeEntities` (qualityCheck.ts y compare.js) quita
+  `&zwnj; &zwj; &shy; &lrm; &rlm;`. Test de regresión con el preheader real.
+- **Verificación:** copia aislada: anuncios en lista / en cola / cancelada / en marcha, foco, aria-pressed,
+  375 px sin desbordes ni textos partidos. `npm test` 93/93.
+

@@ -58,6 +58,9 @@ function attr(tag: string, name: string): string | null {
 function decodeEntities(text: string): string {
   return text
     .replace(/&nbsp;|&#160;/gi, ' ')
+    // Relleno invisible tras el preheader (&zwnj;&nbsp;… para que el cliente no muestre texto del cuerpo).
+    .replace(/&(zwnj|zwj|shy|lrm|rlm);/gi, '')
+    .replace(/&(ensp|emsp|thinsp);/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")

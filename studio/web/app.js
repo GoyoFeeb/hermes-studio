@@ -385,7 +385,7 @@ function renderHistory() {
           <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(label)}</span>
           <p class="meta">${meta}</p>
           <div class="row-actions">${actions}</div>
-          ${running ? `<div class="mini-track"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}
+          ${running ? `<div class="mini-track" aria-hidden="true"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}
           ${j.error ? `<p class="err">${escapeHtml(j.error)}</p>` : ''}
         </li>`;
     })
@@ -405,7 +405,10 @@ document.getElementById('history-brand').addEventListener('change', (e) => {
 document.getElementById('history-status').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
-  document.querySelectorAll('#history-status .chip').forEach((c) => c.classList.toggle('is-active', c === chip));
+  document.querySelectorAll('#history-status .chip').forEach((c) => {
+    c.classList.toggle('is-active', c === chip);
+    c.setAttribute('aria-pressed', String(c === chip));
+  });
   historyState.status = chip.dataset.status;
   historyState.shown = HISTORY_PAGE;
   renderHistory();
@@ -593,6 +596,9 @@ function showJobView(id) {
   document.getElementById('job-title').textContent = '';
   document.getElementById('job-meta').textContent = '';
   window.scrollTo({ top: 0 });
+  // Cambia la "página": el foco va al título para que el lector de pantalla lo diga.
+  document.getElementById('job-title').focus({ preventScroll: true });
+  lastAnnouncement = '';
   poll(id);
 }
 
@@ -639,6 +645,7 @@ async function poll(id) {
 
   renderProgress(job, queue, hermesOnline);
   renderNotify(job);
+  announceJob(job, queue);
 
   const log = document.getElementById('job-log');
   log.innerHTML = events
@@ -1008,15 +1015,15 @@ async function setupCompare(job, versions) {
   };
   group(
     'Texto',
-    diff.text.map((d) => `<li class="is-${d.type}">${escapeHtml(d.text)}</li>`)
+    diff.text.map((d) => `<li class="is-${d.type}">${srChange(d.type)}${escapeHtml(d.text)}</li>`)
   );
   group('Enlaces', [
-    ...diff.links.removed.map((u) => `<li class="is-removed">${escapeHtml(u)}</li>`),
-    ...diff.links.added.map((u) => `<li class="is-added">${escapeHtml(u)}</li>`),
+    ...diff.links.removed.map((u) => `<li class="is-removed">${srChange('removed')}${escapeHtml(u)}</li>`),
+    ...diff.links.added.map((u) => `<li class="is-added">${srChange('added')}${escapeHtml(u)}</li>`),
   ]);
   group('Imágenes', [
-    ...diff.images.removed.map((u) => `<li class="is-removed">${escapeHtml(u.split('/').pop())}</li>`),
-    ...diff.images.added.map((u) => `<li class="is-added">${escapeHtml(u.split('/').pop())}</li>`),
+    ...diff.images.removed.map((u) => `<li class="is-removed">${srChange('removed')}${escapeHtml(u.split('/').pop())}</li>`),
+    ...diff.images.added.map((u) => `<li class="is-added">${srChange('added')}${escapeHtml(u.split('/').pop())}</li>`),
   ]);
   const changes = diff.text.length + diff.links.removed.length + diff.links.added.length + diff.images.removed.length + diff.images.added.length;
   const summary = document.getElementById('compare-summary');
@@ -1225,6 +1232,7 @@ function renderProgress(job, queue, hermesOnline) {
   bar.style.width = `${p.pct}%`;
   bar.classList.toggle('is-live', job.status === 'running');
   track.setAttribute('aria-valuenow', String(p.pct));
+  track.setAttribute('aria-valuetext', `${p.pct} %, ${p.stageLabel}`);
   document.getElementById('progress-stage').textContent = `${p.stageLabel} · ${p.pct}%`;
   const eta = document.getElementById('progress-eta');
   eta.classList.remove('is-idle');
@@ -1261,6 +1269,49 @@ function idleSeconds(p) {
 
 function formatAgo(sec) {
   return sec < 60 ? `${Math.max(5, Math.round(sec / 5) * 5)} s` : `${Math.round(sec / 60)} min`;
+}
+
+// ---------------------------------------------------------------- lectores de pantalla
+
+/** Quitado/añadido también en texto: el color y el signo solos no llegan a un lector de pantalla. */
+function srChange(type) {
+  return `<span class="sr-only">${type === 'removed' ? 'Quitado: ' : 'Añadido: '}</span>`;
+}
+
+let lastAnnouncement = '';
+
+function announce(message) {
+  if (!message || message === lastAnnouncement) return;
+  lastAnnouncement = message;
+  const el = document.getElementById('sr-status');
+  el.textContent = '';
+  // Vaciar y volver a escribir en otro ciclo: así se anuncia aunque el texto se repita.
+  setTimeout(() => (el.textContent = message), 50);
+}
+
+/** Solo cambios con sentido (estado, fase, puesto en la cola, resultado), no cada punto del porcentaje:
+ *  con el progreso cada 10 s, anunciarlo todo haría la página inservible con lector de pantalla. */
+function announceJob(job, queue) {
+  const name = job.input.clientName;
+  if (job.status === 'queued') {
+    announce(queue?.ahead ? `${name}: en cola, ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante.` : `${name}: en cola, eres el siguiente.`);
+  } else if (job.status === 'running') {
+    announce(job.progress?.stageLabel ? `${name}: ${job.progress.stageLabel}.` : `${name}: Hermes ha empezado.`);
+  } else if (job.status === 'completed') {
+    const q = job.quality;
+    const review = !q
+      ? ''
+      : q.errors
+      ? ` La revisión automática encontró ${q.errors} error${q.errors === 1 ? '' : 'es'}.`
+      : q.warnings
+      ? ` Revisión automática: ${q.warnings} aviso${q.warnings === 1 ? '' : 's'}.`
+      : ' Revisión automática: todo correcto.';
+    announce(`${name}: la newsletter está lista.${review}`);
+  } else if (job.status === 'cancelled') {
+    announce(`${name}: trabajo cancelado.`);
+  } else {
+    announce(`${name}: el trabajo ha fallado. El motivo está en la página.`);
+  }
 }
 
 // ---------------------------------------------------------------- utilidades

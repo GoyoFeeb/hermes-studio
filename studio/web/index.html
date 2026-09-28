@@ -103,10 +103,10 @@
           </select>
         </div>
         <div class="chips" id="history-status" role="group" aria-label="Filtrar por estado">
-          <button type="button" class="chip is-active" data-status="">Todas</button>
-          <button type="button" class="chip" data-status="active">En curso</button>
-          <button type="button" class="chip" data-status="completed">Listas</button>
-          <button type="button" class="chip" data-status="failed">Fallidas</button>
+          <button type="button" class="chip is-active" data-status="" aria-pressed="true">Todas</button>
+          <button type="button" class="chip" data-status="active" aria-pressed="false">En curso</button>
+          <button type="button" class="chip" data-status="completed" aria-pressed="false">Listas</button>
+          <button type="button" class="chip" data-status="failed" aria-pressed="false">Fallidas</button>
         </div>
         <ul id="history-list"></ul>
         <p id="history-empty" class="hint" hidden>Ningún trabajo coincide con el filtro.</p>
@@ -118,7 +118,7 @@
       <div class="job-head">
         <div>
           <p class="eyebrow">Trabajo</p>
-          <h2 id="job-title"></h2>
+          <h2 id="job-title" tabindex="-1"></h2>
           <p id="job-meta" class="hint"></p>
           <p id="job-change" class="change-request" hidden></p>
           <p id="job-parent" class="hint" hidden>Hecha a partir de <a id="job-parent-link" href="#"></a>.</p>
@@ -136,7 +136,7 @@
           <strong id="progress-stage"></strong>
           <span id="progress-eta"></span>
         </div>
-        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-labelledby="progress-stage">
           <div id="progress-bar"></div>
         </div>
         <p id="progress-detail" class="hint"></p>
@@ -266,7 +266,10 @@
         <ol id="job-log"></ol>
       </details>
 
-      <div class="actions">
+      <!-- Anuncios para lectores de pantalla: cambios de estado y de fase, no cada punto del porcentaje. -->
+      <div id="sr-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+      <div class="actions job-actions">
         <button id="reuse-btn" type="button" class="btn btn-secondary">Reutilizar este prompt</button>
         <button id="new-job-btn" type="button" class="btn btn-ghost">Generar otra newsletter</button>
       </div>

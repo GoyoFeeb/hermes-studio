@@ -26,6 +26,30 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 
+/* Solo para lectores de pantalla. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Foco visible y uniforme para quien navega con teclado (2026-09-28). */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+.choice:has(input:focus-visible),
+.toggle:has(input:focus-visible) {
+  outline: 2px solid var(--pink);
+  outline-offset: 2px;
+}
+#job-title:focus { outline: none; }
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -339,7 +363,7 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .versions li a { font-weight: 600; text-decoration: none; }
 .versions li a:hover { text-decoration: underline; }
 .versions li[aria-current] a { color: var(--text); }
-.versions li[aria-current]::before { content: '▸'; color: var(--pink); }
+.versions li[aria-current]::before { content: '▸'; content: '▸' / ''; color: var(--pink); }
 .versions .v-desc { color: var(--muted); overflow-wrap: anywhere; }
 .versions .v-state { font-size: 12px; color: var(--muted); }
 .compare { margin: 0 0 24px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--field); }
@@ -348,9 +372,9 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .compare-list li { padding: 6px 10px; border-radius: 6px; overflow-wrap: anywhere; }
 .compare-list li::before { display: inline-block; width: 18px; font-weight: 700; }
 .compare-list .is-removed { background: rgba(255, 122, 138, 0.1); color: #ffb3bd; text-decoration: line-through; text-decoration-color: rgba(255, 122, 138, 0.6); }
-.compare-list .is-removed::before { content: '−'; color: var(--error); }
+.compare-list .is-removed::before { content: '−'; content: '−' / ''; color: var(--error); }
 .compare-list .is-added { background: rgba(79, 209, 165, 0.1); color: #a8f0d6; }
-.compare-list .is-added::before { content: '+'; color: var(--success); }
+.compare-list .is-added::before { content: '+'; content: '+' / ''; color: var(--success); }
 .compare-list .group { margin-top: 6px; padding: 0; font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--pink-soft); }
 .compare-list .group::before { content: none; }
 .job-row.is-version { margin-left: 28px; border-left: 2px solid var(--purple); }
@@ -397,8 +421,8 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 }
 .review-list summary { cursor: pointer; }
 .review-list summary::-webkit-details-marker { display: none; }
-.review-list summary::after { content: '▾'; margin-left: 6px; color: var(--muted); font-size: 12px; }
-.review-list details[open] summary::after { content: '▴'; }
+.review-list summary::after { content: '▾'; content: '▾' / ''; margin-left: 6px; color: var(--muted); font-size: 12px; }
+.review-list details[open] summary::after { content: '▴'; content: '▴' / ''; }
 .check-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
 .check-ok .check-dot { background: var(--success); }
 .check-warning .check-dot { background: var(--warning); }
@@ -583,7 +607,18 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
   .job-row .row-actions { grid-column: 1; grid-row: auto; justify-content: flex-start; }
   .preview-stage { padding: 16px 8px; }
   .btn { width: 100%; }
-  .job-row .row-actions .btn, .chip { width: auto; }
+  .job-row .row-actions .btn, .chip, .btn-sm { width: auto; }
+
+  /* Botones en móvil (2026-09-28): antes, 5 botones a lo ancho uno debajo de otro en el resultado.
+     Ahora la acción principal a lo ancho y las demás de dos en dos. */
+  .result-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .result-bar p { grid-column: 1 / -1; margin: 0 0 2px; }
+  .result-bar .btn-primary { grid-column: 1 / -1; }
+  .result-bar .btn, .revise-box .actions .btn { padding-left: 10px; padding-right: 10px; font-size: 14px; }
+  /* Enviar a lo ancho y Cancelar a su medida, en una fila; textos largos del final, uno debajo de otro. */
+  .revise-box .actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+  .revise-box .actions .btn { white-space: nowrap; }
+  .revise-box .actions .hint { grid-column: 1 / -1; }
 }
 
 /* ---------- tipo de entrada (instrucción / prompt) ---------- */
