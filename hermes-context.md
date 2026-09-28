@@ -698,3 +698,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   Hermes desconectado), título de pestaña, notificación simulada (permiso por defecto → concedido → aviso
   solo en la transición) y aviso de marca con "Enviar igualmente". `npm test` 87/87.
 
+- **Desplegado (con permiso del usuario):** `5a95ec2` → Railway SUCCESS 10:55; Vercel sirve la interfaz
+  nueva. Worker sin cambios (no hizo falta reiniciarlo).
