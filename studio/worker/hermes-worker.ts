@@ -140,6 +140,14 @@ const STAGES: Record<Stage, { label: string; from: number; to: number }> = {
   escribiendo: { label: 'Escribiendo la newsletter', from: 45, to: 75 },
   revisando: { label: 'Revisando y corrigiendo', from: 75, to: 97 },
 };
+/** En "Pedir cambios" y "Adaptar a móvil" Hermes no carga skills ni investiga la marca: parte de la
+ *  pieza publicada (Nike · cambios, 2026-09-28: la barra decía "Preparando: skills y brand pack"). */
+const EDIT_LABELS: Record<Stage, string> = {
+  preparando: 'Leyendo la versión original',
+  investigando: 'Buscando lo que pide el cambio',
+  escribiendo: 'Aplicando los cambios',
+  revisando: 'Revisando y corrigiendo',
+};
 
 function describeTool(tool: string): string {
   if (/^browser_/.test(tool)) return 'Navegando la web de la marca';
@@ -177,7 +185,7 @@ export interface ToolCall {
   target: string;
 }
 
-export function estimateProgress(calls: ToolCall[], elapsedSec: number, expectedSec: number): Progress {
+export function estimateProgress(calls: ToolCall[], elapsedSec: number, expectedSec: number, isEdit = false): Progress {
   // Antes del primer .html Hermes también escribe scripts de apoyo (preparar el logo, renderizar)
   // y mira capturas de la web: todo eso es preparación/investigación, no la newsletter.
   let stage: Stage = 'preparando';
@@ -193,7 +201,8 @@ export function estimateProgress(calls: ToolCall[], elapsedSec: number, expected
       stage = 'investigando';
     }
   }
-  const { from, to, label } = STAGES[stage];
+  const { from, to } = STAGES[stage];
+  const label = isEdit ? EDIT_LABELS[stage] : STAGES[stage].label;
   const byTime = (elapsedSec / expectedSec) * 100;
   const capped = byTime >= to - 1;
   const pct = Math.round(Math.min(to - 1, Math.max(from, byTime)));
@@ -685,7 +694,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       lastCount = tools.length;
       lastChange = Date.now();
     }
-    const progress = scale(estimateProgress(tools, elapsed, expected));
+    const progress = scale(estimateProgress(tools, elapsed, expected, !!editKind));
     progress.lastActionAt = lastChange;
     const idleSec = (Date.now() - lastChange) / 1000;
     if (idleSec >= STALL_WARN_SEC) {

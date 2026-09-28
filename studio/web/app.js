@@ -1436,10 +1436,14 @@ function renderProgress(job, queue, hermesOnline) {
     eta.textContent = 'después, la newsletter (~15-20 min)';
   } else if (p.etaSec) {
     eta.textContent = `quedan ~${formatMinutes(p.etaSec)} (estimado)`;
-  } else {
+  } else if (p.stage === 'revisando') {
     // Recta final (Hermes revisa y corrige a su ritmo): en vez de un tiempo que no se cumple,
     // si sigue trabajando o si lleva rato parado.
     eta.textContent = 'recta final: revisando a su ritmo';
+  } else {
+    // Sin estimación en una fase temprana: la fase se alarga más de lo habitual. Antes decía "recta
+    // final" también aquí (Nike · cambios, 2026-09-28: "recta final" al 14 %).
+    eta.textContent = 'esta fase va más lenta de lo habitual';
   }
   // Sin acciones no es lo mismo que colgado: el modelo puede estar escribiendo una respuesta larga
   // (Talaria, 2026-09-25: 5 min generando). Gris a partir de 3 min, amarillo a partir de 10.

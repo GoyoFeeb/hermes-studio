@@ -531,6 +531,7 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 
 /* Cabecera del trabajo: estado + "Copiar enlace" */
 .job-head-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.job-head-side .btn { white-space: nowrap; }
 #job-blocked .btn, .job-cancelled .btn { margin-top: 12px; }
 
 /* Barra fija de acciones al bajar por la vista previa */
