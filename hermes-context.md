@@ -735,3 +735,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   2000, inglesina → existentes; Prozis → nueva), ejemplos visibles/ocultos según el caso, envío real al
   servidor (`brandMode` existing/new y `clientSlug` correctos), "Reutilizar" y 375 px sin desbordes.
 
+- **Desplegado (con permiso del usuario):** `8508d77` publicado en Vercel (`app.js` e `index.html`
+  servidos idénticos al local) y subido a `Javifeebbo/hermes-studio` (Railway redespliega sin cambios de
+  servidor). Worker sin cambios.
