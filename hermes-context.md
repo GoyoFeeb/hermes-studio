@@ -820,3 +820,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   falló de forma puntual y no se repitió: de ahí el reintento). Filas del historial corregidas (las reglas
   antiguas pisaban la rejilla nueva) y probadas a 800 y 375 px; filtro con 2 de 16. `npm test` 98/98.
 
+- **Desplegado (con permiso del usuario):** `3bf0192` → Railway SUCCESS 11:53, Vercel (3 archivos
+  idénticos al local) y worker reiniciado. **Primer uso real:** el worker generó en producción las
+  miniaturas de las 10 newsletters terminadas en 4 pasadas (11:53-11:54), sin ningún fallo.
