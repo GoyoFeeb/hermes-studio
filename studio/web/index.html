@@ -113,6 +113,7 @@
           <p class="eyebrow">Trabajo</p>
           <h2 id="job-title"></h2>
           <p id="job-meta" class="hint"></p>
+          <p id="job-change" class="change-request" hidden></p>
         </div>
         <div id="job-status" class="status-badge"></div>
       </div>
@@ -128,13 +129,40 @@
         <p id="progress-detail" class="hint"></p>
       </div>
 
+      <div class="cancel-row" id="cancel-row" hidden>
+        <button id="cancel-btn" type="button" class="btn btn-ghost btn-sm">Cancelar trabajo</button>
+        <span id="cancel-confirm" class="cancel-confirm" hidden>
+          <span>¿Seguro? Hermes dejará la newsletter a medias.</span>
+          <button id="cancel-yes" type="button" class="btn btn-danger btn-sm">Sí, cancelar</button>
+          <button id="cancel-no" type="button" class="btn btn-ghost btn-sm">No</button>
+        </span>
+      </div>
+
+      <div id="job-cancelled" class="job-cancelled" hidden>
+        <p>Trabajo cancelado. Puedes relanzarlo con «Reutilizar este prompt».</p>
+      </div>
+
       <div id="job-result" hidden>
         <div class="result-bar">
           <p id="result-message">La newsletter está lista.</p>
           <a id="download-link" class="btn btn-primary" href="#">Descargar HTML</a>
           <a id="open-link" class="btn btn-ghost" href="#" target="_blank" rel="noopener">Abrir en pestaña</a>
+          <button id="revise-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="revise-box">Pedir cambios</button>
           <button id="mobile-fix-btn" type="button" class="btn btn-secondary" title="Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (unos minutos)">Adaptar a móvil</button>
         </div>
+
+        <form id="revise-box" class="revise-box" hidden>
+          <label>
+            <span class="label">¿Qué quieres cambiar?</span>
+            <textarea id="revise-input" rows="4" maxlength="4000" required placeholder="Ej: cambia el titular por «…», quita el precio del segundo bloque y usa otra foto del producto"></textarea>
+          </label>
+          <p id="revise-error" class="form-error" role="alert" hidden></p>
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Enviar cambios</button>
+            <button type="button" id="revise-close" class="btn btn-ghost">Cancelar</button>
+            <p class="hint">Hermes retoca esta misma pieza en un trabajo nuevo (unos minutos). Esta versión no cambia.</p>
+          </div>
+        </form>
         <section class="review" id="review" aria-labelledby="review-title">
           <div class="review-head">
             <h3 id="review-title">Revisión automática</h3>

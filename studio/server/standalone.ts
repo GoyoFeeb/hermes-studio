@@ -168,6 +168,46 @@ export function buildMobileFixPrompt(job: Job): string {
   ].join('\n');
 }
 
+/** Encargo de "Pedir cambios": el worker deja en `_trabajo/` el HTML publicado (original.html) y la
+ *  autoauditoría de esa versión (notas-original.md, con las fuentes de cada dato). Sesión nueva y no
+ *  la original: con 70+ acciones acumuladas, retomarla con DeepSeek es lento y caro, y lo necesario
+ *  (pieza, fuentes y brief) ya está aquí. */
+export function buildRevisionPrompt(job: Job): string {
+  const outDir = standaloneOutputDir(job);
+  const images =
+    job.input.imageMode === 'ai'
+      ? 'Si el cambio pide una imagen nueva, puedes generarla con IA (el logo, siempre el oficial).'
+      : 'Si el cambio pide una imagen nueva, solo fotografía oficial de la web de la marca, con su URL de origen.';
+  return [
+    `Aplica cambios a la newsletter de ${job.input.clientName} que está en ${outDir}/_trabajo/original.html.`,
+    `Su autoauditoría (fuente de cada dato y origen de cada imagen) está en ${outDir}/_trabajo/notas-original.md.`,
+    '',
+    '## Cambios pedidos por el equipo',
+    job.input.changeRequest!.trim(),
+    '',
+    '## Cómo',
+    '- Aplica SOLO lo pedido. Mantén el resto igual: diseño, estructura, textos, imágenes y enlaces que no',
+    '  afecte el cambio. No rehagas la pieza ni cambies el concepto salvo que se pida.',
+    '- Si el cambio necesita un dato nuevo (precio, cifra, nombre de modelo), sácalo de la web oficial y',
+    '  anota la fuente; si no lo encuentras, no lo inventes: deja la pieza como estaba en ese punto y dilo.',
+    `- ${images}`,
+    '- No cargues skills ni investigues la marca más allá de lo que pida el cambio.',
+    '- Si un cambio pedido contradice una regla de la pieza (claims, datos sin fuente, enlace de baja),',
+    '  no lo apliques en esa parte y explícalo en las notas.',
+    '',
+    '## Entrega',
+    `- Guarda el resultado en ${outDir}/newsletter.html (write_file). Scripts y capturas en ${outDir}/_trabajo/.`,
+    '- Renderízalo a 600 y a 375 px y míralo: nada puede salirse del ancho. Studio comprueba el móvil, los',
+    '  enlaces, las imágenes y el preheader al recibirlo y te devolverá lo que falle.',
+    `- Escribe ${outDir}/notas.md: qué cambiaste y dónde, la fuente de cada dato nuevo, el origen de cada`,
+    '  imagen nueva y lo que no pudiste aplicar (y por qué).',
+    '- Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
+    '',
+    '## Referencia: brief original de la pieza',
+    job.input.briefText.trim(),
+  ].join('\n');
+}
+
 /** El prompt tiene que hablar de la marca elegida: el 2026-09-24 se envió un prompt de Prozis con
  *  la marca Adeslas seleccionada (el navegador había rellenado el formulario) y Hermes recibió
  *  "usa solo assets de Adeslas" para una campaña de Prozis. */
@@ -300,6 +340,7 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
 
   fs.writeFileSync(path.join(outAbs, 'prompt.md'), job.input.briefText, 'utf8');
   if (job.input.instruction) fs.writeFileSync(path.join(outAbs, 'instruccion.md'), job.input.instruction.trim() + '\n', 'utf8');
+  if (job.input.changeRequest) fs.writeFileSync(path.join(outAbs, 'cambios.md'), job.input.changeRequest.trim() + '\n', 'utf8');
   fs.writeFileSync(path.join(outAbs, 'newsletter.html'), html, 'utf8');
   if (finalMessage.trim()) fs.writeFileSync(path.join(outAbs, 'notas.md'), finalMessage.trim() + '\n', 'utf8');
 

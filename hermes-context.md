@@ -73,7 +73,7 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
 | BUG-H14 | Seguridad (worker) | Hermes corre con `--yolo` y cwd=sistema-final: aunque `HERMES_ENV` quita los secretos de las variables de entorno, puede leer `studio/.env` (WORKER_TOKEN) y `.env` del repo desde disco. Una web con instrucciones ocultas puede llevárselos. | `studio/worker/hermes-worker.ts:31-35` + `.env` en el repo | **Mitigado 2026-09-28** — credenciales del worker en `~/.config/hermes-studio/.env` (700/600, fuera del repo; fallback a `studio/.env` con aviso), el worker ya no carga el `.env` de la raíz y el encargo prohíbe leer archivos de credenciales. Sigue abierto el aislamiento real (otro usuario de macOS o backend Docker de Hermes). |
 | BUG-H15 | Calidad (salida standalone) | La ruta que se usa de verdad (Studio → Hermes) no pasa ningún gate determinista salvo el de móvil. Medido el 2026-09-28 sobre las 8 newsletters de Hermes: CTA de producto con 404 en las 3 versiones de Inglesina (`/products/base-darwin-360-isize`), 5/8 sin preheader, 0/8 con modo oscuro, 3/8 sin condicionales de Outlook; la regla de claims "potencia" salta en Adidas y Talaria (en Talaria es un dato técnico: la regla necesita contexto). | `studio/worker/hermes-worker.ts` (solo `mobileOverflow`), `studio/server/standalone.ts` (`checkEmailHtml`, solo avisos) | **Parcialmente cerrado 2026-09-28** — `studio/worker/qualityCheck.ts`: enlaces/imágenes (404/410/5xx/DNS = error; 403/429 = aviso), preheader, baja, alt, enlaces vacíos, peso Gmail → errores devueltos a Hermes (2 rondas); claims solo aviso. Detecta el 404 y el preheader reales de Inglesina. Preheader y enlaces verificados, obligatorios en el encargo. Pendiente: modo oscuro y Outlook. |
 | BUG-H16 | Infra (entrega) | Las imágenes de las newsletters enviadas se sirven desde el dominio de Railway (`STUDIO_PUBLIC_BASE_URL`), en periodo de prueba (vence hacia el 2026-10-10). Si el servicio cae o cambia de dominio, los emails ya enviados se quedan sin imágenes. | `studio/server/standalone.ts` (`publishEmbeddedImages`) | Abierto |
-| BUG-H17 | UX (studio) | No se puede cancelar un trabajo en cola o en curso; la única iteración posible es "Adaptar a móvil"; los avisos de calidad y la autoauditoría (`notas.md`) solo aparecen en el registro plegado; errores con `alert`/`confirm` nativos; sin posición en la cola. | `studio/web/app.js`, `studio/server/index.ts` | **Parcialmente cerrado 2026-09-28** — panel de revisión (control de calidad + autoauditoría `notas.md`) en el resultado. Pendiente: cancelar, pedir cambios, posición en cola, mensajes sin `alert`. |
+| BUG-H17 | UX (studio) | No se puede cancelar un trabajo en cola o en curso; la única iteración posible es "Adaptar a móvil"; los avisos de calidad y la autoauditoría (`notas.md`) solo aparecen en el registro plegado; errores con `alert`/`confirm` nativos; sin posición en la cola. | `studio/web/app.js`, `studio/server/index.ts` | **Parcialmente cerrado 2026-09-28** — panel de revisión (control de calidad + autoauditoría `notas.md`) en el resultado. Cancelar y pedir cambios cerrados el 2026-09-28 (ver changelog). Pendiente: posición en cola, mensajes sin `alert`. |
 | BUG-H18 | Tooling | `npx tsc --noEmit` falla con TS5107 (`moduleResolution=node10` obsoleto en TypeScript 6); el worker (833 líneas) no tiene ningún test. | `tsconfig.json:5`, `studio/worker/` | Abierto |
 
 ---
@@ -656,3 +656,23 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   SUCCESS 10:03; interfaz publicada en Vercel (`hermes-studio-beta.vercel.app` sirve el panel nuevo);
   worker reiniciado (launchd) y leyendo el token de `~/.config/hermes-studio/.env` (sin aviso de
   `studio/.env`). **Pendiente:** primer trabajo real con Hermes para ver el control y el panel en vivo.
+
+### 2026-09-28 (continuación) — Cancelar trabajos y pedir cambios
+
+- **Aprobado por el usuario.** Solo Studio; motor y agentes 00-09 sin tocar.
+- **Cancelar:** estado nuevo `cancelled`; `POST /api/jobs/:id/cancel` (cola → al momento; en curso →
+  las rutas del worker para ese trabajo responden 409 `{cancelled:true}`). El worker (`api()` →
+  `markCancelled`) mata a Hermes, no pide más turnos (`runHermesTurn` no arranca), no sube nada y no
+  llama a `/fail`. Funciona también durante el brief.
+- **Pedir cambios:** `POST /api/jobs/:id/revise` (`revisionOf`, `changeRequest` ≤ 4000). El claim entrega
+  `editKind:'revision'`, el HTML publicado y `notas.md` de la original; el worker los deja en
+  `_trabajo/original.html` y `_trabajo/notas-original.md`. Sesión nueva (no `--resume` de la original:
+  70+ acciones, lento y caro con DeepSeek). Control de calidad completo con devolución (el de "Adaptar a
+  móvil" sigue solo informativo). Guarda `cambios.md`. ETA 8 min; no registra duración.
+- **Web:** "Cancelar trabajo" con confirmación en la página; "Pedir cambios" con cuadro de texto y error
+  en línea; título "{marca} · cambios" con la petición visible; historial "Cambios sobre otra versión".
+- **Verificación:** copia aislada + Hermes simulado: cancelar en cola; cancelar en curso (Hermes
+  detenido a los 23 s, sin subida); newsletter normal; petición de cambios (recibe original, notas y
+  nota de credenciales; resultado con 0 errores de calidad). Interfaz probada a 800 y 375 px.
+  `npm test` 87/87.
+

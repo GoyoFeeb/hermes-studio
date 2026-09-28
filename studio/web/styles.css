@@ -222,6 +222,8 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .btn-ghost { background: transparent; color: var(--text); border-color: var(--border-strong); }
 .btn-ghost:hover { border-color: var(--pink); color: var(--pink); }
 .btn-sm { padding: 6px 14px; font-size: 13px; }
+.btn-danger { background: rgba(255, 122, 138, 0.16); color: var(--error); border-color: rgba(255, 122, 138, 0.45); }
+.btn-danger:hover { background: rgba(255, 122, 138, 0.26); }
 
 /* ---------- estados ---------- */
 .status-badge {
@@ -241,6 +243,7 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .status-running { background: rgba(251, 115, 255, 0.14); color: var(--pink); }
 .status-completed { background: rgba(79, 209, 165, 0.14); color: var(--success); }
 .status-blocked, .status-failed { background: rgba(255, 122, 138, 0.14); color: var(--error); }
+.status-cancelled { background: rgba(137, 145, 174, 0.14); color: var(--muted); }
 
 /* ---------- vista de trabajo ---------- */
 #view-job { margin-top: 40px; }
@@ -273,6 +276,16 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 
 .result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .result-bar p { margin: 0 auto 0 0; font-weight: 600; color: var(--success); }
+/* Cancelar y pedir cambios */
+.cancel-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -8px 0 24px; }
+.cancel-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; }
+.job-cancelled p { margin: 0 0 8px; color: var(--muted); }
+.change-request { margin: 8px 0 0; font-size: 14px; color: var(--lilac); overflow-wrap: anywhere; }
+.revise-box { margin: 0 0 20px; padding: 18px 20px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--field); }
+.revise-box label { margin-bottom: 12px; }
+.revise-box textarea { min-height: 110px; }
+.form-error { margin: 0 0 12px; color: var(--error); font-size: 14px; }
+
 /* Revisión automática: control de calidad del worker + autoauditoría de Hermes (notas.md). */
 .review { margin: 4px 0 24px; padding: 18px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--field); }
 .review-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 12px; }

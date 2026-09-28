@@ -24,6 +24,7 @@ import {
   buildHermesPrompt,
   buildBriefPrompt,
   buildMobileFixPrompt,
+  buildRevisionPrompt,
   readResultHtml,
   readResultNotes,
   sanitizeQuality,
@@ -142,6 +143,11 @@ function requireWorker(req: Request, res: Response, next: NextFunction): void {
 
 function standaloneJobForWorker(req: Request, res: Response): ReturnType<typeof getJob> {
   const job = getJob(req.params.id);
+  // Cancelado desde la web: el worker lo ve en su siguiente llamada (progreso cada 30 s) y para.
+  if (job && job.input.mode === 'standalone' && job.status === 'cancelled') {
+    res.status(409).json({ cancelled: true, error: 'El trabajo se ha cancelado.' });
+    return null;
+  }
   if (!job || job.input.mode !== 'standalone' || job.status !== 'running') {
     res.status(404).json({ error: 'Trabajo no encontrado o no está en curso.' });
     return null;
@@ -181,8 +187,13 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
     outputDir: standaloneOutputDir(job),
     // Instrucción básica: el worker ejecuta primero briefPrompt y luego pide el encargo final
     // a /brief. Con prompt pegado, el encargo va directamente.
-    ...(job.input.mobileFixOf
-      ? { prompt: buildMobileFixPrompt(job), sourceHtml: readResultHtml(getJob(job.input.mobileFixOf) || job) || '' }
+    ...(job.input.revisionOf
+      ? (() => {
+          const source = getJob(job.input.revisionOf) || job;
+          return { editKind: 'revision', prompt: buildRevisionPrompt(job), sourceHtml: readResultHtml(source) || '', sourceNotes: readResultNotes(source) || '' };
+        })()
+      : job.input.mobileFixOf
+      ? { editKind: 'mobile-fix', prompt: buildMobileFixPrompt(job), sourceHtml: readResultHtml(getJob(job.input.mobileFixOf) || job) || '' }
       : needsBrief(job)
         ? { briefPrompt: buildBriefPrompt(job) }
         : { prompt: buildHermesPrompt(job) }),
@@ -402,6 +413,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       imageMode: j.input.imageMode || null,
       fromInstruction: !!j.input.instruction,
       mobileFixOf: j.input.mobileFixOf || null,
+      revisionOf: j.input.revisionOf || null,
       pct: j.progress?.pct ?? null,
       elapsedSec: j.progress?.elapsedSec ?? null,
       error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,
@@ -438,6 +450,52 @@ app.post('/api/jobs/:id/mobile-fix', createJobRateLimit.middleware, (req: Reques
   });
   hermesLog(job.id, `Adaptación a móvil de la newsletter ${source.id}: en cola.`);
   res.status(201).json({ id: job.id });
+});
+
+// "Pedir cambios": nuevo trabajo que retoca el HTML de uno terminado según lo que pide el equipo
+// (ver buildRevisionPrompt). La newsletter original no se toca.
+app.post('/api/jobs/:id/revise', createJobRateLimit.middleware, (req: Request, res: Response) => {
+  const source = getJob(req.params.id);
+  if (!source || source.input.mode !== 'standalone' || !readResultHtml(source)) {
+    res.status(404).json({ error: 'Solo se pueden pedir cambios sobre una newsletter terminada.' });
+    return;
+  }
+  const changes = typeof req.body?.changes === 'string' ? req.body.changes.trim() : '';
+  if (changes.length < 5) {
+    res.status(400).json({ error: 'Describe qué quieres cambiar.' });
+    return;
+  }
+  const job = createJob({
+    mode: 'standalone',
+    clientSlug: source.input.clientSlug,
+    clientName: source.input.clientName,
+    brandMode: source.input.brandMode,
+    briefText: source.input.briefText,
+    imageMode: source.input.imageMode,
+    requesterName: typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : source.input.requesterName,
+    revisionOf: source.id,
+    changeRequest: changes.slice(0, 4000),
+  });
+  hermesLog(job.id, `Cambios sobre la newsletter ${source.id}: en cola.`);
+  res.status(201).json({ id: job.id });
+});
+
+// Cancelar: en cola, al momento; en curso, el worker lo ve en su siguiente aviso de progreso
+// (cada 30 s, ver standaloneJobForWorker), detiene a Hermes y no sube nada.
+app.post('/api/jobs/:id/cancel', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone') {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (job.status !== 'queued' && job.status !== 'running') {
+    res.status(409).json({ error: 'Este trabajo ya ha terminado.' });
+    return;
+  }
+  const wasRunning = job.status === 'running';
+  updateJob(job.id, { status: 'cancelled', currentPhase: null, error: undefined });
+  hermesLog(job.id, wasRunning ? 'Cancelado: Hermes se detendrá en unos segundos.' : 'Cancelado antes de empezar.', 'error');
+  res.json({ ok: true });
 });
 
 app.get('/api/jobs/:id/result', (req: Request, res: Response) => {

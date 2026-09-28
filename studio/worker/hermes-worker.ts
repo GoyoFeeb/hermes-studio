@@ -74,11 +74,14 @@ function stamp(): string {
 async function api(route: string, body?: unknown, attempts = 3): Promise<Response> {
   for (let i = 1; ; i++) {
     try {
-      return await fetch(`${BASE}${route}`, {
+      const res = await fetch(`${BASE}${route}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body ?? {}),
       });
+      // 409 en una ruta del trabajo en curso = lo han cancelado desde la web (ver standaloneJobForWorker).
+      if (res.status === 409 && current && route.startsWith(`/api/worker/jobs/${current}/`)) markCancelled();
+      return res;
     } catch (err) {
       if (i >= attempts) throw err;
       await new Promise((r) => setTimeout(r, Math.min(60000, 5000 * 2 ** (i - 1))));
@@ -303,6 +306,16 @@ function localBrands(): string[] {
 
 let current: string | null = null;
 let currentChild: ReturnType<typeof spawn> | null = null;
+/** El trabajo en curso se canceló desde la web (2026-09-28): se detiene a Hermes, no se le piden
+ *  más turnos y no se sube nada. Lo detecta api() con el 409 de Studio (el progreso va cada 30 s). */
+let cancelled = false;
+
+function markCancelled(): void {
+  if (cancelled) return;
+  cancelled = true;
+  console.log(`[${stamp()}] ${current}: cancelado desde Studio — se detiene Hermes`);
+  currentChild?.kill('SIGTERM');
+}
 
 /** Veces que se le dice a Hermes "continúa" si termina sin haber dejado el HTML (en la app de
  *  escritorio lo haría el usuario; p. ej. el 2026-09-24 Hermes anunció "reintento la extracción"
@@ -375,6 +388,7 @@ function runHermesTurn(
   resumeId: string | null,
   onSession: (id: string) => void
 ): Promise<{ code: number | null; output: string; stderr: string }> {
+  if (cancelled) return Promise.resolve({ code: null, output: '', stderr: 'Trabajo cancelado.' });
   const args = ['chat', '-q', query, '-Q', '--yolo', ...(resumeId ? ['--resume', resumeId] : [])];
   const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: HERMES_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
   currentChild = child;
@@ -460,10 +474,16 @@ interface ClaimedJob {
   briefPrompt?: string;
   /** Solo en "Adaptar a móvil": HTML publicado de la newsletter original. */
   sourceHtml?: string;
+  /** Tipo de retoque sobre una newsletter terminada (sin definir en Studio anteriores = mobile-fix). */
+  editKind?: 'mobile-fix' | 'revision';
+  /** Solo en "Pedir cambios": notas.md de la versión original (fuentes de cada dato). */
+  sourceNotes?: string;
 }
 
 /** Una adaptación a móvil es un retoque, no una newsletter: la barra estima con esto. */
 const MOBILE_FIX_EXPECTED_SEC = 6 * 60;
+/** "Pedir cambios": retoque de la pieza, a veces con una búsqueda o una imagen nueva. */
+const REVISION_EXPECTED_SEC = 8 * 60;
 
 /** Parte de la barra que ocupa el paso del brief cuando el trabajo llega como instrucción básica. */
 const BRIEF_SHARE = 12;
@@ -574,7 +594,7 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
   let turn = await runHermesTurn(job.briefPrompt! + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + SECRETS_NOTE, null, (id) => (sessionId = sessionId || id));
-  for (let i = 1; i <= 3 && !ready() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+  for (let i = 1; i <= 3 && !ready() && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     turn = await runHermesTurn(
       `Todavía no existe ${job.outputDir}/brief.md. Escríbelo AHORA con write_file, con lo que ya tengas ` +
         '(marca como pendiente lo que no hayas podido verificar). Sin texto previo: llama a la herramienta.',
@@ -596,6 +616,7 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
 
 async function runJob(claimed: ClaimedJob): Promise<void> {
   current = claimed.id;
+  cancelled = false;
   const outAbs = path.join(ROOT, claimed.outputDir);
   fs.mkdirSync(outAbs, { recursive: true });
   console.log(`[${stamp()}] Trabajo ${claimed.id} → ${claimed.outputDir}${claimed.briefPrompt ? ' (desde instrucción: primero el brief)' : ''}`);
@@ -605,6 +626,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let prompt = claimed.prompt || '';
   if (claimed.briefPrompt) {
     const brief = await runBriefStep(claimed, outAbs);
+    if (cancelled) {
+      console.log(`[${stamp()}] ✗ ${claimed.id}: cancelado durante el brief`);
+      current = null;
+      return;
+    }
     if ('error' in brief) {
       await api(`/api/worker/jobs/${claimed.id}/fail`, { error: brief.error }).catch(() => undefined);
       console.log(`[${stamp()}] ✗ ${claimed.id}: sin brief`);
@@ -614,8 +640,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     prompt = brief.prompt;
     briefSec = brief.seconds;
   }
-  const isMobileFix = claimed.sourceHtml !== undefined;
-  if (isMobileFix) {
+  const editKind = claimed.editKind || (claimed.sourceHtml !== undefined ? 'mobile-fix' : undefined);
+  const isMobileFix = editKind === 'mobile-fix';
+  const isRevision = editKind === 'revision';
+  if (editKind) {
     if (!claimed.sourceHtml) {
       await api(`/api/worker/jobs/${claimed.id}/fail`, { error: 'No se encontró el HTML de la newsletter original.' }).catch(() => undefined);
       current = null;
@@ -623,6 +651,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     }
     fs.mkdirSync(path.join(outAbs, '_trabajo'), { recursive: true });
     fs.writeFileSync(path.join(outAbs, '_trabajo', 'original.html'), claimed.sourceHtml);
+    if (isRevision) fs.writeFileSync(path.join(outAbs, '_trabajo', 'notas-original.md'), claimed.sourceNotes || '(La versión original no tiene notas.)\n');
   }
   const job = { id: claimed.id, outputDir: claimed.outputDir, prompt };
   const scale = (p: Progress): Progress =>
@@ -634,7 +663,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const htmlReady = (): string | null =>
     fs.existsSync(expectedFile) ? expectedFile : newestHtml(outAbs) || newestHtmlSince(path.dirname(outAbs), started);
 
-  const expected = isMobileFix ? MOBILE_FIX_EXPECTED_SEC : expectedSeconds();
+  const expected = isMobileFix ? MOBILE_FIX_EXPECTED_SEC : isRevision ? REVISION_EXPECTED_SEC : expectedSeconds();
   let sessionId: string | null = null;
   let lastCount = -1;
   let lastChange = Date.now();
@@ -670,9 +699,18 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   }, PROGRESS_MS);
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  const envNotes = (isMobileFix ? '' : skillReadingNote() + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE) + SECRETS_NOTE;
+  // Cancelado desde la web: se deja de trabajar sin subir nada (Studio ya lo marcó como cancelado).
+  const finishCancelled = (): void => {
+    clearInterval(heartbeat);
+    clearTimeout(killer);
+    console.log(`[${stamp()}] ✗ ${job.id}: cancelado`);
+    current = null;
+  };
+  const envNotes =
+    (isMobileFix ? '' : isRevision ? brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE : skillReadingNote() + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE) +
+    SECRETS_NOTE;
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id));
-  for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+  for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})`);
     await api(`/api/worker/jobs/${job.id}/progress`, {
       message: `Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${MAX_CONTINUES}).`,
@@ -690,6 +728,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // del concepto y precio sin fuente). Si falta, un turno más para escribirla y corregir la pieza.
   const notesFile = path.join(outAbs, 'notas.md');
   const notesReady = (): boolean => fs.existsSync(notesFile) && fs.statSync(notesFile).mtimeMs >= started;
+  if (cancelled) return finishCancelled();
   if (htmlReady() && !notesReady() && sessionId && Date.now() - started < TIMEOUT_MS) {
     console.log(`[${stamp()}] ${job.id}: falta notas.md — se pide la autoauditoría`);
     await api(`/api/worker/jobs/${job.id}/progress`, { message: 'Falta la autoauditoría por escrito: se le pide a Hermes.' }).catch(() => undefined);
@@ -703,7 +742,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   }
   // Comprobación móvil medida (no la declarada por Hermes): si se sale del ancho, se le devuelve.
   let mobileProblem = htmlReady() ? await mobileOverflow(htmlReady()!) : null;
-  for (let i = 1; i <= MOBILE_FIX_ATTEMPTS && mobileProblem && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+  for (let i = 1; i <= MOBILE_FIX_ATTEMPTS && mobileProblem && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     console.log(`[${stamp()}] ${job.id}: se sale del ancho en móvil — corrección ${i}/${MOBILE_FIX_ATTEMPTS}`);
     await api(`/api/worker/jobs/${job.id}/progress`, {
       message: `La versión móvil se sale del ancho (${MOBILE_WIDTH} px): se le pide a Hermes que la corrija (${i}/${MOBILE_FIX_ATTEMPTS}).`,
@@ -732,8 +771,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const raw = fs.readFileSync(p, 'utf8');
     return runQualityCheck(raw, { missingLocal: embedLocalImages(raw, path.dirname(p), ROOT).missing, mobileProblem });
   };
+  if (cancelled) return finishCancelled();
   let quality = await qualityOf();
-  for (let i = 1; i <= QUALITY_FIX_ATTEMPTS && quality && fixableErrors(quality).errors && !isMobileFix && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+  for (let i = 1; i <= QUALITY_FIX_ATTEMPTS && quality && fixableErrors(quality).errors && !isMobileFix && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     const fixable = fixableErrors(quality);
     console.log(`[${stamp()}] ${job.id}: ${fixable.errors} error(es) de calidad — corrección ${i}/${QUALITY_FIX_ATTEMPTS}`);
     await api(`/api/worker/jobs/${job.id}/progress`, {
@@ -753,6 +793,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     mobileProblem = htmlReady() ? await mobileOverflow(htmlReady()!) : null;
     quality = await qualityOf();
   }
+  if (cancelled) return finishCancelled();
   if (quality) {
     const pending = quality.checks.filter((c) => c.status === 'error').map((c) => c.label.toLowerCase());
     await api(`/api/worker/jobs/${job.id}/progress`, {
@@ -793,13 +834,14 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   } catch (err) {
     uploadError = (err as Error).message;
   }
+  if (cancelled) return finishCancelled();
   if (uploadError) {
     await api(`/api/worker/jobs/${job.id}/fail`, {
       error: `La newsletter está terminada en el Mac del worker (${path.relative(ROOT, htmlPath)}) pero no se pudo subir a Studio: ${uploadError}`,
     }).catch(() => undefined);
     console.log(`[${stamp()}] ✗ ${job.id}: terminada en ${path.relative(ROOT, htmlPath)} pero no se pudo subir (${uploadError})`);
   } else {
-    if (!isMobileFix) recordDuration(minutes);
+    if (!editKind) recordDuration(minutes);
     console.log(`[${stamp()}] ✓ ${job.id} en ${minutes} min`);
   }
   current = null;

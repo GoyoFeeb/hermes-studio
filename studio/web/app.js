@@ -123,6 +123,7 @@ const STATUS_LABELS = {
   completed: 'Lista',
   failed: 'Fallida',
   blocked: 'Bloqueada',
+  cancelled: 'Cancelada',
 };
 
 const IMAGE_LABELS = { official: 'Assets oficiales', ai: 'Imágenes con IA' };
@@ -185,7 +186,7 @@ function renderHistory() {
     .map((j) => {
       const id = encodeURIComponent(j.id);
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
-      const meta = [when, j.requesterName, j.mobileFixOf ? 'Adaptación a móvil' : j.fromInstruction ? 'Desde instrucción' : null, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
+      const meta = [when, j.requesterName, j.revisionOf ? 'Cambios sobre otra versión' : j.mobileFixOf ? 'Adaptación a móvil' : j.fromInstruction ? 'Desde instrucción' : null, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
@@ -296,6 +297,76 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
   }
 });
 
+// ---------------------------------------------------------------- cancelar y pedir cambios
+
+const cancelBtn = document.getElementById('cancel-btn');
+const cancelConfirm = document.getElementById('cancel-confirm');
+
+function resetCancel() {
+  cancelBtn.hidden = false;
+  cancelConfirm.hidden = true;
+}
+cancelBtn.addEventListener('click', () => {
+  cancelBtn.hidden = true;
+  cancelConfirm.hidden = false;
+  document.getElementById('cancel-no').focus();
+});
+document.getElementById('cancel-no').addEventListener('click', resetCancel);
+document.getElementById('cancel-yes').addEventListener('click', async (e) => {
+  if (!currentJob) return;
+  const id = currentJob;
+  const btn = e.currentTarget; // tras un await, e.currentTarget ya es null
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      document.getElementById('progress-detail').textContent = data.error || 'No se pudo cancelar.';
+    }
+  } finally {
+    btn.disabled = false;
+    resetCancel();
+    poll(id);
+  }
+});
+
+const reviseBox = document.getElementById('revise-box');
+const reviseBtn = document.getElementById('revise-btn');
+const reviseError = document.getElementById('revise-error');
+
+function toggleRevise(open) {
+  reviseBox.hidden = !open;
+  reviseBtn.setAttribute('aria-expanded', String(open));
+  reviseError.hidden = true;
+  if (open) document.getElementById('revise-input').focus();
+}
+reviseBtn.addEventListener('click', () => toggleRevise(reviseBox.hidden));
+document.getElementById('revise-close').addEventListener('click', () => toggleRevise(false));
+reviseBox.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentJob) return;
+  const submit = reviseBox.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  reviseError.hidden = true;
+  try {
+    const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/revise`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ changes: document.getElementById('revise-input').value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      reviseError.textContent = data.error || 'No se pudieron enviar los cambios.';
+      reviseError.hidden = false;
+      return;
+    }
+    history.pushState({}, '', `?job=${data.id}`);
+    showJobView(data.id);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
 document.getElementById('use-brief-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob, { useBrief: true });
 });
@@ -319,6 +390,13 @@ function showJobView(id) {
   viewJob.hidden = false;
   document.getElementById('job-result').hidden = true;
   document.getElementById('job-blocked').hidden = true;
+  document.getElementById('job-cancelled').hidden = true;
+  document.getElementById('cancel-row').hidden = true;
+  document.getElementById('job-change').hidden = true;
+  reviseBox.hidden = true;
+  reviseBox.reset();
+  reviseBtn.setAttribute('aria-expanded', 'false');
+  resetCancel();
   document.getElementById('preview-frame').removeAttribute('src');
   document.getElementById('brief-box').hidden = true;
   document.getElementById('brief-box').open = false;
@@ -339,7 +417,15 @@ async function poll(id) {
   }
   const { job, events, notes } = await res.json();
 
-  document.getElementById('job-title').textContent = job.input.mobileFixOf ? `${job.input.clientName} · adaptación a móvil` : job.input.clientName;
+  document.getElementById('job-title').textContent = job.input.revisionOf
+    ? `${job.input.clientName} · cambios`
+    : job.input.mobileFixOf
+    ? `${job.input.clientName} · adaptación a móvil`
+    : job.input.clientName;
+  const changeEl = document.getElementById('job-change');
+  changeEl.hidden = !job.input.changeRequest;
+  changeEl.textContent = job.input.changeRequest ? `Cambios pedidos: «${job.input.changeRequest}»` : '';
+  document.getElementById('cancel-row').hidden = job.status !== 'queued' && job.status !== 'running';
   document.getElementById('job-meta').textContent = [
     new Date(job.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
     job.input.requesterName,
@@ -378,6 +464,11 @@ async function poll(id) {
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes);
     }
+    return;
+  }
+
+  if (job.status === 'cancelled') {
+    document.getElementById('job-cancelled').hidden = false;
     return;
   }
 
@@ -514,7 +605,9 @@ function renderProgress(job) {
     track.setAttribute('aria-valuenow', '0');
     document.getElementById('progress-stage').textContent = 'En cola';
     document.getElementById('progress-eta').textContent = '';
-    document.getElementById('progress-detail').textContent = job.input.mobileFixOf
+    document.getElementById('progress-detail').textContent = job.input.revisionOf
+      ? 'Esperando a que Hermes lo recoja. Aplicará los cambios pedidos: unos minutos.'
+      : job.input.mobileFixOf
       ? 'Esperando a que Hermes lo recoja. Solo adapta la versión móvil: unos minutos.'
       : job.input.instruction
       ? 'Esperando a que Hermes lo recoja. Primero escribirá el brief creativo.'

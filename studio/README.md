@@ -78,6 +78,13 @@ newsletter de Adeslas…"). Hermes escribe antes el brief con la skill `newslett
 (instalada en `~/.hermes/skills/creative/`, destino fijado en HTML standalone) y luego hace la
 newsletter con él; el brief queda visible en la página del trabajo.
 
+**Cancelar y pedir cambios** (2026-09-28): un trabajo en cola o en curso se puede cancelar desde su
+página (en curso, el worker lo ve en su siguiente aviso de progreso —cada 30 s—, detiene a Hermes y no
+sube nada). En una newsletter terminada, "Pedir cambios" crea un trabajo nuevo en el que Hermes, en una
+sesión nueva, retoca esa pieza según lo pedido partiendo de su HTML publicado, su `notas.md` y el brief
+original (`buildRevisionPrompt`); pasa el control de calidad completo. La versión original no cambia.
+"Adaptar a móvil" sigue siendo un retoque solo de la versión móvil.
+
 La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El desplegable de marcas combina las del
 volumen de Railway y las del Mac del worker. Si el prompt no menciona la marca elegida, Studio pide
 confirmación antes de encolarlo.

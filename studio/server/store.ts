@@ -8,7 +8,8 @@ import * as path from 'path';
 import { JOBS_DIR } from './paths';
 import type { QualityReport } from '../worker/qualityCheck';
 
-export type JobStatus = 'queued' | 'running' | 'blocked' | 'failed' | 'completed';
+/** 'cancelled' (2026-09-28): cancelado desde la web; el worker lo ve al enviar progreso y para. */
+export type JobStatus = 'queued' | 'running' | 'blocked' | 'failed' | 'completed' | 'cancelled';
 
 export interface JobInput {
   clientSlug: string;
@@ -30,6 +31,10 @@ export interface JobInput {
   /** Adaptación a móvil de una newsletter ya terminada (2026-09-25): id del trabajo original.
    *  Hermes parte de su HTML publicado y solo añade/corrige la versión móvil. */
   mobileFixOf?: string;
+  /** "Pedir cambios" (2026-09-28): id del trabajo cuya newsletter se retoca y lo que se pide cambiar.
+   *  Hermes parte del HTML publicado, sus notas.md y el brief original, en una sesión nueva. */
+  revisionOf?: string;
+  changeRequest?: string;
 }
 
 export interface Job {
