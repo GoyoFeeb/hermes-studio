@@ -823,3 +823,19 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `3bf0192` → Railway SUCCESS 11:53, Vercel (3 archivos
   idénticos al local) y worker reiniciado. **Primer uso real:** el worker generó en producción las
   miniaturas de las 10 newsletters terminadas en 4 pasadas (11:53-11:54), sin ningún fallo.
+
+### 2026-09-28 (continuación) — Interfaz 5 y 10: registro de Hermes y tema claro
+
+- **Elegidas por el usuario.** Solo la web de Studio.
+- **5. Registro:** hora en cada línea; avisos y errores marcados (fondo y barra roja) y contados en el
+  título del registro (se ven aunque esté plegado); filtro "Solo avisos y errores"; notas largas de Hermes
+  plegadas con el principio a la vista; se repinta solo si llegan líneas nuevas (no cierra lo abierto).
+- **10. Tema claro:** ~40 colores fijos pasan a variables (`--surface-*`, `--glow-*`, `--shadow*`,
+  `--diff-*`, `--code-bg`…); el rosa como TEXTO pasa a `--accent-text` (magenta oscuro en claro: el rosa
+  sobre blanco daba ~2,4:1) y el texto sobre rosa a `--on-accent`. Sigue al sistema; botón en la cabecera
+  para fijar Claro/Oscuro/Automático (localStorage + script en `<head>` antes de pintar, sin parpadeo).
+  Logo oficial blanco → oscurecido en claro.
+- **Verificación:** contraste de 13 pares de color ≥ 4,5:1 en ambos temas (mínimo: verde "correcto" en
+  claro, 4,99); automático probado con el sistema en claro y en oscuro; tema recordado al recargar;
+  registro con el aviso real de calidad y filtro (1 de 6). `npm test` 98/98.
+

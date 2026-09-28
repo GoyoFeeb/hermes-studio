@@ -787,6 +787,9 @@ function showJobView(id) {
   // Cambia la "página": el foco va al título para que el lector de pantalla lo diga.
   document.getElementById('job-title').focus({ preventScroll: true });
   lastAnnouncement = '';
+  lastLogKey = '';
+  document.getElementById('log-only-warnings').checked = false;
+  document.getElementById('log-box').classList.remove('only-warnings');
   poll(id);
 }
 
@@ -837,11 +840,7 @@ async function poll(id) {
   renderNotify(job);
   announceJob(job, queue);
 
-  const log = document.getElementById('job-log');
-  log.innerHTML = events
-    .map((ev) => `<li class="log-${ev.level}"><strong>${escapeHtml(PHASE_LABELS[ev.phase] || ev.phase)}</strong> — ${escapeHtml(ev.message)}</li>`)
-    .join('');
-  log.scrollTop = log.scrollHeight;
+  renderLog(events);
 
   if (job.status === 'completed') {
     const resultBox = document.getElementById('job-result');
@@ -1465,6 +1464,78 @@ function idleSeconds(p) {
 function formatAgo(sec) {
   return sec < 60 ? `${Math.max(5, Math.round(sec / 5) * 5)} s` : `${Math.round(sec / 60)} min`;
 }
+
+// ---------------------------------------------------------------- registro de Hermes
+
+let lastLogKey = '';
+
+/** Registro con la hora de cada línea, avisos y errores marcados y contados en el título (se ven aunque
+ *  el registro esté plegado) y filtro "Solo avisos y errores". Solo se repinta si llegan líneas nuevas:
+ *  así no se cierran las notas largas que alguien haya abierto (2026-09-28). */
+function renderLog(events) {
+  const key = `${currentJob}:${events.length}`;
+  if (key === lastLogKey) return;
+  lastLogKey = key;
+  const warnings = events.filter((ev) => ev.level === 'error').length;
+  document.getElementById('log-count').innerHTML =
+    `· ${events.length} línea${events.length === 1 ? '' : 's'}` +
+    (warnings ? ` · <span class="warn">${warnings} aviso${warnings === 1 ? '' : 's'} o error${warnings === 1 ? '' : 'es'}</span>` : '');
+  document.getElementById('log-filter').hidden = !warnings;
+  const log = document.getElementById('job-log');
+  log.innerHTML = events
+    .map((ev) => {
+      const when = new Date(ev.ts);
+      const time = isNaN(when) ? '' : when.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const phase = ev.phase && ev.phase !== 'hermes' ? `<strong>${escapeHtml(PHASE_LABELS[ev.phase] || ev.phase)}</strong> — ` : '';
+      const text = String(ev.message || '');
+      // Las notas finales de Hermes ocupan pantallas enteras: plegadas, con el principio a la vista.
+      const msg =
+        text.length > 280
+          ? `<details><summary>${phase}${escapeHtml(text.slice(0, 160))}…</summary>${escapeHtml(text)}</details>`
+          : phase + escapeHtml(text);
+      return `<li class="log-${escapeHtml(ev.level)}"><time datetime="${escapeHtml(ev.ts || '')}">${time}</time><span class="msg">${msg}</span></li>`;
+    })
+    .join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+document.getElementById('log-only-warnings').addEventListener('change', (e) => {
+  document.getElementById('log-box').classList.toggle('only-warnings', e.target.checked);
+});
+
+// ---------------------------------------------------------------- tema claro / oscuro
+
+const THEMES = ['auto', 'light', 'dark'];
+const THEME_LABEL = { auto: 'automático (como el sistema)', light: 'claro', dark: 'oscuro' };
+const THEME_ICON = { auto: '◐', light: '☀', dark: '☾' };
+
+function currentStudioTheme() {
+  const t = document.documentElement.getAttribute('data-theme');
+  return t === 'light' || t === 'dark' ? t : 'auto';
+}
+
+function renderThemeBtn() {
+  const t = currentStudioTheme();
+  const btn = document.getElementById('theme-btn');
+  btn.textContent = THEME_ICON[t];
+  btn.setAttribute('aria-label', `Tema: ${THEME_LABEL[t]}. Pulsa para cambiar.`);
+  btn.title = `Tema: ${THEME_LABEL[t]}`;
+}
+
+document.getElementById('theme-btn').addEventListener('click', () => {
+  const next = THEMES[(THEMES.indexOf(currentStudioTheme()) + 1) % THEMES.length];
+  if (next === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', next);
+  try {
+    if (next === 'auto') localStorage.removeItem('studioTheme');
+    else localStorage.setItem('studioTheme', next);
+  } catch {
+    // sin almacenamiento: vale para esta visita
+  }
+  renderThemeBtn();
+  showToast(`Tema ${THEME_LABEL[next]}.`);
+});
+renderThemeBtn();
 
 // ---------------------------------------------------------------- lectores de pantalla
 

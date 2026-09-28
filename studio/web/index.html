@@ -4,6 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#050c2a" />
+  <!-- Tema elegido a mano (Claro/Oscuro): se aplica antes de pintar para que no parpadee. Sin elección, sigue al sistema. -->
+  <script>
+    try {
+      var t = localStorage.getItem('studioTheme');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
   <title>Hermes Studio · Feebbo</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,7 +23,10 @@
     <a class="brand" href="/" aria-label="Hermes Studio — inicio">
       <img src="/feebbo-logo.svg" alt="Feebbo Digital" width="99" height="36" />
     </a>
-    <a id="hermes-status" class="status-pill">Comprobando Hermes…</a>
+    <div class="topbar-side">
+      <a id="hermes-status" class="status-pill">Comprobando Hermes…</a>
+      <button id="theme-btn" type="button" class="theme-btn" aria-label="Tema: automático (como el sistema)" title="Tema: automático (como el sistema)">◐</button>
+    </div>
   </header>
 
   <main id="app">
@@ -270,7 +280,11 @@
       </details>
 
       <details class="log-box" id="log-box">
-        <summary>Registro de Hermes</summary>
+        <summary>Registro de Hermes <span id="log-count" class="log-count"></span></summary>
+        <label class="toggle log-filter" id="log-filter" hidden>
+          <input type="checkbox" id="log-only-warnings" />
+          <span>Solo avisos y errores</span>
+        </label>
         <ol id="job-log"></ol>
       </details>
 
