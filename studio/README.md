@@ -91,6 +91,12 @@ estimado, el progreso en el título de la pestaña y "Avisarme cuando termine" (
 navegador, con la pestaña abierta). Los avisos y errores salen dentro de la página, sin ventanas
 emergentes del navegador.
 
+**Versiones** (2026-09-28): cada "Pedir cambios" o "Adaptar a móvil" es una versión de la newsletter
+de la que sale. La página del trabajo lista todas las versiones y enlaza con la anterior; en una
+versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la anterior
+(`studio/web/compare.js`, con tests) y "Antes y después" muestra las dos vistas previas lado a lado.
+El historial agrupa cada familia (la original y debajo sus versiones).
+
 La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El desplegable de marcas combina las del
 volumen de Railway y las del Mac del worker. Si el prompt no menciona la marca elegida, Studio pide
 confirmación antes de encolarlo.

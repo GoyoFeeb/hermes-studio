@@ -1,0 +1,2 @@
+# Los tests se quedan en el repo: no se publican en Vercel.
+*.test.js

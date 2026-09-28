@@ -29,6 +29,7 @@ import {
   readResultNotes,
   resultMeta,
   queueInfo,
+  versionFamily,
   sanitizeQuality,
   needsBrief,
   completeStandaloneJob,
@@ -436,6 +437,7 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
     notes: readResultNotes(job),
     meta: resultMeta(job),
     queue: queueInfo(job),
+    versions: versionFamily(job),
     hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000,
   });
 });

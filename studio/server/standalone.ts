@@ -360,6 +360,50 @@ export function queueInfo(job: Job): { ahead: number; startsInSec: number } | nu
   return { ahead: running.length + queuedAhead.length, startsInSec: seconds };
 }
 
+export interface JobVersion {
+  id: string;
+  number: number;
+  createdAt: string;
+  status: Job['status'];
+  kind: 'original' | 'revision' | 'mobile-fix';
+  parentId: string | null;
+  changeRequest: string | null;
+}
+
+function parentIdOf(job: Job): string | null {
+  return job.input.revisionOf || job.input.mobileFixOf || null;
+}
+
+/** Todas las versiones de una newsletter (2026-09-28): la original y los "Pedir cambios" y "Adaptar
+ *  a móvil" que cuelgan de ella, directa o indirectamente, numeradas por orden de creación. */
+export function versionFamily(job: Job): JobVersion[] {
+  const all = listJobs().filter((j) => j.input.mode === 'standalone');
+  const byId = new Map(all.map((j) => [j.id, j]));
+  const rootOf = (j: Job): string => {
+    let cur = j;
+    for (let i = 0; i < 50; i++) {
+      const parent = parentIdOf(cur);
+      const next = parent ? byId.get(parent) : undefined;
+      if (!next) return cur.id;
+      cur = next;
+    }
+    return cur.id;
+  };
+  const root = rootOf(job);
+  return all
+    .filter((j) => rootOf(j) === root)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((j, i) => ({
+      id: j.id,
+      number: i + 1,
+      createdAt: j.createdAt,
+      status: j.status,
+      kind: j.input.revisionOf ? 'revision' : j.input.mobileFixOf ? 'mobile-fix' : 'original',
+      parentId: parentIdOf(j),
+      changeRequest: j.input.changeRequest ? j.input.changeRequest.slice(0, 300) : null,
+    }));
+}
+
 /** Autoauditoría de Hermes (notas.md) de un trabajo terminado, para el panel de revisión. */
 export function readResultNotes(job: Job): string | null {
   if (job.status !== 'completed' || !job.campaignRelPath) return null;

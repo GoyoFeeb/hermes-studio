@@ -208,8 +208,43 @@ function filteredJobs() {
   });
 }
 
+/** Familias de versiones (2026-09-28): cada "Pedir cambios" o "Adaptar a móvil" cuelga de la newsletter
+ *  de la que sale. Número de versión por orden de creación y fecha de la última versión de la familia. */
+function familyInfo(jobs) {
+  const byId = new Map(jobs.map((j) => [j.id, j]));
+  const parentOf = (j) => j.revisionOf || j.mobileFixOf || null;
+  const rootOf = (j) => {
+    let cur = j;
+    for (let i = 0; i < 50; i++) {
+      const next = byId.get(parentOf(cur));
+      if (!next) return cur.id;
+      cur = next;
+    }
+    return cur.id;
+  };
+  const families = new Map();
+  for (const j of jobs) {
+    const root = rootOf(j);
+    if (!families.has(root)) families.set(root, []);
+    families.get(root).push(j);
+  }
+  const info = new Map();
+  for (const [root, members] of families) {
+    members.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const latest = members[members.length - 1].createdAt;
+    members.forEach((j, i) => info.set(j.id, { root, number: i + 1, size: members.length, latest }));
+  }
+  return info;
+}
+
 function renderHistory() {
-  const list = filteredJobs();
+  // Cada familia junta (la original y debajo sus versiones), ordenadas por su versión más reciente.
+  const info = familyInfo(historyState.jobs);
+  const list = filteredJobs().sort((a, b) => {
+    const fa = info.get(a.id);
+    const fb = info.get(b.id);
+    return fb.latest.localeCompare(fa.latest) || fa.root.localeCompare(fb.root) || fa.number - fb.number;
+  });
   const visible = list.slice(0, historyState.shown);
   const total = historyState.jobs.length;
   document.getElementById('history-count').textContent =
@@ -221,7 +256,9 @@ function renderHistory() {
     .map((j) => {
       const id = encodeURIComponent(j.id);
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
-      const meta = [when, j.requesterName, j.revisionOf ? 'Cambios sobre otra versión' : j.mobileFixOf ? 'Adaptación a móvil' : j.fromInstruction ? 'Desde instrucción' : null, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
+      const fam = info.get(j.id);
+      const version = fam.size > 1 ? `<span class="version-tag">Versión ${fam.number}${fam.number === 1 ? ` de ${fam.size}` : ''}</span> · ` : '';
+      const meta = version + [when, j.requesterName, j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.fromInstruction ? 'Desde instrucción' : null, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
@@ -232,7 +269,7 @@ function renderHistory() {
         j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
         `<button type="button" class="btn btn-secondary" data-reuse="${escapeHtml(j.id)}">Reutilizar</button>`,
       ].join('');
-      return `<li class="job-row">
+      return `<li class="job-row${fam.number > 1 ? ' is-version' : ''}">
           <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}</a>
           <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(label)}</span>
           <p class="meta">${meta}</p>
@@ -434,6 +471,9 @@ function showJobView(id) {
   reviseBtn.setAttribute('aria-expanded', 'false');
   resetCancel();
   document.getElementById('preview-frame').removeAttribute('src');
+  resetCompare();
+  document.getElementById('versions').hidden = true;
+  document.getElementById('job-parent').hidden = true;
   document.getElementById('brief-box').hidden = true;
   document.getElementById('brief-box').open = false;
   document.getElementById('brief-text').textContent = '';
@@ -451,7 +491,8 @@ async function poll(id) {
     document.getElementById('job-title').textContent = 'Trabajo no encontrado';
     return;
   }
-  const { job, events, notes, meta, queue, hermesOnline } = await res.json();
+  const { job, events, notes, meta, queue, hermesOnline, versions } = await res.json();
+  renderVersions(job, versions || []);
   updateTabTitle(job);
   maybeNotify(job);
 
@@ -504,6 +545,7 @@ async function poll(id) {
       renderReview(job.quality, notes);
       renderMeta(meta);
       loadResultHtml(id);
+      setupCompare(job, versions || []);
     }
     return;
   }
@@ -741,24 +783,145 @@ function readPreviewView() {
 }
 
 function applyPreviewView(view) {
-  const device = document.getElementById('preview-device');
   const stage = document.getElementById('preview-stage');
-  device.classList.toggle('is-mobile', view === 'mobile');
+  const compare = stage.classList.contains('is-compare');
   document.querySelector(`input[name="previewView"][value="${view}"]`).checked = true;
-  device.style.transform = '';
-  stage.style.height = '';
-  // Si el ancho real no cabe (pantallas pequeñas), se escala todo el dispositivo en vez de
-  // estrecharlo: así el email se ve exactamente como a ese ancho.
-  const available = stage.clientWidth - 32;
-  const needed = device.offsetWidth;
+  const cols = [['preview-col-after', 'preview-device']];
+  if (compare) cols.unshift(['preview-col-before', 'preview-device-before']);
+  for (const [colId, deviceId] of cols) {
+    const device = document.getElementById(deviceId);
+    const col = document.getElementById(colId);
+    device.classList.toggle('is-mobile', view === 'mobile');
+    device.style.transform = '';
+    col.style.width = '';
+    col.style.height = '';
+  }
+  // Si el ancho real no cabe (pantallas pequeñas, o dos versiones lado a lado), se escala todo el
+  // dispositivo en vez de estrecharlo: así el email se ve exactamente como a ese ancho.
+  const gap = 16;
+  const available = (stage.clientWidth - 32 - (compare ? gap : 0)) / (compare ? 2 : 1);
+  const needed = document.getElementById('preview-device').offsetWidth;
   const scale = needed > available && available > 0 ? available / needed : 1;
   if (scale < 1) {
-    device.style.transform = `scale(${scale})`;
-    stage.style.height = `${Math.ceil(device.offsetHeight * scale) + 48}px`;
+    for (const [colId, deviceId] of cols) {
+      const device = document.getElementById(deviceId);
+      const col = document.getElementById(colId);
+      const label = col.querySelector('.preview-label');
+      const labelHeight = label && !label.hidden ? label.offsetHeight + 8 : 0;
+      device.style.transform = `scale(${scale})`;
+      col.style.width = `${Math.floor(needed * scale)}px`;
+      col.style.height = `${Math.ceil(device.offsetHeight * scale) + labelHeight}px`;
+    }
   }
   document.getElementById('preview-size').textContent =
     PREVIEW_VIEWS[view].label + (scale < 1 ? ` · al ${Math.round(scale * 100)} %` : '');
 }
+
+// ---------------------------------------------------------------- versiones y comparación
+
+const VERSION_KIND = { original: 'Original', revision: 'Cambios', 'mobile-fix': 'Adaptación a móvil' };
+
+function renderVersions(job, versions) {
+  const self = versions.find((v) => v.id === job.id);
+  const parent = self && versions.find((v) => v.id === self.parentId);
+  const parentEl = document.getElementById('job-parent');
+  parentEl.hidden = !parent;
+  if (parent) {
+    const link = document.getElementById('job-parent-link');
+    link.href = `?job=${encodeURIComponent(parent.id)}`;
+    link.textContent = `la versión ${parent.number}`;
+  }
+  const nav = document.getElementById('versions');
+  nav.hidden = versions.length < 2;
+  if (nav.hidden) return;
+  document.getElementById('versions-list').innerHTML = versions
+    .map((v) => {
+      const desc = v.kind === 'revision' && v.changeRequest ? `«${v.changeRequest}»` : VERSION_KIND[v.kind];
+      const state = v.status === 'completed' ? '' : STATUS_LABELS[v.status] || v.status;
+      return `<li${v.id === job.id ? ' aria-current="page"' : ''}>
+          <a href="?job=${encodeURIComponent(v.id)}">Versión ${v.number}</a>
+          <span class="v-desc">${escapeHtml(desc)}</span>
+          ${state ? `<span class="v-state">${escapeHtml(state)}</span>` : ''}
+        </li>`;
+    })
+    .join('');
+}
+
+let compareParent = null;
+
+function resetCompare() {
+  compareParent = null;
+  document.getElementById('compare').hidden = true;
+  document.getElementById('compare-toggle-wrap').hidden = true;
+  document.getElementById('compare-toggle').checked = false;
+  document.getElementById('preview-stage').classList.remove('is-compare');
+  document.getElementById('preview-col-before').hidden = true;
+  document.getElementById('preview-label-after').hidden = true;
+  document.getElementById('preview-frame-before').removeAttribute('src');
+}
+
+async function fetchResult(id) {
+  const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/result`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}
+
+// "Qué ha cambiado" respecto a la versión de la que sale (compare.js): texto por bloques, enlaces e
+// imágenes. Sirve para confirmar que Hermes solo tocó lo pedido.
+async function setupCompare(job, versions) {
+  const self = versions.find((v) => v.id === job.id);
+  const parent = self && versions.find((v) => v.id === self.parentId);
+  if (!parent || parent.status !== 'completed' || !window.HermesCompare) return;
+  const id = job.id;
+  let before;
+  let after;
+  try {
+    [before, after] = await Promise.all([fetchResult(parent.id), fetchResult(id)]);
+  } catch {
+    return;
+  }
+  if (id !== currentJob) return;
+  compareParent = parent;
+  const diff = window.HermesCompare.compareVersions(before, after);
+  const items = [];
+  const group = (title, list) => {
+    if (list.length) items.push(`<li class="group">${escapeHtml(title)}</li>`, ...list);
+  };
+  group(
+    'Texto',
+    diff.text.map((d) => `<li class="is-${d.type}">${escapeHtml(d.text)}</li>`)
+  );
+  group('Enlaces', [
+    ...diff.links.removed.map((u) => `<li class="is-removed">${escapeHtml(u)}</li>`),
+    ...diff.links.added.map((u) => `<li class="is-added">${escapeHtml(u)}</li>`),
+  ]);
+  group('Imágenes', [
+    ...diff.images.removed.map((u) => `<li class="is-removed">${escapeHtml(u.split('/').pop())}</li>`),
+    ...diff.images.added.map((u) => `<li class="is-added">${escapeHtml(u.split('/').pop())}</li>`),
+  ]);
+  const changes = diff.text.length + diff.links.removed.length + diff.links.added.length + diff.images.removed.length + diff.images.added.length;
+  const summary = document.getElementById('compare-summary');
+  summary.textContent = diff.unchanged ? 'Sin cambios de contenido' : `${changes} cambio${changes === 1 ? '' : 's'}`;
+  summary.className = `review-summary ${diff.unchanged ? 'is-warning' : 'is-ok'}`;
+  document.getElementById('compare-base').textContent = diff.unchanged
+    ? `El texto, los enlaces y las imágenes son iguales que en la versión ${parent.number}${job.input.mobileFixOf ? ' (normal en una adaptación a móvil: solo cambia el diseño).' : '. Puede que solo cambiara el diseño.'}`
+    : `Respecto a la versión ${parent.number}. En rojo lo que se quitó y en verde lo que se añadió.`;
+  document.getElementById('compare-list').innerHTML = items.join('');
+  document.getElementById('compare').hidden = false;
+  document.getElementById('compare-toggle-wrap').hidden = false;
+  document.getElementById('preview-label-before').textContent = `Antes · versión ${parent.number}`;
+  document.getElementById('preview-label-after').textContent = `Después · versión ${self.number}`;
+}
+
+document.getElementById('compare-toggle').addEventListener('change', (e) => {
+  const on = e.target.checked && !!compareParent;
+  document.getElementById('preview-stage').classList.toggle('is-compare', on);
+  document.getElementById('preview-col-before').hidden = !on;
+  document.getElementById('preview-label-after').hidden = !on;
+  const before = document.getElementById('preview-frame-before');
+  if (on && !before.getAttribute('src')) before.src = `/api/jobs/${encodeURIComponent(compareParent.id)}/result`;
+  applyPreviewView(readCheckedView());
+});
 
 document.querySelectorAll('input[name="previewView"]').forEach((r) =>
   r.addEventListener('change', () => {

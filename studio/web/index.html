@@ -123,9 +123,15 @@
           <h2 id="job-title"></h2>
           <p id="job-meta" class="hint"></p>
           <p id="job-change" class="change-request" hidden></p>
+          <p id="job-parent" class="hint" hidden>Hecha a partir de <a id="job-parent-link" href="#"></a>.</p>
         </div>
         <div id="job-status" class="status-badge"></div>
       </div>
+
+      <nav class="versions" id="versions" aria-label="Versiones de esta newsletter" hidden>
+        <p class="eyebrow">Versiones</p>
+        <ol id="versions-list"></ol>
+      </nav>
 
       <div id="job-progress" hidden>
         <div class="progress-head">
@@ -201,16 +207,38 @@
           </details>
         </section>
 
+        <section class="compare" id="compare" aria-labelledby="compare-title" hidden>
+          <div class="review-head">
+            <h3 id="compare-title">Qué ha cambiado</h3>
+            <span id="compare-summary" class="review-summary"></span>
+          </div>
+          <p id="compare-base" class="hint"></p>
+          <ul id="compare-list" class="compare-list"></ul>
+        </section>
+
         <div class="preview-head">
           <div class="segmented view-toggle" role="radiogroup" aria-label="Tamaño de la vista previa">
             <label><input type="radio" name="previewView" value="desktop" checked /><span>Escritorio</span></label>
             <label><input type="radio" name="previewView" value="mobile" /><span>Móvil</span></label>
           </div>
+          <label class="toggle" id="compare-toggle-wrap" hidden>
+            <input type="checkbox" id="compare-toggle" />
+            <span>Antes y después</span>
+          </label>
           <span class="hint" id="preview-size"></span>
         </div>
         <div class="preview-stage" id="preview-stage">
-          <div class="preview-device" id="preview-device">
-            <iframe id="preview-frame" sandbox title="Previsualización de la newsletter"></iframe>
+          <div class="preview-col" id="preview-col-before" hidden>
+            <p class="preview-label" id="preview-label-before"></p>
+            <div class="preview-device" id="preview-device-before">
+              <iframe id="preview-frame-before" sandbox title="Versión anterior de la newsletter"></iframe>
+            </div>
+          </div>
+          <div class="preview-col" id="preview-col-after">
+            <p class="preview-label" id="preview-label-after" hidden></p>
+            <div class="preview-device" id="preview-device">
+              <iframe id="preview-frame" sandbox title="Previsualización de la newsletter"></iframe>
+            </div>
           </div>
         </div>
       </div>
@@ -247,6 +275,7 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+  <script src="/compare.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -700,3 +700,20 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 
 - **Desplegado (con permiso del usuario):** `5a95ec2` → Railway SUCCESS 10:55; Vercel sirve la interfaz
   nueva. Worker sin cambios (no hizo falta reiniciarlo).
+
+### 2026-09-28 (continuación) — Mejoras de interfaz 2 y 3: versiones y comparación
+
+- **Elegidas por el usuario.** Solo Studio.
+- **2. Versiones enlazadas:** `versionFamily` en `GET /api/jobs/:id` (raíz siguiendo `revisionOf`/
+  `mobileFixOf`, numeradas por creación); la página del trabajo muestra "Hecha a partir de la versión N"
+  y la lista de versiones; el historial agrupa cada familia (ordenada por su versión más reciente, las
+  derivadas sangradas con "Versión N").
+- **3. Comparar:** `studio/web/compare.js` (sin DOM, probado con `node --test`, 5 tests): texto visible
+  por bloques (LCS), enlaces e imágenes (por nombre `img-{hash}`: la misma imagen republicada en otra
+  carpeta no cuenta). Panel "Qué ha cambiado" y conmutador "Antes y después" (dos vistas previas
+  escaladas lado a lado). `.vercelignore` para no publicar los tests.
+- **Verificación:** copia aislada en el navegador: panel con el cambio exacto de titular, lado a lado
+  al 45 %, historial agrupado, 375 px sin desbordes. Las capturas del navegador integrado muestran en
+  blanco los marcos aislados (ya pasaba antes); el HTML servido se comprobó abriéndolo directamente.
+  `npm test` 92/92.
+
