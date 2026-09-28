@@ -869,6 +869,19 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-28 (tarde) — Interfaz: avisos que llevan al sitio y cambios resaltados en la pieza
+
+- **"Ver" en la revisión y en "Qué ha cambiado"** (`studio/web/locate.js` + tests): cada detalle se traduce a un
+  localizador (URL de enlace/imagen, n-ésima imagen sin alt/width, flex, contexto del claim, desborde) sin
+  cambiar el formato del control de calidad. El botón solo aparece si el elemento está en la vista previa
+  (lo quitado y el desborde, siempre: se buscan al pulsar, en la versión anterior o con la vista en móvil).
+  Baja hasta el elemento centrado y lo hace parpadear en naranja 3 s.
+- **Resaltar cambios**: verde lo añadido en esta versión y rojo lo quitado en la anterior ("Antes y
+  después"). Se recuerda en el navegador; oculto si no hay cambios de contenido (adaptaciones a móvil).
+- Probado en copia aislada con Nike v1 → v2 y una revisión inyectada con 5 avisos (4 localizables, modo
+  oscuro no); desborde simulado con una tabla de 420 px; 375 px sin desborde; capturas con Playwright.
+  118/118 tests.
+
 ### 2026-09-28 (tarde) — Interfaz: señalar en la vista previa, atajos, bandeja de entrada e historial por newsletter
 
 - **Señalar en la vista previa** (`studio/web/pick.js` + tests, app.js): en "Pedir cambios", clic sobre la

@@ -104,6 +104,14 @@ emergentes del navegador.
 de la que sale. La página del trabajo lista todas las versiones y enlaza con la anterior; en una
 versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la anterior
 (`studio/web/compare.js`, con tests) y "Antes y después" muestra las dos vistas previas lado a lado.
+"Resaltar cambios" marca sobre la propia pieza lo añadido (verde) y, en "Antes y después", lo quitado en
+la versión anterior (rojo).
+
+**Ver en la pieza** (2026-09-28): cada aviso de la revisión automática que apunta a un sitio concreto
+(enlace roto, imagen, claim, imagen sin alt o sin width, flex, desborde en móvil) y cada línea de "Qué ha
+cambiado" llevan un botón "Ver" que baja hasta ese elemento en la vista previa y lo hace parpadear. El
+desborde se busca midiendo la pieza con la vista en móvil. Qué detalle lleva a qué elemento está en
+`studio/web/locate.js` (con tests); los avisos generales (modo oscuro, peso, preheader) no llevan botón.
 El historial muestra una fila por newsletter con la versión más reciente (la más reciente que cumple
 el filtro, si hay uno) y las demás plegadas en "Ver las otras N versiones".
 

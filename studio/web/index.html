@@ -284,6 +284,10 @@
             <input type="checkbox" id="compare-toggle" />
             <span>Antes y después</span>
           </label>
+          <label class="toggle" id="highlight-toggle-wrap" title="Verde: lo añadido en esta versión. Rojo (en «Antes y después»): lo que se quitó." hidden>
+            <input type="checkbox" id="highlight-toggle" checked />
+            <span>Resaltar cambios</span>
+          </label>
           <span class="hint" id="preview-size"></span>
         </div>
         <p class="hint theme-hint" id="theme-hint" hidden></p>
@@ -359,6 +363,7 @@
   <script src="/markdown.js"></script>
   <script src="/compare.js"></script>
   <script src="/pick.js"></script>
+  <script src="/locate.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

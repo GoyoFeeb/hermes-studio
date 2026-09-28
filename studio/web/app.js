@@ -831,7 +831,12 @@ const pick = { active: false, picked: [], hover: null };
 const PICK_CSS =
   '[data-studio-hover]{outline:3px solid #e6007e!important;outline-offset:-3px;cursor:crosshair!important}' +
   '[data-studio-picked]{outline:3px dashed #8a3ffc!important;outline-offset:-3px}' +
-  'html[data-studio-picking] *{cursor:crosshair!important}';
+  'html[data-studio-picking] *{cursor:crosshair!important}' +
+  // Cambios resaltados (verde: añadido en esta versión; rojo: quitado, en la anterior) y "Ver en la pieza".
+  '[data-studio-added]{outline:3px solid #1db980!important;outline-offset:-3px}' +
+  '[data-studio-removed]{outline:3px dashed #e5484d!important;outline-offset:-3px}' +
+  '[data-studio-flash]{outline:4px solid #ffb020!important;outline-offset:2px;animation:studio-flash .6s ease-in-out 4}' +
+  '@keyframes studio-flash{50%{outline-color:rgba(255,176,32,.15)}}';
 
 function previewDoc() {
   const frame = document.getElementById('preview-frame');
@@ -888,16 +893,21 @@ function clearHover(doc) {
   pick.hover = null;
 }
 
+function ensureStudioStyle(doc) {
+  if (doc.querySelector('style[data-studio-pick]')) return;
+  const style = doc.createElement('style');
+  style.setAttribute('data-studio-pick', '');
+  style.textContent = PICK_CSS;
+  (doc.head || doc.documentElement).appendChild(style);
+}
+
 /** Prepara el documento del marco: hoja de estilos, lo ya señalado y los oyentes. Se llama en cada carga. */
 function armPreview() {
   const doc = previewDoc();
   if (!doc || !doc.body) return;
-  if (!doc.querySelector('style[data-studio-pick]')) {
-    const style = doc.createElement('style');
-    style.setAttribute('data-studio-pick', '');
-    style.textContent = PICK_CSS;
-    (doc.head || doc.documentElement).appendChild(style);
-  }
+  ensureStudioStyle(doc);
+  markChanges('after');
+  annotateLocations();
   doc.querySelectorAll('[data-studio-picked]').forEach((el) => el.removeAttribute('data-studio-picked'));
   for (const path of pick.picked) byPath(doc, path)?.setAttribute('data-studio-picked', '');
   doc.documentElement.toggleAttribute('data-studio-picking', pick.active);
@@ -1346,6 +1356,8 @@ function plural(n, one, many) {
 
 // Control de calidad del worker (studio/worker/qualityCheck.ts) y autoauditoría de Hermes (notas.md):
 // lo que tiene que mirar quien revisa la pieza antes de enviarla, sin abrir el registro.
+let reviewChecks = [];
+
 function renderReview(quality, notes) {
   const summary = document.getElementById('review-summary');
   const list = document.getElementById('review-list');
@@ -1355,6 +1367,7 @@ function renderReview(quality, notes) {
   message.classList.remove('has-errors');
 
   if (!quality) {
+    reviewChecks = [];
     summary.textContent = '';
     list.innerHTML = '';
   } else {
@@ -1370,13 +1383,13 @@ function renderReview(quality, notes) {
       message.textContent = 'La newsletter está lista, pero tiene errores por revisar.';
       message.classList.add('has-errors');
     }
-    list.innerHTML = [...quality.checks]
-      .sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status])
-      .map((c) => {
+    reviewChecks = [...quality.checks].sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status]);
+    list.innerHTML = reviewChecks
+      .map((c, ci) => {
         const head = `<span class="check-dot" aria-hidden="true"></span><span class="check-label">${escapeHtml(c.label)}</span><span class="check-state">${escapeHtml(CHECK_STATE[c.status] || c.status)}</span>`;
         if (!c.details.length) return `<li class="check-${escapeHtml(c.status)}"><div class="check-line">${head}</div></li>`;
         const details = c.details
-          .map((d, i) => `<li class="${i < (c.errorCount || 0) ? 'is-error' : ''}">${escapeHtml(d)}</li>`)
+          .map((d, i) => `<li class="${i < (c.errorCount || 0) ? 'is-error' : ''}" data-check="${ci}" data-detail="${i}"><span>${escapeHtml(d)}</span></li>`)
           .join('');
         return `<li class="check-${escapeHtml(c.status)}"><details${c.status === 'ok' ? '' : ' open'}><summary>${head}</summary><ul class="check-details">${details}</ul></details></li>`;
       })
@@ -1470,9 +1483,14 @@ function renderVersions(job, versions) {
 }
 
 let compareParent = null;
+let compareDiff = null;
+let compareLocs = [];
 
 function resetCompare() {
   compareParent = null;
+  compareDiff = null;
+  compareLocs = [];
+  document.getElementById('highlight-toggle-wrap').hidden = true;
   document.getElementById('compare').hidden = true;
   document.getElementById('compare-toggle-wrap').hidden = true;
   document.getElementById('compare-toggle').checked = false;
@@ -1507,21 +1525,27 @@ async function setupCompare(job, versions) {
   compareParent = parent;
   compareBeforeHtml = before;
   const diff = window.HermesCompare.compareVersions(before, after);
+  compareDiff = diff;
+  compareLocs = [];
+  // Cada cambio lleva su localizador: lo añadido se busca en esta versión y lo quitado en la anterior.
+  const loc = (side, l) => ` data-loc="${compareLocs.push({ side, loc: l }) - 1}"`;
   const items = [];
   const group = (title, list) => {
     if (list.length) items.push(`<li class="group">${escapeHtml(title)}</li>`, ...list);
   };
   group(
     'Texto',
-    diff.text.map((d) => `<li class="is-${d.type}">${srChange(d.type)}${escapeHtml(d.text)}</li>`)
+    diff.text.map(
+      (d) => `<li class="is-${d.type}"${loc(d.type === 'added' ? 'after' : 'before', { kind: 'text', text: d.text })}><span>${srChange(d.type)}${escapeHtml(d.text)}</span></li>`
+    )
   );
   group('Enlaces', [
-    ...diff.links.removed.map((u) => `<li class="is-removed">${srChange('removed')}${escapeHtml(u)}</li>`),
-    ...diff.links.added.map((u) => `<li class="is-added">${srChange('added')}${escapeHtml(u)}</li>`),
+    ...diff.links.removed.map((u) => `<li class="is-removed"${loc('before', { kind: 'href', url: u })}><span>${srChange('removed')}${escapeHtml(u)}</span></li>`),
+    ...diff.links.added.map((u) => `<li class="is-added"${loc('after', { kind: 'href', url: u })}><span>${srChange('added')}${escapeHtml(u)}</span></li>`),
   ]);
   group('Imágenes', [
-    ...diff.images.removed.map((u) => `<li class="is-removed">${srChange('removed')}${escapeHtml(u.split('/').pop())}</li>`),
-    ...diff.images.added.map((u) => `<li class="is-added">${srChange('added')}${escapeHtml(u.split('/').pop())}</li>`),
+    ...diff.images.removed.map((u) => `<li class="is-removed"${loc('before', { kind: 'src', url: u })}><span>${srChange('removed')}${escapeHtml(u.split('/').pop())}</span></li>`),
+    ...diff.images.added.map((u) => `<li class="is-added"${loc('after', { kind: 'src', url: u })}><span>${srChange('added')}${escapeHtml(u.split('/').pop())}</span></li>`),
   ]);
   const changes = diff.text.length + diff.links.removed.length + diff.links.added.length + diff.images.removed.length + diff.images.added.length;
   const summary = document.getElementById('compare-summary');
@@ -1533,9 +1557,127 @@ async function setupCompare(job, versions) {
   document.getElementById('compare-list').innerHTML = items.join('');
   document.getElementById('compare').hidden = false;
   document.getElementById('compare-toggle-wrap').hidden = false;
+  document.getElementById('highlight-toggle-wrap').hidden = diff.unchanged;
+  markChanges('after');
+  annotateLocations();
   document.getElementById('preview-label-before').textContent = `Antes · versión ${parent.number}`;
   document.getElementById('preview-label-after').textContent = `Después · versión ${self.number}`;
 }
+
+// ---------------------------------------------------------------- avisos y cambios → sitio en la pieza
+
+/** Resaltar cambios (2026-09-28): verde lo añadido en esta versión y, en "Antes y después", rojo lo que
+ *  se quitó en la anterior. Se vuelve a pintar en cada carga del marco (tema, comparación). */
+function readHighlight() {
+  try {
+    return localStorage.getItem('highlightChanges') !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function markChanges(side) {
+  const frame = document.getElementById(side === 'before' ? 'preview-frame-before' : 'preview-frame');
+  const doc = frame.getAttribute('srcdoc') ? frame.contentDocument : null;
+  if (!doc || !doc.body) return;
+  const attr = side === 'before' ? 'data-studio-removed' : 'data-studio-added';
+  doc.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
+  if (!compareDiff || !document.getElementById('highlight-toggle').checked) return;
+  ensureStudioStyle(doc);
+  for (const loc of HermesLocate.changeLocators(compareDiff, side)) HermesLocate.find(doc, loc)?.setAttribute(attr, '');
+}
+
+document.getElementById('highlight-toggle').checked = readHighlight();
+document.getElementById('highlight-toggle').addEventListener('change', (e) => {
+  try {
+    localStorage.setItem('highlightChanges', e.target.checked ? '1' : '0');
+  } catch {
+    // sin almacenamiento: solo dura esta visita
+  }
+  markChanges('after');
+  markChanges('before');
+});
+
+function frameDoc(side) {
+  const frame = document.getElementById(side === 'before' ? 'preview-frame-before' : 'preview-frame');
+  return frame.getAttribute('srcdoc') ? frame.contentDocument : null;
+}
+
+/** Botón "Ver" en cada aviso y cada cambio que se encuentra en la vista previa. Lo que se sale del ancho
+ *  en móvil siempre lo lleva: se busca al pulsar, con la vista en móvil. Lo quitado se busca en la
+ *  versión anterior, que solo se carga al compararlas: también lo lleva siempre. */
+function annotateLocations() {
+  const doc = frameDoc('after');
+  document.querySelectorAll('.locate-btn').forEach((b) => b.remove());
+  const add = (li, label) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'locate-btn';
+    btn.textContent = 'Ver';
+    btn.setAttribute('aria-label', `Ver en la vista previa: ${label}`);
+    li.appendChild(btn);
+  };
+  document.querySelectorAll('#review-list li[data-check]').forEach((li) => {
+    const check = reviewChecks[Number(li.dataset.check)];
+    const loc = check && HermesLocate.locatorsFor(check)[Number(li.dataset.detail)];
+    if (!loc) return;
+    if (loc.kind === 'overflow' || (doc && HermesLocate.find(doc, loc))) add(li, li.textContent);
+  });
+  document.querySelectorAll('#compare-list li[data-loc]').forEach((li) => {
+    const entry = compareLocs[Number(li.dataset.loc)];
+    if (!entry) return;
+    if (entry.side === 'before' || (doc && HermesLocate.find(doc, entry.loc))) add(li, li.textContent);
+  });
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function goToLocation(loc, side) {
+  if (loc.kind === 'overflow' && readCheckedView() !== 'mobile') {
+    document.querySelector('input[name="previewView"][value="mobile"]').checked = true;
+    applyPreviewView('mobile');
+    await wait(50);
+    fitFrames();
+  }
+  if (side === 'before' && !document.getElementById('compare-toggle').checked) document.getElementById('compare-toggle').click();
+  let el = null;
+  for (let i = 0; i < 15 && !el; i++) {
+    el = HermesLocate.find(frameDoc(side), loc);
+    if (!el) await wait(200); // la versión anterior se está cargando
+  }
+  if (!el) {
+    showToast('No aparece en la vista previa: puede estar oculto a este ancho.');
+    return;
+  }
+  const frame = document.getElementById(side === 'before' ? 'preview-frame-before' : 'preview-frame');
+  const device = frame.closest('.preview-device');
+  const t = getComputedStyle(device).transform;
+  const scale = t && t !== 'none' ? new DOMMatrix(t).a : 1;
+  const r = el.getBoundingClientRect();
+  const top = frame.getBoundingClientRect().top + window.scrollY + r.top * scale;
+  const height = r.height * scale;
+  window.scrollTo({ top: Math.max(0, top - Math.max(80, (window.innerHeight - height) / 2)), behavior: 'smooth' });
+  frameDoc(side)?.querySelectorAll('[data-studio-flash]').forEach((x) => x.removeAttribute('data-studio-flash'));
+  ensureStudioStyle(el.ownerDocument);
+  el.setAttribute('data-studio-flash', '');
+  setTimeout(() => el.removeAttribute('data-studio-flash'), 3000);
+}
+
+document.getElementById('review-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('.locate-btn');
+  if (!btn) return;
+  e.preventDefault(); // dentro de <summary> no pliega el grupo
+  const li = btn.closest('li[data-check]');
+  const check = reviewChecks[Number(li.dataset.check)];
+  const loc = HermesLocate.locatorsFor(check)[Number(li.dataset.detail)];
+  if (loc) goToLocation(loc, 'after');
+});
+document.getElementById('compare-list').addEventListener('click', (e) => {
+  const btn = e.target.closest('.locate-btn');
+  if (!btn) return;
+  const entry = compareLocs[Number(btn.closest('li[data-loc]').dataset.loc)];
+  if (entry) goToLocation(entry.loc, entry.side);
+});
 
 document.getElementById('compare-toggle').addEventListener('change', (e) => {
   const on = e.target.checked && !!compareParent;
@@ -1638,6 +1780,10 @@ function renderFrame(which) {
   frame.onload = () => {
     fitFrames();
     if (which !== 'before') armPreview();
+    else if (frame.contentDocument?.body) {
+      ensureStudioStyle(frame.contentDocument);
+      markChanges('before');
+    }
   };
   frame.srcdoc = themedHtml(html, theme);
 }

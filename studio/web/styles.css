@@ -936,3 +936,13 @@ body.has-sticky .foot { padding-bottom: 88px; }
 @media (max-width: 640px) {
   .family-toggle, .family-list { grid-column: 1 / -1; }
 }
+
+/* ---------------------------------------------------------------- Ver en la pieza (2026-09-28) */
+.check-details li[data-check], .compare-list li[data-loc] { display: flex; align-items: baseline; gap: 10px; }
+.check-details li[data-check] > span, .compare-list li[data-loc] > span { flex: 1 1 auto; min-width: 0; }
+.compare-list li[data-loc]::before { flex: none; }
+.locate-btn {
+  flex: none; padding: 1px 10px; border: 1px solid var(--border-strong); border-radius: var(--pill); background: none; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--text); text-decoration: none;
+}
+.locate-btn:hover { border-color: var(--pink); color: var(--accent-text); }
