@@ -39,24 +39,22 @@
           <p class="hint" id="kind-hint"></p>
         </fieldset>
 
-        <div class="row">
-          <label>
-            <span class="label">Marca</span>
-            <select name="existingBrand" id="existing-brand-select">
-              <option value="">— Marca nueva (no está en el sistema) —</option>
-            </select>
-          </label>
-
-          <label>
-            <span class="label">Nombre de la marca</span>
-            <input type="text" name="clientName" id="client-name-input" required placeholder="Ej: Adeslas" />
-          </label>
+        <div class="brand-field">
+          <label for="client-name-input"><span class="label">Marca</span></label>
+          <input type="text" name="clientName" id="client-name-input" list="brand-options" required autocomplete="off"
+            placeholder="Escribe o elige: Adeslas, Nike, El Corte Inglés…" aria-describedby="brand-match" />
+          <datalist id="brand-options"></datalist>
+          <input type="hidden" name="existingBrand" id="existing-brand-input" value="" />
+          <p class="hint brand-match" id="brand-match" aria-live="polite"></p>
         </div>
 
         <label>
           <span class="label" id="prompt-label">Instrucción</span>
           <textarea name="promptText" id="prompt-input" required rows="14"></textarea>
         </label>
+        <div class="examples" id="examples" hidden>
+          <span class="hint">Ejemplos:</span>
+        </div>
 
         <fieldset>
           <legend class="label">¿De dónde salen las imágenes?</legend>

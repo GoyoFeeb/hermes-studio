@@ -97,8 +97,9 @@ versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la 
 (`studio/web/compare.js`, con tests) y "Antes y después" muestra las dos vistas previas lado a lado.
 El historial agrupa cada familia (la original y debajo sus versiones).
 
-La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El desplegable de marcas combina las del
-volumen de Railway y las del Mac del worker. Si el prompt no menciona la marca elegida, Studio pide
+La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El campo de marca (uno solo desde el 2026-09-28) sugiere
+las del volumen de Railway y las del Mac del worker y dice debajo si lo escrito es una marca del
+sistema (usa su carpeta de `brands/`) o una nueva. En "Instrucción rápida" hay ejemplos pulsables. Si el prompt no menciona la marca elegida, Studio pide
 confirmación antes de encolarlo.
 
 El pipeline de 9 fases descrito abajo sigue en el código (`runner.ts`) pero ya no se ofrece en

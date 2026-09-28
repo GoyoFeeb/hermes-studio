@@ -719,3 +719,19 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 
 - **Desplegado (con permiso del usuario):** `c37d02b` → Railway SUCCESS 11:03; Vercel sirve `compare.js`
   idéntico al local y no publica los tests (404). Worker sin cambios.
+
+### 2026-09-28 (continuación) — Mejoras de interfaz 7 y 8: campo único de marca y ejemplos
+
+- **Elegidas por el usuario.** Solo la web de Studio (sin cambios de servidor ni de worker).
+- **7. Campo único de marca:** fuera el desplegable de carpeta + nombre (podían contradecirse: Prozis
+  con Adeslas, 2026-09-24). Un campo con sugerencias (`datalist`) y `existingBrand` oculto deducido:
+  `slugify` idéntico al del servidor, coincidencia exacta o sin guiones ("Para y Compara" →
+  paraycompara, "Óptica 2000" → optica2000). Debajo dice "Marca del sistema… (brands/x)" o "Marca
+  nueva… (se creará brands/y)". Nombres bonitos: los del historial si llevan a su carpeta, y una tabla
+  `BRAND_DISPLAY` para tildes/siglas. "Reutilizar" vuelve a la carpeta original si el nombre no lleva a ella.
+- **8. Ejemplos de instrucción:** 4 chips (Adeslas, Nike, El Corte Inglés, Apple) que rellenan instrucción
+  y marca; solo en "Instrucción rápida" y con la instrucción vacía o con otro ejemplo (no pisan texto propio).
+- **Verificación:** copia aislada en el navegador: coincidencias (El Corte Inglés, Para y Compara, Óptica
+  2000, inglesina → existentes; Prozis → nueva), ejemplos visibles/ocultos según el caso, envío real al
+  servidor (`brandMode` existing/new y `clientSlug` correctos), "Reutilizar" y 375 px sin desbordes.
+

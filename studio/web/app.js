@@ -2,17 +2,84 @@ const form = document.getElementById('brief-form');
 const viewForm = document.getElementById('view-form');
 const viewJob = document.getElementById('view-job');
 const hero = document.querySelector('.hero');
-const existingBrandSelect = document.getElementById('existing-brand-select');
 const clientNameInput = document.getElementById('client-name-input');
+const existingBrandInput = document.getElementById('existing-brand-input');
+
+// ---------------------------------------------------------------- campo único de marca
+// Antes había dos campos (desplegable de carpeta + nombre) que podían contradecirse: así se envió un
+// prompt de Prozis con la marca Adeslas (2026-09-24). Ahora se escribe el nombre y la página deduce si
+// es una marca del sistema (brands/{carpeta}) o una nueva, y lo dice debajo.
+let knownBrands = [];
+const brandNames = new Map(); // carpeta → nombre tal como lo escribió el equipo (del historial)
+
+/** Igual que slugify() de studio/server/campaignFs.ts: el servidor usa esta carpeta si no hay coincidencia. */
+function slugify(text) {
+  return String(text)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+/** Carpeta de brands/ que corresponde a lo escrito: exacta o sin guiones ("Para y Compara" →
+ *  paraycompara, "Óptica 2000" → optica2000). */
+function matchBrand(name) {
+  const slug = slugify(name);
+  if (!slug) return '';
+  if (knownBrands.includes(slug)) return slug;
+  const flat = slug.replace(/-/g, '');
+  return knownBrands.find((b) => b.replace(/-/g, '') === flat) || '';
+}
+
+/** Nombres que no se deducen de la carpeta (tildes, siglas, espacios). El resto: "new-balance" → "New Balance". */
+const BRAND_DISPLAY = {
+  'accion-contra-el-hambre': 'Acción contra el Hambre',
+  bmw: 'BMW',
+  byd: 'BYD',
+  'el-corte-ingles': 'El Corte Inglés',
+  feebboletter: 'Feebbo Letter',
+  'mercedes-amg': 'Mercedes-AMG',
+  msf: 'MSF',
+  optica2000: 'Óptica 2000',
+  paraycompara: 'Para y Compara',
+  uax: 'UAX',
+  wornwear: 'Worn Wear',
+};
+
+function brandDisplayName(slug) {
+  return brandNames.get(slug) || BRAND_DISPLAY[slug] || prettyBrand(slug);
+}
+
+function renderBrandOptions() {
+  document.getElementById('brand-options').innerHTML = knownBrands
+    .map((b) => `<option value="${escapeHtml(brandDisplayName(b))}"></option>`)
+    .join('');
+}
+
+function updateBrandMatch() {
+  const name = clientNameInput.value.trim();
+  const match = matchBrand(name);
+  const hint = document.getElementById('brand-match');
+  existingBrandInput.value = match;
+  hint.classList.toggle('is-existing', !!match);
+  hint.classList.toggle('is-new', !!name && !match);
+  hint.textContent = !name
+    ? ''
+    : match
+    ? `Marca del sistema: Hermes usará su brand pack y sus logos (brands/${match}).`
+    : `Marca nueva: Hermes la investigará desde cero (se creará brands/${slugify(name) || '…'}).`;
+}
+clientNameInput.addEventListener('input', updateBrandMatch);
 
 async function loadBrands() {
   try {
     const res = await fetch('/api/brands');
     const data = await res.json();
-    existingBrandSelect.insertAdjacentHTML(
-      'beforeend',
-      data.brands.map((b) => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')
-    );
+    knownBrands = data.brands || [];
+    renderBrandOptions();
+    updateBrandMatch();
   } catch (err) {
     console.error('No se pudieron cargar las marcas existentes', err);
   }
@@ -60,21 +127,54 @@ function applyKind() {
   input.placeholder = copy.placeholder;
   input.rows = copy.rows;
   input.style.minHeight = kind === 'instruction' ? '0' : '';
+  updateExamples();
 }
 form.querySelectorAll('input[name="inputKind"]').forEach((r) => r.addEventListener('change', applyKind));
-form.addEventListener('reset', () => setTimeout(applyKind));
+form.addEventListener('reset', () =>
+  setTimeout(() => {
+    applyKind();
+    updateBrandMatch();
+  })
+);
+
+// ---------------------------------------------------------------- ejemplos de instrucción
+// Para quien entra por primera vez: rellenan la instrucción y la marca. Solo con la instrucción vacía
+// (o con otro ejemplo): nunca pisan lo que alguien ha escrito.
+const EXAMPLES = [
+  { label: 'Adeslas · seguro dental', brand: 'Adeslas', text: 'quiero una newsletter de Adeslas para presentar su seguro dental a familias con niños' },
+  { label: 'Nike · lanzamiento', brand: 'Nike', text: 'newsletter de Nike para el lanzamiento de sus nuevas zapatillas de running' },
+  { label: 'El Corte Inglés · temporada', brand: 'El Corte Inglés', text: 'newsletter de El Corte Inglés con las novedades de moda de la nueva temporada' },
+  { label: 'Apple · producto', brand: 'Apple', text: 'newsletter de Apple presentando su último iPhone a clientes de España' },
+];
+const promptInput = document.getElementById('prompt-input');
+
+function updateExamples() {
+  const kind = form.querySelector('input[name="inputKind"]:checked')?.value;
+  const text = promptInput.value.trim();
+  document.getElementById('examples').hidden = kind !== 'instruction' || (!!text && !EXAMPLES.some((ex) => ex.text === text));
+}
+
+document.getElementById('examples').insertAdjacentHTML(
+  'beforeend',
+  EXAMPLES.map((ex, i) => `<button type="button" class="chip" data-example="${i}">${escapeHtml(ex.label)}</button>`).join('')
+);
+document.getElementById('examples').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-example]');
+  if (!chip) return;
+  const ex = EXAMPLES[Number(chip.dataset.example)];
+  promptInput.value = ex.text;
+  clientNameInput.value = ex.brand;
+  updateBrandMatch();
+  updateExamples();
+  promptInput.focus();
+});
+promptInput.addEventListener('input', updateExamples);
 
 function setKind(kind) {
   form.querySelector(`input[name="inputKind"][value="${kind}"]`).checked = true;
   applyKind();
 }
 
-// Al elegir una marca existente se rellena el nombre (editable, p. ej. "El Corte Inglés").
-existingBrandSelect.addEventListener('change', () => {
-  if (existingBrandSelect.value && !clientNameInput.value) {
-    clientNameInput.value = prettyBrand(existingBrandSelect.value);
-  }
-});
 
 // Avisos del formulario dentro de la página (antes, alert/confirm del navegador).
 const brandWarning = document.getElementById('brand-warning');
@@ -132,7 +232,8 @@ document.getElementById('brand-send-anyway').addEventListener('click', () => {
 });
 document.getElementById('brand-review').addEventListener('click', () => {
   clearFormNotices();
-  existingBrandSelect.focus();
+  clientNameInput.focus();
+  clientNameInput.select();
 });
 // Si se cambia algo del formulario, el aviso ya no corresponde a lo que se enviaría.
 form.addEventListener('input', () => {
@@ -174,6 +275,16 @@ async function loadHistory() {
   try {
     const { jobs } = await (await fetch('/api/jobs')).json();
     historyState.jobs = jobs;
+    // Nombres de marca tal como los escribe el equipo ("El Corte Inglés", no "El Corte Ingles"), solo
+    // si llevan a su carpeta: si no, la sugerencia no reconocería la marca.
+    let named = false;
+    for (const j of jobs) {
+      if (j.clientSlug && !brandNames.has(j.clientSlug) && slugify(j.clientName).replace(/-/g, '') === j.clientSlug.replace(/-/g, '')) {
+        brandNames.set(j.clientSlug, j.clientName);
+        named = true;
+      }
+    }
+    if (named) renderBrandOptions();
     document.getElementById('history').hidden = jobs.length === 0;
 
     const brandSelect = document.getElementById('history-brand');
@@ -318,8 +429,10 @@ async function reuseJob(id, { useBrief = false } = {}) {
   await brandsReady;
   form.reset();
   const slug = job.input.clientSlug || '';
-  existingBrandSelect.value = [...existingBrandSelect.options].some((o) => o.value === slug) ? slug : '';
-  clientNameInput.value = job.input.clientName || '';
+  clientNameInput.value = job.input.clientName || brandDisplayName(slug);
+  // Si el nombre de entonces no lleva a su carpeta ("SegurCaixa Adeslas" → adeslas), se usa el de la carpeta.
+  if (slug && knownBrands.includes(slug) && matchBrand(clientNameInput.value) !== slug) clientNameInput.value = brandDisplayName(slug);
+  updateBrandMatch();
   setKind(job.input.instruction ? 'instruction' : 'brief');
   document.getElementById('prompt-input').value = job.input.instruction || job.input.briefText || '';
   document.getElementById('requester-input').value = job.input.requesterName || '';

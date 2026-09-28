@@ -276,6 +276,16 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 
 .result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .result-bar p { margin: 0 auto 0 0; font-weight: 600; color: var(--success); }
+/* Campo único de marca y ejemplos de instrucción (2026-09-28) */
+.brand-field { margin-bottom: 20px; }
+.brand-field label { margin-bottom: 0; }
+.brand-match { min-height: 1.2em; }
+.brand-match.is-existing { color: var(--success); }
+.brand-match.is-new { color: var(--lilac); }
+.examples { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 20px; }
+.examples .hint { margin: 0 4px 0 0; }
+.examples .chip { text-transform: none; letter-spacing: 0.3px; font-family: 'Work Sans', sans-serif; font-weight: 500; font-size: 13px; }
+
 /* Avisos dentro de la página (sustituyen a alert/confirm del navegador) */
 .form-warning {
   margin: 0 0 16px;
