@@ -866,3 +866,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   Outlook) → sin errores; cambios sobre Puma → no se exige el modo oscuro heredado, sí Outlook que el retoque
   rompió. `npm test` 102/102.
 
+- **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
+  (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
