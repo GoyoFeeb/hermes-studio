@@ -201,6 +201,7 @@ document.getElementById('examples').addEventListener('click', (e) => {
   clientNameInput.value = ex.brand;
   updateBrandMatch();
   updateExamples();
+  scheduleDraftSave();
   promptInput.focus();
 });
 promptInput.addEventListener('input', updateExamples);
@@ -214,12 +215,16 @@ function setKind(kind) {
 // Avisos del formulario dentro de la página (antes, alert/confirm del navegador).
 const brandWarning = document.getElementById('brand-warning');
 const formError = document.getElementById('form-error');
+const vagueWarning = document.getElementById('vague-warning');
 let pendingPayload = null;
+let vaguePayload = null;
 
 function clearFormNotices() {
   brandWarning.hidden = true;
+  vagueWarning.hidden = true;
   formError.hidden = true;
   pendingPayload = null;
+  vaguePayload = null;
 }
 
 async function submitJob(payload) {
@@ -252,6 +257,7 @@ async function submitJob(payload) {
     } catch {
       // sin almacenamiento: no se recuerda
     }
+    clearDraft();
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
   } catch {
@@ -265,7 +271,26 @@ async function submitJob(payload) {
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
-  submitJob(Object.fromEntries(new FormData(form).entries()));
+  const payload = Object.fromEntries(new FormData(form).entries());
+  // Instrucción poco concreta (formcheck.js): se avisa antes de gastar 20 minutos de Hermes, sin bloquear.
+  const issues = HermesFormCheck.checkInstruction(payload.promptText, payload.inputKind, payload.clientName);
+  if (issues.length) {
+    clearFormNotices();
+    vaguePayload = payload;
+    document.getElementById('vague-list').innerHTML = issues.map((i) => `<li>${escapeHtml(i.message)}</li>`).join('');
+    vagueWarning.hidden = false;
+    document.getElementById('vague-complete').focus();
+    return;
+  }
+  submitJob(payload);
+});
+document.getElementById('vague-send-anyway').addEventListener('click', () => {
+  if (vaguePayload) submitJob(vaguePayload);
+});
+document.getElementById('vague-complete').addEventListener('click', () => {
+  clearFormNotices();
+  promptInput.focus();
+  promptInput.setSelectionRange(promptInput.value.length, promptInput.value.length);
 });
 document.getElementById('brand-send-anyway').addEventListener('click', () => {
   if (pendingPayload) submitJob({ ...pendingPayload, confirmBrand: true });
@@ -277,7 +302,83 @@ document.getElementById('brand-review').addEventListener('click', () => {
 });
 // Si se cambia algo del formulario, el aviso ya no corresponde a lo que se enviaría.
 form.addEventListener('input', () => {
-  if (!brandWarning.hidden) clearFormNotices();
+  if (!brandWarning.hidden || !vagueWarning.hidden) clearFormNotices();
+});
+
+// ---------------------------------------------------------------- borrador del formulario
+// Borrador (2026-09-28): lo escrito y sin enviar se guarda en este navegador y se recupera al volver,
+// con un aviso visible y "Descartar". No es el autorrelleno del navegador (que se desactiva con el
+// form.reset() del arranque): aquel se coló sin avisar y mezcló un prompt de Prozis con la marca Adeslas.
+const DRAFT_KEY = 'formDraft';
+const DRAFT_MAX_AGE = 14 * 24 * 3600 * 1000;
+let draftTimer = null;
+
+function readDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+    if (!d || Date.now() - d.savedAt > DRAFT_MAX_AGE || !(d.promptText || '').trim()) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft() {
+  const data = Object.fromEntries(new FormData(form).entries());
+  try {
+    if (!(data.promptText || '').trim()) {
+      localStorage.removeItem(DRAFT_KEY);
+      return;
+    }
+    localStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ inputKind: data.inputKind, clientName: data.clientName, promptText: data.promptText, imageMode: data.imageMode || '', savedAt: Date.now() })
+    );
+  } catch {
+    // sin almacenamiento: no hay borrador
+  }
+}
+
+function scheduleDraftSave() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 400);
+}
+
+function clearDraft() {
+  clearTimeout(draftTimer);
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // sin almacenamiento
+  }
+  document.getElementById('draft-note').hidden = true;
+}
+
+/** Rellena el formulario con el borrador (tras un form.reset) y lo dice. */
+async function restoreDraft() {
+  const d = readDraft();
+  document.getElementById('draft-note').hidden = true;
+  if (!d) return;
+  setKind(d.inputKind === 'brief' ? 'brief' : 'instruction');
+  clientNameInput.value = d.clientName || '';
+  promptInput.value = d.promptText;
+  const radio = d.imageMode && form.querySelector(`input[name="imageMode"][value="${CSS.escape(d.imageMode)}"]`);
+  if (radio) radio.checked = true;
+  updateExamples();
+  const min = Math.round((Date.now() - d.savedAt) / 60000);
+  const ago = min < 1 ? 'hace un momento' : min < 60 ? `hace ${min} min` : min < 48 * 60 ? `hace ${Math.round(min / 60)} h` : `hace ${Math.round(min / 1440)} días`;
+  document.getElementById('draft-note-text').textContent = `Borrador sin enviar recuperado (guardado ${ago}).`;
+  document.getElementById('draft-note').hidden = false;
+  await brandsReady;
+  updateBrandMatch();
+}
+
+form.addEventListener('input', scheduleDraftSave);
+form.addEventListener('change', scheduleDraftSave);
+document.getElementById('draft-discard').addEventListener('click', () => {
+  clearDraft();
+  form.reset();
+  promptInput.focus();
 });
 form.addEventListener('reset', clearFormNotices);
 
@@ -608,6 +709,9 @@ async function reuseJob(id, { useBrief = false } = {}) {
   }
   const radio = form.querySelector(`input[name="imageMode"][value="${job.input.imageMode}"]`);
   if (radio) radio.checked = true;
+  // Lo reutilizado pasa a ser el borrador: si se recarga la página antes de enviarlo, no se pierde.
+  document.getElementById('draft-note').hidden = true;
+  saveDraft();
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
   document.getElementById('prompt-input').focus({ preventScroll: true });
 }
@@ -629,6 +733,7 @@ function showFormView() {
 document.getElementById('new-job-btn').addEventListener('click', () => {
   showFormView();
   form.reset();
+  restoreDraft();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 document.getElementById('reuse-btn').addEventListener('click', () => {
@@ -2075,4 +2180,5 @@ function route() {
 // Adeslas seleccionada): cada visita empieza en blanco.
 form.reset();
 applyKind();
+restoreDraft();
 route();

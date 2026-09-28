@@ -869,6 +869,18 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-28 (tarde) — Formulario: borrador guardado y aviso de instrucción poco concreta
+
+- **Borrador**: se guarda en localStorage (400 ms tras escribir; caduca a los 14 días) y se recupera con un
+  aviso visible y "Descartar"; se borra al enviar. "Reutilizar" pasa a ser el borrador. El `form.reset()` del
+  arranque se mantiene: el autorrelleno silencioso del navegador causó el incidente Prozis/Adeslas.
+- **Aviso de instrucción vaga** (`studio/web/formcheck.js` + tests): sin tema (solo relleno + marca, p. ej.
+  «newsletter de Nike de prueba», «… Inglesina segunda», reales) o sin objetivo/público; "Prompt completo" de
+  <400 caracteres. No bloquea: "Completar la instrucción" / "Enviar igualmente". Las instrucciones reales con
+  contenido y los 4 ejemplos del formulario pasan sin aviso.
+- Probado en copia aislada (recarga, "Generar otra", descartar, enviar igualmente, prompt corto; 375 px y
+  claro/oscuro con Playwright). 122/122 tests.
+
 ### 2026-09-28 (tarde) — Interfaz: avisos que llevan al sitio y cambios resaltados en la pieza
 
 - **"Ver" en la revisión y en "Qué ha cambiado"** (`studio/web/locate.js` + tests): cada detalle se traduce a un

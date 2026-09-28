@@ -39,6 +39,10 @@
     <section id="view-form">
       <form id="brief-form" class="card" autocomplete="off">
         <input type="hidden" name="mode" value="standalone" />
+        <p class="draft-note" id="draft-note" role="status" hidden>
+          <span id="draft-note-text"></span>
+          <button type="button" id="draft-discard" class="btn btn-ghost btn-sm">Descartar</button>
+        </p>
 
         <fieldset class="kind">
           <legend class="label">¿Qué vas a escribir?</legend>
@@ -86,6 +90,14 @@
           <input type="text" name="requesterName" id="requester-input" />
         </label>
 
+        <div id="vague-warning" class="form-warning" role="alert" hidden>
+          <p>Hermes tardará unos 20 minutos, y con esta instrucción tendrá que suponer cosas:</p>
+          <ul id="vague-list"></ul>
+          <div class="warning-actions">
+            <button type="button" id="vague-complete" class="btn btn-secondary btn-sm">Completar la instrucción</button>
+            <button type="button" id="vague-send-anyway" class="btn btn-ghost btn-sm">Enviar igualmente</button>
+          </div>
+        </div>
         <div id="brand-warning" class="form-warning" role="alert" hidden>
           <p id="brand-warning-text"></p>
           <div class="warning-actions">
@@ -364,6 +376,7 @@
   <script src="/compare.js"></script>
   <script src="/pick.js"></script>
   <script src="/locate.js"></script>
+  <script src="/formcheck.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

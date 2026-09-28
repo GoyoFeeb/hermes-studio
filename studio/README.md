@@ -128,6 +128,13 @@ justo de memoria. Las nuevas viajan con la newsletter; las anteriores las pide e
 cabecera dice con qué newsletter está Hermes (y enlaza con ella) y cuántas esperan; "Mis trabajos" filtra
 por el nombre que recuerda el formulario.
 
+**Formulario: borrador y aviso de instrucción vaga** (2026-09-28): lo escrito y sin enviar (tipo, marca,
+instrucción e imágenes) se guarda en el navegador y se recupera al volver con el aviso "Borrador sin enviar
+recuperado" y "Descartar"; se borra al enviar. Es distinto del autorrelleno del navegador, que sigue
+desactivado (se coló sin avisar el 2026-09-24). Antes de enviar, `studio/web/formcheck.js` (con tests,
+calibrado con las instrucciones reales) avisa si la instrucción no dice de qué va o para qué/para quién,
+o si un "Prompt completo" es demasiado corto; "Enviar igualmente" la manda tal cual.
+
 La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El campo de marca (uno solo desde el 2026-09-28) sugiere
 las del volumen de Railway y las del Mac del worker y dice debajo si lo escrito es una marca del
 sistema (usa su carpeta de `brands/`) o una nueva. En "Instrucción rápida" hay ejemplos pulsables. Si el prompt no menciona la marca elegida, Studio pide

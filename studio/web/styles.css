@@ -447,6 +447,10 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 }
 .form-warning p { margin: 0 0 10px; font-size: 14px; }
 .warning-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.form-warning ul { margin: 0 0 12px; padding-left: 20px; font-size: 14px; }
+.form-warning li { margin: 4px 0; }
+/* Borrador recuperado (2026-09-28) */
+.draft-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0 0 18px; padding: 10px 14px; border: 1px dashed var(--border-strong); border-radius: 10px; font-size: 14px; color: var(--muted); }
 .toast {
   position: fixed;
   left: 50%;
