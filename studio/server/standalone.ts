@@ -201,6 +201,13 @@ export function buildRevisionPrompt(job: Job): string {
     '  anota la fuente; si no lo encuentras, no lo inventes: deja la pieza como estaba en ese punto y dilo.',
     `- ${images}`,
     '- No cargues skills ni investigues la marca más allá de lo que pida el cambio.',
+    ...(/\[Señalado:/.test(job.input.changeRequest || '')
+      ? [
+          '- Las referencias «[Señalado: …]» las ha marcado el equipo haciendo clic sobre la pieza: dicen qué',
+          '  elemento es exactamente. Las imágenes van numeradas por orden de aparición de las <img> en el HTML',
+          '  (logo incluido); los textos se citan tal cual aparecen. Aplica cada petición a ese elemento.',
+        ]
+      : []),
     '- Si un cambio pedido contradice una regla de la pieza (claims, datos sin fuente, enlace de baja),',
     '  no lo apliques en esa parte y explícalo en las notas.',
     '',

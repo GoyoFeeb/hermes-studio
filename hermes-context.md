@@ -869,6 +869,23 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-28 (tarde) — Interfaz: señalar en la vista previa, atajos, bandeja de entrada e historial por newsletter
+
+- **Señalar en la vista previa** (`studio/web/pick.js` + tests, app.js): en "Pedir cambios", clic sobre la
+  pieza → referencia exacta en la petición (imagen nº N de M con su alt, botón/enlace con destino, titular o
+  párrafo citado, bloque con fondo). Nace de la prueba de Nike («la tercera imagen»). `buildRevisionPrompt`
+  explica el formato a Hermes solo si hay referencias. Lo señalado queda marcado y se vuelve a marcar al
+  cambiar el tema de la vista previa; Esc sale.
+- **Atajos de cambios**: 6 chips con las peticiones frecuentes (con «…» seleccionado para escribir encima).
+- **Cómo se ve en la bandeja**: fila de Gmail móvil (columna de 276 px) y escritorio (760 px), con el corte
+  medido con canvas, no con CSS (a ancho de página el escritorio cortaba a ~470 px y engañaba), y cuántos
+  caracteres de asunto y preheader se leen.
+- **Historial por newsletter**: una fila por familia de versiones; el resto plegado.
+- **Arreglado de paso**: `--shadow-strong` del tema oscuro se referenciaba a sí mismo (sin sombra en toast,
+  barra fija y menús en oscuro desde el tema claro); vuelve a `rgba(0,0,0,0.45)`.
+- Probado en copia aislada con la pieza real de Nike (clic real en imagen, botón, titular, párrafo; tema;
+  375 px sin desborde; sin errores de consola). 113/113 tests.
+
 ### 2026-09-28 (tarde) — Primeras newsletters reales con el circuito nuevo
 
 - **El Corte Inglés** (`mul3g4nb-rmzstb`, 12:17-12:48, 25 min, desde instrucción): 11/11 comprobaciones a

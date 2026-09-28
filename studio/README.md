@@ -84,18 +84,28 @@ sube nada). En una newsletter terminada, "Pedir cambios" crea un trabajo nuevo e
 sesión nueva, retoca esa pieza según lo pedido partiendo de su HTML publicado, su `notas.md` y el brief
 original (`buildRevisionPrompt`); pasa el control de calidad completo. La versión original no cambia.
 "Adaptar a móvil" sigue siendo un retoque solo de la versión móvil.
+En la caja de cambios, "Señalar en la vista previa" deja hacer clic sobre la pieza y añade una
+referencia exacta a la petición («[Señalado: imagen nº 5 de 7 del HTML, alt «…»]», botón con su
+destino, titular o párrafo citado). El marco sigue sin ejecutar scripts: Studio escucha los clics desde
+fuera y no deja que abran el enlace. Qué se señala y cómo se describe está en `studio/web/pick.js`
+(con tests); `buildRevisionPrompt` explica a Hermes el formato solo si la petición trae referencias.
+Debajo, atajos con las peticiones más frecuentes (cambiar titular, acortar textos, otra foto, recortar
+el blanco, más aire, CTA más visible).
 
 **En la página del trabajo** (2026-09-28): asunto (el `<title>` del HTML) y preheader con botón de
 copiar, "Copiar HTML" para pegarlo en la plataforma de envío, posición en la cola con el inicio
 estimado, el progreso en el título de la pestaña y "Avisarme cuando termine" (notificación del
-navegador, con la pestaña abierta). Los avisos y errores salen dentro de la página, sin ventanas
+navegador, con la pestaña abierta). "Cómo se ve en la bandeja de entrada" simula la fila de Gmail en
+móvil y escritorio: el corte del asunto y el preheader se calcula midiendo el texto a los anchos de
+Gmail (no al de la página) y dice cuántos caracteres se leen. Los avisos y errores salen dentro de la página, sin ventanas
 emergentes del navegador.
 
 **Versiones** (2026-09-28): cada "Pedir cambios" o "Adaptar a móvil" es una versión de la newsletter
 de la que sale. La página del trabajo lista todas las versiones y enlaza con la anterior; en una
 versión derivada, "Qué ha cambiado" compara texto, enlaces e imágenes con la anterior
 (`studio/web/compare.js`, con tests) y "Antes y después" muestra las dos vistas previas lado a lado.
-El historial agrupa cada familia (la original y debajo sus versiones).
+El historial muestra una fila por newsletter con la versión más reciente (la más reciente que cumple
+el filtro, si hay uno) y las demás plegadas en "Ver las otras N versiones".
 
 **Vista previa** (2026-09-28): se pinta desde el HTML descargado en un marco `sandbox="allow-same-origin"`
 sin scripts, con la altura real de la pieza (sin scroll interno). Modos de color: Claro, Oscuro (como Apple

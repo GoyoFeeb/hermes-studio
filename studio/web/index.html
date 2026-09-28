@@ -189,6 +189,18 @@
             <span class="label">¿Qué quieres cambiar?</span>
             <textarea id="revise-input" rows="4" maxlength="4000" required placeholder="Ej: cambia el titular por «…», quita el precio del segundo bloque y usa otra foto del producto"></textarea>
           </label>
+          <div class="revise-tools">
+            <button type="button" id="pick-btn" class="btn btn-secondary btn-sm" aria-pressed="false" aria-describedby="pick-help">Señalar en la vista previa</button>
+            <span class="hint" id="pick-help">Haz clic en un bloque o una imagen de la pieza y se añade aquí cuál es exactamente.</span>
+          </div>
+          <div class="chips quick-changes" role="group" aria-label="Peticiones frecuentes">
+            <button type="button" class="chip" data-quick="Cambia el titular por «…».">Cambiar titular</button>
+            <button type="button" class="chip" data-quick="Acorta los textos de la pieza sin perder los datos clave.">Acortar textos</button>
+            <button type="button" class="chip" data-quick="Usa otra foto oficial del producto en ">Otra foto</button>
+            <button type="button" class="chip" data-quick="Recorta el espacio en blanco sobrante de la imagen ">Recortar blanco</button>
+            <button type="button" class="chip" data-quick="Da más aire entre los bloques: ahora se ve apretado.">Más aire</button>
+            <button type="button" class="chip" data-quick="Haz el botón principal más visible (tamaño y contraste) sin cambiar su texto.">CTA más visible</button>
+          </div>
           <p id="revise-error" class="form-error" role="alert" hidden></p>
           <div class="actions">
             <button type="submit" class="btn btn-primary">Enviar cambios</button>
@@ -208,6 +220,33 @@
             <button type="button" class="btn btn-ghost btn-sm" data-copy="preheader">Copiar</button>
           </div>
         </dl>
+        <details class="inbox" id="inbox" hidden>
+          <summary>Cómo se ve en la bandeja de entrada</summary>
+          <div class="inbox-body">
+            <p class="inbox-label">Gmail · móvil</p>
+            <div class="inbox-phone">
+              <div class="inbox-row inbox-row-mobile">
+                <span class="inbox-avatar" id="inbox-avatar" aria-hidden="true"></span>
+                <div class="inbox-lines">
+                  <p class="inbox-top"><span class="inbox-from" data-inbox="from"></span><span class="inbox-time">10:30</span></p>
+                  <p class="inbox-subject" data-inbox="subject"></p>
+                  <p class="inbox-pre" data-inbox="preheader"></p>
+                </div>
+              </div>
+            </div>
+            <p class="hint inbox-count" id="inbox-mobile-count"></p>
+            <p class="inbox-label">Gmail · escritorio</p>
+            <div class="inbox-desk">
+              <div class="inbox-row inbox-row-desk">
+                <span class="inbox-from" data-inbox="from"></span>
+                <p class="inbox-line"><span class="inbox-subject" data-inbox="subject"></span><span class="inbox-pre"> – <span data-inbox="preheader"></span></span></p>
+                <span class="inbox-time">10:30</span>
+              </div>
+            </div>
+            <p class="hint inbox-count" id="inbox-desk-count"></p>
+            <p class="hint">Medido a los anchos habituales de Gmail (móvil de 390 px y portátil de 1.440 px): el corte real cambia un poco con la pantalla y la app. Lo que va detrás de «…» no se lee sin abrir el correo.</p>
+          </div>
+        </details>
 
         <section class="review" id="review" aria-labelledby="review-title">
           <div class="review-head">
@@ -248,6 +287,10 @@
           <span class="hint" id="preview-size"></span>
         </div>
         <p class="hint theme-hint" id="theme-hint" hidden></p>
+        <div class="pick-banner" id="pick-banner" role="status" hidden>
+          <span>Haz clic en lo que quieres cambiar. <span class="hint">Esc para salir.</span></span>
+          <button type="button" id="pick-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
+        </div>
         <div class="preview-stage" id="preview-stage">
           <div class="preview-col" id="preview-col-before" hidden>
             <p class="preview-label" id="preview-label-before"></p>
@@ -315,6 +358,7 @@
 
   <script src="/markdown.js"></script>
   <script src="/compare.js"></script>
+  <script src="/pick.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

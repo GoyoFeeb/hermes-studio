@@ -413,59 +413,109 @@ function familyInfo(jobs) {
   return info;
 }
 
+/** Historial por newsletter (2026-09-28): una fila por familia de versiones. La fila muestra la versión
+ *  más reciente que cumple el filtro; las demás van plegadas debajo ("Versiones anteriores"). */
+const openFamilies = new Set();
+
+function jobKindLabel(j) {
+  return j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.fromInstruction ? 'Desde instrucción' : null;
+}
+
+function jobActions(j, { compact = false } = {}) {
+  const id = encodeURIComponent(j.id);
+  return [
+    `<a class="btn btn-ghost" href="?job=${id}">Ver</a>`,
+    j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
+    j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked'
+      ? `<button type="button" class="btn btn-secondary" data-retry="${escapeHtml(j.id)}">Reintentar</button>`
+      : '',
+    compact ? '' : `<button type="button" class="btn btn-secondary" data-reuse="${escapeHtml(j.id)}">Reutilizar</button>`,
+  ].join('');
+}
+
+function statusLabel(j) {
+  const running = j.status === 'running' && j.pct != null;
+  return (STATUS_LABELS[j.status] || j.status) + (running ? ` · ${j.pct}%` : '');
+}
+
 function renderHistory() {
   renderMineChip();
-  // Cada familia junta (la original y debajo sus versiones), ordenadas por su versión más reciente.
   const info = familyInfo(historyState.jobs);
-  const list = filteredJobs().sort((a, b) => {
-    const fa = info.get(a.id);
-    const fb = info.get(b.id);
-    return fb.latest.localeCompare(fa.latest) || fa.root.localeCompare(fb.root) || fa.number - fb.number;
-  });
-  const visible = list.slice(0, historyState.shown);
-  const total = historyState.jobs.length;
-  document.getElementById('history-count').textContent =
-    list.length === total ? `${total} trabajo${total === 1 ? '' : 's'}` : `${list.length} de ${total}`;
-  document.getElementById('history-empty').hidden = list.length > 0;
-  document.getElementById('history-more').hidden = list.length <= visible.length;
+  const families = new Map();
+  for (const j of historyState.jobs) {
+    const root = info.get(j.id).root;
+    if (!families.has(root)) families.set(root, []);
+    families.get(root).push(j);
+  }
+  const matching = new Set(filteredJobs().map((j) => j.id));
+  const groups = [];
+  for (const [root, members] of families) {
+    const hits = members.filter((j) => matching.has(j.id));
+    if (!hits.length) continue;
+    const byNumber = (a, b) => info.get(b.id).number - info.get(a.id).number;
+    const lead = [...hits].sort(byNumber)[0];
+    groups.push({ root, lead, others: members.filter((j) => j !== lead).sort(byNumber), latest: info.get(lead.id).latest });
+  }
+  groups.sort((a, b) => b.latest.localeCompare(a.latest) || a.root.localeCompare(b.root));
+
+  const visible = groups.slice(0, historyState.shown);
+  const totalJobs = historyState.jobs.length;
+  const count = families.size === totalJobs ? `${totalJobs} newsletter${totalJobs === 1 ? '' : 's'}` : `${families.size} newsletters · ${totalJobs} versiones`;
+  document.getElementById('history-count').textContent = groups.length === families.size ? count : `${groups.length} de ${families.size} newsletters`;
+  document.getElementById('history-empty').hidden = groups.length > 0;
+  document.getElementById('history-more').hidden = groups.length <= visible.length;
 
   document.getElementById('history-list').innerHTML = visible
-    .map((j) => {
+    .map(({ root, lead: j, others }) => {
       const id = encodeURIComponent(j.id);
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
       const fam = info.get(j.id);
-      const version = fam.size > 1 ? `<span class="version-tag">Versión ${fam.number}${fam.number === 1 ? ` de ${fam.size}` : ''}</span> · ` : '';
-      const meta = version + [when, j.requesterName, j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.fromInstruction ? 'Desde instrucción' : null, IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
+      const version = fam.size > 1 ? `<span class="version-tag">Versión ${fam.number} de ${fam.size}</span> · ` : '';
+      const meta = version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], j.status === 'completed' && j.elapsedSec ? formatMinutes(j.elapsedSec) : null]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
       const running = j.status === 'running' && j.pct != null;
-      const label = (STATUS_LABELS[j.status] || j.status) + (running ? ` · ${j.pct}%` : '');
-      const actions = [
-        `<a class="btn btn-ghost" href="?job=${id}">Ver</a>`,
-        j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
-        j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked'
-          ? `<button type="button" class="btn btn-secondary" data-retry="${escapeHtml(j.id)}">Reintentar</button>`
-          : '',
-        `<button type="button" class="btn btn-secondary" data-reuse="${escapeHtml(j.id)}">Reutilizar</button>`,
-      ].join('');
       const initials = String(j.clientName || '?')
         .split(/\s+/)
         .filter(Boolean)
         .slice(0, 2)
         .map((w) => w[0].toUpperCase())
         .join('');
-      const thumb = j.hasThumb
-        ? `<a class="thumb" href="?job=${id}" tabindex="-1" aria-hidden="true"><img src="/api/jobs/${id}/thumb" alt="" loading="lazy" width="48" height="64" data-initials="${escapeHtml(initials)}"></a>`
+      // Miniatura: la de esta versión o, si aún no tiene (en curso), la de la versión más reciente que la tenga.
+      const withThumb = [j, ...others].find((x) => x.hasThumb);
+      const thumb = withThumb
+        ? `<a class="thumb" href="?job=${id}" tabindex="-1" aria-hidden="true"><img src="/api/jobs/${encodeURIComponent(withThumb.id)}/thumb" alt="" loading="lazy" width="48" height="64" data-initials="${escapeHtml(initials)}"></a>`
         : `<a class="thumb thumb-empty" href="?job=${id}" tabindex="-1" aria-hidden="true">${escapeHtml(initials)}</a>`;
-      return `<li class="job-row${fam.number > 1 ? ' is-version' : ''}">
+      const open = openFamilies.has(root);
+      const listId = `fam-${escapeHtml(root)}`;
+      const older = others.length
+        ? `<button type="button" class="family-toggle" data-family="${escapeHtml(root)}" aria-expanded="${open}" aria-controls="${listId}">${open ? 'Ocultar' : 'Ver'} ${others.length === 1 ? 'la otra versión' : `las otras ${others.length} versiones`}</button>
+          <ol class="family-list" id="${listId}"${open ? '' : ' hidden'}>${others
+            .map((o) => {
+              const oWhen = new Date(o.createdAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+              const oMeta = [oWhen, jobKindLabel(o) || 'Original', o.status === 'completed' && o.elapsedSec ? formatMinutes(o.elapsedSec) : null]
+                .filter(Boolean)
+                .map(escapeHtml)
+                .join(' · ');
+              return `<li>
+                <a class="family-name" href="?job=${encodeURIComponent(o.id)}">Versión ${info.get(o.id).number}</a>
+                <span class="status-badge status-${escapeHtml(o.status)}">${escapeHtml(statusLabel(o))}</span>
+                <span class="meta">${oMeta}</span>
+                <span class="row-actions">${jobActions(o, { compact: true })}</span>
+              </li>`;
+            })
+            .join('')}</ol>`
+        : '';
+      return `<li class="job-row">
           ${thumb}
           <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}</a>
-          <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(label)}</span>
+          <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>
           <p class="meta">${meta}</p>
-          <div class="row-actions">${actions}</div>
+          <div class="row-actions">${jobActions(j)}</div>
           ${running ? `<div class="mini-track" aria-hidden="true"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}
           ${j.error ? `<p class="err">${escapeHtml(j.error)}</p>` : ''}
+          ${older}
         </li>`;
     })
     .join('');
@@ -520,6 +570,15 @@ document.getElementById('history-list').addEventListener(
   true
 );
 document.getElementById('history-list').addEventListener('click', (e) => {
+  const fam = e.target.closest('[data-family]');
+  if (fam) {
+    const root = fam.dataset.family;
+    if (openFamilies.has(root)) openFamilies.delete(root);
+    else openFamilies.add(root);
+    renderHistory();
+    document.querySelector(`[data-family="${CSS.escape(root)}"]`)?.focus();
+    return;
+  }
   const btn = e.target.closest('[data-reuse]');
   if (btn) reuseJob(btn.dataset.reuse);
   const retry = e.target.closest('[data-retry]');
@@ -709,6 +768,7 @@ const reviseBtn = document.getElementById('revise-btn');
 const reviseError = document.getElementById('revise-error');
 
 function toggleRevise(open) {
+  if (!open) resetPicks();
   reviseBox.hidden = !open;
   reviseBtn.setAttribute('aria-expanded', String(open));
   reviseError.hidden = true;
@@ -739,6 +799,184 @@ reviseBox.addEventListener('submit', async (e) => {
   } finally {
     submit.disabled = false;
   }
+});
+
+// Peticiones frecuentes (2026-09-28): se añaden a la petición en una línea propia. Si traen «…», queda
+// seleccionado para escribir encima; si acaban en espacio, falta decir dónde (o señalarlo).
+document.querySelector('.quick-changes').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-quick]');
+  if (!chip) return;
+  const input = document.getElementById('revise-input');
+  const base = input.value.replace(/\s+$/, '');
+  const text = chip.dataset.quick;
+  input.value = (base ? `${base}\n` : '') + text;
+  input.focus();
+  const hole = text.indexOf('…');
+  if (hole >= 0) {
+    const at = input.value.length - text.length + hole;
+    input.setSelectionRange(at, at + 1);
+  } else {
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+});
+
+// ---------------------------------------------------------------- señalar en la vista previa
+
+/** "Señalar en la vista previa" (2026-09-28). El marco no ejecuta scripts (sandbox sin allow-scripts),
+ *  pero es del mismo origen: Studio escucha los clics desde fuera, marca el elemento con un atributo y
+ *  una hoja de estilos propia, y no deja que el clic abra el enlace. Qué se señala y cómo se describe
+ *  está en pick.js. Lo señalado se guarda como ruta de hijos desde <body> para volver a marcarlo cuando
+ *  el marco se recarga (cambio de tema o de comparación). */
+const pick = { active: false, picked: [], hover: null };
+const PICK_CSS =
+  '[data-studio-hover]{outline:3px solid #e6007e!important;outline-offset:-3px;cursor:crosshair!important}' +
+  '[data-studio-picked]{outline:3px dashed #8a3ffc!important;outline-offset:-3px}' +
+  'html[data-studio-picking] *{cursor:crosshair!important}';
+
+function previewDoc() {
+  const frame = document.getElementById('preview-frame');
+  return frame.getAttribute('srcdoc') ? frame.contentDocument : null;
+}
+
+function pathOf(el) {
+  const path = [];
+  while (el && el.parentElement && el.tagName !== 'BODY') {
+    path.unshift([...el.parentElement.children].indexOf(el));
+    el = el.parentElement;
+  }
+  return path;
+}
+
+function byPath(doc, path) {
+  let el = doc.body;
+  for (const i of path) el = el?.children[i];
+  return el || null;
+}
+
+function hasBackground(el) {
+  return el.hasAttribute('background') || /background(-image)?\s*:[^;]*url\(/i.test(el.getAttribute('style') || '');
+}
+
+/** El elemento que se señala desde el punto pulsado (ver HermesPick.chooseTarget). */
+function pickTarget(start) {
+  const chain = [];
+  for (let el = start; el && el.nodeType === 1; el = el.parentElement) {
+    const tag = el.tagName.toLowerCase();
+    chain.push({ el, tag, text: tag === 'img' ? '' : el.textContent, isImage: tag === 'img', hasBackground: hasBackground(el) });
+    if (tag === 'body') break;
+  }
+  const i = HermesPick.chooseTarget(chain);
+  return i >= 0 ? chain[i] : null;
+}
+
+function describePicked(doc, t) {
+  if (t.isImage) {
+    const imgs = [...doc.querySelectorAll('img')];
+    return HermesPick.describe({ kind: 'image', index: imgs.indexOf(t.el) + 1, total: imgs.length, alt: t.el.getAttribute('alt') || '' });
+  }
+  if (t.tag === 'a' || t.tag === 'button') {
+    const style = (t.el.getAttribute('style') || '') + ' ' + (t.el.parentElement?.getAttribute('style') || '');
+    const isButton = t.tag === 'button' || /background(-color)?\s*:|padding\s*:\s*[1-9]/i.test(style);
+    return HermesPick.describe({ kind: 'link', text: t.el.textContent, href: t.el.getAttribute('href') || '', isButton });
+  }
+  if (t.hasBackground && !/^(h[1-6]|p|li|blockquote)$/.test(t.tag)) return HermesPick.describe({ kind: 'background', text: t.el.textContent });
+  return HermesPick.describe({ kind: 'text', tag: t.tag, text: t.el.textContent });
+}
+
+function clearHover(doc) {
+  doc?.querySelectorAll('[data-studio-hover]').forEach((el) => el.removeAttribute('data-studio-hover'));
+  pick.hover = null;
+}
+
+/** Prepara el documento del marco: hoja de estilos, lo ya señalado y los oyentes. Se llama en cada carga. */
+function armPreview() {
+  const doc = previewDoc();
+  if (!doc || !doc.body) return;
+  if (!doc.querySelector('style[data-studio-pick]')) {
+    const style = doc.createElement('style');
+    style.setAttribute('data-studio-pick', '');
+    style.textContent = PICK_CSS;
+    (doc.head || doc.documentElement).appendChild(style);
+  }
+  doc.querySelectorAll('[data-studio-picked]').forEach((el) => el.removeAttribute('data-studio-picked'));
+  for (const path of pick.picked) byPath(doc, path)?.setAttribute('data-studio-picked', '');
+  doc.documentElement.toggleAttribute('data-studio-picking', pick.active);
+  if (doc.studioArmed) return;
+  doc.studioArmed = true;
+  doc.addEventListener('mouseover', (e) => {
+    if (!pick.active) return;
+    const t = pickTarget(e.target);
+    if (t?.el === pick.hover) return;
+    clearHover(doc);
+    if (t) {
+      t.el.setAttribute('data-studio-hover', '');
+      pick.hover = t.el;
+    }
+  });
+  doc.addEventListener('mouseleave', () => clearHover(doc));
+  doc.addEventListener(
+    'click',
+    (e) => {
+      if (!pick.active) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const t = pickTarget(e.target);
+      if (!t) {
+        showToast('Ahí no hay un bloque concreto: prueba sobre un texto, un botón o una imagen.');
+        return;
+      }
+      const input = document.getElementById('revise-input');
+      const caret = document.activeElement === input ? input.selectionStart : input.value.length;
+      const next = HermesPick.insertReference(input.value, caret, describePicked(doc, t));
+      input.value = next.value;
+      pick.picked.push(pathOf(t.el));
+      t.el.setAttribute('data-studio-picked', '');
+      setPicking(false);
+      reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(next.caret, next.caret);
+      announce('Añadido a la petición de cambios.');
+    },
+    true
+  );
+  doc.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && pick.active) setPicking(false);
+  });
+}
+
+function setPicking(on) {
+  pick.active = on && !!previewDoc();
+  const btn = document.getElementById('pick-btn');
+  btn.setAttribute('aria-pressed', String(pick.active));
+  btn.textContent = pick.active ? 'Señalando… (Esc para salir)' : pick.picked.length ? 'Señalar otra cosa' : 'Señalar en la vista previa';
+  document.getElementById('pick-banner').hidden = !pick.active;
+  document.getElementById('preview-stage').classList.toggle('is-picking', pick.active);
+  const doc = previewDoc();
+  doc?.documentElement.toggleAttribute('data-studio-picking', pick.active);
+  if (!pick.active) clearHover(doc);
+}
+
+function resetPicks() {
+  setPicking(false);
+  pick.picked = [];
+  previewDoc()?.querySelectorAll('[data-studio-picked]').forEach((el) => el.removeAttribute('data-studio-picked'));
+  setPicking(false);
+}
+
+document.getElementById('pick-btn').addEventListener('click', () => {
+  if (pick.active) return setPicking(false);
+  if (!previewDoc()) return showToast('La vista previa aún se está cargando.');
+  // Solo la versión actual se puede señalar: al comparar, la columna de la izquierda es la anterior.
+  if (document.getElementById('compare-toggle').checked) document.getElementById('compare-toggle').click();
+  setPicking(true);
+  document.getElementById('pick-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+document.getElementById('pick-cancel').addEventListener('click', () => {
+  setPicking(false);
+  reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && pick.active) setPicking(false);
 });
 
 document.getElementById('use-brief-btn').addEventListener('click', () => {
@@ -772,6 +1010,7 @@ function showJobView(id) {
   reviseBox.hidden = true;
   reviseBox.reset();
   reviseBtn.setAttribute('aria-expanded', 'false');
+  resetPicks();
   resetCancel();
   resetFrame(document.getElementById('preview-frame'));
   resetCompare();
@@ -854,7 +1093,7 @@ async function poll(id) {
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes);
-      renderMeta(meta);
+      renderMeta(meta, job.input.clientName);
       loadResultHtml(id).then(() => {
         if (id !== currentJob) return;
         updateThemeHint();
@@ -897,10 +1136,11 @@ async function loadResultHtml(id) {
   }
 }
 
-function renderMeta(meta) {
+function renderMeta(meta, sender) {
   currentMeta = meta;
   const box = document.getElementById('email-meta');
   box.hidden = !meta;
+  renderInbox(meta, sender);
   if (!meta) return;
   for (const [key, id, missing] of [
     ['subject', 'meta-subject', 'Sin asunto: el HTML no tiene <title>.'],
@@ -911,6 +1151,73 @@ function renderMeta(meta) {
     el.classList.toggle('is-missing', !meta[key]);
     box.querySelector(`[data-copy="${key}"]`).hidden = !meta[key];
   }
+}
+
+/** "Cómo se ve en la bandeja" (2026-09-28): la fila de Gmail con remitente, asunto y preheader. El corte
+ *  se calcula midiendo el texto a los anchos reales de Gmail (no al ancho de esta página, que en un
+ *  portátil deja la fila de escritorio en ~470 px) y se muestra ya cortado, legible en cualquier pantalla. */
+const INBOX = {
+  font: 'Roboto, Arial, sans-serif',
+  mobileWidth: 276, // móvil de 390 px: avatar, márgenes y estrella fuera (= columna de .inbox-row-mobile)
+  deskWidth: 760, // portátil de 1.440 px: menú lateral, remitente y fecha fuera
+};
+let measureCtx = null;
+
+function textWidth(text, weight, size = 14) {
+  measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
+  measureCtx.font = `${weight} ${size}px ${INBOX.font}`;
+  return measureCtx.measureText(text).width;
+}
+
+/** Cuántos caracteres de `text` caben en `width` px dejando sitio para «…». */
+function fitChars(text, width, weight) {
+  if (textWidth(text, weight) <= width) return text.length;
+  const room = width - textWidth('…', weight);
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (textWidth(text.slice(0, mid), weight) <= room) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+function cut(text, n) {
+  return n >= text.length ? text : `${text.slice(0, n).trimEnd()}…`;
+}
+
+function renderInbox(meta, sender) {
+  const box = document.getElementById('inbox');
+  box.hidden = !meta || (!meta.subject && !meta.preheader);
+  if (box.hidden) return;
+  const from = sender || 'Remitente';
+  const subject = meta.subject || '(sin asunto)';
+  const pre = meta.preheader || '';
+
+  // Móvil: asunto y preheader en líneas propias.
+  const mSub = fitChars(subject, INBOX.mobileWidth, 700);
+  const mPre = fitChars(pre, INBOX.mobileWidth, 400);
+  // Escritorio: asunto en negrita y, en la misma línea, « – » y el preheader hasta donde quepa.
+  const dSub = fitChars(subject, INBOX.deskWidth, 700);
+  const restWidth = INBOX.deskWidth - textWidth(subject, 700) - textWidth(' – ', 400);
+  const dPre = dSub < subject.length || restWidth <= 0 ? 0 : fitChars(pre, restWidth, 400);
+
+  const set = (sel, text) => box.querySelectorAll(sel).forEach((el) => (el.textContent = text));
+  set('[data-inbox="from"]', from);
+  set('.inbox-row-mobile [data-inbox="subject"]', cut(subject, mSub));
+  set('.inbox-row-mobile [data-inbox="preheader"]', cut(pre, mPre));
+  set('.inbox-row-desk [data-inbox="subject"]', cut(subject, dSub));
+  set('.inbox-row-desk [data-inbox="preheader"]', cut(pre, dPre));
+  box.querySelector('.inbox-row-mobile .inbox-pre').hidden = !pre;
+  box.querySelector('.inbox-row-desk .inbox-pre').hidden = !pre || dPre === 0;
+  document.getElementById('inbox-avatar').textContent = (from.trim()[0] || '?').toUpperCase();
+
+  const reads = (n, total) => (n >= total ? 'entero' : `${n} de ${total} caracteres`);
+  document.getElementById('inbox-mobile-count').textContent =
+    `Asunto: ${reads(mSub, subject.length)}` + (pre ? ` · Preheader: ${reads(mPre, pre.length)}` : '');
+  document.getElementById('inbox-desk-count').textContent =
+    `Asunto: ${reads(dSub, subject.length)}` + (pre ? ` · Preheader: ${dPre ? reads(dPre, pre.length) : 'no se ve'}` : '');
 }
 
 /** Método clásico (textarea + execCommand): funciona donde la API del portapapeles está bloqueada. */
@@ -1328,7 +1635,10 @@ function renderFrame(which) {
   if (!html) return;
   const theme = currentTheme();
   frame.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
-  frame.onload = fitFrames;
+  frame.onload = () => {
+    fitFrames();
+    if (which !== 'before') armPreview();
+  };
   frame.srcdoc = themedHtml(html, theme);
 }
 

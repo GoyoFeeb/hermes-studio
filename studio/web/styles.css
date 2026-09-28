@@ -31,7 +31,7 @@
   --surface-pill: rgba(14, 21, 69, 0.7);
   --surface-sticky: rgba(14, 21, 69, 0.96);
   --shadow: rgba(0, 0, 0, 0.35);
-  --shadow-strong: var(--shadow-strong);
+  --shadow-strong: rgba(0, 0, 0, 0.45);
   --placeholder: #5d6488;
   --btn-secondary-hover: #30367060;
   --diff-removed-fg: #ffb3bd;
@@ -504,9 +504,7 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .compare-list .is-added::before { content: '+'; content: '+' / ''; color: var(--success); }
 .compare-list .group { margin-top: 6px; padding: 0; font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--pink-soft); }
 .compare-list .group::before { content: none; }
-.job-row.is-version { margin-left: 28px; border-left: 2px solid var(--purple); }
 .job-row .version-tag { color: var(--lilac); font-weight: 600; }
-@media (max-width: 640px) { .job-row.is-version { margin-left: 12px; } }
 
 /* Markdown de la autoauditoría y del brief (markdown.js) */
 .md { font-size: 14px; line-height: 1.6; color: var(--lilac); overflow-wrap: anywhere; }
@@ -867,4 +865,74 @@ body.has-sticky .foot { padding-bottom: 88px; }
   .segmented { display: flex; }
   .segmented label { flex: 1; text-align: center; }
   .segmented span { padding: 8px 6px; font-size: 13px; }
+}
+
+/* ---------------------------------------------------------------- Pedir cambios: atajos y señalar (2026-09-28) */
+.revise-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -4px 0 4px; }
+.revise-tools .hint { margin: 0; flex: 1 1 240px; }
+#pick-btn[aria-pressed="true"] { background: var(--pink); border-color: var(--pink); color: var(--on-accent); }
+.quick-changes { margin: 10px 0 14px; }
+.quick-changes .chip { text-transform: none; letter-spacing: 0.3px; font-family: 'Work Sans', sans-serif; font-weight: 500; font-size: 13px; }
+.pick-banner {
+  position: sticky; top: 12px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 12px; padding: 10px 16px; border: 1px solid var(--pink); border-radius: 10px;
+  background: var(--surface-sticky); box-shadow: 0 12px 32px var(--shadow-strong); font-size: 14px;
+}
+.pick-banner .hint { margin: 0; }
+.preview-stage.is-picking .preview-device { box-shadow: 0 0 0 3px var(--pink); }
+
+/* ---------------------------------------------------------------- Cómo se ve en la bandeja (2026-09-28) */
+.inbox { margin: -6px 0 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--field); }
+.inbox > summary { padding: 10px 20px; cursor: pointer; font-size: 14px; color: var(--muted); }
+.inbox > summary:hover { color: var(--text); }
+.inbox-body { padding: 0 20px 16px; }
+.inbox-label { margin: 8px 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: var(--muted); }
+/* Los anchos son los de Gmail, no los de Studio: el corte con «…» tiene que caer donde caería allí. */
+.inbox-phone, .inbox-desk { max-width: 100%; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+.inbox-phone { width: 390px; }
+.inbox-desk { width: 100%; }
+.inbox-row { font-family: Roboto, Arial, sans-serif; color: var(--text); }
+.inbox-row p { margin: 0; }
+.inbox-row-mobile { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 16px; padding: 12px 40px 12px 16px; }
+.inbox-avatar { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: var(--purple); color: #fff; font-size: 18px; font-weight: 500; }
+.inbox-lines { min-width: 0; }
+.inbox-top { display: flex; justify-content: space-between; gap: 8px; }
+.inbox-from { font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+.inbox-time { flex: none; font-size: 12px; font-weight: 700; color: var(--text); }
+/* El texto llega ya cortado a la medida de Gmail (app.js, renderInbox): aquí solo se maqueta y puede partirse
+   en dos líneas en pantallas estrechas sin cambiar lo que se lee. */
+.inbox-row-mobile .inbox-subject { font-weight: 700; font-size: 14px; white-space: nowrap; }
+.inbox-row-mobile .inbox-pre { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.inbox-row-desk { display: grid; grid-template-columns: 168px minmax(0, 1fr) auto; gap: 16px; align-items: baseline; padding: 10px 16px; font-size: 14px; }
+.inbox-row-desk .inbox-from { font-size: 14px; }
+.inbox-row-desk .inbox-subject { font-weight: 700; }
+.inbox-row-desk .inbox-pre { color: var(--muted); }
+.inbox-count { margin: 6px 0 4px; font-size: 13px; }
+@media (max-width: 640px) {
+  .inbox-body { padding: 0 12px 12px; }
+  .inbox > summary { padding: 10px 12px; }
+  .inbox-row-desk { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+  .inbox-row-mobile .inbox-subject, .inbox-row-mobile .inbox-pre { white-space: normal; }
+  .inbox-row-desk .inbox-line { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* ---------------------------------------------------------------- Historial por newsletter (2026-09-28) */
+.family-toggle {
+  grid-column: 2 / -1; justify-self: start; padding: 2px 0; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--lilac);
+}
+.family-toggle:hover { color: var(--accent-text); text-decoration: underline; }
+.family-toggle::before { content: '▸ '; }
+.family-toggle[aria-expanded="true"]::before { content: '▾ '; }
+.family-list { grid-column: 2 / -1; margin: 0; padding: 0 0 0 12px; list-style: none; border-left: 2px solid var(--purple); }
+.family-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--border); }
+.family-list li:first-child { border-top: none; }
+.family-name { color: var(--text); font-weight: 600; font-size: 14px; text-decoration: none; }
+.family-name:hover { color: var(--accent-text); }
+.family-list .meta { font-size: 13px; color: var(--muted); flex: 1 1 auto; }
+.family-list .row-actions { display: flex; gap: 6px; }
+.family-list .row-actions .btn { padding: 3px 12px; font-size: 13px; }
+.family-list .status-badge { font-size: 11px; }
+@media (max-width: 640px) {
+  .family-toggle, .family-list { grid-column: 1 / -1; }
 }
