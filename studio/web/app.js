@@ -76,46 +76,81 @@ existingBrandSelect.addEventListener('change', () => {
   }
 });
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
+// Avisos del formulario dentro de la página (antes, alert/confirm del navegador).
+const brandWarning = document.getElementById('brand-warning');
+const formError = document.getElementById('form-error');
+let pendingPayload = null;
+
+function clearFormNotices() {
+  brandWarning.hidden = true;
+  formError.hidden = true;
+  pendingPayload = null;
+}
+
+async function submitJob(payload) {
   const submitBtn = form.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
-
+  document.getElementById('brand-send-anyway').disabled = true;
+  clearFormNotices();
   try {
-    const fd = new FormData(form);
-    const payload = Object.fromEntries(fd.entries());
-
-    const send = () =>
-      fetch('/api/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-    let res = await send();
-
+    const res = await fetch('/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
     // El prompt no menciona la marca elegida: se pide confirmación en vez de enviarlo a ciegas.
-    if (res.status === 409) {
-      const err = await res.json().catch(() => ({}));
-      if (err.code === 'brand_mismatch') {
-        if (!confirm(`${err.error}\n\nAceptar = enviar igualmente · Cancelar = revisar la marca`)) return;
-        payload.confirmBrand = true;
-        res = await send();
-      }
-    }
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      alert(err.error || 'No se pudo enviar el brief.');
+    if (res.status === 409 && data.code === 'brand_mismatch') {
+      pendingPayload = payload;
+      document.getElementById('brand-warning-text').textContent = data.error;
+      brandWarning.hidden = false;
+      document.getElementById('brand-send-anyway').focus();
       return;
     }
-
-    const { id } = await res.json();
-    history.pushState({}, '', `?job=${id}`);
-    showJobView(id);
+    if (!res.ok) {
+      formError.textContent = data.error || 'No se pudo enviar el brief.';
+      formError.hidden = false;
+      return;
+    }
+    history.pushState({}, '', `?job=${data.id}`);
+    showJobView(data.id);
+  } catch {
+    formError.textContent = 'No se pudo conectar con Studio. Revisa la conexión e inténtalo de nuevo.';
+    formError.hidden = false;
   } finally {
     submitBtn.disabled = false;
+    document.getElementById('brand-send-anyway').disabled = false;
   }
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  submitJob(Object.fromEntries(new FormData(form).entries()));
 });
+document.getElementById('brand-send-anyway').addEventListener('click', () => {
+  if (pendingPayload) submitJob({ ...pendingPayload, confirmBrand: true });
+});
+document.getElementById('brand-review').addEventListener('click', () => {
+  clearFormNotices();
+  existingBrandSelect.focus();
+});
+// Si se cambia algo del formulario, el aviso ya no corresponde a lo que se enviaría.
+form.addEventListener('input', () => {
+  if (!brandWarning.hidden) clearFormNotices();
+});
+form.addEventListener('reset', clearFormNotices);
+
+// ---------------------------------------------------------------- avisos flotantes
+
+let toastTimer = null;
+function showToast(message, level = 'info') {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.toggle('is-error', level === 'error');
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.hidden = true), level === 'error' ? 7000 : 3000);
+}
 
 const STATUS_LABELS = {
   queued: 'En cola',
@@ -240,7 +275,7 @@ document.getElementById('history-list').addEventListener('click', (e) => {
 // anterior (para relanzar uno fallido o hacer una variante). No se envía hasta pulsar Generar.
 async function reuseJob(id, { useBrief = false } = {}) {
   const res = await fetch(`/api/jobs/${encodeURIComponent(id)}`);
-  if (!res.ok) return alert('No se pudo cargar ese trabajo.');
+  if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
   const { job } = await res.json();
   showFormView();
   await brandsReady;
@@ -270,6 +305,7 @@ function showFormView() {
   viewJob.hidden = true;
   viewForm.hidden = false;
   hero.hidden = false;
+  document.title = BASE_TITLE;
   loadHistory();
 }
 
@@ -289,7 +325,7 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
   try {
     const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/mobile-fix`, { method: 'POST' });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return alert(data.error || 'No se pudo lanzar la adaptación a móvil.');
+    if (!res.ok) return showToast(data.error || 'No se pudo lanzar la adaptación a móvil.', 'error');
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
   } finally {
@@ -415,7 +451,9 @@ async function poll(id) {
     document.getElementById('job-title').textContent = 'Trabajo no encontrado';
     return;
   }
-  const { job, events, notes } = await res.json();
+  const { job, events, notes, meta, queue, hermesOnline } = await res.json();
+  updateTabTitle(job);
+  maybeNotify(job);
 
   document.getElementById('job-title').textContent = job.input.revisionOf
     ? `${job.input.clientName} · cambios`
@@ -445,7 +483,8 @@ async function poll(id) {
   statusEl.textContent = STATUS_LABELS[job.status] || job.status;
   statusEl.className = `status-badge status-${job.status}`;
 
-  renderProgress(job);
+  renderProgress(job, queue, hermesOnline);
+  renderNotify(job);
 
   const log = document.getElementById('job-log');
   log.innerHTML = events
@@ -463,6 +502,8 @@ async function poll(id) {
       applyPreviewView(job.input.mobileFixOf ? 'mobile' : readPreviewView());
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes);
+      renderMeta(meta);
+      loadResultHtml(id);
     }
     return;
   }
@@ -480,6 +521,154 @@ async function poll(id) {
   }
 
   pollTimer = setTimeout(() => poll(id), 10000);
+}
+
+// ---------------------------------------------------------------- asunto, preheader y copiar
+
+let currentMeta = null;
+/** HTML del resultado, descargado al abrirlo: copiarlo en el mismo clic, sin esperar a la red, evita
+ *  que el navegador niegue el portapapeles por haber pasado demasiado tiempo desde el clic. */
+let currentHtml = null;
+
+async function loadResultHtml(id) {
+  currentHtml = null;
+  try {
+    const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/result`);
+    if (res.ok && id === currentJob) currentHtml = await res.text();
+  } catch {
+    // se reintenta al pulsar "Copiar HTML"
+  }
+}
+
+function renderMeta(meta) {
+  currentMeta = meta;
+  const box = document.getElementById('email-meta');
+  box.hidden = !meta;
+  if (!meta) return;
+  for (const [key, id, missing] of [
+    ['subject', 'meta-subject', 'Sin asunto: el HTML no tiene <title>.'],
+    ['preheader', 'meta-preheader', 'Sin preheader.'],
+  ]) {
+    const el = document.getElementById(id);
+    el.textContent = meta[key] || missing;
+    el.classList.toggle('is-missing', !meta[key]);
+    box.querySelector(`[data-copy="${key}"]`).hidden = !meta[key];
+  }
+}
+
+/** Método clásico (textarea + execCommand): funciona donde la API del portapapeles está bloqueada. */
+function copyWithSelection(text) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(area);
+  area.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  area.remove();
+  return ok;
+}
+
+async function copyText(text, okMessage) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(okMessage);
+    return;
+  } catch {
+    // sigue con el método clásico
+  }
+  if (copyWithSelection(text)) showToast(okMessage);
+  else showToast('No se pudo copiar: el navegador no dio permiso para usar el portapapeles. Usa «Descargar HTML».', 'error');
+}
+
+document.getElementById('email-meta').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-copy]');
+  if (btn && currentMeta?.[btn.dataset.copy]) {
+    copyText(currentMeta[btn.dataset.copy], btn.dataset.copy === 'subject' ? 'Asunto copiado.' : 'Preheader copiado.');
+  }
+});
+
+document.getElementById('copy-html-btn').addEventListener('click', async (e) => {
+  if (!currentJob) return;
+  if (!currentHtml) await loadResultHtml(currentJob);
+  if (!currentHtml) return showToast('No se pudo descargar el HTML para copiarlo.', 'error');
+  copyText(currentHtml, 'HTML copiado: pégalo en tu plataforma de envío.');
+});
+
+// ---------------------------------------------------------------- título de la pestaña y aviso al terminar
+
+const BASE_TITLE = document.title;
+
+function updateTabTitle(job) {
+  const name = job.input.clientName;
+  const pct = job.progress?.pct;
+  document.title =
+    job.status === 'running'
+      ? `(${pct != null ? pct : 0} %) ${name} · Hermes Studio`
+      : job.status === 'queued'
+      ? `En cola · ${name} · Hermes Studio`
+      : job.status === 'completed'
+      ? `✓ Lista · ${name} · Hermes Studio`
+      : `${STATUS_LABELS[job.status] || job.status} · ${name} · Hermes Studio`;
+}
+
+// Aviso del navegador cuando el trabajo que se está mirando termina (15-20 min por pieza). Solo con
+// la pestaña abierta: no hay notificaciones push. Se recuerda que se quiso aviso para los siguientes.
+const notifySupported = 'Notification' in window;
+const lastStatusByJob = {};
+
+function wantsNotify() {
+  try {
+    return localStorage.getItem('notifyDone') === '1';
+  } catch {
+    return false;
+  }
+}
+
+function renderNotify(job) {
+  const active = job.status === 'queued' || job.status === 'running';
+  const granted = notifySupported && Notification.permission === 'granted' && wantsNotify();
+  document.getElementById('notify-btn').hidden = !active || !notifySupported || granted || Notification.permission === 'denied';
+  document.getElementById('notify-hint').hidden = !active || !granted;
+}
+
+document.getElementById('notify-btn').addEventListener('click', async () => {
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    try {
+      localStorage.setItem('notifyDone', '1');
+    } catch {
+      // sin almacenamiento: vale para esta visita
+    }
+  } else {
+    showToast('El navegador no permite avisos. Puedes activarlos en los permisos del sitio.', 'error');
+  }
+  if (currentJob) poll(currentJob);
+});
+
+function maybeNotify(job) {
+  const before = lastStatusByJob[job.id];
+  lastStatusByJob[job.id] = job.status;
+  const wasActive = before === 'queued' || before === 'running';
+  if (!wasActive || job.status === before || job.status === 'running') return;
+  if (!notifySupported || Notification.permission !== 'granted' || !document.hidden) return;
+  const text = {
+    completed: 'La newsletter está lista.',
+    failed: 'El trabajo ha fallado.',
+    blocked: 'El trabajo se ha detenido.',
+    cancelled: 'El trabajo se ha cancelado.',
+  }[job.status];
+  if (!text) return;
+  const n = new Notification(`${job.input.clientName} · Hermes Studio`, { body: text, icon: '/favicon.png', tag: job.id });
+  n.onclick = () => {
+    window.focus();
+    n.close();
+  };
 }
 
 // ---------------------------------------------------------------- revisión automática
@@ -594,7 +783,7 @@ function formatMinutes(sec) {
   return `${min} min`;
 }
 
-function renderProgress(job) {
+function renderProgress(job, queue, hermesOnline) {
   const box = document.getElementById('job-progress');
   const bar = document.getElementById('progress-bar');
   const track = box.querySelector('.progress-track');
@@ -603,15 +792,23 @@ function renderProgress(job) {
     box.hidden = false;
     bar.style.width = '0%';
     track.setAttribute('aria-valuenow', '0');
-    document.getElementById('progress-stage').textContent = 'En cola';
-    document.getElementById('progress-eta').textContent = '';
-    document.getElementById('progress-detail').textContent = job.input.revisionOf
-      ? 'Esperando a que Hermes lo recoja. Aplicará los cambios pedidos: unos minutos.'
+    document.getElementById('progress-stage').textContent = queue?.ahead
+      ? `En cola · ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante`
+      : 'En cola · eres el siguiente';
+    document.getElementById('progress-eta').textContent = queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)} (estimado)` : '';
+    const kind = job.input.revisionOf
+      ? 'Aplicará los cambios pedidos: unos minutos.'
       : job.input.mobileFixOf
-      ? 'Esperando a que Hermes lo recoja. Solo adapta la versión móvil: unos minutos.'
+      ? 'Solo adapta la versión móvil: unos minutos.'
       : job.input.instruction
-      ? 'Esperando a que Hermes lo recoja. Primero escribirá el brief creativo.'
-      : 'Esperando a que Hermes lo recoja.';
+      ? 'Primero escribirá el brief creativo.'
+      : '';
+    const when = hermesOnline === false
+      ? 'Hermes no está conectado ahora mismo: empezará cuando se conecte el Mac del worker.'
+      : queue?.ahead
+      ? 'Hermes lo recogerá cuando termine lo que tiene delante.'
+      : 'Hermes lo recogerá en unos segundos.';
+    document.getElementById('progress-detail').textContent = [when, kind].filter(Boolean).join(' ');
     return;
   }
   if (!p || (job.status !== 'running' && job.status !== 'completed')) {
@@ -692,6 +889,7 @@ function route() {
     viewJob.hidden = true;
     viewForm.hidden = false;
     hero.hidden = false;
+    document.title = BASE_TITLE;
     loadHistory();
   }
 }

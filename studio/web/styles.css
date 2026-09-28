@@ -276,6 +276,51 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 
 .result-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
 .result-bar p { margin: 0 auto 0 0; font-weight: 600; color: var(--success); }
+/* Avisos dentro de la página (sustituyen a alert/confirm del navegador) */
+.form-warning {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 204, 0, 0.45);
+  border-radius: 10px;
+  background: rgba(255, 204, 0, 0.08);
+}
+.form-warning p { margin: 0 0 10px; font-size: 14px; }
+.warning-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 10;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  padding: 12px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+}
+.toast.is-error { border-color: rgba(255, 122, 138, 0.6); color: var(--error); }
+
+/* Asunto y preheader del resultado */
+.email-meta { margin: 0 0 16px; padding: 4px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--field); }
+.meta-row { display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.meta-row:first-child { border-top: none; }
+.meta-row dt {
+  font-family: 'Barlow', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--pink-soft);
+}
+.meta-row dd { margin: 0; font-size: 14px; overflow-wrap: anywhere; }
+.meta-row dd.is-missing { color: var(--warning); }
+@media (max-width: 640px) {
+  .meta-row { grid-template-columns: 1fr auto; }
+  .meta-row dd { grid-column: 1 / -1; grid-row: 2; }
+}
+
 /* Cancelar y pedir cambios */
 .cancel-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -8px 0 24px; }
 .cancel-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14px; }

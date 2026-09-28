@@ -85,6 +85,12 @@ sesión nueva, retoca esa pieza según lo pedido partiendo de su HTML publicado,
 original (`buildRevisionPrompt`); pasa el control de calidad completo. La versión original no cambia.
 "Adaptar a móvil" sigue siendo un retoque solo de la versión móvil.
 
+**En la página del trabajo** (2026-09-28): asunto (el `<title>` del HTML) y preheader con botón de
+copiar, "Copiar HTML" para pegarlo en la plataforma de envío, posición en la cola con el inicio
+estimado, el progreso en el título de la pestaña y "Avisarme cuando termine" (notificación del
+navegador, con la pestaña abierta). Los avisos y errores salen dentro de la página, sin ventanas
+emergentes del navegador.
+
 La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El desplegable de marcas combina las del
 volumen de Railway y las del Mac del worker. Si el prompt no menciona la marca elegida, Studio pide
 confirmación antes de encolarlo.

@@ -78,6 +78,15 @@
           <input type="text" name="requesterName" id="requester-input" />
         </label>
 
+        <div id="brand-warning" class="form-warning" role="alert" hidden>
+          <p id="brand-warning-text"></p>
+          <div class="warning-actions">
+            <button type="button" id="brand-send-anyway" class="btn btn-secondary btn-sm">Enviar igualmente</button>
+            <button type="button" id="brand-review" class="btn btn-ghost btn-sm">Revisar la marca</button>
+          </div>
+        </div>
+        <p id="form-error" class="form-error" role="alert" hidden></p>
+
         <div class="actions">
           <button type="submit" class="btn btn-primary">Generar newsletter</button>
           <p class="hint">Puedes cerrar esta página y volver con el enlace del trabajo.</p>
@@ -130,6 +139,8 @@
       </div>
 
       <div class="cancel-row" id="cancel-row" hidden>
+        <button id="notify-btn" type="button" class="btn btn-secondary btn-sm" hidden>Avisarme cuando termine</button>
+        <span id="notify-hint" class="hint" hidden>Te avisaré cuando termine (con esta pestaña abierta).</span>
         <button id="cancel-btn" type="button" class="btn btn-ghost btn-sm">Cancelar trabajo</button>
         <span id="cancel-confirm" class="cancel-confirm" hidden>
           <span>¿Seguro? Hermes dejará la newsletter a medias.</span>
@@ -146,6 +157,7 @@
         <div class="result-bar">
           <p id="result-message">La newsletter está lista.</p>
           <a id="download-link" class="btn btn-primary" href="#">Descargar HTML</a>
+          <button id="copy-html-btn" type="button" class="btn btn-secondary">Copiar HTML</button>
           <a id="open-link" class="btn btn-ghost" href="#" target="_blank" rel="noopener">Abrir en pestaña</a>
           <button id="revise-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="revise-box">Pedir cambios</button>
           <button id="mobile-fix-btn" type="button" class="btn btn-secondary" title="Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (unos minutos)">Adaptar a móvil</button>
@@ -163,6 +175,19 @@
             <p class="hint">Hermes retoca esta misma pieza en un trabajo nuevo (unos minutos). Esta versión no cambia.</p>
           </div>
         </form>
+        <dl class="email-meta" id="email-meta" hidden>
+          <div class="meta-row">
+            <dt>Asunto</dt>
+            <dd id="meta-subject"></dd>
+            <button type="button" class="btn btn-ghost btn-sm" data-copy="subject">Copiar</button>
+          </div>
+          <div class="meta-row">
+            <dt>Preheader</dt>
+            <dd id="meta-preheader"></dd>
+            <button type="button" class="btn btn-ghost btn-sm" data-copy="preheader">Copiar</button>
+          </div>
+        </dl>
+
         <section class="review" id="review" aria-labelledby="review-title">
           <div class="review-head">
             <h3 id="review-title">Revisión automática</h3>
@@ -219,6 +244,8 @@
   <footer class="foot">
     <span>Feebbo Digital</span><span>Digital Business CRO y Growthinking</span>
   </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="/app.js"></script>
 </body>

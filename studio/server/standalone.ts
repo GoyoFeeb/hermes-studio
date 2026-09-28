@@ -21,6 +21,7 @@ import { ROOT, DATA_DIR } from './paths';
 import { getJob, updateJob, appendEvent, listJobs, type Job } from './store';
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
+import { findPreheader } from '../worker/qualityCheck';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
 const GMAIL_CLIP_BYTES = 102 * 1024;
@@ -316,6 +317,47 @@ export function sanitizeQuality(raw: unknown): QualityReport | undefined {
     warnings: checks.filter((c) => c.status === 'warning').length,
     checks,
   };
+}
+
+/** Asunto (el <title> del HTML: es donde Hermes lo deja) y preheader de una newsletter terminada,
+ *  para copiarlos a la plataforma de envío sin abrir el archivo (2026-09-28). */
+export function resultMeta(job: Job): { subject: string | null; preheader: string | null } | null {
+  const html = readResultHtml(job);
+  if (!html) return null;
+  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || '';
+  const subject = title
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { subject: subject || null, preheader: findPreheader(html) };
+}
+
+/** Lo que suele tardar cada tipo de trabajo (orientativo: las duraciones reales viven en el Mac). */
+function typicalSeconds(job: Job): number {
+  if (job.input.mobileFixOf) return 6 * 60;
+  if (job.input.revisionOf) return 8 * 60;
+  return (job.input.instruction ? 25 : 20) * 60;
+}
+
+/** Posición en la cola de un trabajo standalone en espera y cuándo empezará, estimado: lo que le
+ *  queda al que está en marcha más lo que suelen tardar los que van delante. Hermes hace uno a la vez. */
+export function queueInfo(job: Job): { ahead: number; startsInSec: number } | null {
+  if (job.status !== 'queued' || job.input.mode !== 'standalone') return null;
+  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
+  const running = standalone.filter((j) => j.status === 'running');
+  const queuedAhead = standalone.filter((j) => j.status === 'queued' && j.createdAt < job.createdAt);
+  let seconds = 0;
+  for (const r of running) {
+    // Sin estimación (recta final) o sin progreso todavía: lo que suele tardar menos lo transcurrido.
+    seconds += r.progress?.etaSec ?? Math.max(120, typicalSeconds(r) - (r.progress?.elapsedSec ?? 0));
+  }
+  for (const q of queuedAhead) seconds += typicalSeconds(q);
+  return { ahead: running.length + queuedAhead.length, startsInSec: seconds };
 }
 
 /** Autoauditoría de Hermes (notas.md) de un trabajo terminado, para el panel de revisión. */

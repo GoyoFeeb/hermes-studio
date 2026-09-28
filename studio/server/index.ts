@@ -27,6 +27,8 @@ import {
   buildRevisionPrompt,
   readResultHtml,
   readResultNotes,
+  resultMeta,
+  queueInfo,
   sanitizeQuality,
   needsBrief,
   completeStandaloneJob,
@@ -428,7 +430,14 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
     res.status(404).json({ error: 'No encontrado' });
     return;
   }
-  res.json({ job, events: readEvents(job.id), notes: readResultNotes(job) });
+  res.json({
+    job,
+    events: readEvents(job.id),
+    notes: readResultNotes(job),
+    meta: resultMeta(job),
+    queue: queueInfo(job),
+    hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000,
+  });
 });
 
 // "Adaptar a móvil": nuevo trabajo que parte del HTML de uno terminado (ver buildMobileFixPrompt).

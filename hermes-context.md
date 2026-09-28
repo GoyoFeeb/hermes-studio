@@ -73,7 +73,7 @@ producción — todo lo anterior son campañas de prueba/exploración del motor.
 | BUG-H14 | Seguridad (worker) | Hermes corre con `--yolo` y cwd=sistema-final: aunque `HERMES_ENV` quita los secretos de las variables de entorno, puede leer `studio/.env` (WORKER_TOKEN) y `.env` del repo desde disco. Una web con instrucciones ocultas puede llevárselos. | `studio/worker/hermes-worker.ts:31-35` + `.env` en el repo | **Mitigado 2026-09-28** — credenciales del worker en `~/.config/hermes-studio/.env` (700/600, fuera del repo; fallback a `studio/.env` con aviso), el worker ya no carga el `.env` de la raíz y el encargo prohíbe leer archivos de credenciales. Sigue abierto el aislamiento real (otro usuario de macOS o backend Docker de Hermes). |
 | BUG-H15 | Calidad (salida standalone) | La ruta que se usa de verdad (Studio → Hermes) no pasa ningún gate determinista salvo el de móvil. Medido el 2026-09-28 sobre las 8 newsletters de Hermes: CTA de producto con 404 en las 3 versiones de Inglesina (`/products/base-darwin-360-isize`), 5/8 sin preheader, 0/8 con modo oscuro, 3/8 sin condicionales de Outlook; la regla de claims "potencia" salta en Adidas y Talaria (en Talaria es un dato técnico: la regla necesita contexto). | `studio/worker/hermes-worker.ts` (solo `mobileOverflow`), `studio/server/standalone.ts` (`checkEmailHtml`, solo avisos) | **Parcialmente cerrado 2026-09-28** — `studio/worker/qualityCheck.ts`: enlaces/imágenes (404/410/5xx/DNS = error; 403/429 = aviso), preheader, baja, alt, enlaces vacíos, peso Gmail → errores devueltos a Hermes (2 rondas); claims solo aviso. Detecta el 404 y el preheader reales de Inglesina. Preheader y enlaces verificados, obligatorios en el encargo. Pendiente: modo oscuro y Outlook. |
 | BUG-H16 | Infra (entrega) | Las imágenes de las newsletters enviadas se sirven desde el dominio de Railway (`STUDIO_PUBLIC_BASE_URL`), en periodo de prueba (vence hacia el 2026-10-10). Si el servicio cae o cambia de dominio, los emails ya enviados se quedan sin imágenes. | `studio/server/standalone.ts` (`publishEmbeddedImages`) | Abierto |
-| BUG-H17 | UX (studio) | No se puede cancelar un trabajo en cola o en curso; la única iteración posible es "Adaptar a móvil"; los avisos de calidad y la autoauditoría (`notas.md`) solo aparecen en el registro plegado; errores con `alert`/`confirm` nativos; sin posición en la cola. | `studio/web/app.js`, `studio/server/index.ts` | **Parcialmente cerrado 2026-09-28** — panel de revisión (control de calidad + autoauditoría `notas.md`) en el resultado. Cancelar y pedir cambios cerrados el 2026-09-28 (ver changelog). Pendiente: posición en cola, mensajes sin `alert`. |
+| BUG-H17 | UX (studio) | No se puede cancelar un trabajo en cola o en curso; la única iteración posible es "Adaptar a móvil"; los avisos de calidad y la autoauditoría (`notas.md`) solo aparecen en el registro plegado; errores con `alert`/`confirm` nativos; sin posición en la cola. | `studio/web/app.js`, `studio/server/index.ts` | **Parcialmente cerrado 2026-09-28** — panel de revisión (control de calidad + autoauditoría `notas.md`) en el resultado. Cancelar y pedir cambios cerrados el 2026-09-28 (ver changelog). Posición en cola y mensajes sin `alert` cerrados el 2026-09-28. |
 | BUG-H18 | Tooling | `npx tsc --noEmit` falla con TS5107 (`moduleResolution=node10` obsoleto en TypeScript 6); el worker (833 líneas) no tiene ningún test. | `tsconfig.json:5`, `studio/worker/` | Abierto |
 
 ---
@@ -679,3 +679,22 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `4d4967d` → Railway SUCCESS 10:18; Vercel sirve la interfaz
   nueva; worker reiniciado (launchd) sin errores. **Pendiente:** primer uso real de cancelar y pedir
   cambios con Hermes de verdad.
+
+### 2026-09-28 (continuación) — Mejoras de interfaz 1, 4, 5 y 6
+
+- **Elegidas por el usuario** de la lista de 12 mejoras de interfaz. Solo Studio.
+- **1. Asunto, preheader y copiar:** `GET /api/jobs/:id` devuelve `meta` (`resultMeta`: `<title>` +
+  `findPreheader` del control de calidad); bloque con botones de copiar; "Copiar HTML" con el HTML
+  descargado al abrir el resultado y método clásico (`execCommand`) si el portapapeles está bloqueado
+  (el panel integrado del navegador lo bloquea: así se detectó).
+- **4. Aviso al terminar:** progreso/estado en el título de la pestaña; "Avisarme cuando termine"
+  (Notification, preferencia en localStorage), avisa solo en la transición a terminado/fallido con la
+  pestaña en segundo plano.
+- **5. Posición en la cola:** `queueInfo` (trabajos delante + inicio estimado: ETA del que está en
+  marcha + duración típica por tipo: 20 min, 25 con instrucción, 8 cambios, 6 móvil) y `hermesOnline`.
+- **6. Sin ventanas emergentes:** aviso de marca equivocada y errores dentro del formulario; el resto
+  (Reutilizar, Adaptar a móvil, copiar) con un aviso flotante (`#toast`, `aria-live`).
+- **Verificación:** navegador (copia aislada) a 800 y 375 px: meta y copiar, cola ("1 trabajo delante",
+  Hermes desconectado), título de pestaña, notificación simulada (permiso por defecto → concedido → aviso
+  solo en la transición) y aviso de marca con "Enviar igualmente". `npm test` 87/87.
+
