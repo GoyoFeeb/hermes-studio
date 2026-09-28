@@ -717,3 +717,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   blanco los marcos aislados (ya pasaba antes); el HTML servido se comprobó abriéndolo directamente.
   `npm test` 92/92.
 
+- **Desplegado (con permiso del usuario):** `c37d02b` → Railway SUCCESS 11:03; Vercel sirve `compare.js`
+  idéntico al local y no publica los tests (404). Worker sin cambios.
