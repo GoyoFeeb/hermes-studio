@@ -779,3 +779,23 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 
 - **Desplegado (con permiso del usuario):** `8a4c901` → Vercel (4 archivos idénticos al local), Railway
   SUCCESS 11:25 y worker reiniciado (launchd) sin errores.
+
+### 2026-09-28 (continuación) — Segunda lista de mejoras de interfaz: tanda 1, 2, 3, 4 y 8
+
+- **Elegidas por el usuario** de una lista nueva de 10. Solo la web de Studio.
+- **1. Barra fija de acciones:** aparece al bajar más allá de la barra del resultado (IntersectionObserver):
+  marca, Descargar, Copiar HTML, Pedir cambios y volver arriba; en móvil, rótulos cortos. El aviso
+  flotante y el pie se apartan para no taparse.
+- **2. Markdown legible:** `studio/web/markdown.js` (5 tests): escapa todo el HTML y solo añade títulos,
+  negrita, cursiva, código, listas, citas, tablas, separadores y enlaces http(s) (`target=_blank`,
+  `noopener`); código y enlaces se apartan antes de la cursiva (URLs con `_`). Autoauditoría y brief.
+- **3. Enlaces de la vista previa en otra pestaña:** `<base target="_blank">` + `rel="noopener noreferrer"`
+  en cada enlace (solo en la vista previa) y `allow-popups allow-popups-to-escape-sandbox` en el marco;
+  siguen sin scripts.
+- **4. Reintentar:** en la página de un trabajo fallido o cancelado y en el historial; relanza lo mismo
+  (o los cambios / la adaptación sobre la misma versión de origen) con `confirmBrand`.
+- **8. Copiar enlace** del trabajo y **nombre recordado** en el formulario (localStorage).
+- **Verificación:** copia aislada con la autoauditoría real de Talaria (6 títulos, 2 tablas, 19 enlaces,
+  sin HTML colado), barra fija a 800 y 375 px, enlaces de la vista previa, reintento (misma marca,
+  instrucción e imágenes), copiar enlace con clic real y nombre recordado. `npm test` 98/98.
+

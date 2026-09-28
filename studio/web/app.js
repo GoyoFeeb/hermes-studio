@@ -134,6 +134,15 @@ form.addEventListener('reset', () =>
   setTimeout(() => {
     applyKind();
     updateBrandMatch();
+    // Tu nombre se recuerda entre visitas (no hace falta escribirlo cada vez).
+    const requester = document.getElementById('requester-input');
+    if (!requester.value) {
+      try {
+        requester.value = localStorage.getItem('requesterName') || '';
+      } catch {
+        // sin almacenamiento
+      }
+    }
   })
 );
 
@@ -211,6 +220,11 @@ async function submitJob(payload) {
       formError.textContent = data.error || 'No se pudo enviar el brief.';
       formError.hidden = false;
       return;
+    }
+    try {
+      localStorage.setItem('requesterName', payload.requesterName || '');
+    } catch {
+      // sin almacenamiento: no se recuerda
     }
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
@@ -378,6 +392,9 @@ function renderHistory() {
       const actions = [
         `<a class="btn btn-ghost" href="?job=${id}">Ver</a>`,
         j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
+        j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked'
+          ? `<button type="button" class="btn btn-secondary" data-retry="${escapeHtml(j.id)}">Reintentar</button>`
+          : '',
         `<button type="button" class="btn btn-secondary" data-reuse="${escapeHtml(j.id)}">Reutilizar</button>`,
       ].join('');
       return `<li class="job-row${fam.number > 1 ? ' is-version' : ''}">
@@ -420,6 +437,8 @@ document.getElementById('history-more').addEventListener('click', () => {
 document.getElementById('history-list').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-reuse]');
   if (btn) reuseJob(btn.dataset.reuse);
+  const retry = e.target.closest('[data-retry]');
+  if (retry) retryJobById(retry.dataset.retry, retry);
 });
 
 // "Reutilizar": rellena el formulario con la marca, el prompt y el modo de imágenes de un trabajo
@@ -459,6 +478,7 @@ function showFormView() {
   viewForm.hidden = false;
   hero.hidden = false;
   document.title = BASE_TITLE;
+  updateSticky();
   loadHistory();
 }
 
@@ -485,6 +505,86 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
     btn.disabled = false;
   }
 });
+
+// ---------------------------------------------------------------- reintentar y copiar enlace
+
+/** Relanza un trabajo fallido o cancelado tal cual, en un clic (antes: Reutilizar + bajar al formulario
+ *  + enviar). Cambios y adaptaciones a móvil se relanzan sobre la misma versión de origen. */
+async function retryJob(job) {
+  const input = job.input;
+  const post = (url, body) =>
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+  let res;
+  if (input.revisionOf) {
+    res = await post(`/api/jobs/${encodeURIComponent(input.revisionOf)}/revise`, { changes: input.changeRequest, requesterName: input.requesterName });
+  } else if (input.mobileFixOf) {
+    res = await post(`/api/jobs/${encodeURIComponent(input.mobileFixOf)}/mobile-fix`);
+  } else {
+    res = await post('/api/jobs', {
+      mode: 'standalone',
+      inputKind: input.instruction ? 'instruction' : 'brief',
+      clientName: input.clientName,
+      existingBrand: input.brandMode === 'existing' ? input.clientSlug : '',
+      promptText: input.instruction || input.briefText,
+      imageMode: input.imageMode,
+      requesterName: input.requesterName || '',
+      confirmBrand: true, // ya se envió una vez con esta marca
+    });
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return showToast(data.error || 'No se pudo reintentar.', 'error');
+  history.pushState({}, '', `?job=${data.id}`);
+  showJobView(data.id);
+}
+
+async function retryJobById(id, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`/api/jobs/${encodeURIComponent(id)}`);
+    if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
+    await retryJob((await res.json()).job);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+document.querySelectorAll('[data-retry-current]').forEach((b) =>
+  b.addEventListener('click', () => currentJob && retryJobById(currentJob, b))
+);
+
+document.getElementById('copy-link-btn').addEventListener('click', () => {
+  if (currentJob) {
+    copyText(
+      `${location.origin}${location.pathname}?job=${encodeURIComponent(currentJob)}`,
+      'Enlace copiado: cualquiera del equipo con la contraseña puede abrirlo.',
+      'Copia la dirección de la barra del navegador.'
+    );
+  }
+});
+
+// ---------------------------------------------------------------- barra fija de acciones
+
+const stickyBar = document.getElementById('sticky-actions');
+let resultBarHidden = false;
+
+function updateSticky() {
+  const show = !viewJob.hidden && !document.getElementById('job-result').hidden && resultBarHidden;
+  stickyBar.hidden = !show;
+  document.body.classList.toggle('has-sticky', show);
+}
+
+// Visible solo cuando la barra de resultado ha quedado por ENCIMA de la pantalla (se ha bajado).
+new IntersectionObserver(([entry]) => {
+  resultBarHidden = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+  updateSticky();
+}).observe(document.querySelector('.result-bar'));
+
+document.getElementById('sticky-copy').addEventListener('click', () => document.getElementById('copy-html-btn').click());
+document.getElementById('sticky-revise').addEventListener('click', () => {
+  toggleRevise(true);
+  reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+document.getElementById('sticky-top').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
 // ---------------------------------------------------------------- cancelar y pedir cambios
 
@@ -578,6 +678,8 @@ function showJobView(id) {
   hero.hidden = true;
   viewJob.hidden = false;
   document.getElementById('job-result').hidden = true;
+  resultBarHidden = false;
+  updateSticky();
   document.getElementById('job-blocked').hidden = true;
   document.getElementById('job-cancelled').hidden = true;
   document.getElementById('cancel-row').hidden = true;
@@ -592,7 +694,8 @@ function showJobView(id) {
   document.getElementById('job-parent').hidden = true;
   document.getElementById('brief-box').hidden = true;
   document.getElementById('brief-box').open = false;
-  document.getElementById('brief-text').textContent = '';
+  document.getElementById('brief-text').innerHTML = '';
+  document.getElementById('brief-text').dataset.src = '';
   document.getElementById('job-title').textContent = '';
   document.getElementById('job-meta').textContent = '';
   window.scrollTo({ top: 0 });
@@ -634,9 +737,11 @@ async function poll(id) {
 
   const briefBox = document.getElementById('brief-box');
   briefBox.hidden = !(job.input.instruction && job.input.briefText);
-  if (!briefBox.hidden && document.getElementById('brief-text').textContent !== job.input.briefText) {
+  const briefEl = document.getElementById('brief-text');
+  if (!briefBox.hidden && briefEl.dataset.src !== job.input.briefText) {
     document.getElementById('brief-instruction').textContent = `Instrucción: «${job.input.instruction}»`;
-    document.getElementById('brief-text').textContent = job.input.briefText;
+    briefEl.dataset.src = job.input.briefText;
+    briefEl.innerHTML = window.HermesMarkdown ? window.HermesMarkdown.render(job.input.briefText) : '';
   }
 
   const statusEl = document.getElementById('job-status');
@@ -658,6 +763,8 @@ async function poll(id) {
     if (resultBox.hidden) {
       resultBox.hidden = false;
       document.getElementById('download-link').href = `/api/jobs/${id}/result?download=1`;
+      document.getElementById('sticky-download').href = `/api/jobs/${id}/result?download=1`;
+      document.getElementById('sticky-title').textContent = document.getElementById('job-title').textContent;
       document.getElementById('open-link').href = `/api/jobs/${id}/result`;
       applyPreviewView(job.input.mobileFixOf ? 'mobile' : readPreviewView());
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
@@ -740,7 +847,7 @@ function copyWithSelection(text) {
   return ok;
 }
 
-async function copyText(text, okMessage) {
+async function copyText(text, okMessage, failHint = 'Usa «Descargar HTML».') {
   try {
     await navigator.clipboard.writeText(text);
     showToast(okMessage);
@@ -749,7 +856,7 @@ async function copyText(text, okMessage) {
     // sigue con el método clásico
   }
   if (copyWithSelection(text)) showToast(okMessage);
-  else showToast('No se pudo copiar: el navegador no dio permiso para usar el portapapeles. Usa «Descargar HTML».', 'error');
+  else showToast(`No se pudo copiar: el navegador no dio permiso para usar el portapapeles. ${failHint}`, 'error');
 }
 
 document.getElementById('email-meta').addEventListener('click', (e) => {
@@ -888,7 +995,7 @@ function renderReview(quality, notes) {
   const notesBox = document.getElementById('notes-box');
   notesBox.hidden = !notes;
   notesBox.open = false;
-  document.getElementById('notes-text').textContent = notes || '';
+  document.getElementById('notes-text').innerHTML = notes && window.HermesMarkdown ? window.HermesMarkdown.render(notes) : '';
 }
 
 // ---------------------------------------------------------------- vista previa escritorio / móvil
@@ -1115,8 +1222,11 @@ function themedHtml(html, theme) {
   const out = forceScheme(html, theme === 'dark' ? 'dark' : 'light');
   // Colores por defecto del navegador (fondo, texto, formularios): oscuros solo si la pieza lo declara.
   const scheme = theme === 'dark' && declaresDark(html) ? 'dark' : 'light';
-  const css = `<style data-studio-preview>html{color-scheme:${scheme}!important}</style>${theme === 'invert' ? INVERT_CSS : ''}`;
-  return /<\/head>/i.test(out) ? out.replace(/<\/head>/i, `${css}</head>`) : css + out;
+  // Los enlaces de la pieza se abren en otra pestaña (antes, la web de la marca sustituía a la
+  // newsletter dentro del marco). rel=noopener: la pestaña nueva no puede tocar Studio.
+  const css = `<base target="_blank"><style data-studio-preview>html{color-scheme:${scheme}!important}</style>${theme === 'invert' ? INVERT_CSS : ''}`;
+  const safeLinks = out.replace(/<a\b(?![^>]*\brel\s*=)/gi, '<a rel="noopener noreferrer"');
+  return /<\/head>/i.test(safeLinks) ? safeLinks.replace(/<\/head>/i, `${css}</head>`) : css + safeLinks;
 }
 
 function resetFrame(frame) {

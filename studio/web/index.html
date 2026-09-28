@@ -123,7 +123,10 @@
           <p id="job-change" class="change-request" hidden></p>
           <p id="job-parent" class="hint" hidden>Hecha a partir de <a id="job-parent-link" href="#"></a>.</p>
         </div>
-        <div id="job-status" class="status-badge"></div>
+        <div class="job-head-side">
+          <div id="job-status" class="status-badge"></div>
+          <button id="copy-link-btn" type="button" class="btn btn-ghost btn-sm">Copiar enlace</button>
+        </div>
       </div>
 
       <nav class="versions" id="versions" aria-label="Versiones de esta newsletter" hidden>
@@ -154,7 +157,8 @@
       </div>
 
       <div id="job-cancelled" class="job-cancelled" hidden>
-        <p>Trabajo cancelado. Puedes relanzarlo con «Reutilizar este prompt».</p>
+        <p>Trabajo cancelado.</p>
+        <button type="button" class="btn btn-primary" data-retry-current>Reintentar</button>
       </div>
 
       <div id="job-result" hidden>
@@ -201,7 +205,7 @@
           <ul id="review-list" class="review-list"></ul>
           <details class="notes-box" id="notes-box" hidden>
             <summary>Autoauditoría de Hermes <span>fuente de cada dato y origen de cada imagen</span></summary>
-            <pre id="notes-text"></pre>
+            <div id="notes-text" class="md"></div>
           </details>
         </section>
 
@@ -235,13 +239,13 @@
           <div class="preview-col" id="preview-col-before" hidden>
             <p class="preview-label" id="preview-label-before"></p>
             <div class="preview-device" id="preview-device-before">
-              <iframe id="preview-frame-before" sandbox="allow-same-origin" title="Versión anterior de la newsletter"></iframe>
+              <iframe id="preview-frame-before" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Versión anterior de la newsletter"></iframe>
             </div>
           </div>
           <div class="preview-col" id="preview-col-after">
             <p class="preview-label" id="preview-label-after" hidden></p>
             <div class="preview-device" id="preview-device">
-              <iframe id="preview-frame" sandbox="allow-same-origin" title="Previsualización de la newsletter"></iframe>
+              <iframe id="preview-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Previsualización de la newsletter"></iframe>
             </div>
           </div>
         </div>
@@ -250,13 +254,14 @@
       <div id="job-blocked" hidden>
         <p>La campaña se detuvo antes de poder entregarse:</p>
         <pre id="blocked-reason"></pre>
+        <button type="button" class="btn btn-primary" data-retry-current>Reintentar</button>
       </div>
 
       <details class="log-box" id="brief-box" hidden>
         <summary>Brief creativo generado por Hermes</summary>
         <div class="brief-body">
           <p class="hint" id="brief-instruction"></p>
-          <pre id="brief-text"></pre>
+          <div id="brief-text" class="md"></div>
           <button id="use-brief-btn" type="button" class="btn btn-ghost">Usar este brief en un trabajo nuevo</button>
         </div>
       </details>
@@ -282,6 +287,16 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
+  <!-- Barra de acciones que se queda visible al bajar por la vista previa (la pieza entera ocupa miles de px). -->
+  <div id="sticky-actions" class="sticky-actions" hidden>
+    <span id="sticky-title" class="sticky-title"></span>
+    <a id="sticky-download" class="btn btn-primary btn-sm" href="#">Descargar</a>
+    <button id="sticky-copy" type="button" class="btn btn-secondary btn-sm" aria-label="Copiar HTML"><span class="lbl-long">Copiar HTML</span><span class="lbl-short" aria-hidden="true">Copiar</span></button>
+    <button id="sticky-revise" type="button" class="btn btn-secondary btn-sm" aria-label="Pedir cambios"><span class="lbl-long">Pedir cambios</span><span class="lbl-short" aria-hidden="true">Cambios</span></button>
+    <button id="sticky-top" type="button" class="btn btn-ghost btn-sm" aria-label="Volver arriba">↑</button>
+  </div>
+
+  <script src="/markdown.js"></script>
   <script src="/compare.js"></script>
   <script src="/app.js"></script>
 </body>
