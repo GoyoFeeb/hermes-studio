@@ -16,7 +16,7 @@
     <a class="brand" href="/" aria-label="Hermes Studio — inicio">
       <img src="/feebbo-logo.svg" alt="Feebbo Digital" width="99" height="36" />
     </a>
-    <span id="hermes-status" class="status-pill">Comprobando Hermes…</span>
+    <a id="hermes-status" class="status-pill">Comprobando Hermes…</a>
   </header>
 
   <main id="app">
@@ -102,11 +102,14 @@
             <option value="">Todas las marcas</option>
           </select>
         </div>
-        <div class="chips" id="history-status" role="group" aria-label="Filtrar por estado">
-          <button type="button" class="chip is-active" data-status="" aria-pressed="true">Todas</button>
-          <button type="button" class="chip" data-status="active" aria-pressed="false">En curso</button>
-          <button type="button" class="chip" data-status="completed" aria-pressed="false">Listas</button>
-          <button type="button" class="chip" data-status="failed" aria-pressed="false">Fallidas</button>
+        <div class="chips-row">
+          <div class="chips" id="history-status" role="group" aria-label="Filtrar por estado">
+            <button type="button" class="chip is-active" data-status="" aria-pressed="true">Todas</button>
+            <button type="button" class="chip" data-status="active" aria-pressed="false">En curso</button>
+            <button type="button" class="chip" data-status="completed" aria-pressed="false">Listas</button>
+            <button type="button" class="chip" data-status="failed" aria-pressed="false">Fallidas</button>
+          </div>
+          <button type="button" class="chip" id="mine-chip" aria-pressed="false" hidden>Mis trabajos</button>
         </div>
         <ul id="history-list"></ul>
         <p id="history-empty" class="hint" hidden>Ningún trabajo coincide con el filtro.</p>

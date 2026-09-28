@@ -23,6 +23,7 @@ import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 import { chromium } from 'playwright';
 import { runQualityCheck, describeErrors, type QualityReport } from './qualityCheck';
+import { renderThumbnail } from './thumbnail';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -829,7 +830,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   try {
     const notes = notesReady() ? fs.readFileSync(notesFile, 'utf8').trim() : '';
     const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality }, 6);
+    // Miniatura para el historial: si no sale, la newsletter se entrega igual.
+    const thumbnail = (await renderThumbnail({ path: htmlPath })) || undefined;
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;
@@ -845,6 +848,31 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     console.log(`[${stamp()}] ✓ ${job.id} en ${minutes} min`);
   }
   current = null;
+}
+
+/** Miniaturas de newsletters anteriores a esta función (2026-09-28): cuando no hay trabajo, se piden
+ *  unas pocas a Studio, se renderizan aquí y se suben. Si no queda ninguna, no se vuelve a preguntar
+ *  en un rato. */
+const THUMB_BACKFILL_IDLE_MS = 10 * 60 * 1000;
+let thumbsIdleUntil = 0;
+
+async function backfillThumbnails(): Promise<void> {
+  if (Date.now() < thumbsIdleUntil) return;
+  const res = await api('/api/worker/thumbs/pending', {}, 1);
+  if (!res.ok) {
+    thumbsIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS; // Studio sin la ruta todavía
+    return;
+  }
+  const { jobs } = (await res.json()) as { jobs: { id: string; html: string }[] };
+  if (!jobs.length) {
+    thumbsIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS;
+    return;
+  }
+  for (const j of jobs) {
+    const image = await renderThumbnail({ html: j.html });
+    await api(`/api/worker/jobs/${j.id}/thumb`, image ? { image } : { failed: true }, 2).catch(() => undefined);
+  }
+  console.log(`[${stamp()}] Miniaturas del historial: ${jobs.length} generada(s)`);
 }
 
 /** Un solo worker a la vez (servicio de launchd + uno abierto a mano en un terminal): con dos, se
@@ -914,9 +942,11 @@ async function main(): Promise<void> {
         }
         continue;
       }
-      if (res.status === 401) {
+      if (res.status === 204) {
+        await backfillThumbnails().catch((err) => console.error(`[${stamp()}] Miniaturas: ${(err as Error).message}`));
+      } else if (res.status === 401) {
         console.error('Studio rechaza el WORKER_TOKEN — revisa que coincide con el de Railway.');
-      } else if (res.status !== 204) {
+      } else {
         console.error(`Studio respondió ${res.status} al pedir trabajo.`);
       }
     } catch (err) {

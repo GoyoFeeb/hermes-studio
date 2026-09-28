@@ -30,6 +30,8 @@ import {
   resultMeta,
   queueInfo,
   versionFamily,
+  saveThumbnail,
+  pendingThumbnails,
   sanitizeQuality,
   needsBrief,
   completeStandaloneJob,
@@ -248,7 +250,7 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     return;
   }
   try {
-    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality));
+    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality), req.body.thumbnail);
     res.json({ ok: true });
   } catch (err) {
     updateJob(job.id, { status: 'failed', error: (err as Error).message });
@@ -262,6 +264,32 @@ app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256k
   const error = String(req.body?.error || 'Hermes no pudo terminar la newsletter.').slice(0, 4000);
   hermesLog(job.id, error, 'error');
   updateJob(job.id, { status: 'failed', error });
+  res.json({ ok: true });
+});
+
+// Miniaturas de newsletters anteriores (2026-09-28): el worker, cuando está libre, pide unas pocas sin
+// miniatura, las renderiza en el Mac y las sube. Railway no abre ningún navegador.
+app.post('/api/worker/thumbs/pending', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
+  res.json({ jobs: pendingThumbnails(3) });
+});
+
+app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '1mb' }), (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone' || job.status !== 'completed') {
+    res.status(404).json({ error: 'Trabajo no encontrado o no terminado.' });
+    return;
+  }
+  if (req.body?.failed) {
+    updateJob(job.id, { thumbFailed: true });
+    res.json({ ok: true });
+    return;
+  }
+  const rel = saveThumbnail(job, req.body?.image);
+  if (!rel) {
+    res.status(400).json({ error: 'Miniatura no válida.' });
+    return;
+  }
+  updateJob(job.id, { thumbRelPath: rel });
   res.json({ ok: true });
 });
 
@@ -396,8 +424,17 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
   res.status(201).json({ id: job.id });
 });
 
+/** Estado de Hermes para la cabecera (2026-09-28): conectado o no, con qué newsletter está y cuántas esperan. */
 app.get('/api/status', (_req: Request, res: Response) => {
-  res.json({ hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000 });
+  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
+  const running = standalone.find((j) => j.status === 'running');
+  res.json({
+    hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000,
+    current: running
+      ? { id: running.id, clientName: running.input.clientName, pct: running.progress?.pct ?? null, stageLabel: running.progress?.stageLabel ?? null }
+      : null,
+    queued: standalone.filter((j) => j.status === 'queued').length,
+  });
 });
 
 /** Historial ligero para la página principal (sin el prompt completo de cada trabajo). */
@@ -417,6 +454,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       fromInstruction: !!j.input.instruction,
       mobileFixOf: j.input.mobileFixOf || null,
       revisionOf: j.input.revisionOf || null,
+      hasThumb: !!j.thumbRelPath,
       pct: j.progress?.pct ?? null,
       elapsedSec: j.progress?.elapsedSec ?? null,
       error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,
@@ -507,6 +545,16 @@ app.post('/api/jobs/:id/cancel', (req: Request, res: Response) => {
   updateJob(job.id, { status: 'cancelled', currentPhase: null, error: undefined });
   hermesLog(job.id, wasRunning ? 'Cancelado: Hermes se detendrá en unos segundos.' : 'Cancelado antes de empezar.', 'error');
   res.json({ ok: true });
+});
+
+app.get('/api/jobs/:id/thumb', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job?.thumbRelPath) {
+    res.status(404).end();
+    return;
+  }
+  res.set('Cache-Control', 'private, max-age=86400');
+  res.type('jpeg').sendFile(path.join(ROOT, job.thumbRelPath));
 });
 
 app.get('/api/jobs/:id/result', (req: Request, res: Response) => {

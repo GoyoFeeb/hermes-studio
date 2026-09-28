@@ -86,20 +86,46 @@ async function loadBrands() {
 }
 const brandsReady = loadBrands();
 
+// Qué está haciendo Hermes, visible desde cualquier página (2026-09-28): con qué newsletter está, a qué
+// porcentaje y cuántas esperan; si está trabajando, la píldora lleva a ese trabajo.
+let statusTimer = null;
+
 async function loadHermesStatus() {
+  clearTimeout(statusTimer);
   const el = document.getElementById('hermes-status');
+  let busy = false;
   try {
-    const { hermesOnline } = await (await fetch('/api/status')).json();
-    el.textContent = hermesOnline ? 'Hermes conectado' : 'Hermes desconectado';
-    el.className = `status-pill ${hermesOnline ? 'is-online' : 'is-offline'}`;
-    el.title = hermesOnline ? '' : 'Puedes enviar igualmente: empezará cuando Hermes se conecte.';
+    const { hermesOnline, current, queued = 0 } = await (await fetch('/api/status')).json();
+    const waiting = queued ? ` · ${queued} en cola` : '';
+    busy = !!current;
+    if (current) {
+      el.textContent = `Hermes · ${current.clientName}${current.pct != null ? ` · ${current.pct} %` : ''}${waiting}`;
+      el.href = `?job=${encodeURIComponent(current.id)}`;
+      el.title = `${current.stageLabel || 'Trabajando'}: abre el trabajo`;
+    } else {
+      el.textContent = (hermesOnline ? 'Hermes conectado' : 'Hermes desconectado') + waiting;
+      el.removeAttribute('href');
+      el.title = hermesOnline ? '' : 'Puedes enviar igualmente: empezará cuando Hermes se conecte.';
+    }
+    el.className = `status-pill ${current ? 'is-busy' : hermesOnline ? 'is-online' : 'is-offline'}`;
   } catch {
     el.textContent = '';
+    el.removeAttribute('href');
     el.className = 'status-pill';
   }
+  // Mientras trabaja se refresca más a menudo, para que el porcentaje no se quede viejo.
+  statusTimer = setTimeout(loadHermesStatus, busy ? 20000 : 60000);
 }
 loadHermesStatus();
-setInterval(loadHermesStatus, 60000);
+
+document.getElementById('hermes-status').addEventListener('click', (e) => {
+  const href = e.currentTarget.getAttribute('href');
+  if (!href || e.metaKey || e.ctrlKey) return;
+  e.preventDefault();
+  const id = new URLSearchParams(href.slice(1)).get('job');
+  history.pushState({}, '', href);
+  showJobView(id);
+});
 
 // Instrucción rápida (Hermes escribe antes el brief con la skill newsletter-creative-brief) o
 // prompt completo ya generado con la skill.
@@ -281,7 +307,31 @@ const IMAGE_LABELS = { official: 'Assets oficiales', ai: 'Imágenes con IA' };
 // ---------------------------------------------------------------- historial
 
 const HISTORY_PAGE = 20;
-const historyState = { jobs: [], query: '', brand: '', status: '', shown: HISTORY_PAGE };
+const historyState = { jobs: [], query: '', brand: '', status: '', mine: false, shown: HISTORY_PAGE };
+
+// "Mis trabajos" (2026-09-28): el nombre que recuerda el formulario. Sin nombre, el filtro no aparece.
+function savedRequester() {
+  try {
+    return (localStorage.getItem('requesterName') || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function renderMineChip() {
+  const chip = document.getElementById('mine-chip');
+  const name = savedRequester();
+  chip.hidden = !name;
+  if (!name) historyState.mine = false;
+  chip.textContent = name ? `Mis trabajos (${name})` : 'Mis trabajos';
+  chip.setAttribute('aria-pressed', String(historyState.mine));
+}
+
+try {
+  historyState.mine = localStorage.getItem('historyMine') === '1';
+} catch {
+  // sin almacenamiento
+}
 let historyTimer = null;
 
 async function loadHistory() {
@@ -329,6 +379,7 @@ function filteredJobs() {
     if (historyState.status === 'completed' && j.status !== 'completed') return false;
     if (historyState.status === 'failed' && j.status !== 'failed' && j.status !== 'blocked') return false;
     if (q && !normalize(`${j.clientName} ${j.requesterName || ''}`).includes(q)) return false;
+    if (historyState.mine && normalize(j.requesterName || '') !== normalize(savedRequester())) return false;
     return true;
   });
 }
@@ -363,6 +414,7 @@ function familyInfo(jobs) {
 }
 
 function renderHistory() {
+  renderMineChip();
   // Cada familia junta (la original y debajo sus versiones), ordenadas por su versión más reciente.
   const info = familyInfo(historyState.jobs);
   const list = filteredJobs().sort((a, b) => {
@@ -397,7 +449,17 @@ function renderHistory() {
           : '',
         `<button type="button" class="btn btn-secondary" data-reuse="${escapeHtml(j.id)}">Reutilizar</button>`,
       ].join('');
+      const initials = String(j.clientName || '?')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0].toUpperCase())
+        .join('');
+      const thumb = j.hasThumb
+        ? `<a class="thumb" href="?job=${id}" tabindex="-1" aria-hidden="true"><img src="/api/jobs/${id}/thumb" alt="" loading="lazy" width="48" height="64" data-initials="${escapeHtml(initials)}"></a>`
+        : `<a class="thumb thumb-empty" href="?job=${id}" tabindex="-1" aria-hidden="true">${escapeHtml(initials)}</a>`;
       return `<li class="job-row${fam.number > 1 ? ' is-version' : ''}">
+          ${thumb}
           <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}</a>
           <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(label)}</span>
           <p class="meta">${meta}</p>
@@ -430,10 +492,33 @@ document.getElementById('history-status').addEventListener('click', (e) => {
   historyState.shown = HISTORY_PAGE;
   renderHistory();
 });
+document.getElementById('mine-chip').addEventListener('click', () => {
+  historyState.mine = !historyState.mine;
+  try {
+    localStorage.setItem('historyMine', historyState.mine ? '1' : '0');
+  } catch {
+    // sin almacenamiento
+  }
+  historyState.shown = HISTORY_PAGE;
+  renderMineChip();
+  renderHistory();
+});
 document.getElementById('history-more').addEventListener('click', () => {
   historyState.shown += HISTORY_PAGE;
   renderHistory();
 });
+// Miniatura que no carga (borrada del volumen, red): se cambia por las iniciales de la marca.
+document.getElementById('history-list').addEventListener(
+  'error',
+  (e) => {
+    const img = e.target;
+    if (img.tagName !== 'IMG' || !img.closest('.thumb')) return;
+    const link = img.parentElement;
+    link.classList.add('thumb-empty');
+    link.textContent = img.dataset.initials || '';
+  },
+  true
+);
 document.getElementById('history-list').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-reuse]');
   if (btn) reuseJob(btn.dataset.reuse);

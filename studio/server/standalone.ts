@@ -414,7 +414,33 @@ export function readResultNotes(job: Job): string | null {
   }
 }
 
-export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessage: string, quality?: QualityReport): void {
+const THUMB_MAX_BYTES = 400 * 1024;
+
+/** Guarda la miniatura (base64 de un JPEG que envía el worker) junto a la newsletter. Solo se acepta
+ *  un JPEG de verdad y de tamaño razonable: llega por la red y se sirve después como imagen. */
+export function saveThumbnail(job: Job, b64: unknown): string | null {
+  if (typeof b64 !== 'string' || !job.campaignRelPath) return null;
+  const buf = Buffer.from(b64, 'base64');
+  const isJpeg = buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+  if (!isJpeg || buf.length > THUMB_MAX_BYTES) return null;
+  const rel = path.join(job.campaignRelPath, 'thumb.jpg');
+  fs.writeFileSync(path.join(ROOT, rel), buf);
+  return rel;
+}
+
+/** Newsletters terminadas sin miniatura (anteriores a esta función): el worker las genera cuando está
+ *  libre, de pocas en pocas, a partir del HTML publicado. */
+export function pendingThumbnails(limit: number): { id: string; html: string }[] {
+  return listJobs()
+    .filter((j) => j.input.mode === 'standalone' && j.status === 'completed' && !j.thumbRelPath && !j.thumbFailed)
+    .slice(0, limit)
+    .flatMap((j) => {
+      const html = readResultHtml(j);
+      return html ? [{ id: j.id, html }] : [];
+    });
+}
+
+export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessage: string, quality?: QualityReport, thumbnail?: string): void {
   const job = getJob(jobId);
   if (!job) throw new Error(`Job ${jobId} no encontrado`);
   const outRel = standaloneOutputDir(job);
@@ -441,5 +467,10 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
     resultRelPath: path.join(outRel, 'newsletter.html'),
     ...(quality ? { quality } : {}),
   });
+  // Después de marcarla terminada: saveThumbnail necesita campaignRelPath. Si falla, el historial
+  // muestra las iniciales de la marca; no es motivo para perder la newsletter.
+  const done = getJob(jobId);
+  const thumbRelPath = done && thumbnail ? saveThumbnail(done, thumbnail) : null;
+  if (thumbRelPath) updateJob(jobId, { thumbRelPath });
   log(jobId, 'Newsletter lista.', 'success');
 }

@@ -801,3 +801,22 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 
 - **Desplegado (con permiso del usuario):** `9c2272d` publicado en Vercel (4 archivos idénticos al local;
   `markdown.test.js` no se publica) y subido a `Javifeebbo/hermes-studio`. Worker sin cambios.
+
+### 2026-09-28 (continuación) — Interfaz 6, 7 y 9: miniaturas, qué hace Hermes y "Mis trabajos"
+
+- **Elegidas por el usuario.** Servidor, worker y web de Studio.
+- **6. Miniaturas:** las genera el WORKER (Railway en plan de prueba con poca memoria: no se abre
+  Chromium allí). `studio/worker/thumbnail.ts` (sin JS, 800 px, recorte 600×800 → JPEG 300×400, ~8 KB;
+  un reintento tras un fallo puntual visto en la prueba). Nuevas: en `/complete` (`thumbnail`). Antiguas:
+  con el worker libre, `POST /api/worker/thumbs/pending` (3) → `POST /api/worker/jobs/:id/thumb`
+  (`image` o `failed`); sin pendientes, no vuelve a preguntar en 10 min. `saveThumbnail` solo acepta JPEG
+  (bytes FF D8 FF) ≤ 400 KB; `GET /api/jobs/:id/thumb` con caché privada de 1 día; `hasThumb` en la lista.
+  Sin miniatura: iniciales de la marca (también si la imagen no carga).
+- **7. Qué hace Hermes:** `/api/status` devuelve `current` (id, marca, %, fase) y `queued`; la píldora de la
+  cabecera dice "Hermes · Nike · 52 % · 2 en cola" y enlaza con el trabajo; se refresca cada 20 s si trabaja.
+- **9. "Mis trabajos":** filtro con el nombre que recuerda el formulario (oculto si no hay nombre), recordado.
+- **Verificación:** copia aislada con worker + Hermes simulado: pieza lenta → cabecera "Hermes · Inglesina"
+  con enlace; al terminar, miniatura en `/complete`; worker libre → 4 miniaturas antiguas en 2 pasadas (una
+  falló de forma puntual y no se repitió: de ahí el reintento). Filas del historial corregidas (las reglas
+  antiguas pisaban la rejilla nueva) y probadas a 800 y 375 px; filtro con 2 de 16. `npm test` 98/98.
+

@@ -103,6 +103,13 @@ Mail: aplica los `@media (prefers-color-scheme: dark)` de la pieza; se fijan en 
 porque el marco sigue el modo del sistema de quien mira) e Invertido (aproximación a Gmail/Outlook en
 móvil). Solo afecta a la vista previa: la descarga y "Copiar HTML" son la pieza tal cual.
 
+**Miniaturas del historial** (2026-09-28): las genera el worker en el Mac (`studio/worker/thumbnail.ts`:
+Chromium sin JavaScript a 800 px, parte de arriba 600×800 → JPEG 300×400 con `sharp`), no Railway, que va
+justo de memoria. Las nuevas viajan con la newsletter; las anteriores las pide el worker cuando está libre
+(`/api/worker/thumbs/pending`, de 3 en 3). Sin miniatura, la fila muestra las iniciales de la marca. La
+cabecera dice con qué newsletter está Hermes (y enlaza con ella) y cuántas esperan; "Mis trabajos" filtra
+por el nombre que recuerda el formulario.
+
 La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El campo de marca (uno solo desde el 2026-09-28) sugiere
 las del volumen de Railway y las del Mac del worker y dice debajo si lo escrito es una marca del
 sistema (usa su carpeta de `brands/`) o una nueva. En "Instrucción rápida" hay ejemplos pulsables. Si el prompt no menciona la marca elegida, Studio pide

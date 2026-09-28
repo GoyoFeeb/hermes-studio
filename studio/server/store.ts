@@ -63,6 +63,10 @@ export interface Job {
   /** Control de calidad del worker al terminar (2026-09-28, ver studio/worker/qualityCheck.ts).
    *  Sin definir en las newsletters anteriores a ese control. */
   quality?: QualityReport;
+  /** Miniatura para el historial (2026-09-28): JPEG 300×400 que genera el worker en el Mac. */
+  thumbRelPath?: string;
+  /** El worker no pudo generarla: no se le vuelve a pedir. */
+  thumbFailed?: boolean;
 }
 
 export interface JobEvent {
