@@ -869,6 +869,26 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-29 — Lacoste en bucle: vigilante de bucles e intentos fallidos apartados
+
+- **Incidente**: trabajo `mumcv8oj-i5jifn` (Lacoste, 9:29). Tras el brief, Hermes (DeepSeek V4 Flash vía Nous, el
+  mismo modelo que el día anterior) encontró el intento a medias del 28 (`2026-09-28-flgi3r`, marcado fallido al
+  reiniciarse el worker) y desde las 9:53 releyó en bucle su notas.md y newsletter.html (Hermes bloqueaba cada
+  lectura; el modelo seguía pidiéndola). Una llamada al modelo se colgó 15 min (9:55–10:10). El vigilante de
+  inactividad no saltaba: cada lectura bloqueada cuenta como acción.
+- **Vigilante de bucles** (`studio/worker/loopWatch.ts` + tests): acción repetida = misma herramienta y mismos
+  argumentos (browser_* no cuenta). Bucle = 6 repetidas seguidas o 10 min sin nada nuevo con acciones. Primera
+  vez: se corta el turno y se retoma con "Te has quedado en bucle… escribe AHORA …"; segunda: se para y el
+  trabajo falla con un mensaje claro. En la fase del brief igual. `STALL_KILL_SEC` 20 → 12 min.
+- **Intentos apartados**: `setAsideFolder` renombra la carpeta a `_fallido-…`/`_cancelado-…` (sin borrar) al
+  cancelar, fallar, romperse el worker o reiniciarse (el servidor devuelve `failedDirs` en `/api/worker/reset`).
+  El encargo lleva `PREVIOUS_WORK_NOTE`: no leer esas carpetas ni releer archivos ya leídos.
+- Probado con un Hermes falso que se queda en bucle contra un Studio aislado: modo "obedece" (lo detecta a los
+  30 s, avisa y la newsletter se entrega) y modo "terco" (avisa, lo para a los 30 s siguientes, falla con mensaje
+  y la carpeta queda como `_fallido-…`). 140/140 tests.
+- Despliegue: Railway (ruta reset) + reiniciar el worker. Pendiente: mover a mano `2026-09-28-flgi3r` a
+  `_fallido-…` cuando Hermes haya parado el trabajo cancelado.
+
 ### 2026-09-29 — Rediseño de las acciones del resultado
 
 - Feedback del usuario con captura: "hay muchísimos botones y muy juntos, es muy caótico" (siete botones

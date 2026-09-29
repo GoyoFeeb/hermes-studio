@@ -174,14 +174,18 @@ function standaloneJobForWorker(req: Request, res: Response): ReturnType<typeof 
 app.post('/api/worker/reset', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {
   saveWorkerBrands(req.body?.brands);
   let failed = 0;
+  // Sus carpetas: el worker las aparta (_fallido-…) para que Hermes no tome el intento a medias por
+  // trabajo previo (Lacoste, 2026-09-29).
+  const failedDirs: string[] = [];
   for (const j of listJobs()) {
     if (j.input.mode === 'standalone' && j.status === 'running') {
       hermesLog(j.id, 'El worker de Hermes se reinició a mitad del trabajo.', 'error');
       updateJob(j.id, { status: 'failed', error: 'El worker de Hermes se reinició a mitad del trabajo. Vuelve a enviarlo.' });
+      failedDirs.push(standaloneOutputDir(j));
       failed++;
     }
   }
-  res.json({ failed });
+  res.json({ failed, failedDirs });
 });
 
 app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {

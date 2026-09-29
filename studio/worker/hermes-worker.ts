@@ -24,6 +24,7 @@ import { loadEnv } from '../../scripts/lib/env';
 import { chromium } from 'playwright';
 import { runQualityCheck, describeErrors, staticChecks, type QualityReport } from './qualityCheck';
 import { renderThumbnail } from './thumbnail';
+import { LoopWatch } from './loopWatch';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -183,6 +184,8 @@ export interface Progress {
 export interface ToolCall {
   name: string;
   target: string;
+  /** Herramienta + argumentos, para ver si una acción repite otra (loopWatch.ts). */
+  key?: string;
 }
 
 /** ¿Esta acción ya es trabajo sobre la pieza, no preparación? Mirar capturas cuenta siempre (las de la
@@ -288,7 +291,8 @@ export function toolCallsFromSession(session: { messages?: unknown[] }): ToolCal
       } catch {
         // argumentos no JSON: solo importa el nombre
       }
-      return { name: tc.function?.name || tc.name || '', target: String(args.path || args.file_path || '') };
+      const name = tc.function?.name || tc.name || '';
+      return { name, target: String(args.path || args.file_path || ''), key: `${name}:${String(tc.function?.arguments || '').slice(0, 400)}` };
     })
   );
 }
@@ -326,10 +330,47 @@ function localBrands(): string[] {
 }
 
 let current: string | null = null;
+/** Carpeta del trabajo en curso (para apartarla si el worker se detiene a medias). */
+let currentOutAbs: string | null = null;
 let currentChild: ReturnType<typeof spawn> | null = null;
 /** El trabajo en curso se canceló desde la web (2026-09-28): se detiene a Hermes, no se le piden
  *  más turnos y no se sube nada. Lo detecta api() con el 409 de Studio (el progreso va cada 30 s). */
 let cancelled = false;
+/** El vigilante de bucles paró a Hermes tras avisarle una vez (loopWatch.ts): no se le piden más turnos. */
+let loopStopped: string | null = null;
+
+interface LoopState {
+  watch: LoopWatch;
+  nudged: boolean;
+  /** Aviso pendiente para el siguiente turno ("te has quedado en bucle…"). */
+  nudge: string | null;
+}
+
+function newLoopState(): LoopState {
+  return { watch: new LoopWatch(), nudged: false, nudge: null };
+}
+
+/** En cada latido: si Hermes está en bucle, la primera vez se corta el turno y el siguiente le dice que
+ *  escriba ya; si vuelve a pasar, se le para del todo. */
+function watchForLoop(st: LoopState, tools: ToolCall[], jobId: string, phase: string): void {
+  st.watch.update(tools);
+  const loop = st.watch.looping();
+  if (!loop || !currentChild || loopStopped || cancelled) return;
+  if (!st.nudged) {
+    st.nudged = true;
+    st.nudge = loop;
+    st.watch.reset();
+    console.log(`[${stamp()}] ${jobId}: Hermes en bucle (${phase}) — ${loop}. Se corta el turno y se le pide que escriba.`);
+    void api(`/api/worker/jobs/${jobId}/progress`, {
+      message: `Hermes se ha quedado en bucle (${loop}): se corta y se le pide que escriba ya con lo que tiene.`,
+      level: 'error',
+    }).catch(() => undefined);
+  } else {
+    loopStopped = loop;
+    console.log(`[${stamp()}] ${jobId}: Hermes sigue en bucle tras el aviso (${phase}) — ${loop}. Se detiene.`);
+  }
+  currentChild.kill('SIGTERM');
+}
 
 function markCancelled(): void {
   if (cancelled) return;
@@ -345,10 +386,48 @@ const MAX_CONTINUES = 3;
 /** Sin ninguna actividad en la sesión durante este tiempo, la barra avisa de que parece atascado. */
 const STALL_WARN_SEC = 10 * 60;
 /** Sin actividad este tiempo, se corta el turno de Hermes y se retoma la sesión: una llamada al
- *  modelo colgada no siempre la corta Hermes (Adidas, 2026-09-24: 14 min esperando sin respuesta).
- *  "Sin acciones" no siempre es cuelgue: el modelo puede estar generando una respuesta larga
- *  (Talaria, 2026-09-25: una llamada de 5 min y 7.200 tokens). 20 min deja margen a eso. */
-const STALL_KILL_SEC = 20 * 60;
+ *  modelo colgada no siempre la corta Hermes (Adidas, 2026-09-24: 14 min esperando sin respuesta;
+ *  Lacoste, 2026-09-29: 15 min hasta que el proveedor cortó la conexión). "Sin acciones" no siempre es
+ *  cuelgue: el modelo puede estar generando una respuesta larga (Talaria, 2026-09-25: una llamada de
+ *  5 min y 7.200 tokens). 12 min deja más del doble de margen a eso (antes, 20). */
+const STALL_KILL_SEC = 12 * 60;
+
+/** Intentos que no terminaron (2026-09-29): su carpeta pasa a `_fallido-…` o `_cancelado-…` y el encargo
+ *  le dice a Hermes que no las use. En Lacoste, el intento a medias del día anterior hizo que Hermes se
+ *  pasara 40 min releyéndolo en vez de escribir la newsletter nueva. */
+const PREVIOUS_WORK_NOTE = [
+  '',
+  '## Nota de entorno: intentos anteriores',
+  '- Las carpetas newsletters/<año>/<marca>/hermes/_fallido-* y _cancelado-* son intentos que no terminaron:',
+  '  no las leas ni las uses como referencia. Tu entrega es SOLO la de la carpeta de este encargo.',
+  '- Si un archivo ya lo has leído, no lo vuelvas a leer: usa lo que ya tienes y escribe.',
+].join('\n');
+
+/** Aparta la carpeta de un intento que no terminó (no borra nada). Devuelve la ruta nueva o null. */
+export function setAsideFolder(outAbs: string, reason: 'fallido' | 'cancelado'): string | null {
+  try {
+    if (!fs.existsSync(outAbs)) return null;
+    const base = path.basename(outAbs);
+    if (base.startsWith('_')) return null;
+    let target = path.join(path.dirname(outAbs), `_${reason}-${base}`);
+    for (let i = 2; fs.existsSync(target); i++) target = path.join(path.dirname(outAbs), `_${reason}-${base}-${i}`);
+    fs.renameSync(outAbs, target);
+    console.log(`[${stamp()}] Carpeta del intento apartada: ${path.relative(ROOT, target)}`);
+    return target;
+  } catch (err) {
+    console.log(`[${stamp()}] No se pudo apartar ${path.relative(ROOT, outAbs)}: ${(err as Error).message}`);
+    return null;
+  }
+}
+
+/** Mensaje para Hermes cuando el vigilante de bucles lo corta. */
+function loopNudge(what: string, deliverable: string): string {
+  return (
+    `Te has quedado en bucle: ${what}. Esa información ya la tienes en esta conversación; NO vuelvas a ` +
+    `leer esos archivos ni a repetir esa acción. Escribe AHORA ${deliverable} con write_file, con lo que ya ` +
+    'tienes (marca como pendiente lo que no hayas podido comprobar). Sin texto previo: llama a la herramienta.'
+  );
+}
 
 /** Las skills de newsletter de Hermes han crecido a ~100 KB por archivo. Por `skill_view` llegan
  *  como UNA línea JSON de 100 KB que Hermes guarda en un temporal y no consigue leer por tramos
@@ -410,6 +489,7 @@ function runHermesTurn(
   onSession: (id: string) => void
 ): Promise<{ code: number | null; output: string; stderr: string }> {
   if (cancelled) return Promise.resolve({ code: null, output: '', stderr: 'Trabajo cancelado.' });
+  if (loopStopped) return Promise.resolve({ code: null, output: '', stderr: `Hermes se quedó en bucle: ${loopStopped}.` });
   const args = ['chat', '-q', query, '-Q', '--yolo', ...(resumeId ? ['--resume', resumeId] : [])];
   const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: HERMES_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
   currentChild = child;
@@ -581,6 +661,7 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
   let busy = false;
   let lastCount = -1;
   let lastChange = Date.now();
+  const loops = newLoopState();
   const heartbeat = setInterval(async () => {
     if (busy) return;
     busy = true;
@@ -596,6 +677,7 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
       lastCount = tools.length;
       lastChange = Date.now();
     }
+    watchForLoop(loops, tools, job.id, 'brief');
     if ((Date.now() - lastChange) / 1000 >= STALL_KILL_SEC && currentChild) {
       console.log(`[${stamp()}] Brief de ${job.id}: Hermes sin actividad ${Math.round(STALL_KILL_SEC / 60)} min — se corta el turno y se retoma`);
       lastChange = Date.now();
@@ -617,18 +699,27 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
   }, PROGRESS_MS);
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
-  let turn = await runHermesTurn(job.briefPrompt! + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + SECRETS_NOTE, null, (id) => (sessionId = sessionId || id));
-  for (let i = 1; i <= 3 && !ready() && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
-    turn = await runHermesTurn(
-      `Todavía no existe ${job.outputDir}/brief.md. Escríbelo AHORA con write_file, con lo que ya tengas ` +
-        '(marca como pendiente lo que no hayas podido verificar). Sin texto previo: llama a la herramienta.',
-      sessionId,
-      () => undefined
-    );
+  let turn = await runHermesTurn(
+    job.briefPrompt! + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
+    null,
+    (id) => (sessionId = sessionId || id)
+  );
+  for (let i = 1; i <= 3 && !ready() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+    const message = loops.nudge
+      ? loopNudge(loops.nudge, `${job.outputDir}/brief.md`)
+      : `Todavía no existe ${job.outputDir}/brief.md. Escríbelo AHORA con write_file, con lo que ya tengas ` +
+        '(marca como pendiente lo que no hayas podido verificar). Sin texto previo: llama a la herramienta.';
+    loops.nudge = null;
+    turn = await runHermesTurn(message, sessionId, () => undefined);
   }
   clearInterval(heartbeat);
   clearTimeout(killer);
   if (!ready()) {
+    if (loopStopped) {
+      return {
+        error: `Hermes se quedó en bucle mientras escribía el brief (${loopStopped}), también después de pedirle que escribiera. Se ha parado para no gastar más tiempo: vuelve a lanzarlo con «Reintentar».`,
+      };
+    }
     return { error: `Hermes no llegó a escribir el brief (${job.outputDir}/brief.md).\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2000)}` };
   }
   const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8') }, 6);
@@ -641,7 +732,9 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
 async function runJob(claimed: ClaimedJob): Promise<void> {
   current = claimed.id;
   cancelled = false;
+  loopStopped = null;
   const outAbs = path.join(ROOT, claimed.outputDir);
+  currentOutAbs = outAbs;
   fs.mkdirSync(outAbs, { recursive: true });
   console.log(`[${stamp()}] Trabajo ${claimed.id} → ${claimed.outputDir}${claimed.briefPrompt ? ' (desde instrucción: primero el brief)' : ''}`);
 
@@ -652,11 +745,13 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const brief = await runBriefStep(claimed, outAbs);
     if (cancelled) {
       console.log(`[${stamp()}] ✗ ${claimed.id}: cancelado durante el brief`);
+      setAsideFolder(outAbs, 'cancelado');
       current = null;
       return;
     }
     if ('error' in brief) {
       await api(`/api/worker/jobs/${claimed.id}/fail`, { error: brief.error }).catch(() => undefined);
+      setAsideFolder(outAbs, 'fallido');
       console.log(`[${stamp()}] ✗ ${claimed.id}: sin brief`);
       current = null;
       return;
@@ -670,6 +765,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   if (editKind) {
     if (!claimed.sourceHtml) {
       await api(`/api/worker/jobs/${claimed.id}/fail`, { error: 'No se encontró el HTML de la newsletter original.' }).catch(() => undefined);
+      setAsideFolder(outAbs, 'fallido');
       current = null;
       return;
     }
@@ -697,6 +793,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let lastCount = -1;
   let lastChange = Date.now();
   let busy = false;
+  const loops = newLoopState();
   const heartbeat = setInterval(async () => {
     if (busy) return;
     busy = true;
@@ -712,6 +809,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       lastCount = tools.length;
       lastChange = Date.now();
     }
+    watchForLoop(loops, tools, job.id, 'newsletter');
     const progress = scale(estimateProgress(tools, elapsed, expected, !!editKind));
     progress.lastActionAt = lastChange;
     const idleSec = (Date.now() - lastChange) / 1000;
@@ -733,22 +831,30 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     clearInterval(heartbeat);
     clearTimeout(killer);
     console.log(`[${stamp()}] ✗ ${job.id}: cancelado`);
+    setAsideFolder(outAbs, 'cancelado');
     current = null;
   };
   const envNotes =
     (isMobileFix ? '' : isRevision ? brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE : skillReadingNote() + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE) +
+    PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id));
-  for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
-    console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})`);
-    await api(`/api/worker/jobs/${job.id}/progress`, {
-      message: `Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${MAX_CONTINUES}).`,
-    }).catch(() => undefined);
+  for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+    const nudge = loops.nudge;
+    loops.nudge = null;
+    console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})${nudge ? ' — tras bucle' : ''}`);
+    if (!nudge) {
+      await api(`/api/worker/jobs/${job.id}/progress`, {
+        message: `Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${MAX_CONTINUES}).`,
+      }).catch(() => undefined);
+    }
     turn = await runHermesTurn(
-      `Todavía no existe ${job.outputDir}/newsletter.html. Tu respuesta anterior anunció una acción pero ` +
-        'no llamó a ninguna herramienta, y eso termina tu turno sin avanzar. Responde AHORA con llamadas a ' +
-        'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
-        'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
+      nudge
+        ? loopNudge(nudge, `${job.outputDir}/newsletter.html`)
+        : `Todavía no existe ${job.outputDir}/newsletter.html. Tu respuesta anterior anunció una acción pero ` +
+            'no llamó a ninguna herramienta, y eso termina tu turno sin avanzar. Responde AHORA con llamadas a ' +
+            'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
+            'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
       sessionId,
       () => undefined
     );
@@ -851,11 +957,16 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
 
   const htmlPath = htmlReady();
   if (!htmlPath) {
-    const why = Date.now() - started >= TIMEOUT_MS ? `se agotó el tiempo (${minutes} min)` : `terminó (código ${turn.code}) sin dejar el HTML en ${job.outputDir}/`;
+    const why = loopStopped
+      ? `se quedó en bucle (${loopStopped}), también después de pedirle que escribiera la newsletter. Se ha parado para no gastar más tiempo: vuelve a lanzarlo con «Reintentar»`
+      : Date.now() - started >= TIMEOUT_MS
+      ? `se agotó el tiempo (${minutes} min)`
+      : `terminó (código ${turn.code}) sin dejar el HTML en ${job.outputDir}/`;
     await api(`/api/worker/jobs/${job.id}/fail`, {
-      error: `Hermes ${why}.\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2500)}`,
+      error: loopStopped ? `Hermes ${why}.` : `Hermes ${why}.\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2500)}`,
     });
     console.log(`[${stamp()}] ✗ ${job.id}: ${why}`);
+    setAsideFolder(outAbs, 'fallido');
     current = null;
     return;
   }
@@ -961,8 +1072,13 @@ async function main(): Promise<void> {
   // siempre llega antes de que el proceso muera).
   try {
     const r = await api('/api/worker/reset', { brands: localBrands() });
-    const { failed } = r.ok ? ((await r.json()) as { failed: number }) : { failed: 0 };
+    const { failed, failedDirs = [] } = r.ok ? ((await r.json()) as { failed: number; failedDirs?: string[] }) : { failed: 0 };
     if (failed) console.log(`${failed} trabajo(s) que quedaron a medias marcados como fallidos.`);
+    // Sus carpetas, fuera de la vista de Hermes (Lacoste, 2026-09-29: releyó 40 min el intento de la víspera).
+    for (const dir of failedDirs) {
+      const abs = path.resolve(ROOT, dir);
+      if (abs.startsWith(path.join(ROOT, 'newsletters') + path.sep)) setAsideFolder(abs, 'fallido');
+    }
   } catch {
     // Studio sin la ruta todavía o sin conexión: no impide trabajar.
   }
@@ -979,6 +1095,7 @@ async function main(): Promise<void> {
           currentChild?.kill('SIGTERM');
           console.error(`[${stamp()}] ✗ ${job.id}: ${(err as Error).message}`);
           await api(`/api/worker/jobs/${job.id}/fail`, { error: `Error del worker: ${(err as Error).message}` }).catch(() => undefined);
+          setAsideFolder(path.join(ROOT, job.outputDir), 'fallido');
           current = null;
         }
         continue;
@@ -1002,6 +1119,7 @@ async function shutdown(): Promise<void> {
   currentChild?.kill('SIGTERM');
   if (current) {
     await api(`/api/worker/jobs/${current}/fail`, { error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.' }, 1).catch(() => undefined);
+    if (currentOutAbs) setAsideFolder(currentOutAbs, 'fallido');
   }
   releaseLock();
   process.exit(0);
