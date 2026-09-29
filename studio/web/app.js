@@ -110,6 +110,7 @@ function renderEtaHints() {
     : '';
   document.querySelectorAll('[data-eta="new"]').forEach((el) => (el.textContent = t ? etaText(kind) : 'unos 20 minutos'));
   document.querySelectorAll('[data-eta="revision"]').forEach((el) => (el.textContent = typicalDurations ? `suele tardar ${etaText('revision')}` : 'unos minutos'));
+  document.querySelectorAll('[data-eta="mobile-fix"]').forEach((el) => (el.textContent = typicalDurations ? `suele tardar ${etaText('mobile-fix')}` : 'unos minutos'));
   const fix = etaText('mobile-fix');
   if (fix) document.getElementById('mobile-fix-btn').title = `Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (suele tardar ${fix})`;
 }
@@ -1800,8 +1801,8 @@ function renderApproval(job, versions) {
   const banner = document.getElementById('approved-banner');
   banner.hidden = !job.approvedAt;
   if (job.approvedAt) {
-    const when = new Date(job.approvedAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
-    document.getElementById('approved-text').textContent = `✓ Aprobada para envío${job.approvedBy ? ` por ${job.approvedBy}` : ''} · ${when}`;
+    const when = new Date(job.approvedAt).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    document.getElementById('approved-text').textContent = `✓ Aprobada para envío${job.approvedBy ? ` · ${job.approvedBy}` : ''} · ${when}`;
     banner.title = (job.approvalChecklist || []).length ? `Comprobado: ${job.approvalChecklist.join(' · ')}` : '';
   }
   approveBtn.hidden = !!job.approvedAt || job.status !== 'completed';
@@ -1947,6 +1948,12 @@ document.addEventListener('keydown', (e) => {
     done = pressIfUsable('compare-toggle');
   }
   if (done) e.preventDefault();
+});
+
+// "Ver errores": a la revisión automática sin tocar la URL (un #review dispararía la navegación de la página).
+document.getElementById('result-errors-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('review').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
 document.getElementById('use-brief-btn').addEventListener('click', () => {
@@ -2385,6 +2392,7 @@ function renderReview(quality, notes) {
   const list = document.getElementById('review-list');
   const message = document.getElementById('result-message');
   document.getElementById('review-empty').hidden = !!quality;
+  document.getElementById('result-errors-link').hidden = !quality?.errors;
   message.textContent = 'La newsletter está lista.';
   message.classList.remove('has-errors');
 
@@ -2402,7 +2410,7 @@ function renderReview(quality, notes) {
             .filter(Boolean)
             .join(' · ');
     if (quality.errors) {
-      message.textContent = 'La newsletter está lista, pero tiene errores por revisar.';
+      message.textContent = `Lista, con ${plural(quality.errors, 'error', 'errores')} por revisar.`;
       message.classList.add('has-errors');
     }
     reviewChecks = [...quality.checks].sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status]);
@@ -2948,6 +2956,11 @@ function formatMinutes(sec) {
 
 function renderProgress(job, queue, hermesOnline) {
   const box = document.getElementById('job-progress');
+  // Terminada, la barra al 100 % no aporta nada: lo que tardó ya está en la cabecera (2026-09-29).
+  if (job.status === 'completed') {
+    box.hidden = true;
+    return;
+  }
   const bar = document.getElementById('progress-bar');
   const track = box.querySelector('.progress-track');
   const p = job.progress;

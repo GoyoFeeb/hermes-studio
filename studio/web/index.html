@@ -198,20 +198,58 @@
       </div>
 
       <div id="job-result" hidden>
-        <div class="result-bar">
-          <p id="result-message">La newsletter está lista.</p>
-          <a id="download-link" class="btn btn-primary" href="#">Descargar HTML</a>
-          <button id="copy-html-btn" type="button" class="btn btn-secondary">Copiar HTML</button>
-          <a id="open-link" class="btn btn-ghost" href="#" target="_blank" rel="noopener">Abrir en pestaña</a>
-          <button id="revise-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="revise-box">Pedir cambios</button>
-          <button id="edit-text-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="textedit-box" title="Cambia el texto tú mismo sobre la vista previa: versión nueva al momento, sin Hermes">Editar texto</button>
-          <button id="mobile-fix-btn" type="button" class="btn btn-secondary" title="Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (unos minutos)">Adaptar a móvil</button>
-          <button id="approve-btn" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="approve-box">Aprobar para envío</button>
-        </div>
-
-        <div class="approval" id="approved-banner" hidden>
-          <span id="approved-text"></span>
-          <button type="button" id="unapprove-btn" class="btn btn-ghost btn-sm">Quitar aprobación</button>
+        <!-- Acciones del resultado (rediseño 2026-09-29): antes, siete botones iguales en dos filas. Ahora, el
+             estado y la aprobación arriba; "Llevarla a tu plataforma" (descargar, copiar y su formato) y
+             "Cambiar la pieza" (editar texto, pedir cambios, adaptar a móvil) como dos bloques. -->
+        <div class="action-panel result-bar">
+          <div class="action-head">
+            <p id="result-message">La newsletter está lista.</p>
+            <a id="result-errors-link" class="result-errors-link" href="#review" hidden>Ver errores</a>
+            <div class="action-head-side">
+              <button id="approve-btn" type="button" class="btn btn-ghost btn-sm" aria-expanded="false" aria-controls="approve-box">Aprobar para envío</button>
+              <div class="approval" id="approved-banner" hidden>
+                <span id="approved-text"></span>
+                <button type="button" id="unapprove-btn" class="link-btn">Quitar</button>
+              </div>
+            </div>
+          </div>
+          <div class="action-cols">
+            <section class="action-group" aria-labelledby="ag-send">
+              <h3 class="action-title" id="ag-send">Llevarla a tu plataforma</h3>
+              <div class="action-buttons">
+                <a id="download-link" class="btn btn-primary" href="#">Descargar HTML</a>
+                <button id="copy-html-btn" type="button" class="btn btn-secondary">Copiar HTML</button>
+              </div>
+              <div class="export-row" id="export-row">
+                <label class="export-field">
+                  <span class="label">Exportar para</span>
+                  <select id="export-platform" aria-describedby="export-summary"></select>
+                </label>
+                <label class="toggle"><input type="checkbox" id="export-utm" /><span>Añadir UTM a los enlaces</span></label>
+                <p class="hint export-summary" id="export-summary" aria-live="polite"></p>
+                <div class="utm-fields" id="utm-fields" hidden>
+                  <label><span>utm_source</span><input type="text" id="utm-source" maxlength="80" /></label>
+                  <label><span>utm_medium</span><input type="text" id="utm-medium" maxlength="80" /></label>
+                  <label><span>utm_campaign</span><input type="text" id="utm-campaign" maxlength="120" /></label>
+                  <label><span>utm_content <em>(opcional)</em></span><input type="text" id="utm-content" maxlength="80" /></label>
+                </div>
+              </div>
+            </section>
+            <section class="action-group" aria-labelledby="ag-change">
+              <h3 class="action-title" id="ag-change">Cambiar la pieza</h3>
+              <div class="action-list">
+                <button id="edit-text-btn" type="button" class="action-item" aria-expanded="false" aria-controls="textedit-box">
+                  <strong>Editar texto</strong><span>Tú, sobre la vista previa · al momento</span>
+                </button>
+                <button id="revise-btn" type="button" class="action-item" aria-expanded="false" aria-controls="revise-box">
+                  <strong>Pedir cambios</strong><span>Hermes · <span data-eta="revision">unos minutos</span></span>
+                </button>
+                <button id="mobile-fix-btn" type="button" class="action-item">
+                  <strong>Adaptar a móvil</strong><span>Hermes, sin tocar el escritorio · <span data-eta="mobile-fix">unos minutos</span></span>
+                </button>
+              </div>
+            </section>
+          </div>
         </div>
         <p class="approval-elsewhere" id="approved-elsewhere" hidden></p>
 
@@ -225,21 +263,6 @@
             <button type="button" id="approve-close" class="btn btn-ghost">Cancelar</button>
           </div>
         </form>
-
-        <div class="export-row" id="export-row">
-          <label class="export-field">
-            <span class="label">Exportar para</span>
-            <select id="export-platform" aria-describedby="export-summary"></select>
-          </label>
-          <label class="toggle"><input type="checkbox" id="export-utm" /><span>Añadir UTM a los enlaces</span></label>
-          <p class="hint export-summary" id="export-summary" aria-live="polite"></p>
-          <div class="utm-fields" id="utm-fields" hidden>
-            <label><span>utm_source</span><input type="text" id="utm-source" maxlength="80" /></label>
-            <label><span>utm_medium</span><input type="text" id="utm-medium" maxlength="80" /></label>
-            <label><span>utm_campaign</span><input type="text" id="utm-campaign" maxlength="120" /></label>
-            <label><span>utm_content <em>(opcional)</em></span><input type="text" id="utm-content" maxlength="80" /></label>
-          </div>
-        </div>
 
         <form id="revise-box" class="revise-box" hidden>
           <label>
@@ -369,6 +392,7 @@
             <span>Resaltar cambios</span>
           </label>
           <span class="hint" id="preview-size"></span>
+          <a id="open-link" class="preview-open" href="#" target="_blank" rel="noopener">Abrir en pestaña ↗</a>
         </div>
         <div class="free-width" id="free-width" hidden>
           <label for="free-width-range" class="free-width-label">Ancho <strong id="free-width-value"></strong></label>

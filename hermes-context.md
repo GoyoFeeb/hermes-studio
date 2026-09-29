@@ -869,6 +869,19 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c63f492` → Railway SUCCESS 12:12 (encargo) y worker reiniciado
   (control), conectado sin errores. Sin cambios de interfaz (Vercel no hacía falta).
 
+### 2026-09-29 — Rediseño de las acciones del resultado
+
+- Feedback del usuario con captura: "hay muchísimos botones y muy juntos, es muy caótico" (siete botones
+  iguales en dos filas + barra de progreso al 100 % que ya no aportaba).
+- Ahora un panel: arriba el estado ("Lista, con N errores por revisar" + "Ver errores") y "Aprobar para envío"
+  (o la etiqueta de aprobada); dos bloques con título, "Llevarla a tu plataforma" (Descargar, Copiar y su
+  formato: plataforma y UTM) y "Cambiar la pieza" (Editar texto, Pedir cambios, Adaptar a móvil como
+  opciones con quién lo hace y cuánto tarda). "Abrir en pestaña" pasa a enlace junto a la vista previa. La
+  barra de progreso se oculta al terminar. Mismos ids: atajos, barra fija y resto de lógica sin cambios.
+- Probado con Chrome 154 en 360–1300 px (sin desbordes), claro y oscuro, con errores y aprobada.
+- Nota: la copia aislada de pruebas (/tmp) se borró de un día para otro; se rehízo con una familia Nike de
+  prueba (original con errores + versión con el recorte).
+
 ### 2026-09-28 (tarde) — Galería del historial, estado en el icono de la pestaña y atajos de teclado
 
 - Galería (Lista/Galería en el historial, agrupada por marca), punto de estado en el favicon (canvas sobre
