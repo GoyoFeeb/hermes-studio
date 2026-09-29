@@ -886,8 +886,16 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - Probado con un Hermes falso que se queda en bucle contra un Studio aislado: modo "obedece" (lo detecta a los
   30 s, avisa y la newsletter se entrega) y modo "terco" (avisa, lo para a los 30 s siguientes, falla con mensaje
   y la carpeta queda como `_fallido-…`). 140/140 tests.
-- Despliegue: Railway (ruta reset) + reiniciar el worker. Pendiente: mover a mano `2026-09-28-flgi3r` a
-  `_fallido-…` cuando Hermes haya parado el trabajo cancelado.
+- Desplegado a las 10:33 (Railway + reinicio del worker, que paró el trabajo: la cancelación desde la web no
+  había llegado a registrarse). Carpetas apartadas a mano: `_fallido-2026-09-28-flgi3r`, `_cancelado-2026-09-29-i5jifn`.
+- **Segundo intento (`mumfe3ol-n8blc7`, 10:39)**: una llamada al modelo colgada 12 min (la cortó el vigilante
+  nuevo a los 12, antes eran 20) y después Hermes **reescribió el brief completo 14 veces seguidas** en 21 min
+  sin terminar el turno (contenido distinto cada vez: no contaba como repetición). Se cortó el turno a mano a
+  las 11:24 y el worker tomó el brief (ya válido) y siguió con la newsletter.
+- **Tercer tipo de bucle** en `loopWatch.ts`: 4 `write_file` seguidos al mismo archivo sin nada entre medias
+  (escribir → renderizar → corregir, o varios `patch`, siguen siendo normales). El aviso a Hermes dice que la
+  última versión vale y que no la reescriba. Tests: 7. Pendiente de desplegar (reiniciar el worker) cuando
+  termine el trabajo de Lacoste en curso.
 
 ### 2026-09-29 — Rediseño de las acciones del resultado
 

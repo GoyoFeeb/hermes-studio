@@ -84,6 +84,41 @@ test('reset: tras avisar a Hermes, cuenta desde cero; una acción nueva corta la
   assert.equal(r.later, null);
 });
 
+test('Lacoste 2026-09-29 (2.º intento): el brief escrito 14 veces seguidas → bucle de reescritura', () => {
+  const r = run(`
+    const w = new LoopWatch(0);
+    const brief = 'newsletters/2026/lacoste/hermes/2026-09-29-n8blc7/brief.md';
+    const calls = [call('web_search', '', { query: 'lacoste rebajas' }), call('browser_navigate', '', { url: 'https://www.lacoste.es' })];
+    const seen = [];
+    for (let i = 0; i < 4; i++) {
+      calls.push(call('write_file', brief, { path: brief, content: 'versión ' + i }));
+      w.update(calls, (i + 1) * 90000);
+      seen.push(w.check((i + 1) * 90000));
+    }
+    process.stdout.write(JSON.stringify(seen));
+  `);
+  assert.equal(r[2], null); // 3 reescrituras todavía no
+  assert.equal(r[3].kind, 'rewrite');
+  assert.match(r[3].text, /reescribe 4 veces seguidas .*brief\.md/);
+});
+
+test('escribir, renderizar y corregir el mismo HTML no es bucle; varios patch seguidos tampoco', () => {
+  const r = run(`
+    const w = new LoopWatch(0);
+    const html = 'newsletters/2026/x/hermes/y/newsletter.html';
+    const calls = [];
+    for (let i = 0; i < 6; i++) {
+      calls.push(call('write_file', html, { path: html, content: 'v' + i }));
+      calls.push(call('terminal', '', { command: 'node render.js ' + i }));
+      calls.push(call('vision_analyze', '', { image: 'shot' + i + '.png' }));
+    }
+    for (let i = 0; i < 6; i++) calls.push(call('patch', html, { path: html, old: 'a' + i, new: 'b' + i }));
+    w.update(calls, 60000);
+    process.stdout.write(JSON.stringify(w.check(60000)));
+  `);
+  assert.equal(r, null);
+});
+
 test('setAsideFolder: el intento que no terminó pasa a _fallido-/_cancelado- sin borrar nada, y no pisa otro', () => {
   const stdout = (
     execFileSync(

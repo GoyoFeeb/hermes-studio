@@ -24,7 +24,7 @@ import { loadEnv } from '../../scripts/lib/env';
 import { chromium } from 'playwright';
 import { runQualityCheck, describeErrors, staticChecks, type QualityReport } from './qualityCheck';
 import { renderThumbnail } from './thumbnail';
-import { LoopWatch } from './loopWatch';
+import { LoopWatch, type LoopKind } from './loopWatch';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -343,7 +343,7 @@ interface LoopState {
   watch: LoopWatch;
   nudged: boolean;
   /** Aviso pendiente para el siguiente turno ("te has quedado en bucle…"). */
-  nudge: string | null;
+  nudge: { kind: LoopKind; target: string; text: string } | null;
 }
 
 function newLoopState(): LoopState {
@@ -354,11 +354,12 @@ function newLoopState(): LoopState {
  *  escriba ya; si vuelve a pasar, se le para del todo. */
 function watchForLoop(st: LoopState, tools: ToolCall[], jobId: string, phase: string): void {
   st.watch.update(tools);
-  const loop = st.watch.looping();
-  if (!loop || !currentChild || loopStopped || cancelled) return;
+  const found = st.watch.check();
+  if (!found || !currentChild || loopStopped || cancelled) return;
+  const loop = found.text;
   if (!st.nudged) {
     st.nudged = true;
-    st.nudge = loop;
+    st.nudge = found;
     st.watch.reset();
     console.log(`[${stamp()}] ${jobId}: Hermes en bucle (${phase}) — ${loop}. Se corta el turno y se le pide que escriba.`);
     void api(`/api/worker/jobs/${jobId}/progress`, {
@@ -421,9 +422,16 @@ export function setAsideFolder(outAbs: string, reason: 'fallido' | 'cancelado'):
 }
 
 /** Mensaje para Hermes cuando el vigilante de bucles lo corta. */
-function loopNudge(what: string, deliverable: string): string {
+function loopNudge(loop: { kind: LoopKind; target: string; text: string }, deliverable: string): string {
+  if (loop.kind === 'rewrite') {
+    return (
+      `Te has quedado en bucle: ${loop.text}. La última versión de ${loop.target} vale: NO la vuelvas a ` +
+      `reescribir. Si todavía no existe ${deliverable}, escríbelo AHORA con write_file; si ya existe, sigue con ` +
+      'el siguiente paso del encargo o termina con una línea. Sin texto previo: llama a la herramienta.'
+    );
+  }
   return (
-    `Te has quedado en bucle: ${what}. Esa información ya la tienes en esta conversación; NO vuelvas a ` +
+    `Te has quedado en bucle: ${loop.text}. Esa información ya la tienes en esta conversación; NO vuelvas a ` +
     `leer esos archivos ni a repetir esa acción. Escribe AHORA ${deliverable} con write_file, con lo que ya ` +
     'tienes (marca como pendiente lo que no hayas podido comprobar). Sin texto previo: llama a la herramienta.'
   );
