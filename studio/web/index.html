@@ -318,130 +318,144 @@
             <button type="button" id="te-cancel" class="btn btn-ghost">Cancelar</button>
           </div>
         </form>
-        <dl class="email-meta" id="email-meta" hidden>
-          <div class="meta-row">
-            <dt>Asunto</dt>
-            <dd id="meta-subject"></dd>
-            <button type="button" class="btn btn-ghost btn-sm" data-copy="subject">Copiar</button>
+
+        <!-- Pestañas del resultado (2026-09-30): antes, asunto, bandeja, revisión y comparación iban apilados encima
+             de la vista previa y esta empezaba casi dos pantallas más abajo. Ahora es lo primero que se ve. -->
+        <div class="job-tabs" role="tablist" aria-label="Detalle de la newsletter">
+          <button type="button" role="tab" class="job-tab" id="tab-preview" data-tab="preview" aria-controls="panel-preview" aria-selected="true"><span class="lbl-long">Vista previa</span><span class="lbl-short">Vista</span></button>
+          <button type="button" role="tab" class="job-tab" id="tab-review" data-tab="review" aria-controls="panel-review" aria-selected="false" tabindex="-1">Revisión <span class="tab-badge" id="tab-review-badge"></span></button>
+          <button type="button" role="tab" class="job-tab" id="tab-compare" data-tab="compare" aria-controls="panel-compare" aria-selected="false" tabindex="-1" hidden><span class="lbl-long">Qué ha cambiado</span><span class="lbl-short">Cambios</span></button>
+          <button type="button" role="tab" class="job-tab" id="tab-meta" data-tab="meta" aria-controls="panel-meta" aria-selected="false" tabindex="-1" hidden><span class="lbl-long">Asunto y bandeja</span><span class="lbl-short">Asunto</span></button>
+        </div>
+        <div class="job-panel" role="tabpanel" id="panel-preview" aria-labelledby="tab-preview">
+          <div class="preview-head">
+            <div class="segmented view-toggle" role="radiogroup" aria-label="Tamaño de la vista previa">
+              <label><input type="radio" name="previewView" value="desktop" checked /><span>Escritorio</span></label>
+              <label><input type="radio" name="previewView" value="mobile" /><span>Móvil</span></label>
+              <label title="Cualquier ancho entre 320 y 1000 px"><input type="radio" name="previewView" value="free" /><span>Libre</span></label>
+            </div>
+            <div class="segmented theme-toggle" role="radiogroup" aria-label="Modo de color de la vista previa">
+              <label title="Como se ve con el modo claro"><input type="radio" name="previewTheme" value="light" checked /><span>Claro</span></label>
+              <label title="Como Apple Mail o iOS Mail en modo oscuro: la pieza usa sus propios estilos oscuros"><input type="radio" name="previewTheme" value="dark" /><span>Oscuro</span></label>
+              <label title="Aproximación a Gmail y Outlook en móvil con modo oscuro: invierten los colores"><input type="radio" name="previewTheme" value="invert" /><span>Invertido</span></label>
+            </div>
+            <label class="toggle" id="compare-toggle-wrap" hidden>
+              <input type="checkbox" id="compare-toggle" />
+              <span>Antes y después</span>
+            </label>
+            <label class="toggle" id="highlight-toggle-wrap" title="Verde: lo añadido en esta versión. Rojo (en «Antes y después»): lo que se quitó." hidden>
+              <input type="checkbox" id="highlight-toggle" checked />
+              <span>Resaltar cambios</span>
+            </label>
+            <span class="hint" id="preview-size"></span>
+            <a id="open-link" class="preview-open" href="#" target="_blank" rel="noopener">Abrir en pestaña ↗</a>
           </div>
-          <div class="meta-row">
-            <dt>Preheader</dt>
-            <dd id="meta-preheader"></dd>
-            <button type="button" class="btn btn-ghost btn-sm" data-copy="preheader">Copiar</button>
+          <div class="free-width" id="free-width" hidden>
+            <label for="free-width-range" class="free-width-label">Ancho <strong id="free-width-value"></strong></label>
+            <input type="range" id="free-width-range" min="320" max="1000" step="1" />
+            <span class="free-width-presets" role="group" aria-label="Anchos habituales">
+              <button type="button" class="chip" data-width="320">320</button>
+              <button type="button" class="chip" data-width="375">375</button>
+              <button type="button" class="chip" data-width="414">414</button>
+              <button type="button" class="chip" data-width="600">600</button>
+              <button type="button" class="chip" data-width="768">768</button>
+            </span>
           </div>
-        </dl>
-        <details class="inbox" id="inbox" hidden>
-          <summary>Cómo se ve en la bandeja de entrada</summary>
-          <div class="inbox-body">
-            <p class="inbox-label">Gmail · móvil</p>
-            <div class="inbox-phone">
-              <div class="inbox-row inbox-row-mobile">
-                <span class="inbox-avatar" id="inbox-avatar" aria-hidden="true"></span>
-                <div class="inbox-lines">
-                  <p class="inbox-top"><span class="inbox-from" data-inbox="from"></span><span class="inbox-time">10:30</span></p>
-                  <p class="inbox-subject" data-inbox="subject"></p>
-                  <p class="inbox-pre" data-inbox="preheader"></p>
+          <p class="hint theme-hint" id="theme-hint" hidden></p>
+          <div class="pick-banner te-banner" id="te-banner" hidden>
+            <span>Editando el texto: haz clic en la pieza y escribe. <span class="hint" id="te-banner-count"></span></span>
+            <span class="te-banner-actions">
+              <button type="button" id="te-banner-save" class="btn btn-primary btn-sm">Guardar</button>
+              <button type="button" id="te-banner-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
+            </span>
+          </div>
+          <div class="pick-banner" id="pick-banner" role="status" hidden>
+            <span>Haz clic en lo que quieres cambiar. <span class="hint">Esc para salir.</span></span>
+            <button type="button" id="pick-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
+          </div>
+          <div class="preview-stage" id="preview-stage">
+            <div class="preview-col" id="preview-col-before" hidden>
+              <p class="preview-label" id="preview-label-before"></p>
+              <div class="preview-device" id="preview-device-before">
+                <iframe id="preview-frame-before" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Versión anterior de la newsletter"></iframe>
+              </div>
+            </div>
+            <div class="preview-col" id="preview-col-after">
+              <p class="preview-label" id="preview-label-after" hidden></p>
+              <div class="preview-device" id="preview-device">
+                <iframe id="preview-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Previsualización de la newsletter"></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="job-panel" role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
+          <section class="review" id="review" aria-labelledby="review-title">
+            <div class="review-head">
+              <h3 id="review-title">Revisión automática</h3>
+              <span id="review-summary" class="review-summary"></span>
+            </div>
+            <p id="review-empty" class="hint" hidden>Sin revisión automática: esta newsletter es anterior al control de calidad.</p>
+            <ul id="review-list" class="review-list"></ul>
+            <details class="notes-box" id="notes-box" hidden>
+              <summary>Autoauditoría de Hermes <span>fuente de cada dato y origen de cada imagen</span></summary>
+              <div id="notes-text" class="md"></div>
+            </details>
+          </section>
+        </div>
+        <div class="job-panel" role="tabpanel" id="panel-compare" aria-labelledby="tab-compare" hidden>
+          <section class="compare" id="compare" aria-labelledby="compare-title" hidden>
+            <div class="review-head">
+              <h3 id="compare-title">Qué ha cambiado</h3>
+              <span id="compare-summary" class="review-summary"></span>
+            </div>
+            <label class="compare-with">
+              <span class="label">Comparar con</span>
+              <select id="compare-with"></select>
+            </label>
+            <p id="compare-base" class="hint"></p>
+            <ul id="compare-list" class="compare-list"></ul>
+          </section>
+        </div>
+        <div class="job-panel" role="tabpanel" id="panel-meta" aria-labelledby="tab-meta" hidden>
+          <dl class="email-meta" id="email-meta" hidden>
+            <div class="meta-row">
+              <dt>Asunto</dt>
+              <dd id="meta-subject"></dd>
+              <button type="button" class="btn btn-ghost btn-sm" data-copy="subject">Copiar</button>
+            </div>
+            <div class="meta-row">
+              <dt>Preheader</dt>
+              <dd id="meta-preheader"></dd>
+              <button type="button" class="btn btn-ghost btn-sm" data-copy="preheader">Copiar</button>
+            </div>
+          </dl>
+          <details class="inbox" id="inbox" open hidden>
+            <summary>Cómo se ve en la bandeja de entrada</summary>
+            <div class="inbox-body">
+              <p class="inbox-label">Gmail · móvil</p>
+              <div class="inbox-phone">
+                <div class="inbox-row inbox-row-mobile">
+                  <span class="inbox-avatar" id="inbox-avatar" aria-hidden="true"></span>
+                  <div class="inbox-lines">
+                    <p class="inbox-top"><span class="inbox-from" data-inbox="from"></span><span class="inbox-time">10:30</span></p>
+                    <p class="inbox-subject" data-inbox="subject"></p>
+                    <p class="inbox-pre" data-inbox="preheader"></p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <p class="hint inbox-count" id="inbox-mobile-count"></p>
-            <p class="inbox-label">Gmail · escritorio</p>
-            <div class="inbox-desk">
-              <div class="inbox-row inbox-row-desk">
-                <span class="inbox-from" data-inbox="from"></span>
-                <p class="inbox-line"><span class="inbox-subject" data-inbox="subject"></span><span class="inbox-pre"> – <span data-inbox="preheader"></span></span></p>
-                <span class="inbox-time">10:30</span>
+              <p class="hint inbox-count" id="inbox-mobile-count"></p>
+              <p class="inbox-label">Gmail · escritorio</p>
+              <div class="inbox-desk">
+                <div class="inbox-row inbox-row-desk">
+                  <span class="inbox-from" data-inbox="from"></span>
+                  <p class="inbox-line"><span class="inbox-subject" data-inbox="subject"></span><span class="inbox-pre"> – <span data-inbox="preheader"></span></span></p>
+                  <span class="inbox-time">10:30</span>
+                </div>
               </div>
+              <p class="hint inbox-count" id="inbox-desk-count"></p>
+              <p class="hint">Medido a los anchos habituales de Gmail (móvil de 390 px y portátil de 1.440 px): el corte real cambia un poco con la pantalla y la app. Lo que va detrás de «…» no se lee sin abrir el correo.</p>
             </div>
-            <p class="hint inbox-count" id="inbox-desk-count"></p>
-            <p class="hint">Medido a los anchos habituales de Gmail (móvil de 390 px y portátil de 1.440 px): el corte real cambia un poco con la pantalla y la app. Lo que va detrás de «…» no se lee sin abrir el correo.</p>
-          </div>
-        </details>
-
-        <section class="review" id="review" aria-labelledby="review-title">
-          <div class="review-head">
-            <h3 id="review-title">Revisión automática</h3>
-            <span id="review-summary" class="review-summary"></span>
-          </div>
-          <p id="review-empty" class="hint" hidden>Sin revisión automática: esta newsletter es anterior al control de calidad.</p>
-          <ul id="review-list" class="review-list"></ul>
-          <details class="notes-box" id="notes-box" hidden>
-            <summary>Autoauditoría de Hermes <span>fuente de cada dato y origen de cada imagen</span></summary>
-            <div id="notes-text" class="md"></div>
           </details>
-        </section>
-
-        <section class="compare" id="compare" aria-labelledby="compare-title" hidden>
-          <div class="review-head">
-            <h3 id="compare-title">Qué ha cambiado</h3>
-            <span id="compare-summary" class="review-summary"></span>
-          </div>
-          <label class="compare-with">
-            <span class="label">Comparar con</span>
-            <select id="compare-with"></select>
-          </label>
-          <p id="compare-base" class="hint"></p>
-          <ul id="compare-list" class="compare-list"></ul>
-        </section>
-
-        <div class="preview-head">
-          <div class="segmented view-toggle" role="radiogroup" aria-label="Tamaño de la vista previa">
-            <label><input type="radio" name="previewView" value="desktop" checked /><span>Escritorio</span></label>
-            <label><input type="radio" name="previewView" value="mobile" /><span>Móvil</span></label>
-            <label title="Cualquier ancho entre 320 y 1000 px"><input type="radio" name="previewView" value="free" /><span>Libre</span></label>
-          </div>
-          <div class="segmented theme-toggle" role="radiogroup" aria-label="Modo de color de la vista previa">
-            <label title="Como se ve con el modo claro"><input type="radio" name="previewTheme" value="light" checked /><span>Claro</span></label>
-            <label title="Como Apple Mail o iOS Mail en modo oscuro: la pieza usa sus propios estilos oscuros"><input type="radio" name="previewTheme" value="dark" /><span>Oscuro</span></label>
-            <label title="Aproximación a Gmail y Outlook en móvil con modo oscuro: invierten los colores"><input type="radio" name="previewTheme" value="invert" /><span>Invertido</span></label>
-          </div>
-          <label class="toggle" id="compare-toggle-wrap" hidden>
-            <input type="checkbox" id="compare-toggle" />
-            <span>Antes y después</span>
-          </label>
-          <label class="toggle" id="highlight-toggle-wrap" title="Verde: lo añadido en esta versión. Rojo (en «Antes y después»): lo que se quitó." hidden>
-            <input type="checkbox" id="highlight-toggle" checked />
-            <span>Resaltar cambios</span>
-          </label>
-          <span class="hint" id="preview-size"></span>
-          <a id="open-link" class="preview-open" href="#" target="_blank" rel="noopener">Abrir en pestaña ↗</a>
-        </div>
-        <div class="free-width" id="free-width" hidden>
-          <label for="free-width-range" class="free-width-label">Ancho <strong id="free-width-value"></strong></label>
-          <input type="range" id="free-width-range" min="320" max="1000" step="1" />
-          <span class="free-width-presets" role="group" aria-label="Anchos habituales">
-            <button type="button" class="chip" data-width="320">320</button>
-            <button type="button" class="chip" data-width="375">375</button>
-            <button type="button" class="chip" data-width="414">414</button>
-            <button type="button" class="chip" data-width="600">600</button>
-            <button type="button" class="chip" data-width="768">768</button>
-          </span>
-        </div>
-        <p class="hint theme-hint" id="theme-hint" hidden></p>
-        <div class="pick-banner te-banner" id="te-banner" hidden>
-          <span>Editando el texto: haz clic en la pieza y escribe. <span class="hint" id="te-banner-count"></span></span>
-          <span class="te-banner-actions">
-            <button type="button" id="te-banner-save" class="btn btn-primary btn-sm">Guardar</button>
-            <button type="button" id="te-banner-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
-          </span>
-        </div>
-        <div class="pick-banner" id="pick-banner" role="status" hidden>
-          <span>Haz clic en lo que quieres cambiar. <span class="hint">Esc para salir.</span></span>
-          <button type="button" id="pick-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
-        </div>
-        <div class="preview-stage" id="preview-stage">
-          <div class="preview-col" id="preview-col-before" hidden>
-            <p class="preview-label" id="preview-label-before"></p>
-            <div class="preview-device" id="preview-device-before">
-              <iframe id="preview-frame-before" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Versión anterior de la newsletter"></iframe>
-            </div>
-          </div>
-          <div class="preview-col" id="preview-col-after">
-            <p class="preview-label" id="preview-label-after" hidden></p>
-            <div class="preview-device" id="preview-device">
-              <iframe id="preview-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Previsualización de la newsletter"></iframe>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -476,7 +490,7 @@
         <button id="reuse-btn" type="button" class="btn btn-secondary">Reutilizar este prompt</button>
         <button id="new-job-btn" type="button" class="btn btn-ghost">Generar otra newsletter</button>
         <button id="archive-btn" type="button" class="btn btn-ghost" title="La saca del historial con todas sus versiones. No se borra nada: se recupera desde «Archivadas».">Archivar</button>
-        <button id="shortcuts-btn" type="button" class="btn btn-ghost" aria-haspopup="dialog">Atajos de teclado <kbd>?</kbd></button>
+        <button id="shortcuts-btn" type="button" class="link-btn shortcuts-link" aria-haspopup="dialog">Atajos de teclado <kbd>?</kbd></button>
       </div>
     </section>
   </main>

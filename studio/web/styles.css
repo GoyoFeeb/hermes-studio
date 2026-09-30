@@ -1101,3 +1101,62 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
   .action-head-side { margin-left: 0; width: 100%; }
   .action-buttons .btn { flex: 1 1 140px; }
 }
+
+/* Pestañas del resultado (2026-09-30): vista previa, revisión, comparación y asunto/bandeja bajo las acciones. */
+.job-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 20px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.job-tabs::-webkit-scrollbar { display: none; }
+.job-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -1px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: 'Barlow', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+.job-tab:hover { color: var(--text); }
+.job-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--pink); }
+.job-tab:focus-visible { outline: 2px solid var(--pink); outline-offset: -2px; border-radius: 6px 6px 0 0; }
+.tab-badge:empty { display: none; }
+.tab-badge {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: var(--pill);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-align: center;
+  background: var(--surface-pill);
+  color: var(--muted);
+}
+.tab-badge.is-error { background: rgba(255, 122, 138, 0.18); color: var(--error); }
+.tab-badge.is-warning { background: rgba(255, 204, 0, 0.16); color: var(--warning); }
+.tab-badge.is-ok { background: rgba(79, 209, 165, 0.16); color: var(--success); }
+/* Dentro de su pestaña, cada bloque ya no necesita separarse del siguiente. */
+.job-panel > .review, .job-panel > .compare { margin-top: 0; }
+.job-panel > .inbox { margin-top: 0; }
+.job-tab .lbl-short { display: none; }
+@media (max-width: 640px) {
+  .job-tabs { gap: 0; }
+  .job-tab { padding: 10px 9px; letter-spacing: 0.4px; }
+  .job-tab .lbl-long { display: none; }
+  .job-tab .lbl-short { display: inline; }
+}
+/* Atajos de teclado: ayuda, no una acción más junto a "Archivar" (2026-09-30). */
+.shortcuts-link { margin-left: auto; align-self: center; text-decoration: none; }
+.shortcuts-link:hover { text-decoration: underline; }

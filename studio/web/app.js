@@ -1292,6 +1292,7 @@ document.getElementById('pick-btn').addEventListener('click', () => {
   if (!previewDoc()) return showToast('La vista previa aún se está cargando.');
   // Solo la versión actual se puede señalar: al comparar, la columna de la izquierda es la anterior.
   if (document.getElementById('compare-toggle').checked) document.getElementById('compare-toggle').click();
+  showJobTab('preview');
   setPicking(true);
   document.getElementById('pick-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
@@ -1528,6 +1529,7 @@ function setEditControls(disabled) {
 }
 
 function teOpen() {
+  showJobTab('preview'); // se edita sobre la vista previa
   const doc = previewDoc();
   if (!doc?.body) return showToast('La vista previa aún se está cargando.');
   toggleRevise(false);
@@ -1999,13 +2001,17 @@ document.addEventListener('keydown', (e) => {
   } else if (key === 'e') done = pressIfUsable('edit-text-btn');
   else if (key === 'c') done = reviseBox.hidden ? pressIfUsable('revise-btn') : false;
   else if (key === 'd') done = pressIfUsable('download-link');
+  // Vista, color y antes/después cambian la vista previa: se muestra su pestaña.
   else if (key === 'v') {
+    showJobTab('preview');
     cycleRadio('previewView', ['desktop', 'mobile', 'free']);
     done = true;
   } else if (key === 'o') {
+    showJobTab('preview');
     cycleRadio('previewTheme', ['light', 'dark', 'invert']);
     done = true;
   } else if (key === 'b') {
+    showJobTab('preview');
     done = pressIfUsable('compare-toggle');
   }
   if (done) e.preventDefault();
@@ -2014,7 +2020,55 @@ document.addEventListener('keydown', (e) => {
 // "Ver errores": a la revisión automática sin tocar la URL (un #review dispararía la navegación de la página).
 document.getElementById('result-errors-link').addEventListener('click', (e) => {
   e.preventDefault();
-  document.getElementById('review').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showJobTab('review');
+  document.querySelector('.job-tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// ---------------------------------------------------------------- pestañas del resultado (2026-09-30)
+// Vista previa, revisión, comparación y asunto/bandeja comparten sitio bajo las acciones: antes iban
+// apilados y la vista previa empezaba casi dos pantallas más abajo. "Qué ha cambiado" y "Asunto y
+// bandeja" solo salen si su bloque tiene algo (lo decide el render de siempre con su `hidden`).
+const JOB_TABS = ['preview', 'review', 'compare', 'meta'];
+let activeJobTab = 'preview';
+
+function showJobTab(name, { focus = false } = {}) {
+  activeJobTab = name;
+  for (const t of JOB_TABS) {
+    const tab = document.getElementById(`tab-${t}`);
+    const on = t === name;
+    tab.setAttribute('aria-selected', String(on));
+    tab.tabIndex = on ? 0 : -1;
+    document.getElementById(`panel-${t}`).hidden = !on;
+    if (on && focus) tab.focus();
+  }
+  // La vista previa se mide al mostrarse: oculta, el iframe no tiene alto.
+  if (name === 'preview') requestAnimationFrame(() => fitFrames());
+}
+
+function syncJobTabs() {
+  const hasCompare = !document.getElementById('compare').hidden;
+  const hasMeta = !document.getElementById('email-meta').hidden || !document.getElementById('inbox').hidden;
+  document.getElementById('tab-compare').hidden = !hasCompare;
+  document.getElementById('tab-meta').hidden = !hasMeta;
+  if ((activeJobTab === 'compare' && !hasCompare) || (activeJobTab === 'meta' && !hasMeta)) showJobTab('preview');
+}
+const jobTabsObserver = new MutationObserver(syncJobTabs);
+['compare', 'email-meta', 'inbox'].forEach((id) =>
+  jobTabsObserver.observe(document.getElementById(id), { attributes: true, attributeFilter: ['hidden'] })
+);
+
+document.querySelector('.job-tabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-tab]');
+  if (tab) showJobTab(tab.dataset.tab);
+});
+document.querySelector('.job-tabs').addEventListener('keydown', (e) => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  const visible = JOB_TABS.filter((t) => !document.getElementById(`tab-${t}`).hidden);
+  const i = visible.indexOf(activeJobTab);
+  const next =
+    e.key === 'Home' ? 0 : e.key === 'End' ? visible.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + visible.length) % visible.length;
+  e.preventDefault();
+  showJobTab(visible[next], { focus: true });
 });
 
 document.getElementById('use-brief-btn').addEventListener('click', () => {
@@ -2039,6 +2093,7 @@ function showJobView(id) {
   hero.hidden = true;
   viewJob.hidden = false;
   document.getElementById('job-result').hidden = true;
+  showJobTab('preview');
   resultBarHidden = false;
   updateSticky();
   document.getElementById('job-blocked').hidden = true;
@@ -2454,6 +2509,10 @@ function renderReview(quality, notes) {
   const message = document.getElementById('result-message');
   document.getElementById('review-empty').hidden = !!quality;
   document.getElementById('result-errors-link').hidden = !quality?.errors;
+  const badge = document.getElementById('tab-review-badge');
+  badge.textContent = !quality ? '' : quality.errors ? String(quality.errors) : quality.warnings ? String(quality.warnings) : '✓';
+  badge.className = `tab-badge${quality ? ` is-${quality.errors ? 'error' : quality.warnings ? 'warning' : 'ok'}` : ''}`;
+  badge.title = !quality ? '' : quality.errors ? plural(quality.errors, 'error', 'errores') : quality.warnings ? plural(quality.warnings, 'aviso', 'avisos') : 'Todo correcto';
   message.textContent = 'La newsletter está lista.';
   message.classList.remove('has-errors');
 
@@ -2804,6 +2863,10 @@ function annotateLocations() {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function goToLocation(loc, side) {
+  if (activeJobTab !== 'preview') {
+    showJobTab('preview');
+    await wait(50);
+  }
   if (loc.kind === 'overflow' && readCheckedView() !== 'mobile') {
     document.querySelector('input[name="previewView"][value="mobile"]').checked = true;
     applyPreviewView('mobile');
