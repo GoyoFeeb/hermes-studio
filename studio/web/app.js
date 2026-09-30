@@ -12,6 +12,10 @@ const existingBrandInput = document.getElementById('existing-brand-input');
 // límite de intentos del servidor).
 let authMissing = false;
 
+/** Mensaje cuando no llega la respuesta (sin red o Studio caído). Antes, cinco acciones fallaban sin avisar:
+ *  el botón volvía a su estado y el error solo quedaba en la consola (2026-09-30). */
+const NETWORK_ERROR = 'No se pudo conectar con Studio. Revisa la conexión e inténtalo de nuevo.';
+
 async function apiFetch(url, options) {
   const res = await fetch(url, options);
   if (res.status === 401) {
@@ -375,7 +379,7 @@ async function submitJob(payload) {
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
   } catch {
-    formError.textContent = 'No se pudo conectar con Studio. Revisa la conexión e inténtalo de nuevo.';
+    formError.textContent = NETWORK_ERROR;
     formError.hidden = false;
   } finally {
     submitBtn.disabled = false;
@@ -964,9 +968,14 @@ document.getElementById('history-list').addEventListener('click', (e) => {
 // "Reutilizar": rellena el formulario con la marca, el prompt y el modo de imágenes de un trabajo
 // anterior (para relanzar uno fallido o hacer una variante). No se envía hasta pulsar Generar.
 async function reuseJob(id, { useBrief = false } = {}) {
-  const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
-  if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
-  const { job } = await res.json();
+  let job;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
+    if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
+    ({ job } = await res.json());
+  } catch {
+    return showToast(NETWORK_ERROR, 'error');
+  }
   if (showFormView() === false) return;
   await brandsReady;
   form.reset();
@@ -1063,6 +1072,8 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
     if (!res.ok) return showToast(data.error || 'No se pudo lanzar la adaptación a móvil.', 'error');
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
   } finally {
     btn.disabled = false;
   }
@@ -1105,6 +1116,8 @@ async function retryJobById(id, btn) {
     const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
     if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
     await retryJob((await res.json()).job);
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -1178,6 +1191,9 @@ document.getElementById('cancel-yes').addEventListener('click', async (e) => {
       const data = await res.json().catch(() => ({}));
       document.getElementById('progress-detail').textContent = data.error || 'No se pudo cancelar.';
     }
+  } catch {
+    // Sin respuesta no se sabe si se canceló: el sondeo de después muestra el estado real.
+    showToast('No se pudo confirmar la cancelación: revisa la conexión e inténtalo de nuevo.', 'error');
   } finally {
     btn.disabled = false;
     resetCancel();
@@ -1245,6 +1261,10 @@ reviseBox.addEventListener('submit', async (e) => {
     document.getElementById('revise-input').value = ''; // enviada: ya no es trabajo sin guardar
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
+  } catch {
+    // No se sabe si llegó: la petición se queda escrita y se avisa de mirar el historial antes de repetirla.
+    reviseError.textContent = 'No llegó la respuesta de Studio: puede que los cambios no se hayan enviado. Revisa la conexión y mira el historial antes de volver a enviarlos.';
+    reviseError.hidden = false;
   } finally {
     submit.disabled = false;
   }
