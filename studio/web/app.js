@@ -5,6 +5,26 @@ const hero = document.querySelector('.hero');
 const clientNameInput = document.getElementById('client-name-input');
 const existingBrandInput = document.getElementById('existing-brand-input');
 
+// ---------------------------------------------------------------- acceso a la API (2026-09-30)
+// La página es pública pero /api pide la contraseña del equipo (Basic Auth). Sin ella todo respondía 401
+// y la página se quedaba a medias sin avisar: píldora vacía, sin historial ni marcas. Ahora cualquier 401
+// muestra el aviso de arriba, y los refrescos periódicos se paran (cada intento fallido cuenta para el
+// límite de intentos del servidor).
+let authMissing = false;
+
+async function apiFetch(url, options) {
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    authMissing = true;
+    document.getElementById('auth-banner').hidden = false;
+  } else if (authMissing) {
+    authMissing = false;
+    document.getElementById('auth-banner').hidden = true;
+  }
+  return res;
+}
+document.getElementById('auth-reload').addEventListener('click', () => location.reload());
+
 // ---------------------------------------------------------------- campo único de marca
 // Antes había dos campos (desplegable de carpeta + nombre) que podían contradecirse: así se envió un
 // prompt de Prozis con la marca Adeslas (2026-09-24). Ahora se escribe el nombre y la página deduce si
@@ -68,14 +88,15 @@ function updateBrandMatch() {
   hint.textContent = !name
     ? ''
     : match
-    ? `Marca del sistema: Hermes usará su brand pack y sus logos (brands/${match}).`
-    : `Marca nueva: Hermes la investigará desde cero (se creará brands/${slugify(name) || '…'}).`;
+    ? 'Marca conocida: Hermes usará sus colores, tipografías y logos ya guardados.'
+    : 'Marca nueva: Hermes la investigará desde cero y guardará su identidad para la próxima vez.';
 }
 clientNameInput.addEventListener('input', updateBrandMatch);
 
 async function loadBrands() {
   try {
-    const res = await fetch('/api/brands');
+    const res = await apiFetch('/api/brands');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     knownBrands = data.brands || [];
     renderBrandOptions();
@@ -120,7 +141,9 @@ async function loadHermesStatus() {
   const el = document.getElementById('hermes-status');
   let busy = false;
   try {
-    const { hermesOnline, current, queued = 0, typical } = await (await fetch('/api/status')).json();
+    const res = await apiFetch('/api/status');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { hermesOnline, current, queued = 0, typical } = await res.json();
     if (typical) {
       typicalDurations = typical;
       renderEtaHints();
@@ -138,10 +161,12 @@ async function loadHermesStatus() {
     }
     el.className = `status-pill ${current ? 'is-busy' : hermesOnline ? 'is-online' : 'is-offline'}`;
   } catch {
-    el.textContent = '';
+    el.textContent = authMissing ? 'Sin sesión' : 'Sin conexión con Studio';
     el.removeAttribute('href');
-    el.className = 'status-pill';
+    el.title = authMissing ? 'Falta la contraseña del equipo: recarga la página e inicia sesión.' : 'No se ha podido consultar el estado. Se reintentará en un minuto.';
+    el.className = 'status-pill is-error';
   }
+  if (authMissing) return;
   // Mientras trabaja se refresca más a menudo, para que el porcentaje no se quede viejo.
   statusTimer = setTimeout(loadHermesStatus, busy ? 20000 : 60000);
 }
@@ -157,19 +182,19 @@ document.getElementById('hermes-status').addEventListener('click', (e) => {
 });
 
 // Instrucción rápida (Hermes escribe antes el brief con la skill newsletter-creative-brief) o
-// prompt completo ya generado con la skill.
+// prompt completo ya generado con la skill. Los textos no nombran la skill: al equipo no le dice nada (2026-09-30).
 const KIND_COPY = {
   instruction: {
     label: 'Instrucción',
     rows: 4,
     placeholder: 'Ej: quiero una newsletter de Adeslas para presentar su seguro dental a familias',
-    hint: 'Hermes escribe primero el brief creativo con la skill newsletter-creative-brief (HTML standalone) y luego hace la newsletter.',
+    hint: 'Cuéntalo en una frase: Hermes lo convierte en un brief creativo completo y después hace la newsletter.',
   },
   brief: {
     label: 'Prompt creativo',
     rows: 14,
-    placeholder: 'Pega aquí el prompt generado con la skill newsletter-creative-brief.',
-    hint: 'Hermes ejecuta el prompt tal cual.',
+    placeholder: 'Pega aquí el prompt de dirección creativa completo (concepto, escenas, tono, textos…).',
+    hint: 'Hermes sigue tu prompt tal cual, sin reinterpretarlo.',
   },
 };
 
@@ -267,7 +292,7 @@ async function submitJob(payload) {
   document.getElementById('brand-send-anyway').disabled = true;
   clearFormNotices();
   try {
-    const res = await fetch('/api/jobs', {
+    const res = await apiFetch('/api/jobs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -282,7 +307,8 @@ async function submitJob(payload) {
       return;
     }
     if (!res.ok) {
-      formError.textContent = data.error || 'No se pudo enviar el brief.';
+      formError.textContent =
+        res.status === 401 ? 'No se ha enviado: necesitas iniciar sesión (mira el aviso de arriba). Tu texto se queda guardado como borrador.' : data.error || 'No se pudo enviar el brief.';
       formError.hidden = false;
       return;
     }
@@ -477,7 +503,9 @@ let historyTimer = null;
 async function loadHistory() {
   clearTimeout(historyTimer);
   try {
-    const { jobs } = await (await fetch('/api/jobs')).json();
+    const res = await apiFetch('/api/jobs');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { jobs } = await res.json();
     historyState.jobs = jobs;
     // Nombres de marca tal como los escribe el equipo ("El Corte Inglés", no "El Corte Ingles"), solo
     // si llevan a su carpeta: si no, la sugerencia no reconocería la marca.
@@ -834,7 +862,7 @@ document.getElementById('history-list').addEventListener('click', (e) => {
 // "Reutilizar": rellena el formulario con la marca, el prompt y el modo de imágenes de un trabajo
 // anterior (para relanzar uno fallido o hacer una variante). No se envía hasta pulsar Generar.
 async function reuseJob(id, { useBrief = false } = {}) {
-  const res = await fetch(`/api/jobs/${encodeURIComponent(id)}`);
+  const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
   if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
   const { job } = await res.json();
   showFormView();
@@ -891,7 +919,7 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
   const btn = e.currentTarget;
   btn.disabled = true;
   try {
-    const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/mobile-fix`, { method: 'POST' });
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/mobile-fix`, { method: 'POST' });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return showToast(data.error || 'No se pudo lanzar la adaptación a móvil.', 'error');
     history.pushState({}, '', `?job=${data.id}`);
@@ -908,7 +936,7 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
 async function retryJob(job) {
   const input = job.input;
   const post = (url, body) =>
-    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+    apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
   let res;
   if (input.revisionOf) {
     res = await post(`/api/jobs/${encodeURIComponent(input.revisionOf)}/revise`, { changes: input.changeRequest, requesterName: input.requesterName });
@@ -935,7 +963,7 @@ async function retryJob(job) {
 async function retryJobById(id, btn) {
   if (btn) btn.disabled = true;
   try {
-    const res = await fetch(`/api/jobs/${encodeURIComponent(id)}`);
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
     if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
     await retryJob((await res.json()).job);
   } finally {
@@ -1002,7 +1030,7 @@ document.getElementById('cancel-yes').addEventListener('click', async (e) => {
   const btn = e.currentTarget; // tras un await, e.currentTarget ya es null
   btn.disabled = true;
   try {
-    const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       document.getElementById('progress-detail').textContent = data.error || 'No se pudo cancelar.';
@@ -1035,7 +1063,7 @@ reviseBox.addEventListener('submit', async (e) => {
   submit.disabled = true;
   reviseError.hidden = true;
   try {
-    const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/revise`, {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/revise`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ changes: document.getElementById('revise-input').value }),
@@ -1571,7 +1599,7 @@ async function teSave() {
   const buttons = [teBox.querySelector('button[type="submit"]'), document.getElementById('te-banner-save')];
   buttons.forEach((b) => (b.disabled = true));
   try {
-    const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/text-edit`, {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/text-edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ edits, subject, alts, requesterName: savedRequester() || undefined }),
@@ -1839,7 +1867,7 @@ approveBox.addEventListener('change', () => {
 approveBox.addEventListener('submit', async (e) => {
   e.preventDefault();
   const checklist = [...approveBox.querySelectorAll('[data-check-item]:checked')].map((b) => APPROVAL_CHECKS[Number(b.dataset.checkItem)]);
-  const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/approve`, {
+  const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ checklist, by: savedRequester() || undefined }),
@@ -1850,7 +1878,7 @@ approveBox.addEventListener('submit', async (e) => {
   poll(currentJob);
 });
 document.getElementById('unapprove-btn').addEventListener('click', async () => {
-  const res = await fetch(`/api/jobs/${encodeURIComponent(currentJob)}/unapprove`, { method: 'POST' }).catch(() => null);
+  const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/unapprove`, { method: 'POST' }).catch(() => null);
   if (!res?.ok) return showToast('No se pudo quitar la aprobación.', 'error');
   showToast('Ya no está aprobada.');
   poll(currentJob);
@@ -1858,7 +1886,7 @@ document.getElementById('unapprove-btn').addEventListener('click', async () => {
 
 // ---------------------------------------------------------------- archivar (2026-09-28)
 async function setArchived(id, archived) {
-  const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/archive`, {
+  const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/archive`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ archived }),
@@ -2014,10 +2042,10 @@ function showJobView(id) {
 
 async function poll(id) {
   clearTimeout(pollTimer);
-  const res = await fetch(`/api/jobs/${id}`);
+  const res = await apiFetch(`/api/jobs/${id}`);
   if (id !== currentJob) return;
   if (!res.ok) {
-    document.getElementById('job-title').textContent = 'Trabajo no encontrado';
+    document.getElementById('job-title').textContent = res.status === 401 ? 'Inicia sesión para ver este trabajo' : 'Trabajo no encontrado';
     return;
   }
   const { job, events, notes, meta, queue, hermesOnline, versions } = await res.json();
@@ -2127,7 +2155,7 @@ let currentHtml = null;
 async function loadResultHtml(id) {
   currentHtml = null;
   try {
-    const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/result`);
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/result`);
     if (res.ok && id === currentJob) currentHtml = await res.text();
   } catch {
     // se reintenta al pulsar "Copiar HTML"
@@ -2576,7 +2604,7 @@ function resetCompare() {
 }
 
 async function fetchResult(id) {
-  const res = await fetch(`/api/jobs/${encodeURIComponent(id)}/result`);
+  const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/result`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
 }

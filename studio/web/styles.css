@@ -234,6 +234,8 @@ a { color: var(--accent-text); }
 .status-pill.is-online { color: var(--text); }
 .status-pill.is-online::before { background: var(--success); box-shadow: 0 0 0 4px rgba(79, 209, 165, 0.18); }
 .status-pill.is-offline::before { background: var(--warning); box-shadow: 0 0 0 4px rgba(255, 204, 0, 0.15); }
+.status-pill.is-error { color: var(--text); }
+.status-pill.is-error::before { background: var(--error); box-shadow: 0 0 0 4px rgba(255, 90, 90, 0.18); }
 /* Hermes trabajando: la píldora enlaza con ese trabajo (2026-09-28). */
 .status-pill { text-decoration: none; max-width: 60vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-pill.is-busy { color: var(--text); border-color: rgba(251, 115, 255, 0.45); }
@@ -448,6 +450,7 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .warning-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .form-warning ul { margin: 0 0 12px; padding-left: 20px; font-size: 14px; }
 .form-warning li { margin: 4px 0; }
+.auth-banner { margin: 24px 0 0; }
 /* Borrador recuperado (2026-09-28) */
 .draft-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0 0 18px; padding: 10px 14px; border: 1px dashed var(--border-strong); border-radius: 10px; font-size: 14px; color: var(--muted); }
 .toast {

@@ -30,6 +30,14 @@
   </header>
 
   <main id="app">
+    <!-- Sin contraseña la API responde 401: antes la página se quedaba a medias sin decir por qué (2026-09-30). -->
+    <div id="auth-banner" class="form-warning auth-banner" role="alert" hidden>
+      <p><strong>Necesitas iniciar sesión.</strong> Studio no ha podido cargar tus datos porque falta la contraseña del equipo. Recarga la página e introdúcela cuando el navegador te la pida.</p>
+      <div class="warning-actions">
+        <button type="button" id="auth-reload" class="btn btn-secondary btn-sm">Recargar e iniciar sesión</button>
+      </div>
+    </div>
+
     <section class="hero">
       <p class="eyebrow">Hermes Studio</p>
       <h1>Newsletters de marca, <span class="accent">con Hermes</span></h1>
