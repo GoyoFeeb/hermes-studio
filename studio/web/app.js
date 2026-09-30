@@ -584,6 +584,11 @@ function renderHistoryJump(jobs) {
     active ? ` <span class="is-busy">· ${active} en curso</span>` : ''
   } <span aria-hidden="true">↓</span>`;
 }
+document.getElementById('how-btn').addEventListener('click', (e) => {
+  const panel = document.getElementById('how-panel');
+  panel.hidden = !panel.hidden;
+  e.currentTarget.setAttribute('aria-expanded', String(!panel.hidden));
+});
 document.getElementById('history-jump').addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('history').scrollIntoView({ behavior: 'smooth', block: 'start' });
