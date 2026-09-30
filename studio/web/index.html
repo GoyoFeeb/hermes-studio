@@ -174,6 +174,8 @@
           <p id="job-change" class="change-request" hidden></p>
           <!-- Lo que se pidió, visible también mientras trabaja o si falla (2026-09-30): antes solo se veía con «Reutilizar». -->
           <div id="job-request" class="job-request" hidden></div>
+          <!-- Fallo de red o servidor reiniciándose (2026-09-30): se reintenta solo, antes la página se congelaba. -->
+          <p id="job-reconnecting" class="reconnecting" role="status" hidden>Sin conexión con Studio: reintentando…</p>
           <p id="job-parent" class="hint" hidden>Hecha a partir de <a id="job-parent-link" href="#"></a>.</p>
           <p id="job-archived" class="archived-note" hidden>Archivada con todas sus versiones: no sale en el historial. <button type="button" id="unarchive-btn" class="btn btn-ghost btn-sm">Recuperar</button></p>
         </div>

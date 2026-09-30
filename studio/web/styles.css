@@ -489,6 +489,10 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
   font-size: 14px;
 }
 .toast.is-error { border-color: rgba(255, 122, 138, 0.6); color: var(--error); }
+/* Aviso con acción (2026-09-30): "Deshacer" al quitar una aprobación. */
+.toast .toast-action { margin-left: 12px; }
+.reconnecting { margin: 8px 0 0; font-size: 13px; color: var(--warning); }
+.reconnecting::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--warning); vertical-align: 1px; }
 
 /* Asunto y preheader del resultado */
 .email-meta { margin: 0 0 16px; padding: 4px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--field); }

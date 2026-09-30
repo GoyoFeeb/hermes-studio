@@ -499,13 +499,25 @@ form.addEventListener('reset', clearFormNotices);
 // ---------------------------------------------------------------- avisos flotantes
 
 let toastTimer = null;
-function showToast(message, level = 'info') {
+/** `action` (opcional): { label, run } → un botón en el aviso, que dura más para dar tiempo a pulsarlo. */
+function showToast(message, level = 'info', action = null) {
   const toast = document.getElementById('toast');
   toast.textContent = message;
+  if (action) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'link-btn toast-action';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => {
+      toast.hidden = true;
+      action.run();
+    });
+    toast.appendChild(btn);
+  }
   toast.classList.toggle('is-error', level === 'error');
   toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toast.hidden = true), level === 'error' ? 7000 : 3000);
+  toastTimer = setTimeout(() => (toast.hidden = true), action ? 10000 : level === 'error' ? 7000 : 3000);
 }
 
 const STATUS_LABELS = {
@@ -613,6 +625,8 @@ async function loadHistory() {
     }
   } catch (err) {
     console.error('No se pudo cargar el historial', err);
+    // Sin sesión no se insiste (cada intento cuenta para el límite del servidor); si no, en 30 s.
+    if (!authMissing) historyTimer = setTimeout(loadHistory, 30000);
   }
 }
 
@@ -2063,10 +2077,26 @@ approveBox.addEventListener('submit', async (e) => {
   poll(currentJob);
 });
 document.getElementById('unapprove-btn').addEventListener('click', async () => {
-  const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/unapprove`, { method: 'POST' }).catch(() => null);
+  // Lo aprobado se guarda antes de quitarlo: "Deshacer" lo restaura con sus comprobaciones y quién lo aprobó
+  // (2026-09-30). Antes, un clic sin querer obligaba a repetir la lista entera.
+  const id = currentJob;
+  const before = { checklist: currentJobData?.approvalChecklist || [], by: currentJobData?.approvedBy };
+  const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/unapprove`, { method: 'POST' }).catch(() => null);
   if (!res?.ok) return showToast('No se pudo quitar la aprobación.', 'error');
-  showToast('Ya no está aprobada.');
-  poll(currentJob);
+  showToast('Ya no está aprobada.', 'info', {
+    label: 'Deshacer',
+    run: async () => {
+      const undo = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(before),
+      }).catch(() => null);
+      if (!undo?.ok) return showToast('No se pudo restaurar la aprobación.', 'error');
+      showToast('Aprobación restaurada.');
+      if (id === currentJob) poll(id);
+    },
+  });
+  poll(id);
 });
 
 // ---------------------------------------------------------------- archivar (2026-09-28)
@@ -2225,6 +2255,10 @@ document.getElementById('use-brief-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob, { useBrief: true });
 });
 window.addEventListener('popstate', () => route());
+// Al volver la red no se espera al siguiente reintento.
+window.addEventListener('online', () => {
+  if (currentJob && pollFailures) poll(currentJob);
+});
 
 const PHASE_LABELS = {
   setup: 'Preparando campaña',
@@ -2244,6 +2278,8 @@ function showJobView(id) {
   }
   clearTimeout(historyTimer);
   currentJob = id;
+  pollFailures = 0;
+  setReconnecting(false);
   viewForm.hidden = true;
   hero.hidden = true;
   viewJob.hidden = false;
@@ -2283,10 +2319,33 @@ function showJobView(id) {
   poll(id);
 }
 
+// Fallos pasajeros (2026-09-30): sin red, un 5xx mientras Railway se reinicia en un deploy o un 429. Antes
+// un solo fallo dejaba de programar el siguiente sondeo (la página se quedaba congelada) y un 5xx decía
+// "Trabajo no encontrado". Ahora se reintenta con esperas crecientes (5 s, 10 s, 20 s… hasta 1 min) y
+// "Trabajo no encontrado" queda para el 404.
+let pollFailures = 0;
+
+function setReconnecting(on) {
+  document.getElementById('job-reconnecting').hidden = !on;
+}
+
 async function poll(id) {
   clearTimeout(pollTimer);
-  const res = await apiFetch(`/api/jobs/${id}`);
+  let res = null;
+  try {
+    res = await apiFetch(`/api/jobs/${id}`);
+  } catch {
+    // sin red: se reintenta abajo
+  }
   if (id !== currentJob) return;
+  if (!res || res.status >= 500 || res.status === 429) {
+    pollFailures++;
+    setReconnecting(true);
+    pollTimer = setTimeout(() => poll(id), Math.min(60000, 5000 * 2 ** (pollFailures - 1)));
+    return;
+  }
+  pollFailures = 0;
+  setReconnecting(false);
   if (!res.ok) {
     document.getElementById('job-title').textContent = res.status === 401 ? 'Inicia sesión para ver este trabajo' : 'Trabajo no encontrado';
     return;
