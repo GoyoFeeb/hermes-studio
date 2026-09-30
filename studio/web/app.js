@@ -266,9 +266,9 @@ document.getElementById('requester-change').addEventListener('click', () => {
 // Para quien entra por primera vez: rellenan la instrucción y la marca. Solo con la instrucción vacía
 // (o con otro ejemplo): nunca pisan lo que alguien ha escrito.
 const EXAMPLES = [
-  { label: 'Adeslas · seguro dental', brand: 'Adeslas', text: 'quiero una newsletter de Adeslas para presentar su seguro dental a familias con niños' },
+  { label: 'Adeslas · dental', brand: 'Adeslas', text: 'quiero una newsletter de Adeslas para presentar su seguro dental a familias con niños' },
   { label: 'Nike · lanzamiento', brand: 'Nike', text: 'newsletter de Nike para el lanzamiento de sus nuevas zapatillas de running' },
-  { label: 'El Corte Inglés · temporada', brand: 'El Corte Inglés', text: 'newsletter de El Corte Inglés con las novedades de moda de la nueva temporada' },
+  { label: 'El Corte Inglés · moda', brand: 'El Corte Inglés', text: 'newsletter de El Corte Inglés con las novedades de moda de la nueva temporada' },
   { label: 'Apple · producto', brand: 'Apple', text: 'newsletter de Apple presentando su último iPhone a clientes de España' },
 ];
 const promptInput = document.getElementById('prompt-input');
@@ -3148,6 +3148,8 @@ document.getElementById('log-only-warnings').addEventListener('change', (e) => {
 const THEMES = ['auto', 'light', 'dark'];
 const THEME_LABEL = { auto: 'automático (como el sistema)', light: 'claro', dark: 'oscuro' };
 const THEME_ICON = { auto: '◐', light: '☀', dark: '☾' };
+// El icono solo no decía en qué modo estabas, y en móvil no hay tooltip: ahora va con su nombre (2026-09-30).
+const THEME_SHORT = { auto: 'Auto', light: 'Claro', dark: 'Oscuro' };
 
 function currentStudioTheme() {
   const t = document.documentElement.getAttribute('data-theme');
@@ -3157,9 +3159,10 @@ function currentStudioTheme() {
 function renderThemeBtn() {
   const t = currentStudioTheme();
   const btn = document.getElementById('theme-btn');
-  btn.textContent = THEME_ICON[t];
+  btn.innerHTML = `<span aria-hidden="true">${THEME_ICON[t]}</span><span class="theme-name">${THEME_SHORT[t]}</span>`;
   btn.setAttribute('aria-label', `Tema: ${THEME_LABEL[t]}. Pulsa para cambiar.`);
-  btn.title = `Tema: ${THEME_LABEL[t]}`;
+  const next = THEMES[(THEMES.indexOf(t) + 1) % THEMES.length];
+  btn.title = `Tema: ${THEME_LABEL[t]} · pulsa para pasar a ${THEME_LABEL[next]}`;
 }
 
 document.getElementById('theme-btn').addEventListener('click', () => {

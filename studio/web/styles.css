@@ -197,15 +197,26 @@ a { color: var(--accent-text); }
 .topbar-side { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .theme-btn {
   flex: none;
-  width: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   height: 34px;
+  padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 50%;
+  border-radius: var(--pill);
   background: var(--surface-pill);
   color: var(--text);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
+}
+.theme-name {
+  font-family: 'Barlow', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .theme-btn:hover { border-color: var(--pink); }
 
@@ -429,14 +440,22 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 
 
 /* Campo único de marca y ejemplos de instrucción (2026-09-28) */
-.brand-field { margin-bottom: 20px; }
+/* El aviso de marca reserva su línea (no salta al escribir) y hace de separación con el campo
+   siguiente: con el margen de 20 px encima, el hueco era el doble que entre los demás campos (2026-09-30). */
+.brand-field { margin-bottom: 0; }
 .brand-field label { margin-bottom: 0; }
-.brand-match { min-height: 1.2em; }
+.brand-match { min-height: 1.2em; margin-bottom: 4px; }
 .brand-match.is-existing { color: var(--success); }
 .brand-match.is-new { color: var(--lilac); }
 .examples { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 20px; }
 .examples .hint { margin: 0 4px 0 0; }
 .examples .chip { text-transform: none; letter-spacing: 0.3px; font-family: 'Work Sans', sans-serif; font-weight: 500; font-size: 13px; }
+/* En móvil, los ejemplos en una sola fila que se desliza en vez de apilarse en tres (2026-09-30). */
+@media (max-width: 640px) {
+  .examples { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -20px; padding-right: 20px; }
+  .examples::-webkit-scrollbar { display: none; }
+  .examples > * { flex: none; }
+}
 
 /* Avisos dentro de la página (sustituyen a alert/confirm del navegador) */
 .form-warning {
@@ -793,6 +812,11 @@ body.has-sticky .foot { padding-bottom: 88px; }
 /* ---------- móvil ---------- */
 @media (max-width: 640px) {
   .topbar, #app, .foot { padding-left: 16px; padding-right: 16px; }
+  /* Píldora de estado y botón de tema con su nombre: más compactos para que quepan junto al logo. */
+  .status-pill, .theme-name { letter-spacing: 0.5px; }
+  .status-pill { padding: 6px 10px; gap: 6px; }
+  .theme-btn { padding: 0 10px; gap: 5px; }
+  .brand img { height: 28px; }
   .hero { padding: 36px 0 24px; }
   .card { padding: 20px; }
   .row, .choices, .history-tools { grid-template-columns: 1fr; gap: 0 12px; }
