@@ -1059,9 +1059,8 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .seg-btn { padding: 4px 12px; border: none; border-radius: var(--pill); background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .seg-btn[aria-pressed="true"] { background: var(--pink); color: var(--on-accent); }
 #history-list.is-gallery { gap: 22px; }
-.g-brand { list-style: none; }
-.g-brand-name { margin: 0 0 10px; font-size: 15px; }
-.g-brand-name .hint { margin-left: 6px; font-weight: 400; }
+.g-all { list-style: none; }
+.g-name { font-size: 14px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
 .g-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
 .g-card { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-row); color: var(--text); text-decoration: none; height: 100%; }
 .g-card:hover { border-color: var(--border-strong); background: var(--surface-row-hover); }
@@ -1180,3 +1179,27 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 /* Atajos de teclado: ayuda, no una acción más junto a "Archivar" (2026-09-30). */
 .shortcuts-link { margin-left: auto; align-self: center; text-decoration: none; }
 .shortcuts-link:hover { text-decoration: underline; }
+
+/* Navegación entre el formulario y los trabajos (2026-09-30). */
+.history-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--pill);
+  background: var(--surface-pill);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+.history-jump:hover { border-color: var(--pink); }
+.history-jump .is-busy { color: var(--pink-soft); }
+.back-link { display: inline-block; margin: -6px 0 16px; font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none; }
+.back-link:hover { color: var(--text); text-decoration: underline; }
+
+/* Lista de aprobación: cada punto lleva a donde se comprueba (2026-09-30). */
+.approve-checklist li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.check-go { font-size: 13px; }

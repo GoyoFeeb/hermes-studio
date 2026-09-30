@@ -547,6 +547,25 @@ try {
   // sin almacenamiento
 }
 let historyTimer = null;
+/** "← Todas las newsletters" lleva al historial cuando termina de cargar. */
+let scrollToHistory = false;
+
+// Atajo al historial desde arriba (2026-09-30): queda debajo de todo el formulario y quien entra a ver
+// cómo va su newsletter tenía que bajar más de una pantalla. Cuenta newsletters, no versiones.
+function renderHistoryJump(jobs) {
+  const link = document.getElementById('history-jump');
+  const live = jobs.filter((j) => !j.archivedAt);
+  const newsletters = live.filter((j) => !j.revisionOf && !j.mobileFixOf && !j.textEditOf).length;
+  const active = live.filter((j) => j.status === 'running' || j.status === 'queued').length;
+  link.hidden = !newsletters;
+  link.innerHTML = `Historial · ${newsletters} newsletter${newsletters === 1 ? '' : 's'}${
+    active ? ` <span class="is-busy">· ${active} en curso</span>` : ''
+  } <span aria-hidden="true">↓</span>`;
+}
+document.getElementById('history-jump').addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('history').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 async function loadHistory() {
   clearTimeout(historyTimer);
@@ -566,6 +585,7 @@ async function loadHistory() {
     }
     if (named) renderBrandOptions();
     document.getElementById('history').hidden = jobs.length === 0;
+    renderHistoryJump(jobs);
 
     const brandSelect = document.getElementById('history-brand');
     const current = brandSelect.value;
@@ -578,6 +598,9 @@ async function loadHistory() {
     brandSelect.value = brands.some(([slug]) => slug === current) ? current : '';
 
     renderHistory();
+    // Después de pintar la lista: antes, la página aún era demasiado corta para llegar al historial.
+    if (scrollToHistory && jobs.length) document.getElementById('history').scrollIntoView({ block: 'start' });
+    scrollToHistory = false;
     // Mientras haya trabajos en curso, el historial se refresca solo.
     if (jobs.some((j) => j.status === 'running' || j.status === 'queued')) {
       historyTimer = setTimeout(loadHistory, 20000);
@@ -774,51 +797,43 @@ function renderHistory() {
     .join('');
 }
 
-/** Galería (2026-09-28): miniaturas grandes agrupadas por marca, con la misma selección y orden que la
- *  lista (cada marca, en la posición de su newsletter más reciente). La tarjeta lleva a la versión que
- *  representa la familia; las acciones (descargar, archivar…) siguen en la vista de lista. */
+/** Galería (2026-09-28): miniaturas grandes con la misma selección y orden que la lista. La tarjeta lleva
+ *  a la versión que representa la familia; las acciones (descargar, archivar…) siguen en la vista de lista.
+ *  Desde 2026-09-30, una sola cuadrícula con la marca en cada tarjeta: agrupada por marca, con una o dos
+ *  newsletters por marca salía una fila por tarjeta y mucho hueco. */
 function renderGallery(groups, info) {
-  const byBrand = new Map();
-  for (const g of groups) {
-    const key = g.lead.clientSlug || g.lead.clientName;
-    if (!byBrand.has(key)) byBrand.set(key, { name: g.lead.clientName, groups: [] });
-    byBrand.get(key).groups.push(g);
-  }
-  return [...byBrand.values()]
-    .map(({ name, groups: gs }) => {
-      const cards = gs
-        .map(({ lead: j, others }) => {
-          const id = encodeURIComponent(j.id);
-          const fam = info.get(j.id);
-          const withThumb = [j, ...others].find((x) => x.hasThumb);
-          const initials = String(j.clientName || '?')
-            .split(/\s+/)
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((w) => w[0].toUpperCase())
-            .join('');
-          const thumb = withThumb
-            ? `<span class="thumb"><img src="/api/jobs/${encodeURIComponent(withThumb.id)}/thumb" alt="" loading="lazy" width="150" height="200" data-initials="${escapeHtml(initials)}"></span>`
-            : `<span class="thumb thumb-empty">${escapeHtml(initials)}</span>`;
-          const approved = [j, ...others].find((x) => x.approvedAt);
-          const when = new Date(j.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-          const bits = [
-            when,
-            fam.size > 1 ? `${fam.size} versiones` : null,
-            jobKindLabel(j),
-          ].filter(Boolean);
-          const status = j.status === 'completed' ? '' : `<span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>`;
-          return `<li><a class="g-card" href="?job=${id}" title="${escapeHtml(`${j.clientName} · ${new Date(j.createdAt).toLocaleString('es-ES')}`)}">
-              ${thumb}
-              <span class="g-meta">${escapeHtml(bits.join(' · '))}</span>
-              ${approved ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (v${info.get(approved.id).number})` : ''}</span>` : ''}
-              ${status}
-            </a></li>`;
-        })
+  const cards = groups
+    .map(({ lead: j, others }) => {
+      const id = encodeURIComponent(j.id);
+      const fam = info.get(j.id);
+      const withThumb = [j, ...others].find((x) => x.hasThumb);
+      const initials = String(j.clientName || '?')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0].toUpperCase())
         .join('');
-      return `<li class="g-brand"><h4 class="g-brand-name">${escapeHtml(name)} <span class="hint">${gs.length}</span></h4><ul class="g-grid">${cards}</ul></li>`;
+      const thumb = withThumb
+        ? `<span class="thumb"><img src="/api/jobs/${encodeURIComponent(withThumb.id)}/thumb" alt="" loading="lazy" width="150" height="200" data-initials="${escapeHtml(initials)}"></span>`
+        : `<span class="thumb thumb-empty">${escapeHtml(initials)}</span>`;
+      const approved = [j, ...others].find((x) => x.approvedAt);
+      const when = new Date(j.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      const bits = [
+        when,
+        fam.size > 1 ? `${fam.size} versiones` : null,
+        jobKindLabel(j),
+      ].filter(Boolean);
+      const status = j.status === 'completed' ? '' : `<span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>`;
+      return `<li><a class="g-card" href="?job=${id}" title="${escapeHtml(`${j.clientName} · ${new Date(j.createdAt).toLocaleString('es-ES')}`)}">
+          ${thumb}
+          <span class="g-name">${escapeHtml(j.clientName)}</span>
+          <span class="g-meta">${escapeHtml(bits.join(' · '))}</span>
+          ${approved ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (v${info.get(approved.id).number})` : ''}</span>` : ''}
+          ${status}
+        </a></li>`;
     })
     .join('');
+  return `<li class="g-all"><ul class="g-grid">${cards}</ul></li>`;
 }
 
 document.querySelectorAll('[data-history-view]').forEach((b) =>
@@ -939,6 +954,13 @@ async function reuseJob(id, { useBrief = false } = {}) {
 }
 
 // ---------------------------------------------------------------- vistas
+
+document.getElementById('back-link').addEventListener('click', (e) => {
+  if (e.metaKey || e.ctrlKey || e.shiftKey) return; // abrir en otra pestaña
+  e.preventDefault();
+  scrollToHistory = true;
+  showFormView();
+});
 
 function showFormView() {
   clearTimeout(pollTimer);
@@ -1877,6 +1899,24 @@ const APPROVAL_CHECKS = [
   'Asunto y preheader revisados (y cómo se ven en la bandeja)',
   'Precios, fechas, nombres y claims comprobados',
 ];
+/** Dónde se comprueba cada punto de APPROVAL_CHECKS (por posición: el texto se guarda con la aprobación y
+ *  no se toca). "Ver" deja la vista previa lista para mirarlo (2026-09-30). */
+const APPROVAL_GO = [
+  { label: 'Ver en móvil', go: () => setPreviewRadio('previewView', 'mobile') },
+  { label: 'Ver en oscuro', go: () => setPreviewRadio('previewTheme', 'dark') },
+  { label: 'Ver revisión de enlaces', go: () => showJobTab('review'), target: '.job-tabs', when: () => !!currentJobData?.quality },
+  { label: 'Ver asunto y bandeja', go: () => showJobTab('meta'), target: '.job-tabs', when: () => !document.getElementById('tab-meta').hidden },
+  null,
+];
+
+function setPreviewRadio(name, value) {
+  showJobTab('preview');
+  const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+  if (!radio || radio.disabled || radio.checked) return;
+  radio.checked = true;
+  radio.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 const approveBox = document.getElementById('approve-box');
 const approveBtn = document.getElementById('approve-btn');
 
@@ -1902,9 +1942,12 @@ function toggleApprove(open) {
   approveBox.hidden = !open;
   approveBtn.setAttribute('aria-expanded', String(open));
   if (!open) return;
-  document.getElementById('approve-checklist').innerHTML = APPROVAL_CHECKS.map(
-    (c, i) => `<li><label><input type="checkbox" data-check-item="${i}" /><span>${escapeHtml(c)}</span></label></li>`
-  ).join('');
+  document.getElementById('approve-checklist').innerHTML = APPROVAL_CHECKS.map((c, i) => {
+    const go = APPROVAL_GO[i];
+    const usable = go && (!go.when || go.when());
+    const btn = usable ? `<button type="button" class="link-btn check-go" data-check-go="${i}">${escapeHtml(go.label)}</button>` : '';
+    return `<li><label><input type="checkbox" data-check-item="${i}" /><span>${escapeHtml(c)}</span></label>${btn}</li>`;
+  }).join('');
   document.getElementById('approve-submit').disabled = true;
   const errors = currentJobData?.quality?.errors || 0;
   const q = document.getElementById('approve-quality');
@@ -1914,6 +1957,13 @@ function toggleApprove(open) {
 }
 
 approveBtn.addEventListener('click', () => toggleApprove(approveBox.hidden));
+document.getElementById('approve-checklist').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-check-go]');
+  if (!btn) return;
+  const go = APPROVAL_GO[Number(btn.dataset.checkGo)];
+  go.go();
+  document.querySelector(go.target || '#preview-stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 document.getElementById('approve-close').addEventListener('click', () => toggleApprove(false));
 approveBox.addEventListener('change', () => {
   const boxes = [...approveBox.querySelectorAll('[data-check-item]')];
