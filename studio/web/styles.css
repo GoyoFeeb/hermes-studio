@@ -63,8 +63,8 @@
   --purple: #9b3fae;
   --lilac: #463a8c;
   --button: #e9eaf5;
-  --success: #0e7f5c;
-  --error: #c42b45;
+  --success: #0b6b4e;
+  --error: #b0223b;
   --warning: #8a5d00;
   --accent-text: #9c1f9a;
   --card-grad-1: #ffffff;
@@ -103,8 +103,8 @@
   --purple: #9b3fae;
   --lilac: #463a8c;
   --button: #e9eaf5;
-  --success: #0e7f5c;
-  --error: #c42b45;
+  --success: #0b6b4e;
+  --error: #b0223b;
   --warning: #8a5d00;
   --accent-text: #9c1f9a;
   --card-grad-1: #ffffff;
@@ -1096,6 +1096,8 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 .action-group + .action-group { border-left: 1px solid var(--border); }
 .action-title { margin: 0 0 12px; font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--pink-soft); }
 .action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 14px; }
+.action-buttons .lbl-short { display: none; }
+@media (max-width: 640px) { .action-buttons .lbl-short { display: inline; } }
 .action-group .export-field .label { font-size: 12px; }
 .action-group .export-field select { min-width: 0; width: auto; }
 .action-list { display: grid; gap: 8px; }
@@ -1119,6 +1121,21 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
   .action-group + .action-group { border-left: none; border-top: 1px solid var(--border); }
   .action-head-side { margin-left: 0; width: 100%; }
   .action-buttons .btn { flex: 1 1 140px; }
+}
+/* Móvil (2026-09-30): el bloque de acciones medía 719 px en un móvil de 812 y la vista previa empezaba casi
+   dos pantallas abajo. Descargar y copiar en una fila y las tres formas de cambiar la pieza como botones
+   compactos, sin su descripción (el tiempo estimado sigue en cada panel). */
+@media (max-width: 640px) {
+  .action-group { padding: 12px 14px; }
+  .action-title { margin-bottom: 10px; }
+  .action-buttons { flex-wrap: nowrap; margin-bottom: 10px; }
+  .action-buttons .btn { flex: 1 1 0; min-width: 0; padding-left: 10px; padding-right: 10px; }
+  .action-buttons .lbl-long { display: none; }
+  .action-group .export-field { gap: 6px; }
+  .action-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .action-item { padding: 10px 6px; text-align: center; align-content: center; }
+  .action-item strong { font-size: 13px; line-height: 1.2; }
+  .action-item > span { display: none; }
 }
 
 /* Pestañas del resultado (2026-09-30): vista previa, revisión, comparación y asunto/bandeja bajo las acciones. */
