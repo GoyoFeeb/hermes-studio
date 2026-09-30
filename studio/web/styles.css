@@ -443,10 +443,11 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .progress-track { height: 10px; background: var(--field); border: 1px solid var(--border); border-radius: var(--pill); overflow: hidden; }
 #progress-bar {
   height: 100%;
-  width: 0;
   background: linear-gradient(90deg, var(--purple), var(--pink));
   border-radius: var(--pill);
-  transition: width 0.6s ease;
+  /* Avance por recorte (ver setProgressBar en app.js): sin animar la anchura. */
+  clip-path: inset(0 calc(100% - var(--pct, 0%)) 0 0 round var(--pill));
+  transition: clip-path 0.6s ease;
 }
 /* Brillo que recorre la barra mientras Hermes trabaja: se ve vivo aunque el % no cambie. */
 #progress-bar.is-live {
@@ -545,6 +546,7 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .versions li[aria-current]::before { content: '▸'; content: '▸' / ''; color: var(--accent-text); }
 .versions .v-desc { color: var(--muted); overflow-wrap: anywhere; }
 .versions .v-state { font-size: var(--fs-caption); color: var(--muted); }
+.versions .v-here { color: var(--text); font-weight: 600; }
 .compare { margin: 0 0 24px; padding: 20px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--field); }
 .compare .hint { margin: 0 0 12px; }
 .compare-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--fs-ui); }

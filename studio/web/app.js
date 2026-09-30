@@ -2920,7 +2920,8 @@ function renderVersions(job, versions) {
   const self = versions.find((v) => v.id === job.id);
   const parent = self && versions.find((v) => v.id === self.parentId);
   const parentEl = document.getElementById('job-parent');
-  parentEl.hidden = !parent;
+  // Con la lista de versiones a la vista, "Hecha a partir de…" repetía lo mismo (2026-09-30): solo sin lista.
+  parentEl.hidden = !parent || versions.length >= 2;
   if (parent) {
     const link = document.getElementById('job-parent-link');
     link.href = `?job=${encodeURIComponent(parent.id)}`;
@@ -2933,9 +2934,10 @@ function renderVersions(job, versions) {
     .map((v) => {
       const desc = v.kind === 'revision' && v.changeRequest ? `«${v.changeRequest}»` : VERSION_KIND[v.kind];
       const state = v.status === 'completed' ? '' : STATUS_LABELS[v.status] || v.status;
-      return `<li${v.id === job.id ? ' aria-current="page"' : ''}>
+      const here = v.id === job.id;
+      return `<li${here ? ' aria-current="page"' : ''}>
           <a href="?job=${encodeURIComponent(v.id)}">Versión ${v.number}</a>
-          <span class="v-desc">${escapeHtml(desc)}</span>
+          <span class="v-desc">${escapeHtml(desc)}${here ? '<span class="v-here"> · esta</span>' : ''}</span>
           ${state ? `<span class="v-state">${escapeHtml(state)}</span>` : ''}
           ${v.approved ? '<span class="v-approved">✓ Aprobada</span>' : ''}
         </li>`;
@@ -3345,6 +3347,12 @@ function formatMinutes(sec) {
   return `${min} min`;
 }
 
+/** Avance de la barra (2026-09-30): se recorta con clip-path en vez de cambiar la anchura, que obligaba a
+ *  recalcular la maquetación en cada paso de la animación. El recorte conserva los extremos redondeados. */
+function setProgressBar(bar, pct) {
+  bar.style.setProperty('--pct', `${Math.max(0, Math.min(100, pct))}%`);
+}
+
 function renderProgress(job, queue, hermesOnline) {
   const box = document.getElementById('job-progress');
   // Terminada, la barra al 100 % no aporta nada: lo que tardó ya está en la cabecera (2026-09-29).
@@ -3357,7 +3365,7 @@ function renderProgress(job, queue, hermesOnline) {
   const p = job.progress;
   if (job.status === 'queued') {
     box.hidden = false;
-    bar.style.width = '0%';
+    setProgressBar(bar, 0);
     track.setAttribute('aria-valuenow', '0');
     document.getElementById('progress-stage').textContent = queue?.ahead
       ? `En cola · ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante`
@@ -3384,12 +3392,12 @@ function renderProgress(job, queue, hermesOnline) {
       document.getElementById('progress-stage').textContent = 'Arrancando Hermes';
       document.getElementById('progress-eta').textContent = '';
       document.getElementById('progress-detail').textContent = 'El progreso aparece en menos de un minuto.';
-      bar.style.width = '2%';
+      setProgressBar(bar, 2);
     }
     return;
   }
   box.hidden = false;
-  bar.style.width = `${p.pct}%`;
+  setProgressBar(bar, p.pct);
   bar.classList.toggle('is-live', job.status === 'running');
   track.setAttribute('aria-valuenow', String(p.pct));
   track.setAttribute('aria-valuetext', `${p.pct} %, ${p.stageLabel}`);
