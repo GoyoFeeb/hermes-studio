@@ -51,6 +51,10 @@
           <span id="draft-note-text"></span>
           <button type="button" id="draft-discard" class="btn btn-ghost btn-sm">Descartar</button>
         </p>
+        <!-- Con el nombre ya guardado, se dice arriba quién pide en vez de repetir el campo al final (2026-09-30). -->
+        <p class="requester-note hint" id="requester-note" hidden>
+          Pidiendo como <strong id="requester-note-name"></strong> · <button type="button" id="requester-change" class="link-btn">Cambiar</button>
+        </p>
 
         <fieldset class="kind">
           <legend class="label">¿Qué vas a escribir?</legend>
@@ -90,11 +94,11 @@
               <span><strong>Generadas con IA</strong><small>Hero, producto y ambiente</small></span>
             </label>
           </div>
-          <p class="hint">El logo siempre es el oficial.</p>
+          <p class="hint">El logo siempre es el oficial. Se recuerda lo que elegiste la última vez.</p>
         </fieldset>
 
-        <label>
-          <span class="label">Tu nombre <em>(opcional, para el registro)</em></span>
+        <label id="requester-field">
+          <span class="label">Tu nombre <em>(opcional, para el registro y «Mis trabajos»)</em></span>
           <input type="text" name="requesterName" id="requester-input" />
         </label>
 

@@ -228,8 +228,39 @@ form.addEventListener('reset', () =>
         // sin almacenamiento
       }
     }
+    syncRequester();
+    // Origen de las imágenes (2026-09-30): el de la última newsletter enviada o, la primera vez, los
+    // assets oficiales. Un borrador o un trabajo reutilizado que ya lo traen marcado mandan.
+    if (!form.querySelector('input[name="imageMode"]:checked')) {
+      let mode = 'official';
+      try {
+        mode = localStorage.getItem('imageMode') || mode;
+      } catch {
+        // sin almacenamiento
+      }
+      const radio = form.querySelector(`input[name="imageMode"][value="${CSS.escape(mode)}"]`);
+      if (radio) radio.checked = true;
+    }
   })
 );
+
+// Quién pide (2026-09-30): con el nombre ya guardado, arriba se lee "Pidiendo como …" y el campo del
+// final se oculta; "Cambiar" lo vuelve a mostrar. Sin nombre guardado, el campo se ve como siempre.
+let requesterEditing = false;
+function syncRequester() {
+  const name = savedRequester();
+  const compact = !!name && !requesterEditing;
+  document.getElementById('requester-note-name').textContent = name;
+  document.getElementById('requester-note').hidden = !compact;
+  document.getElementById('requester-field').hidden = compact;
+}
+document.getElementById('requester-change').addEventListener('click', () => {
+  requesterEditing = true;
+  syncRequester();
+  const input = document.getElementById('requester-input');
+  input.focus();
+  input.select();
+});
 
 // ---------------------------------------------------------------- ejemplos de instrucción
 // Para quien entra por primera vez: rellenan la instrucción y la marca. Solo con la instrucción vacía
@@ -314,9 +345,11 @@ async function submitJob(payload) {
     }
     try {
       localStorage.setItem('requesterName', payload.requesterName || '');
+      localStorage.setItem('imageMode', payload.imageMode || '');
     } catch {
       // sin almacenamiento: no se recuerda
     }
+    requesterEditing = false;
     clearDraft();
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
@@ -875,7 +908,7 @@ async function reuseJob(id, { useBrief = false } = {}) {
   updateBrandMatch();
   setKind(job.input.instruction ? 'instruction' : 'brief');
   document.getElementById('prompt-input').value = job.input.instruction || job.input.briefText || '';
-  document.getElementById('requester-input').value = job.input.requesterName || '';
+  // El nombre no se copia del trabajo reutilizado: quien lo pide ahora es quien usa esta página.
   if (useBrief && job.input.briefText) {
     setKind('brief');
     document.getElementById('prompt-input').value = job.input.briefText;
