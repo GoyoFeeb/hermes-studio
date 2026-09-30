@@ -145,8 +145,14 @@ function renderEtaHints() {
   if (!hermesOnlineNow) text += 'Hermes no está conectado ahora: empezará en cuanto vuelva. ';
   document.getElementById('eta-hint').textContent = text;
   document.querySelectorAll('[data-eta="new"]').forEach((el) => (el.textContent = t ? etaText(kind) : 'unos 20 minutos'));
-  document.querySelectorAll('[data-eta="revision"]').forEach((el) => (el.textContent = typicalDurations ? `suele tardar ${etaText('revision')}` : 'unos minutos'));
-  document.querySelectorAll('[data-eta="mobile-fix"]').forEach((el) => (el.textContent = typicalDurations ? `suele tardar ${etaText('mobile-fix')}` : 'unos minutos'));
+  // Cambios y adaptaciones a móvil también esperan su turno (2026-09-30): con cola, cuándo estarían listos.
+  const retouchEta = (k) => {
+    const d = typicalDurations?.[k];
+    if (!d) return 'unos minutos';
+    return ahead ? `lista hacia las ${clockAt(queueWaitNow.seconds + d.sec)}, con ${ahead} delante` : `suele tardar ${etaText(k)}`;
+  };
+  document.querySelectorAll('[data-eta="revision"]').forEach((el) => (el.textContent = retouchEta('revision')));
+  document.querySelectorAll('[data-eta="mobile-fix"]').forEach((el) => (el.textContent = retouchEta('mobile-fix')));
   const fix = etaText('mobile-fix');
   if (fix) document.getElementById('mobile-fix-btn').title = `Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (suele tardar ${fix})`;
 }
@@ -929,7 +935,7 @@ async function reuseJob(id, { useBrief = false } = {}) {
   const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
   if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
   const { job } = await res.json();
-  showFormView();
+  if (showFormView() === false) return;
   await brandsReady;
   form.reset();
   const slug = job.input.clientSlug || '';
@@ -959,10 +965,36 @@ document.getElementById('back-link').addEventListener('click', (e) => {
   if (e.metaKey || e.ctrlKey || e.shiftKey) return; // abrir en otra pestaña
   e.preventDefault();
   scrollToHistory = true;
-  showFormView();
+  if (showFormView() === false) scrollToHistory = false;
 });
 
+// ---------------------------------------------------------------- trabajo sin guardar (2026-09-30)
+// Textos editados sin guardar o una petición de cambios escrita y sin enviar: salir de la página del
+// trabajo (volver, otra newsletter, cerrar la pestaña) los perdía sin avisar.
+function unsavedWork() {
+  if (viewJob.hidden) return null;
+  if (te.active) {
+    const { edits } = teEdits();
+    if ((edits || []).length || te.alts.size) return 'textos editados sin guardar';
+  }
+  if (!reviseBox.hidden && document.getElementById('revise-input').value.trim()) return 'una petición de cambios sin enviar';
+  return null;
+}
+
+function confirmLeaveJob() {
+  const what = unsavedWork();
+  return !what || window.confirm(`Tienes ${what}. ¿Salir igualmente? Se perderá lo que no has guardado.`);
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (!unsavedWork()) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
+
+/** Devuelve false si quien usa la página prefiere quedarse (ver confirmLeaveJob). */
 function showFormView() {
+  if (!confirmLeaveJob()) return false;
   clearTimeout(pollTimer);
   currentJob = null;
   setFaviconStatus(null);
@@ -976,7 +1008,7 @@ function showFormView() {
 }
 
 document.getElementById('new-job-btn').addEventListener('click', () => {
-  showFormView();
+  if (showFormView() === false) return;
   form.reset();
   restoreDraft();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -990,7 +1022,11 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
   const btn = e.currentTarget;
   btn.disabled = true;
   try {
-    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/mobile-fix`, { method: 'POST' });
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/mobile-fix`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requesterName: savedRequester() || undefined }),
+    });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return showToast(data.error || 'No se pudo lanzar la adaptación a móvil.', 'error');
     history.pushState({}, '', `?job=${data.id}`);
@@ -1012,7 +1048,7 @@ async function retryJob(job) {
   if (input.revisionOf) {
     res = await post(`/api/jobs/${encodeURIComponent(input.revisionOf)}/revise`, { changes: input.changeRequest, requesterName: input.requesterName });
   } else if (input.mobileFixOf) {
-    res = await post(`/api/jobs/${encodeURIComponent(input.mobileFixOf)}/mobile-fix`);
+    res = await post(`/api/jobs/${encodeURIComponent(input.mobileFixOf)}/mobile-fix`, { requesterName: input.requesterName });
   } else {
     res = await post('/api/jobs', {
       mode: 'standalone',
@@ -1127,13 +1163,36 @@ function toggleRevise(open) {
   reviseBox.hidden = !open;
   reviseBtn.setAttribute('aria-expanded', String(open));
   reviseError.hidden = true;
+  reviseWarning.hidden = true;
   if (open) document.getElementById('revise-input').focus();
 }
 reviseBtn.addEventListener('click', () => toggleRevise(reviseBox.hidden));
 document.getElementById('revise-close').addEventListener('click', () => toggleRevise(false));
+// Huecos sin rellenar de las peticiones frecuentes: se avisa antes de gastar minutos de Hermes (2026-09-30).
+const reviseWarning = document.getElementById('revise-warning');
+let reviseAnyway = false;
+document.getElementById('revise-input').addEventListener('input', () => {
+  reviseAnyway = false;
+  reviseWarning.hidden = true;
+});
+document.getElementById('revise-send-anyway').addEventListener('click', () => {
+  reviseAnyway = true;
+  reviseBox.requestSubmit();
+});
+
 reviseBox.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!currentJob) return;
+  const templates = [...reviseBox.querySelectorAll('[data-quick]')].map((c) => c.dataset.quick);
+  const issues = reviseAnyway ? [] : HermesFormCheck.checkChangeRequest(document.getElementById('revise-input').value, templates);
+  if (issues.length) {
+    document.getElementById('revise-warning-list').innerHTML = issues.map((i) => `<li>${escapeHtml(i.text)}</li>`).join('');
+    reviseWarning.hidden = false;
+    document.getElementById('revise-send-anyway').focus();
+    return;
+  }
+  reviseAnyway = false;
+  reviseWarning.hidden = true;
   const submit = reviseBox.querySelector('button[type="submit"]');
   submit.disabled = true;
   reviseError.hidden = true;
@@ -1141,7 +1200,9 @@ reviseBox.addEventListener('submit', async (e) => {
     const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/revise`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ changes: document.getElementById('revise-input').value }),
+      // Con el nombre de quien la pide ahora (2026-09-30): sin él, el servidor usaba el de la newsletter de
+      // partida y los cambios de Luis sobre una pieza de Ana quedaban a nombre de Ana.
+      body: JSON.stringify({ changes: document.getElementById('revise-input').value, requesterName: savedRequester() || undefined }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -1149,6 +1210,7 @@ reviseBox.addEventListener('submit', async (e) => {
       reviseError.hidden = false;
       return;
     }
+    document.getElementById('revise-input').value = ''; // enviada: ya no es trabajo sin guardar
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
   } finally {
@@ -2157,6 +2219,11 @@ let pollTimer = null;
 let currentJob = null;
 
 function showJobView(id) {
+  // Cambiar a otro trabajo con algo sin guardar: se pregunta. Quien llama ya cambió la URL: se deja la de este.
+  if (currentJob && id !== currentJob && !confirmLeaveJob()) {
+    history.replaceState({}, '', `?job=${encodeURIComponent(currentJob)}`);
+    return;
+  }
   clearTimeout(historyTimer);
   currentJob = id;
   viewForm.hidden = true;
@@ -3404,6 +3471,10 @@ function route() {
   if (id) {
     showJobView(id);
   } else {
+    if (!confirmLeaveJob()) {
+      history.pushState({}, '', `?job=${encodeURIComponent(currentJob)}`);
+      return;
+    }
     clearTimeout(pollTimer);
     currentJob = null;
     setFaviconStatus(null);

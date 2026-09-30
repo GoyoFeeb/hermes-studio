@@ -518,7 +518,8 @@ app.post('/api/jobs/:id/mobile-fix', createJobRateLimit.middleware, (req: Reques
     brandMode: source.input.brandMode,
     briefText: source.input.briefText,
     imageMode: source.input.imageMode,
-    requesterName: source.input.requesterName,
+    // Quien la pide ahora (2026-09-30); sin nombre, el de la newsletter de partida, como en "Pedir cambios".
+    requesterName: typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : source.input.requesterName,
     mobileFixOf: source.id,
   });
   hermesLog(job.id, `Adaptación a móvil de la newsletter ${source.id}: en cola.`);

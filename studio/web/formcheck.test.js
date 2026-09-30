@@ -29,3 +29,16 @@ test('prompt completo demasiado corto: probablemente era una instrucción', () =
   assert.deepEqual(ids('x'.repeat(500), 'Nike', 'brief'), []);
   assert.deepEqual(ids('', 'Nike'), []);
 });
+
+test('petición de cambios: avisa de los huecos de las peticiones frecuentes sin rellenar', () => {
+  const { checkChangeRequest } = require('./formcheck.js');
+  const chips = ['Cambia el titular por «…».', 'Usa otra foto oficial del producto en ', 'Acorta los textos de la pieza sin perder los datos clave.'];
+  const ids = (text) => checkChangeRequest(text, chips).map((i) => i.id);
+  assert.deepEqual(ids('Cambia el titular por «…».'), ['placeholder']);
+  assert.deepEqual(ids('Acorta los textos.\nUsa otra foto oficial del producto en'), ['unfinished']);
+  // Completadas: a mano o con «Señalar en la vista previa», que inserta la referencia en el cursor.
+  assert.deepEqual(ids('Cambia el titular por «Corre más lejos».'), []);
+  assert.deepEqual(ids('Usa otra foto oficial del producto en [imagen 2: hero]'), []);
+  assert.deepEqual(ids('Acorta los textos de la pieza sin perder los datos clave.'), []);
+  assert.deepEqual(ids(''), []);
+});

@@ -299,6 +299,14 @@
             <button type="button" class="chip" data-quick="Da más aire entre los bloques: ahora se ve apretado.">Más aire</button>
             <button type="button" class="chip" data-quick="Haz el botón principal más visible (tamaño y contraste) sin cambiar su texto.">CTA más visible</button>
           </div>
+          <!-- Huecos de las peticiones frecuentes sin rellenar (2026-09-30, ver checkChangeRequest en formcheck.js). -->
+          <div id="revise-warning" class="form-warning" role="alert" hidden>
+            <p>Antes de enviarlo, Hermes tendría que adivinar esto:</p>
+            <ul id="revise-warning-list"></ul>
+            <div class="warning-actions">
+              <button type="button" id="revise-send-anyway" class="btn btn-ghost btn-sm">Enviar igualmente</button>
+            </div>
+          </div>
           <p id="revise-error" class="form-error" role="alert" hidden></p>
           <div class="actions">
             <button type="submit" class="btn btn-primary">Enviar cambios</button>

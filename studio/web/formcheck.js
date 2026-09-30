@@ -69,7 +69,27 @@
     return issues;
   }
 
-  var api = { checkInstruction: checkInstruction, contentWords: contentWords };
+  /** Petición de cambios con huecos de las peticiones frecuentes sin rellenar (2026-09-30): el «…» de
+   *  «Cambia el titular por «…».» o una que acaba en espacio («…del producto en ») sin decir dónde. Hermes
+   *  tarda minutos y tendría que adivinar. `templates`: el texto de los chips (data-quick). */
+  function checkChangeRequest(text, templates) {
+    var issues = [];
+    var value = String(text || '');
+    if (value.indexOf('…') >= 0) issues.push({ id: 'placeholder', text: 'Queda un «…» sin rellenar: escribe lo que va en su lugar.' });
+    var lines = value.split('\n').map(function (l) {
+      return l.trim();
+    });
+    (templates || []).forEach(function (t) {
+      if (!/\s$/.test(t) || lines.indexOf(t.trim()) < 0) return;
+      issues.push({
+        id: 'unfinished',
+        text: '«' + t.trim() + '…» está sin terminar: di dónde, o señálalo en la vista previa.',
+      });
+    });
+    return issues;
+  }
+
+  var api = { checkInstruction: checkInstruction, contentWords: contentWords, checkChangeRequest: checkChangeRequest };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HermesFormCheck = api;
 })(this);
