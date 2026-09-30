@@ -121,14 +121,29 @@ function etaText(kind) {
   return `~${Math.max(1, Math.round(t.sec / 60))} min`;
 }
 
+// Cola de Hermes vista desde el formulario (2026-09-30, /api/status → wait): antes el aviso decía "suele
+// tardar ~20 min" aunque Hermes estuviera con otra newsletter y hubiera más esperando.
+let queueWaitNow = null;
+let hermesOnlineNow = true;
+
+const clockAt = (sec) => new Date(Date.now() + sec * 1000).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
 function renderEtaHints() {
   const kind = form.querySelector('input[name="inputKind"]:checked')?.value === 'brief' ? 'brief' : 'instruction';
   const t = typicalDurations?.[kind];
-  document.getElementById('eta-hint').textContent = t
-    ? t.n
+  const ahead = queueWaitNow?.ahead || 0;
+  let text = '';
+  if (ahead && t) {
+    const others = ahead === 1 ? 'otra newsletter' : `otras ${ahead} newsletters`;
+    const startMin = Math.max(1, Math.round(queueWaitNow.seconds / 60));
+    text = `Hermes tiene delante ${others}: la tuya empezaría en ~${startMin} min y estaría lista hacia las ${clockAt(queueWaitNow.seconds + t.sec)}. `;
+  } else if (t) {
+    text = t.n
       ? `Suele tardar ${etaText(kind)} (mediana de las últimas ${t.n} con ${kind === 'brief' ? 'prompt completo' : 'instrucción rápida'}). `
-      : `Suele tardar ${etaText(kind)}. `
-    : '';
+      : `Suele tardar ${etaText(kind)}. `;
+  }
+  if (!hermesOnlineNow) text += 'Hermes no está conectado ahora: empezará en cuanto vuelva. ';
+  document.getElementById('eta-hint').textContent = text;
   document.querySelectorAll('[data-eta="new"]').forEach((el) => (el.textContent = t ? etaText(kind) : 'unos 20 minutos'));
   document.querySelectorAll('[data-eta="revision"]').forEach((el) => (el.textContent = typicalDurations ? `suele tardar ${etaText('revision')}` : 'unos minutos'));
   document.querySelectorAll('[data-eta="mobile-fix"]').forEach((el) => (el.textContent = typicalDurations ? `suele tardar ${etaText('mobile-fix')}` : 'unos minutos'));
@@ -143,11 +158,11 @@ async function loadHermesStatus() {
   try {
     const res = await apiFetch('/api/status');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const { hermesOnline, current, queued = 0, typical } = await res.json();
-    if (typical) {
-      typicalDurations = typical;
-      renderEtaHints();
-    }
+    const { hermesOnline, current, queued = 0, typical, wait } = await res.json();
+    queueWaitNow = wait || null; // sin `wait` (servidor anterior): el aviso de siempre
+    hermesOnlineNow = !!hermesOnline;
+    if (typical) typicalDurations = typical;
+    renderEtaHints();
     const waiting = queued ? ` · ${queued} en cola` : '';
     busy = !!current;
     if (current) {
@@ -638,7 +653,8 @@ function jobActions(j, { compact = false } = {}) {
   return [
     `<a class="btn btn-ghost" href="?job=${id}">Ver</a>`,
     j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
-    j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked'
+    (j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked') &&
+    (!j.error || window.HermesFailure.explainFailure(j.error).retry) // sin la versión de partida, reintentar no sirve
       ? `<button type="button" class="btn btn-secondary" data-retry="${escapeHtml(j.id)}">Reintentar</button>`
       : '',
     compact ? '' : `<button type="button" class="btn btn-secondary" data-reuse="${escapeHtml(j.id)}">Reutilizar</button>`,
@@ -751,7 +767,7 @@ function renderHistory() {
           <p class="meta">${meta}</p>
           <div class="row-actions">${jobActions(j)}${archiveBtn}</div>
           ${running ? `<div class="mini-track" aria-hidden="true"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}
-          ${j.error ? `<p class="err">${escapeHtml(j.error)}</p>` : ''}
+          ${j.error ? `<p class="err">${escapeHtml(window.HermesFailure.explainFailure(j.error).summary)}</p>` : ''}
           ${older}
         </li>`;
     })
@@ -1003,6 +1019,10 @@ async function retryJobById(id, btn) {
     if (btn) btn.disabled = false;
   }
 }
+
+document.getElementById('failed-edit').addEventListener('click', () => {
+  if (currentJob) reuseJob(currentJob);
+});
 
 document.querySelectorAll('[data-retry-current]').forEach((b) =>
   b.addEventListener('click', () => currentJob && retryJobById(currentJob, b))
@@ -2159,6 +2179,7 @@ async function poll(id) {
     : job.input.textEditOf
     ? `Texto cambiado en Studio, sin Hermes:\n${job.input.changeRequest}`
     : `Cambios pedidos: «${job.input.changeRequest}»`;
+  renderRequest(job);
   document.getElementById('cancel-row').hidden = job.status !== 'queued' && job.status !== 'running';
   document.getElementById('job-meta').textContent = [
     new Date(job.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
@@ -2225,12 +2246,38 @@ async function poll(id) {
 
   if (job.status === 'blocked' || job.status === 'failed') {
     document.getElementById('job-blocked').hidden = false;
-    document.getElementById('blocked-reason').textContent = job.blockedReason || job.error || 'Motivo desconocido.';
+    const why = window.HermesFailure.explainFailure(job.blockedReason || job.error);
+    document.getElementById('failed-summary').textContent = why.summary;
+    document.getElementById('failed-advice').textContent = why.advice;
+    document.getElementById('blocked-reason').textContent = why.detail || 'Sin detalle.';
+    document.querySelector('#job-blocked [data-retry-current]').hidden = !why.retry;
+    // "Editar y reintentar" abre el formulario con lo pedido: no aplica a cambios ni adaptaciones de una versión.
+    document.getElementById('failed-edit').hidden = !!(job.input.revisionOf || job.input.mobileFixOf || job.input.textEditOf);
     document.getElementById('log-box').open = true;
     return;
   }
 
   pollTimer = setTimeout(() => poll(id), 10000);
+}
+
+// ---------------------------------------------------------------- lo que se pidió (2026-09-30)
+// Visible en la cabecera también mientras Hermes trabaja o si falla: antes solo se veía con «Reutilizar».
+// Cambios, adaptaciones a móvil y ediciones de texto ya lo dicen en su propia línea («Cambios pedidos: …»).
+const REQUEST_INLINE_MAX = 280;
+
+function renderRequest(job) {
+  const box = document.getElementById('job-request');
+  const input = job.input;
+  const derived = input.revisionOf || input.mobileFixOf || input.textEditOf;
+  const text = derived ? '' : (input.instruction || input.briefText || '').trim();
+  box.hidden = !text;
+  if (!text || box.dataset.src === text) return;
+  box.dataset.src = text;
+  const label = input.instruction ? 'Pediste' : 'Prompt creativo';
+  box.innerHTML =
+    text.length <= REQUEST_INLINE_MAX && !text.includes('\n')
+      ? `<p>${label}: <q>${escapeHtml(text)}</q></p>`
+      : `<details><summary>${label}: <q>${escapeHtml(cut(text.split('\n')[0], 90))}</q> · ver completo</summary><div class="request-full">${escapeHtml(text)}</div></details>`;
 }
 
 // ---------------------------------------------------------------- asunto, preheader y copiar
@@ -3104,7 +3151,7 @@ function renderProgress(job, queue, hermesOnline) {
       ? 'Primero escribirá el brief creativo.'
       : '';
     const when = hermesOnline === false
-      ? 'Hermes no está conectado ahora mismo: empezará cuando se conecte el Mac del worker.'
+      ? 'Hermes no está conectado ahora mismo: empezará en cuanto vuelva a conectarse.'
       : queue?.ahead
       ? 'Hermes lo recogerá cuando termine lo que tiene delante.'
       : 'Hermes lo recogerá en unos segundos.';

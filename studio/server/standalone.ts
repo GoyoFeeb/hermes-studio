@@ -397,20 +397,26 @@ export function typicalSeconds(job: Job): number {
   return kind ? typicalDurations()[kind].sec : 0;
 }
 
-/** Posición en la cola de un trabajo standalone en espera y cuándo empezará, estimado: lo que le
- *  queda al que está en marcha más lo que suelen tardar los que van delante. Hermes hace uno a la vez. */
-export function queueInfo(job: Job): { ahead: number; startsInSec: number } | null {
-  if (job.status !== 'queued' || job.input.mode !== 'standalone') return null;
+/** Cuánto falta para que Hermes quede libre, estimado: lo que le queda al que está en marcha más lo
+ *  que suelen tardar los que esperan (los creados antes de `before`, o todos). Hermes hace uno a la vez. */
+export function queueWait(before?: string): { ahead: number; seconds: number } {
   const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
   const running = standalone.filter((j) => j.status === 'running');
-  const queuedAhead = standalone.filter((j) => j.status === 'queued' && j.createdAt < job.createdAt);
+  const queuedAhead = standalone.filter((j) => j.status === 'queued' && (!before || j.createdAt < before));
   let seconds = 0;
   for (const r of running) {
     // Sin estimación (recta final) o sin progreso todavía: lo que suele tardar menos lo transcurrido.
     seconds += r.progress?.etaSec ?? Math.max(120, typicalSeconds(r) - (r.progress?.elapsedSec ?? 0));
   }
   for (const q of queuedAhead) seconds += typicalSeconds(q);
-  return { ahead: running.length + queuedAhead.length, startsInSec: seconds };
+  return { ahead: running.length + queuedAhead.length, seconds };
+}
+
+/** Posición en la cola de un trabajo standalone en espera y cuándo empezará (ver queueWait). */
+export function queueInfo(job: Job): { ahead: number; startsInSec: number } | null {
+  if (job.status !== 'queued' || job.input.mode !== 'standalone') return null;
+  const { ahead, seconds } = queueWait(job.createdAt);
+  return { ahead, startsInSec: seconds };
 }
 
 export interface JobVersion {

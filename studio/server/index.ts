@@ -29,6 +29,7 @@ import {
   readResultNotes,
   resultMeta,
   queueInfo,
+  queueWait,
   versionFamily,
   typicalDurations,
   typicalSeconds,
@@ -449,6 +450,8 @@ app.get('/api/status', (_req: Request, res: Response) => {
       ? { id: running.id, clientName: running.input.clientName, pct: running.progress?.pct ?? null, stageLabel: running.progress?.stageLabel ?? null }
       : null,
     queued: standalone.filter((j) => j.status === 'queued').length,
+    // Lo que esperaría una newsletter enviada ahora antes de empezar (2026-09-30): el formulario lo suma a lo que suele tardar.
+    wait: queueWait(),
     typical: typicalDurations(),
   });
 });

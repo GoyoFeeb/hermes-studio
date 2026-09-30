@@ -168,6 +168,8 @@
           <h2 id="job-title" tabindex="-1"></h2>
           <p id="job-meta" class="hint"></p>
           <p id="job-change" class="change-request" hidden></p>
+          <!-- Lo que se pidió, visible también mientras trabaja o si falla (2026-09-30): antes solo se veía con «Reutilizar». -->
+          <div id="job-request" class="job-request" hidden></div>
           <p id="job-parent" class="hint" hidden>Hecha a partir de <a id="job-parent-link" href="#"></a>.</p>
           <p id="job-archived" class="archived-note" hidden>Archivada con todas sus versiones: no sale en el historial. <button type="button" id="unarchive-btn" class="btn btn-ghost btn-sm">Recuperar</button></p>
         </div>
@@ -459,10 +461,19 @@
         </div>
       </div>
 
-      <div id="job-blocked" hidden>
-        <p>La campaña se detuvo antes de poder entregarse:</p>
-        <pre id="blocked-reason"></pre>
-        <button type="button" class="btn btn-primary" data-retry-current>Reintentar</button>
+      <!-- Fallo explicado para el equipo (2026-09-30, ver failure.js); el error original queda en «Detalle técnico». -->
+      <div id="job-blocked" class="job-failed" hidden>
+        <p class="failed-title">No se pudo terminar la newsletter</p>
+        <p id="failed-summary" class="failed-summary"></p>
+        <p id="failed-advice" class="hint"></p>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-retry-current>Reintentar</button>
+          <button type="button" id="failed-edit" class="btn btn-secondary">Editar y reintentar</button>
+        </div>
+        <details class="failed-detail">
+          <summary>Detalle técnico</summary>
+          <pre id="blocked-reason"></pre>
+        </details>
       </div>
 
       <details class="log-box" id="brief-box" hidden>
@@ -545,6 +556,7 @@
   <script src="/pick.js"></script>
   <script src="/locate.js"></script>
   <script src="/formcheck.js"></script>
+  <script src="/failure.js"></script>
   <script src="/textedit.js"></script>
   <script src="/export.js"></script>
   <script src="/app.js"></script>
