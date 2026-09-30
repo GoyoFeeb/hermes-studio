@@ -843,12 +843,21 @@ body.has-sticky .foot { padding-bottom: 88px; }
   .choices { gap: 10px; }
   .history-tools { gap: 10px; }
   .job-head { flex-direction: column-reverse; }
-  .job-row { grid-template-columns: 48px 1fr; }
-  .job-row .thumb { grid-row: 1 / span 3; }
-  .job-row > .status-badge { grid-column: 2; grid-row: 2; justify-self: start; }
-  .job-row .meta { grid-column: 2; grid-row: 3; }
-  .job-row .row-actions { grid-column: 1 / -1; grid-row: 4; justify-content: flex-start; }
+  /* Historial en móvil (2026-09-30): con cuatro botones, «Archivar» se salía 19 px de la tarjeta y cada
+     fila medía 186 px. La tarjeta entera abre el trabajo (sobra «Ver»), el estado va junto al nombre y
+     los botones que quedan caben en una fila, a 40 px de alto para el dedo. */
+  .job-row { position: relative; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 4px 12px; padding: 14px; }
+  .job-row .thumb { grid-row: 1 / span 2; width: 40px; height: 53px; }
+  .job-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .job-row .name::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+  .job-row > .status-badge { grid-column: 3; grid-row: 1; justify-self: end; }
+  .job-row .meta { grid-column: 2 / -1; grid-row: 2; }
+  .job-row .row-actions { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; flex-wrap: wrap; margin-top: 6px; }
+  .job-row > .row-actions .row-view { display: none; }
+  .job-row .row-actions .btn { min-height: 40px; padding: 8px 14px; }
   .job-row .mini-track, .job-row .err { grid-column: 1 / -1; }
+  /* Lo que se pulsa dentro de la tarjeta queda por encima del enlace que la cubre. */
+  .job-row .row-actions, .job-row .thumb, .job-row [data-family], .job-row .family-list { position: relative; z-index: 1; }
   .preview-stage { padding: 16px 8px; }
   .btn { width: 100%; }
   .job-row .row-actions .btn, .chip, .btn-sm { width: auto; }

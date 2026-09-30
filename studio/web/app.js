@@ -680,7 +680,7 @@ function durationLabel(j) {
 function jobActions(j, { compact = false } = {}) {
   const id = encodeURIComponent(j.id);
   return [
-    `<a class="btn btn-ghost" href="?job=${id}">Ver</a>`,
+    `<a class="btn btn-ghost row-view" href="?job=${id}">Ver</a>`,
     j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
     (j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked') &&
     (!j.error || window.HermesFailure.explainFailure(j.error).retry) // sin la versión de partida, reintentar no sirve
@@ -888,6 +888,24 @@ document.getElementById('mine-chip').addEventListener('click', () => {
     // sin almacenamiento
   }
   historyState.shown = HISTORY_PAGE;
+  renderMineChip();
+  renderHistory();
+});
+// "Quitar filtros" (2026-09-30): sin resultados, antes solo quedaba el aviso. Deja la vista (archivadas o no).
+document.getElementById('history-clear').addEventListener('click', () => {
+  Object.assign(historyState, { query: '', brand: '', status: '', mine: false, shown: HISTORY_PAGE });
+  document.getElementById('history-search').value = '';
+  document.getElementById('history-brand').value = '';
+  document.querySelectorAll('#history-status .chip').forEach((c) => {
+    const on = c.dataset.status === '';
+    c.classList.toggle('is-active', on);
+    c.setAttribute('aria-pressed', String(on));
+  });
+  try {
+    localStorage.setItem('historyMine', '0');
+  } catch {
+    // sin almacenamiento
+  }
   renderMineChip();
   renderHistory();
 });
@@ -2618,6 +2636,7 @@ function renderNotify(job) {
   const granted = notifySupported && Notification.permission === 'granted' && wantsNotify();
   document.getElementById('notify-btn').hidden = !active || !notifySupported || granted || Notification.permission === 'denied';
   document.getElementById('notify-hint').hidden = !active || !granted;
+  document.getElementById('notify-blocked').hidden = !active || !notifySupported || Notification.permission !== 'denied';
 }
 
 document.getElementById('notify-btn').addEventListener('click', async () => {
@@ -3259,7 +3278,7 @@ function renderProgress(job, queue, hermesOnline) {
     document.getElementById('progress-stage').textContent = queue?.ahead
       ? `En cola · ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante`
       : 'En cola · eres el siguiente';
-    document.getElementById('progress-eta').textContent = queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)} (estimado)` : '';
+    document.getElementById('progress-eta').textContent = queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)}, hacia las ${clockAt(queue.startsInSec)} (estimado)` : '';
     const kind = job.input.revisionOf
       ? 'Aplicará los cambios pedidos: unos minutos.'
       : job.input.mobileFixOf
@@ -3298,7 +3317,7 @@ function renderProgress(job, queue, hermesOnline) {
   } else if (p.stage === 'brief') {
     eta.textContent = 'después, la newsletter (~15-20 min)';
   } else if (p.etaSec) {
-    eta.textContent = `quedan ~${formatMinutes(p.etaSec)} (estimado)`;
+    eta.textContent = `quedan ~${formatMinutes(p.etaSec)} · lista hacia las ${clockAt(p.etaSec)} (estimado)`;
   } else if (p.stage === 'revisando') {
     // Recta final (Hermes revisa y corrige a su ritmo): en vez de un tiempo que no se cumple,
     // si sigue trabajando o si lleva rato parado.

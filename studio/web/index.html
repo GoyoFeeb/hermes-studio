@@ -158,7 +158,7 @@
           </span>
         </div>
         <ul id="history-list"></ul>
-        <p id="history-empty" class="hint" hidden>Ningún trabajo coincide con el filtro.</p>
+        <p id="history-empty" class="hint history-empty" hidden>Ningún trabajo coincide con el filtro. <button type="button" id="history-clear" class="link-btn">Quitar filtros</button></p>
         <button type="button" id="history-more" class="btn btn-ghost" hidden>Ver más</button>
       </section>
     </section>
@@ -202,6 +202,8 @@
       <div class="cancel-row" id="cancel-row" hidden>
         <button id="notify-btn" type="button" class="btn btn-secondary btn-sm" hidden>Avisarme cuando termine</button>
         <span id="notify-hint" class="hint" hidden>Te avisaré cuando termine (con esta pestaña abierta).</span>
+        <!-- Con las notificaciones bloqueadas el botón no sale: antes, sin decir por qué (2026-09-30). -->
+        <span id="notify-blocked" class="hint" hidden>Las notificaciones de Studio están bloqueadas en este navegador: actívalas desde el candado de la barra de direcciones. Mientras, el título de la pestaña muestra el progreso.</span>
         <button id="cancel-btn" type="button" class="btn btn-ghost btn-sm">Cancelar trabajo</button>
         <span id="cancel-confirm" class="cancel-confirm" hidden>
           <span>¿Seguro? Hermes dejará la newsletter a medias.</span>
