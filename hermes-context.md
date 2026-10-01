@@ -1062,5 +1062,7 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   brief → versión 2 «Reintento», aviso, texto de cola correcto; claim simulado del worker → `prompt` con el
   brief, sin `briefPrompt`, `expectedSec` 1200. Test nuevo `studio/server/retry.test.js`. `npm test` 148/148.
 - **Desplegado (con permiso del usuario):** `71d8f0e` → Vercel (3 archivos idénticos al local) y Railway SUCCESS
-  15:56. El worker no cambia. Nota: el despliegue de Railway anterior (2026-09-30 12:48) figuraba como CRASHED
-  antes de este; el nuevo responde (401 sin contraseña, como debe).
+  15:56. El worker no cambia.
+- **"CRASHED" del despliegue anterior = falsa alarma (logs revisados):** `0938bf57` arrancó el 30-09 a las 12:50 y
+  sirvió peticiones sin interrupción hasta el 01-10 a las 15:57, cuando Railway lo paró al activar `71d8f0e`
+  (SIGTERM). `npx` sale con error ante SIGTERM y Railway lo etiqueta como CRASHED. Sin caída de servicio.
