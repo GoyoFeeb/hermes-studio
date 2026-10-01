@@ -157,6 +157,7 @@ function renderEtaHints() {
   };
   document.querySelectorAll('[data-eta="revision"]').forEach((el) => (el.textContent = retouchEta('revision')));
   document.querySelectorAll('[data-eta="mobile-fix"]').forEach((el) => (el.textContent = retouchEta('mobile-fix')));
+  document.querySelectorAll('[data-eta="brief"]').forEach((el) => (el.textContent = etaText('brief') || 'unos 20 minutos'));
   const fix = etaText('mobile-fix');
   if (fix) document.getElementById('mobile-fix-btn').title = `Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (suele tardar ${fix})`;
 }
@@ -232,6 +233,8 @@ function applyKind() {
   input.placeholder = copy.placeholder;
   input.rows = copy.rows;
   input.style.minHeight = kind === 'instruction' ? '0' : '';
+  // Con prompt completo no hay brief que revisar: el prompt ya es el brief.
+  document.getElementById('review-brief-field').hidden = kind !== 'instruction';
   updateExamples();
 }
 form.querySelectorAll('input[name="inputKind"]').forEach((r) =>
@@ -265,6 +268,11 @@ form.addEventListener('reset', () =>
       }
       const radio = form.querySelector(`input[name="imageMode"][value="${CSS.escape(mode)}"]`);
       if (radio) radio.checked = true;
+    }
+    try {
+      document.getElementById('review-brief-input').checked = localStorage.getItem('reviewBrief') === '1';
+    } catch {
+      // sin almacenamiento
     }
   })
 );
@@ -371,6 +379,7 @@ async function submitJob(payload) {
     try {
       localStorage.setItem('requesterName', payload.requesterName || '');
       localStorage.setItem('imageMode', payload.imageMode || '');
+      if (payload.inputKind === 'instruction') localStorage.setItem('reviewBrief', payload.reviewBrief ? '1' : '0');
     } catch {
       // sin almacenamiento: no se recuerda
     }
@@ -390,6 +399,7 @@ async function submitJob(payload) {
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   const payload = Object.fromEntries(new FormData(form).entries());
+  payload.reviewBrief = payload.inputKind === 'instruction' && payload.reviewBrief === 'true';
   // Instrucción poco concreta (formcheck.js): se avisa antes de gastar 20 minutos de Hermes, sin bloquear.
   const issues = HermesFormCheck.checkInstruction(payload.promptText, payload.inputKind, payload.clientName);
   if (issues.length) {
@@ -527,6 +537,7 @@ function showToast(message, level = 'info', action = null) {
 const STATUS_LABELS = {
   queued: 'En cola',
   running: 'Trabajando',
+  review: 'Brief por revisar',
   completed: 'Lista',
   failed: 'Fallida',
   blocked: 'Bloqueada',
@@ -578,7 +589,7 @@ function renderHistoryJump(jobs) {
   const link = document.getElementById('history-jump');
   const live = jobs.filter((j) => !j.archivedAt);
   const newsletters = live.filter((j) => !j.revisionOf && !j.mobileFixOf && !j.textEditOf && !j.retryOf).length;
-  const active = live.filter((j) => j.status === 'running' || j.status === 'queued').length;
+  const active = live.filter((j) => j.status === 'running' || j.status === 'queued' || j.status === 'review').length;
   link.hidden = !newsletters;
   link.innerHTML = `Historial · ${newsletters} newsletter${newsletters === 1 ? '' : 's'}${
     active ? ` <span class="is-busy">· ${active} en curso</span>` : ''
@@ -643,7 +654,7 @@ function filteredJobs() {
   const q = normalize(historyState.query);
   return historyState.jobs.filter((j) => {
     if (historyState.brand && (j.clientSlug || j.clientName) !== historyState.brand) return false;
-    if (historyState.status === 'active' && j.status !== 'running' && j.status !== 'queued') return false;
+    if (historyState.status === 'active' && j.status !== 'running' && j.status !== 'queued' && j.status !== 'review') return false;
     if (historyState.status === 'completed' && j.status !== 'completed') return false;
     if (historyState.status === 'failed' && j.status !== 'failed' && j.status !== 'blocked') return false;
     if (historyState.status === 'approved' && !j.approvedAt) return false;
@@ -775,7 +786,7 @@ function renderHistory() {
       const approved = approvedJob
         ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (versión ${info.get(approvedJob.id).number})` : ''}</span> · `
         : '';
-      const busy = [j, ...others].some((x) => x.status === 'queued' || x.status === 'running');
+      const busy = [j, ...others].some((x) => x.status === 'queued' || x.status === 'running' || x.status === 'review');
       const archiveBtn = j.archivedAt
         ? `<button type="button" class="btn btn-ghost" data-unarchive="${escapeHtml(j.id)}">Recuperar</button>`
         : busy
@@ -1132,6 +1143,52 @@ document.getElementById('copy-link-btn').addEventListener('click', () => {
   }
 });
 
+// ---------------------------------------------------------------- enseñarla al cliente (2026-10-01)
+
+/** Enlace público de solo lectura de esta versión (studio/server/share.ts). Se arma con el origen de esta
+ *  página: en Vercel, /p/* se reescribe a Railway igual que /api y /assets. */
+function renderShare(share) {
+  const active = !!share && Date.parse(share.expiresAt) > Date.now();
+  document.getElementById('share-empty').hidden = active;
+  document.getElementById('share-active').hidden = !active;
+  if (!active) return;
+  document.getElementById('share-url').value = `${location.origin}/p/${share.token}`;
+  const until = new Date(share.expiresAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  const views = share.views
+    ? `abierto ${share.views} ${share.views === 1 ? 'vez' : 'veces'}, la última el ${new Date(share.lastViewedAt).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+    : 'aún no lo ha abierto nadie';
+  document.getElementById('share-info').textContent = `Caduca el ${until} · ${views}`;
+}
+
+async function shareRequest(method) {
+  if (!currentJob) return;
+  const id = currentJob;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/share`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: method === 'POST' ? JSON.stringify({ by: savedRequester() || undefined }) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(data.error || 'No se pudo cambiar el enlace.', 'error');
+    if (id !== currentJob) return;
+    renderShare(method === 'POST' ? data.share : null);
+    if (method === 'POST') {
+      copyText(document.getElementById('share-url').value, 'Enlace creado y copiado: el cliente lo abre sin contraseña.', 'Copia el enlace del recuadro.');
+    } else {
+      showToast('Enlace desactivado: quien lo tenga ya no podrá abrirlo.');
+    }
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
+  }
+}
+document.getElementById('share-create').addEventListener('click', () => shareRequest('POST'));
+document.getElementById('share-revoke').addEventListener('click', () => shareRequest('DELETE'));
+document.getElementById('share-copy').addEventListener('click', () =>
+  copyText(document.getElementById('share-url').value, 'Enlace copiado: el cliente lo abre sin contraseña.', 'Copia el enlace del recuadro.')
+);
+document.getElementById('share-url').addEventListener('focus', (e) => e.target.select());
+
 // ---------------------------------------------------------------- barra fija de acciones
 
 const stickyBar = document.getElementById('sticky-actions');
@@ -1155,6 +1212,68 @@ document.getElementById('sticky-revise').addEventListener('click', () => {
   reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 document.getElementById('sticky-top').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+// ---------------------------------------------------------------- revisar el brief (2026-10-01)
+
+const reviewText = document.getElementById('review-brief-text');
+const reviewError = document.getElementById('review-error');
+
+/** El texto solo se rellena al entrar (o si cambia en el servidor sin haberlo tocado aquí): el sondeo
+ *  cada 15 s no puede pisar lo que se está escribiendo. */
+function renderBriefReview(job) {
+  const box = document.getElementById('job-review');
+  const show = job.status === 'review';
+  box.hidden = !show;
+  if (!show) return;
+  // El brief ya está en el panel: el desplegable "Brief creativo generado por Hermes" lo repetiría.
+  document.getElementById('brief-box').hidden = true;
+  const src = job.input.briefText || '';
+  const untouched = reviewText.value === (reviewText.dataset.src || '');
+  if (reviewText.dataset.job !== job.id || (untouched && reviewText.dataset.src !== src)) {
+    reviewText.dataset.job = job.id;
+    reviewText.dataset.src = src;
+    reviewText.value = src;
+    reviewError.hidden = true;
+  }
+  document.getElementById('review-restore').hidden = reviewText.value === reviewText.dataset.src;
+}
+reviewText.addEventListener('input', () => {
+  document.getElementById('review-restore').hidden = reviewText.value === reviewText.dataset.src;
+});
+document.getElementById('review-restore').addEventListener('click', () => {
+  reviewText.value = reviewText.dataset.src || '';
+  document.getElementById('review-restore').hidden = true;
+  reviewText.focus();
+});
+document.getElementById('review-approve').addEventListener('click', async (e) => {
+  if (!currentJob) return;
+  const id = currentJob;
+  const btn = e.currentTarget;
+  const edited = reviewText.value.trim() !== (reviewText.dataset.src || '').trim();
+  btn.disabled = true;
+  reviewError.hidden = true;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/brief-approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brief: edited ? reviewText.value : undefined, by: savedRequester() || undefined }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      reviewError.textContent = data.error || 'No se pudo aprobar el brief.';
+      reviewError.hidden = false;
+      return;
+    }
+    showToast(edited ? 'Brief corregido y aprobado: Hermes hará la newsletter.' : 'Brief aprobado: Hermes hará la newsletter.');
+    reviewText.dataset.job = '';
+  } catch {
+    reviewError.textContent = NETWORK_ERROR;
+    reviewError.hidden = false;
+  } finally {
+    btn.disabled = false;
+    if (currentJob === id) poll(id);
+  }
+});
 
 // ---------------------------------------------------------------- cancelar y pedir cambios
 
@@ -2128,7 +2247,7 @@ async function setArchived(id, archived) {
 
 function renderArchived(job) {
   document.getElementById('job-archived').hidden = !job.archivedAt;
-  document.getElementById('archive-btn').hidden = !!job.archivedAt || job.status === 'queued' || job.status === 'running';
+  document.getElementById('archive-btn').hidden = !!job.archivedAt || job.status === 'queued' || job.status === 'running' || job.status === 'review';
 }
 
 document.getElementById('archive-btn').addEventListener('click', async () => {
@@ -2300,6 +2419,7 @@ function showJobView(id) {
   updateSticky();
   document.getElementById('job-blocked').hidden = true;
   document.getElementById('job-cancelled').hidden = true;
+  document.getElementById('job-review').hidden = true;
   document.getElementById('cancel-row').hidden = true;
   document.getElementById('job-change').hidden = true;
   reviseBox.hidden = true;
@@ -2385,7 +2505,7 @@ async function poll(id) {
     ? `Texto cambiado en Studio, sin Hermes:\n${job.input.changeRequest}`
     : `Cambios pedidos: «${job.input.changeRequest}»`;
   renderRequest(job);
-  document.getElementById('cancel-row').hidden = job.status !== 'queued' && job.status !== 'running';
+  document.getElementById('cancel-row').hidden = job.status !== 'queued' && job.status !== 'running' && job.status !== 'review';
   document.getElementById('job-meta').textContent = [
     new Date(job.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }),
     job.input.requesterName,
@@ -2431,6 +2551,7 @@ async function poll(id) {
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes);
+      renderShare(job.share);
       renderMeta(meta, job.input.clientName);
       setupExport(job);
       loadResultHtml(id).then(() => {
@@ -2445,6 +2566,11 @@ async function poll(id) {
   }
 
   renderRetried(retriedBy);
+  renderBriefReview(job);
+  if (job.status === 'review') {
+    pollTimer = setTimeout(() => poll(id), 15000); // por si otra persona lo aprueba o lo cancela
+    return;
+  }
   if (job.status === 'cancelled') {
     document.getElementById('job-cancelled').hidden = false;
     return;
@@ -2653,7 +2779,7 @@ const BASE_TITLE = document.title;
 // ---------------------------------------------------------------- estado en el icono de la pestaña (2026-09-28)
 // Un punto sobre el icono de Studio: azul trabajando o en cola, verde lista, rojo fallida o bloqueada. Se ve
 // desde otra pestaña sin tener que leer el título.
-const FAVICON_COLORS = { running: '#3d8bff', queued: '#3d8bff', completed: '#1db980', failed: '#e5484d', blocked: '#e5484d' };
+const FAVICON_COLORS = { running: '#3d8bff', queued: '#3d8bff', review: '#ffb224', completed: '#1db980', failed: '#e5484d', blocked: '#e5484d' };
 const faviconLink = document.querySelector('link[rel="icon"]');
 const faviconBase = new Image();
 faviconBase.src = '/favicon.png';
@@ -2743,6 +2869,7 @@ function maybeNotify(job) {
   if (!notifySupported || Notification.permission !== 'granted' || !document.hidden) return;
   const text = {
     completed: 'La newsletter está lista.',
+    review: 'El brief está listo: revísalo para que Hermes haga la newsletter.',
     failed: 'El trabajo ha fallado.',
     blocked: 'El trabajo se ha detenido.',
     cancelled: 'El trabajo se ha cancelado.',
@@ -3357,7 +3484,8 @@ function setProgressBar(bar, pct) {
 function renderProgress(job, queue, hermesOnline) {
   const box = document.getElementById('job-progress');
   // Terminada, la barra al 100 % no aporta nada: lo que tardó ya está en la cabecera (2026-09-29).
-  if (job.status === 'completed') {
+  // Con el brief por revisar no hay nada en marcha: el panel de revisión ocupa su sitio.
+  if (job.status === 'completed' || job.status === 'review') {
     box.hidden = true;
     return;
   }
@@ -3377,7 +3505,9 @@ function renderProgress(job, queue, hermesOnline) {
       : job.input.mobileFixOf
       ? 'Solo adapta la versión móvil: unos minutos.'
       : job.input.briefReused
-      ? 'Parte del brief que ya escribió en el intento anterior.'
+      ? job.input.retryOf
+        ? 'Parte del brief que ya escribió en el intento anterior.'
+        : 'Hará la newsletter con el brief aprobado.'
       : job.input.instruction
       ? 'Primero escribirá el brief creativo.'
       : '';
@@ -3557,6 +3687,8 @@ function announceJob(job, queue) {
       ? ` Revisión automática: ${q.warnings} aviso${q.warnings === 1 ? '' : 's'}.`
       : ' Revisión automática: todo correcto.';
     announce(`${name}: la newsletter está lista.${review}`);
+  } else if (job.status === 'review') {
+    announce(`${name}: el brief está listo para revisar.`);
   } else if (job.status === 'cancelled') {
     announce(`${name}: trabajo cancelado.`);
   } else {

@@ -93,6 +93,10 @@
         <div class="examples" id="examples" hidden>
           <span class="hint">Ejemplos:</span>
         </div>
+        <div class="review-brief-field" id="review-brief-field">
+          <label class="toggle"><input type="checkbox" name="reviewBrief" value="true" id="review-brief-input" /><span>Revisar el brief antes de que haga la newsletter</span></label>
+          <p class="hint">Hermes se para tras escribir el brief (unos minutos) para que lo apruebes o lo corrijas. Se recuerda.</p>
+        </div>
 
         <fieldset>
           <legend class="label">¿De dónde salen las imágenes?</legend>
@@ -223,6 +227,20 @@
         </span>
       </div>
 
+      <!-- Revisar el brief (2026-10-01): Hermes se ha parado tras el brief; se aprueba tal cual o corregido. -->
+      <section id="job-review" class="job-review" hidden aria-labelledby="review-title">
+        <h3 id="review-title" class="review-title">El brief está listo: revísalo antes de que Hermes haga la newsletter</h3>
+        <p class="hint">Apruébalo tal cual o corrígelo aquí mismo. Al aprobarlo vuelve a la cola y Hermes hace la newsletter
+          (<span data-eta="brief">unos 20 minutos</span>) sin volver a escribir el brief.</p>
+        <label for="review-brief-text" class="sr-only">Brief creativo</label>
+        <textarea id="review-brief-text" rows="18" spellcheck="true"></textarea>
+        <p id="review-error" class="form-error" role="alert" hidden></p>
+        <div class="actions">
+          <button type="button" id="review-approve" class="btn btn-primary">Aprobar y hacer la newsletter</button>
+          <button type="button" id="review-restore" class="btn btn-ghost" hidden>Deshacer mis cambios</button>
+        </div>
+      </section>
+
       <div id="job-cancelled" class="job-cancelled" hidden>
         <p>Trabajo cancelado.</p>
         <p class="retried-note" data-retried hidden></p>
@@ -264,6 +282,21 @@
                   <label><span>utm_medium</span><input type="text" id="utm-medium" maxlength="80" /></label>
                   <label><span>utm_campaign</span><input type="text" id="utm-campaign" maxlength="120" /></label>
                   <label><span>utm_content <em>(opcional)</em></span><input type="text" id="utm-content" maxlength="80" /></label>
+                </div>
+              </div>
+              <!-- Enseñarla al cliente (2026-10-01): enlace de solo lectura sin la contraseña del equipo (share.ts). -->
+              <div class="share-block" id="share-block">
+                <p class="share-title">Enseñarla al cliente</p>
+                <div id="share-empty">
+                  <button type="button" id="share-create" class="btn btn-ghost btn-sm">Crear enlace de vista previa</button>
+                  <p class="hint">Sin contraseña, solo esta versión y solo para verla. Caduca a los 14 días.</p>
+                </div>
+                <div id="share-active" hidden>
+                  <div class="share-url-row">
+                    <input type="text" id="share-url" readonly aria-label="Enlace de vista previa" />
+                    <button type="button" id="share-copy" class="btn btn-secondary btn-sm">Copiar</button>
+                  </div>
+                  <p class="hint"><span id="share-info"></span> · <button type="button" id="share-revoke" class="link-btn">Desactivar</button></p>
                 </div>
               </div>
             </section>

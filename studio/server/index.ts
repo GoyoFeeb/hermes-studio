@@ -52,6 +52,7 @@ import {
   readWorkerBrands,
 } from './standalone';
 import { TextEditError, type TextEdit, type AltEdit } from './textEdit';
+import { SHARE_DAYS, createShare, findSharedJob, isShareActive, recordShareView, renderShareGone, renderSharePage, revokeShare, shareHeaders } from './share';
 
 loadEnv(ROOT);
 loadEnv(STUDIO_DIR);
@@ -129,6 +130,21 @@ app.use('/assets', (req: Request, res: Response, next: NextFunction) => {
   // Un SVG puede llevar <script>: en sandbox no se ejecuta nada ni accede al origen de Studio.
   setHeaders: (res) => res.setHeader('Content-Security-Policy', 'sandbox'),
 }));
+
+// Vista previa para el cliente (2026-10-01, ver share.ts): pública como /assets, pero solo con un token
+// aleatorio activo. Va antes del Basic Auth: quien la abre no tiene la contraseña del equipo.
+app.get('/p/:token', (req: Request, res: Response) => {
+  const job = findSharedJob(String(req.params.token));
+  const nonce = crypto.randomBytes(16).toString('base64');
+  res.set(shareHeaders(nonce));
+  const page = job ? renderSharePage(job, nonce) : null;
+  if (!job || !page) {
+    res.status(404).type('html').send(renderShareGone());
+    return;
+  }
+  recordShareView(job);
+  res.type('html').send(page);
+});
 
 // --- Worker de Hermes (2026-09-24) -------------------------------------------------------
 // El Mac del usuario (studio/worker/hermes-worker.ts) recoge los trabajos standalone, los ejecuta
@@ -228,6 +244,18 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
   const brief = typeof req.body?.brief === 'string' ? req.body.brief.trim() : '';
   if (brief.length < 200) {
     res.status(400).json({ error: 'El brief está vacío o incompleto.' });
+    return;
+  }
+  // Revisar el brief (2026-10-01): el trabajo se aparta hasta que alguien lo apruebe. Solo si el worker sabe
+  // pararse aquí (`canPause`); uno anterior a este cambio esperaría el encargo y sigue como siempre.
+  if (job.input.reviewBrief && req.body?.canPause === true) {
+    updateJob(job.id, {
+      status: 'review',
+      currentPhase: null,
+      input: { ...job.input, briefText: brief.slice(0, 200000) },
+    });
+    hermesLog(job.id, 'Brief creativo listo: revísalo y apruébalo para que Hermes haga la newsletter.', 'success');
+    res.json({ pause: true });
     return;
   }
   const updated = updateJob(job.id, { input: { ...job.input, briefText: brief.slice(0, 200000) } });
@@ -394,6 +422,7 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       brandMode: body.existingBrand ? 'existing' : 'new',
       briefText: fromInstruction ? '' : body.promptText,
       instruction: fromInstruction ? String(body.promptText).slice(0, 4000) : undefined,
+      reviewBrief: fromInstruction && body.reviewBrief === true ? true : undefined,
       imageMode: body.imageMode,
       requesterName: body.requesterName || undefined,
     });
@@ -677,13 +706,68 @@ app.post('/api/jobs/:id/archive', (req: Request, res: Response) => {
 
 // Cancelar: en cola, al momento; en curso, el worker lo ve en su siguiente aviso de progreso
 // (cada 30 s, ver standaloneJobForWorker), detiene a Hermes y no sube nada.
+// Enlace de vista previa para el cliente (2026-10-01): uno por versión, se reutiliza mientras esté activo.
+app.post('/api/jobs/:id/share', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone' || job.status !== 'completed' || !readResultHtml(job)) {
+    res.status(404).json({ error: 'Solo se puede compartir una newsletter terminada.' });
+    return;
+  }
+  const by = typeof req.body?.by === 'string' ? req.body.by.trim().slice(0, 80) : '';
+  const existed = isShareActive(job.share);
+  const share = createShare(job, by);
+  if (!existed) hermesLog(job.id, `Enlace de vista previa para el cliente creado${by ? ` por ${by}` : ''} (caduca en ${SHARE_DAYS} días).`);
+  res.status(existed ? 200 : 201).json({ share });
+});
+
+app.delete('/api/jobs/:id/share', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone') {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (job.share) {
+    revokeShare(job);
+    hermesLog(job.id, 'Enlace de vista previa desactivado: quien lo tenga ya no podrá abrirlo.');
+  }
+  res.json({ ok: true });
+});
+
+// Aprobar el brief (2026-10-01): vuelve a la cola con el brief tal cual o editado; Hermes hace la newsletter
+// en un turno nuevo, sin volver a escribir el brief.
+app.post('/api/jobs/:id/brief-approve', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone') {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (job.status !== 'review') {
+    res.status(409).json({ error: 'Este brief ya no está pendiente de revisión.' });
+    return;
+  }
+  const edited = typeof req.body?.brief === 'string' ? req.body.brief.trim() : '';
+  if (edited && edited.length < 50) {
+    res.status(400).json({ error: 'El brief ha quedado demasiado corto: Hermes no tendría con qué trabajar.' });
+    return;
+  }
+  const changed = !!edited && edited !== job.input.briefText.trim();
+  const by = typeof req.body?.by === 'string' ? req.body.by.trim().slice(0, 80) : '';
+  updateJob(job.id, {
+    status: 'queued',
+    progress: undefined,
+    input: { ...job.input, briefText: changed ? edited.slice(0, 200000) : job.input.briefText, briefReused: true },
+  });
+  hermesLog(job.id, `Brief aprobado${changed ? ' con cambios' : ''}${by ? ` por ${by}` : ''}: en cola para hacer la newsletter.`, 'success');
+  res.json({ ok: true });
+});
+
 app.post('/api/jobs/:id/cancel', (req: Request, res: Response) => {
   const job = getJob(req.params.id);
   if (!job || job.input.mode !== 'standalone') {
     res.status(404).json({ error: 'No encontrado' });
     return;
   }
-  if (job.status !== 'queued' && job.status !== 'running') {
+  if (job.status !== 'queued' && job.status !== 'running' && job.status !== 'review') {
     res.status(409).json({ error: 'Este trabajo ya ha terminado.' });
     return;
   }

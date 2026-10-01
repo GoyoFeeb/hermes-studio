@@ -631,7 +631,7 @@ export function approveVersion(job: Job, checklist: string[], by?: string): Job 
 /** Archiva (o recupera) la familia entera. Devuelve cuántos trabajos cambiaron. */
 export function archiveFamily(job: Job, archived: boolean): number {
   const members = familyJobs(job);
-  if (archived && members.some((j) => j.status === 'queued' || j.status === 'running')) {
+  if (archived && members.some((j) => j.status === 'queued' || j.status === 'running' || j.status === 'review')) {
     throw new Error('Hay una versión en cola o en marcha: cancélala o espera a que termine antes de archivar.');
   }
   const at = archived ? new Date().toISOString() : undefined;

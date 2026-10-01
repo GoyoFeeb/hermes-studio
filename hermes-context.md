@@ -1075,3 +1075,26 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Verificación:** copia aislada arrancada como en el contenedor (`node --import tsx`), SIGTERM con una conexión
   keep-alive abierta → "cerrando… / cerrado", exit 0. `npm test` 148/148. El despliegue que se sustituye esta vez
   aún tiene el arranque viejo (puede salir CRASHED una última vez); desde el siguiente, REMOVED.
+
+### 2026-10-01 (continuación) — Interfaz 5 y 6: revisar el brief y enlace para el cliente
+
+- **Elegidos por el usuario.** Studio (web, servidor y worker); motor y agentes 00-09 sin tocar.
+- **5. Revisar el brief:** casilla en "Instrucción rápida" (`reviewBrief`, recordada). Estado nuevo `review`
+  ("Brief por revisar"): el worker manda `canPause: true` con el brief y, si se pidió revisión, Studio responde
+  `{ pause: true }` y el worker pasa al siguiente (la carpeta con brief.md se queda). Un worker antiguo (sin
+  `canPause`) sigue como siempre. `POST /api/jobs/:id/brief-approve` (tal cual o editado, mínimo 50 caracteres)
+  → vuelve a la cola con `briefReused` (sin paso de brief, estimación de prompt completo). Panel en la página
+  del trabajo con el brief editable (el sondeo no pisa lo escrito), "Deshacer mis cambios", cancelar,
+  aviso del navegador, color en el icono de la pestaña, filtro "En curso" y no se puede archivar mientras espera.
+- **6. Enlace para el cliente:** `studio/server/share.ts`. `POST/DELETE /api/jobs/:id/share` (con contraseña) y
+  `GET /p/:token` público (antes del Basic Auth; reescrito en `vercel.json`). Token de 24 bytes, uno por versión
+  (se reutiliza mientras esté activo), caduca a los 14 días, se desactiva desde la página; cuenta visitas (máx.
+  1/min). Página propia: asunto y preheader, Escritorio/Móvil (Móvil en teléfonos), pieza en marco `srcdoc` sin
+  scripts y CSP con nonce que el marco hereda, noindex, sin Referer, sin caché. Bloque "Enseñarla al cliente" en
+  "Llevarla a tu plataforma". No muestra brief, registro ni otras versiones.
+- **Verificación (copia aislada):** circuito del brief con worker simulado (pausa, claim no lo recoge, aprobar
+  corto → 400, editado → cola, segundo aprobar → 409, claim → encargo con el brief editado y 1200 s; worker
+  antiguo → encargo directo); panel en la web con edición que sobrevive al sondeo. Enlace: con contraseña activa,
+  `/p/…` 200 y `/api` 401; token falso 404; visitas contadas; desactivado → "ya no está disponible"; móvil 375 px
+  sin desbordes. Tests nuevos `share.test.js`; `npm test` 149/149.
+- **Pendiente:** desplegar (Vercel con `vercel.json` nuevo, Railway) y reiniciar el worker (launchd) para la pausa.

@@ -7,9 +7,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { JOBS_DIR } from './paths';
 import type { QualityReport } from '../worker/qualityCheck';
+import type { JobShare } from './share';
 
 /** 'cancelled' (2026-09-28): cancelado desde la web; el worker lo ve al enviar progreso y para. */
-export type JobStatus = 'queued' | 'running' | 'blocked' | 'failed' | 'completed' | 'cancelled';
+/** 'review' (2026-10-01): Hermes escribió el brief y espera a que el equipo lo apruebe (`reviewBrief`). */
+export type JobStatus = 'queued' | 'running' | 'review' | 'blocked' | 'failed' | 'completed' | 'cancelled';
 
 export interface JobInput {
   clientSlug: string;
@@ -41,8 +43,11 @@ export interface JobInput {
   /** "Reintentar" (2026-10-01): id del trabajo fallido o cancelado que se relanza. Enlaza los dos en la
    *  misma familia para que el historial no muestre el intento fallido como otra newsletter. */
   retryOf?: string;
-  /** El reintento parte del brief que Hermes ya escribió en el intento fallido (no se vuelve a generar). */
+  /** El brief ya estaba escrito antes de este turno de Hermes (reintento de un fallido, o brief revisado y
+   *  aprobado): no se vuelve a generar y se estima como uno de prompt completo. */
   briefReused?: boolean;
+  /** Desde instrucción (2026-10-01): parar tras el brief para que el equipo lo revise antes de la newsletter. */
+  reviewBrief?: boolean;
 }
 
 export interface Job {
@@ -85,6 +90,8 @@ export interface Job {
   approvalChecklist?: string[];
   /** Archivada (2026-09-28): fuera del historial salvo con "Ver archivadas". Se archiva la familia entera. */
   archivedAt?: string;
+  /** Enlace de vista previa para el cliente (2026-10-01, ver share.ts). */
+  share?: JobShare;
 }
 
 export interface JobEvent {

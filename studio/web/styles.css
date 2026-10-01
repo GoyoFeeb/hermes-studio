@@ -432,6 +432,15 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .status-completed { background: var(--success-tint); color: var(--success); }
 .status-blocked, .status-failed { background: var(--error-tint); color: var(--error); }
 .status-cancelled { background: rgba(137, 145, 174, 0.14); color: var(--muted); }
+.status-review { background: var(--warning-tint); color: var(--warning); }
+
+/* Revisar el brief (2026-10-01) */
+.job-review { margin: 0 0 24px; padding: 20px; border: 1px solid var(--warning); border-radius: var(--radius); background: var(--surface-row); }
+.review-title { margin: 0 0 4px; font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.job-review textarea { width: 100%; margin-top: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-small); line-height: 1.55; }
+.job-review .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.review-brief-field { margin: 4px 0 20px; }
+.review-brief-field .hint { margin: 4px 0 0 24px; }
 
 /* ---------- vista de trabajo ---------- */
 #view-job { margin-top: 40px; }
@@ -1127,6 +1136,11 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 .link-btn:hover { color: var(--text); }
 .action-cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
 .action-group { padding: 16px 20px 20px; }
+.share-block { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.share-title { margin: 0 0 8px; font-size: var(--fs-small); font-weight: 600; color: var(--text); }
+.share-block .hint { margin: 6px 0 0; }
+.share-url-row { display: flex; gap: 8px; }
+.share-url-row input { flex: 1 1 auto; min-width: 0; font-size: var(--fs-small); }
 .action-group + .action-group { border-left: 1px solid var(--border); }
 .action-title { margin: 0 0 12px; font-family: 'Barlow', sans-serif; font-size: var(--fs-caption); font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--pink-soft); }
 .action-buttons { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 16px; }

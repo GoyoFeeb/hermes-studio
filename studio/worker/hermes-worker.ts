@@ -661,7 +661,10 @@ function briefEnvNote(outputDir: string): string {
 /** Paso 1 de una instrucción básica: Hermes escribe `{outDir}/brief.md` con la skill
  *  newsletter-creative-brief; se sube a Studio, que devuelve el encargo final de la newsletter.
  *  Sesión propia: la newsletter arranca limpia con el brief, igual que al pegarlo a mano. */
-async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: string; seconds: number } | { error: string }> {
+async function runBriefStep(
+  job: ClaimedJob,
+  outAbs: string
+): Promise<{ prompt: string; seconds: number } | { paused: true } | { error: string }> {
   const started = Date.now();
   const briefFile = path.join(outAbs, 'brief.md');
   const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
@@ -730,9 +733,16 @@ async function runBriefStep(job: ClaimedJob, outAbs: string): Promise<{ prompt: 
     }
     return { error: `Hermes no llegó a escribir el brief (${job.outputDir}/brief.md).\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2000)}` };
   }
-  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8') }, 6);
+  // canPause (2026-10-01): si el equipo pidió revisar el brief, Studio responde { pause: true } y el trabajo
+  // espera su aprobación; al aprobarlo vuelve a la cola y llega con el encargo final, sin paso de brief.
+  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true }, 6);
   if (!res.ok) return { error: `Studio no aceptó el brief: ${res.status} ${(await res.text()).slice(0, 300)}` };
-  const { prompt } = (await res.json()) as { prompt: string };
+  const reply = (await res.json()) as { prompt?: string; pause?: boolean };
+  if (reply.pause) {
+    console.log(`[${stamp()}] Brief de ${job.id} listo en ${Math.round((Date.now() - started) / 60000)} min: espera la revisión del equipo`);
+    return { paused: true };
+  }
+  const prompt = reply.prompt || '';
   console.log(`[${stamp()}] Brief de ${job.id} listo en ${Math.round((Date.now() - started) / 60000)} min`);
   return { prompt, seconds: (Date.now() - started) / 1000 };
 }
@@ -761,6 +771,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       await api(`/api/worker/jobs/${claimed.id}/fail`, { error: brief.error }).catch(() => undefined);
       setAsideFolder(outAbs, 'fallido');
       console.log(`[${stamp()}] ✗ ${claimed.id}: sin brief`);
+      current = null;
+      return;
+    }
+    // Brief en revisión: la carpeta se queda (brief.md) y el worker pasa al siguiente trabajo.
+    if ('paused' in brief) {
       current = null;
       return;
     }
