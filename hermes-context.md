@@ -1161,3 +1161,7 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   el enlace a la v3 (misma URL, imagen nueva, comentario plegado), aprobar; validaciones (sin nombre, vacío, cambios
   sin nada, token falso 404, `<script>` como texto); 375 px. Tests nuevos `textEditLinks.test.js` y ampliado
   `share.test.js`; `npm test` 152/152.
+- **Desplegado (con permiso del usuario):** `be26f6c` → Railway SUCCESS 17:33 (el sustituido, REMOVED), Vercel (3 archivos
+  idénticos tras unos segundos de propagación). En producción, `/p/<token falso>` y `POST …/comments` responden "ya no
+  está disponible" por Railway y por Vercel; `/api` sigue pidiendo contraseña. Worker sin cambios. **Pendiente:** primer
+  uso real con un cliente (comentar, aprobar, pasar a Hermes, pasar el enlace a la versión nueva).
