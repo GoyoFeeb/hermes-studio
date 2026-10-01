@@ -1195,3 +1195,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   aviso del formulario; revisión de la newsletter real de Puma (24-09) con Apple Mail en error por modo oscuro; texto
   copiado; informe público y desactivado; 375 px sin desborde. Tests nuevos `clientMatrix.test.js` y `brandCard.test.js`
   (contra los brand packs reales); `npm test` 155/155.
+- **Desplegado (con permiso del usuario):** `01e442f` → Railway SUCCESS 17:59 (el sustituido, REMOVED), Vercel (3 archivos
+  idénticos; `/r/` responde por Railway y por Vercel, `/api/brands/:slug` pide contraseña) y worker reiniciado con el
+  trabajo libre: a las 18:01 envió a producción las 34 fichas de marca.
