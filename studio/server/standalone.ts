@@ -360,7 +360,8 @@ export function jobKind(job: Job): JobKind | null {
   if (job.input.textEditOf) return null; // sin Hermes: no cuenta para las duraciones
   if (job.input.mobileFixOf) return 'mobile-fix';
   if (job.input.revisionOf) return 'revision';
-  return job.input.instruction ? 'instruction' : 'brief';
+  // Un reintento con el brief ya escrito tarda como uno de prompt completo, no como uno desde instrucción.
+  return job.input.instruction && !job.input.briefReused ? 'instruction' : 'brief';
 }
 
 /** Duración real de un trabajo terminado: de que Hermes lo recoge a que termina. Los anteriores al
@@ -424,14 +425,14 @@ export interface JobVersion {
   number: number;
   createdAt: string;
   status: Job['status'];
-  kind: 'original' | 'revision' | 'mobile-fix' | 'text-edit';
+  kind: 'original' | 'revision' | 'mobile-fix' | 'text-edit' | 'retry';
   parentId: string | null;
   changeRequest: string | null;
   approved: boolean;
 }
 
 function parentIdOf(job: Job): string | null {
-  return job.input.revisionOf || job.input.mobileFixOf || job.input.textEditOf || null;
+  return job.input.revisionOf || job.input.mobileFixOf || job.input.textEditOf || job.input.retryOf || null;
 }
 
 /** Todas las versiones de una newsletter (2026-09-28): la original y los "Pedir cambios" y "Adaptar
@@ -458,7 +459,7 @@ export function versionFamily(job: Job): JobVersion[] {
       number: i + 1,
       createdAt: j.createdAt,
       status: j.status,
-      kind: j.input.revisionOf ? 'revision' : j.input.mobileFixOf ? 'mobile-fix' : j.input.textEditOf ? 'text-edit' : 'original',
+      kind: j.input.revisionOf ? 'revision' : j.input.mobileFixOf ? 'mobile-fix' : j.input.textEditOf ? 'text-edit' : j.input.retryOf ? 'retry' : 'original',
       parentId: parentIdOf(j),
       changeRequest: j.input.changeRequest ? j.input.changeRequest.slice(0, 300) : null,
       approved: !!j.approvedAt,

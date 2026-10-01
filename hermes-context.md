@@ -7,7 +7,7 @@
 > qué se diagnosticó, qué se decidió arreglar, y qué sigue abierto — para que una futura sesión de
 > esta skill no repita el mismo diagnóstico desde cero.
 
-**Última actualización:** 2026-09-28 (auditoría de sistema completo: ruta real Studio + worker + salidas de Hermes; BUG-H14 a H18 abiertos)
+**Última actualización:** 2026-10-01 (tercera lista de mejoras de interfaz de Studio, solo diagnóstico)
 
 ---
 
@@ -1025,3 +1025,40 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   en cambios y adaptaciones (recortar, renderizar o mirar capturas no contaba como trabajo); "recta final"
   salía al 14 %; los retoques mostraban la fase "skills y brand pack"; "Copiar enlace" partía en dos líneas.
 
+
+### 2026-10-01 — Tercera lista de mejoras de interfaz (solo diagnóstico, nada cambiado)
+
+- Revisión en una copia aislada de Studio (scratchpad, datos sembrados: familia Nike v1→v2, El Corte Inglés
+  aprobada, Lacoste fallida + Lacoste lista, uno en cola) a 800 y 375 px. Ningún archivo del repo tocado.
+- **Nota:** los 15 commits de Studio del 2026-09-30 (`5bd8c6f`…`7860ef5`, crítica impeccable 34/40) no tienen
+  entrada en este changelog.
+- **Fallos vistos:** (a) píldora de la cabecera a 375 px: el texto se corta sin "…" y el punto de estado se
+  deforma en rectángulo (`.status-pill` es `inline-flex`: `text-overflow` no actúa sobre el texto suelto y el
+  `::before` encoge; falta `flex-shrink:0` + `<span>` con elipsis); (b) en móvil la vista previa arranca en
+  "Escritorio" al 33 % (ilegible) si no hay preferencia guardada (`readPreviewView`).
+- **Huecos de producto:** "Reintentar" desde instrucción regenera el brief aunque ya existiera (Lacoste: brief
+  válido, falló después); el reintento no se enlaza con el fallido (`retryOf`), así que el historial muestra
+  la familia fallida aparte aunque ya haya otra lista; no hay pausa para revisar el brief antes de maquetar;
+  no hay enlace de vista previa para el cliente sin la contraseña del equipo; filas del historial con 3-4
+  botones cada una.
+- Propuesta entregada al usuario; pendiente de que elija.
+
+### 2026-10-01 (continuación) — Interfaz: puntos 1-4 de la tercera lista
+
+- **Elegidos por el usuario.** Solo Studio (web + servidor); worker, motor y agentes 00-09 sin tocar.
+- **1. Píldora de la cabecera:** `.status-pill` pasa de `inline-flex` a `inline-block` con el punto `inline-block`:
+  a 375 px el texto termina en "…" y el punto queda redondo (8 px).
+- **2. Vista previa en móvil:** `readPreviewView` abre en Móvil si la pantalla mide ≤ 600 px y no hay vista
+  guardada; una elección guardada (también Escritorio) se respeta.
+- **3. Reintentar con el brief ya escrito:** nueva ruta `POST /api/jobs/:id/retry` (fallido/cancelado/bloqueado;
+  409 si la versión de partida de un cambio/adaptación ya no tiene HTML). Copia el `input`; si venía de
+  instrucción y ya hay `briefText`, marca `briefReused` → `needsBrief` falso, el worker recibe el encargo directo
+  y `jobKind` = `brief` (estimación de prompt completo). La web llama a esta ruta en vez de recrear el trabajo.
+- **4. Reintento enlazado:** `retryOf` cuenta como padre en `versionFamily` y en el historial (tipo «Reintento»);
+  el fallido queda plegado bajo su reintento y no ofrece otro «Reintentar». La página del fallido muestra
+  "Ya se reintentó: ver el reintento (estado)" (`retriedBy` en `GET /api/jobs/:id`). Los fallidos antiguos sin
+  `retryOf` no se enlazan.
+- **Verificación:** copia aislada con Chrome del panel: 375 px sin desborde; reintento de Lacoste fallida con
+  brief → versión 2 «Reintento», aviso, texto de cola correcto; claim simulado del worker → `prompt` con el
+  brief, sin `briefPrompt`, `expectedSec` 1200. Test nuevo `studio/server/retry.test.js`. `npm test` 148/148.
+- **Pendiente:** desplegar (Vercel: `app.js`, `index.html`, `styles.css`; Railway: servidor). El worker no cambia.

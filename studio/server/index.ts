@@ -17,6 +17,7 @@ import * as crypto from 'crypto';
 import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
 import { createJob, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
+import type { Job } from './store';
 import { enqueue, recoverOnStartup } from './queue';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
@@ -474,6 +475,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       mobileFixOf: j.input.mobileFixOf || null,
       revisionOf: j.input.revisionOf || null,
       textEditOf: j.input.textEditOf || null,
+      retryOf: j.input.retryOf || null,
       durationSec: durationSec(j),
       hasThumb: !!j.thumbRelPath,
       pct: j.progress?.pct ?? null,
@@ -500,8 +502,47 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
     meta: resultMeta(job),
     queue: queueInfo(job),
     versions: versionFamily(job),
+    retriedBy: retriedBy(job),
     hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000,
   });
+});
+
+/** El reintento más reciente de un trabajo fallido o cancelado, para enlazarlo desde su página. */
+function retriedBy(job: Job): { id: string; status: Job['status'] } | null {
+  const last = listJobs()
+    .filter((j) => j.input.retryOf === job.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  return last ? { id: last.id, status: last.status } : null;
+}
+
+// "Reintentar" (2026-10-01): relanza un trabajo fallido o cancelado con lo mismo que se pidió. Si Hermes
+// ya había escrito el brief (desde instrucción), se reutiliza: el fallo vino después y regenerarlo costaba
+// 5-20 min (Lacoste, 2026-09-29). Cambios y adaptaciones se relanzan sobre la misma versión de partida.
+app.post('/api/jobs/:id/retry', createJobRateLimit.middleware, (req: Request, res: Response) => {
+  const source = getJob(req.params.id);
+  if (!source || source.input.mode !== 'standalone' || source.input.textEditOf) {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (!['failed', 'cancelled', 'blocked'].includes(source.status)) {
+    res.status(409).json({ error: 'Solo se puede reintentar un trabajo fallido o cancelado.' });
+    return;
+  }
+  const baseId = source.input.revisionOf || source.input.mobileFixOf;
+  const base = baseId ? getJob(baseId) : null;
+  if (baseId && (!base || !readResultHtml(base))) {
+    res.status(409).json({ error: 'La versión de la que salía ya no está disponible: no se puede reintentar.' });
+    return;
+  }
+  const briefReused = !!source.input.instruction && !!source.input.briefText.trim();
+  const requesterName =
+    typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : source.input.requesterName;
+  const job = createJob({ ...source.input, requesterName, retryOf: source.id, briefReused: briefReused || undefined });
+  hermesLog(
+    job.id,
+    `Reintento de ${source.id}: en cola.${briefReused ? ' Parte del brief que Hermes ya escribió (no se vuelve a generar).' : ''}`
+  );
+  res.status(201).json({ id: job.id, briefReused });
 });
 
 // "Adaptar a móvil": nuevo trabajo que parte del HTML de uno terminado (ver buildMobileFixPrompt).

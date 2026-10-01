@@ -577,7 +577,7 @@ let scrollToHistory = false;
 function renderHistoryJump(jobs) {
   const link = document.getElementById('history-jump');
   const live = jobs.filter((j) => !j.archivedAt);
-  const newsletters = live.filter((j) => !j.revisionOf && !j.mobileFixOf && !j.textEditOf).length;
+  const newsletters = live.filter((j) => !j.revisionOf && !j.mobileFixOf && !j.textEditOf && !j.retryOf).length;
   const active = live.filter((j) => j.status === 'running' || j.status === 'queued').length;
   link.hidden = !newsletters;
   link.innerHTML = `Historial · ${newsletters} newsletter${newsletters === 1 ? '' : 's'}${
@@ -659,7 +659,7 @@ function filteredJobs() {
  *  de la que sale. Número de versión por orden de creación y fecha de la última versión de la familia. */
 function familyInfo(jobs) {
   const byId = new Map(jobs.map((j) => [j.id, j]));
-  const parentOf = (j) => j.revisionOf || j.mobileFixOf || j.textEditOf || null;
+  const parentOf = (j) => j.revisionOf || j.mobileFixOf || j.textEditOf || j.retryOf || null;
   const rootOf = (j) => {
     let cur = j;
     for (let i = 0; i < 50; i++) {
@@ -689,7 +689,7 @@ function familyInfo(jobs) {
 const openFamilies = new Set();
 
 function jobKindLabel(j) {
-  return j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.textEditOf ? 'Texto editado' : j.fromInstruction ? 'Desde instrucción' : null;
+  return j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.textEditOf ? 'Texto editado' : j.retryOf ? 'Reintento' : j.fromInstruction ? 'Desde instrucción' : null;
 }
 
 /** "tardó 9 min" (de que Hermes lo recoge a que termina); los retoques de texto son al momento. */
@@ -700,12 +700,16 @@ function durationLabel(j) {
   return sec ? `tardó ${formatMinutes(sec)}` : null;
 }
 
+/** Fallidos que ya tienen un reintento: no se ofrece reintentarlos otra vez desde el historial (2026-10-01). */
+let retriedIds = new Set();
+
 function jobActions(j, { compact = false } = {}) {
   const id = encodeURIComponent(j.id);
   return [
     `<a class="btn btn-ghost row-view" href="?job=${id}">Ver</a>`,
     j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
     (j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked') &&
+    !retriedIds.has(j.id) &&
     (!j.error || window.HermesFailure.explainFailure(j.error).retry) // sin la versión de partida, reintentar no sirve
       ? `<button type="button" class="btn btn-secondary" data-retry="${escapeHtml(j.id)}">Reintentar</button>`
       : '',
@@ -721,6 +725,7 @@ function statusLabel(j) {
 function renderHistory() {
   renderMineChip();
   const info = familyInfo(historyState.jobs);
+  retriedIds = new Set(historyState.jobs.map((j) => j.retryOf).filter(Boolean));
   const families = new Map();
   for (const j of historyState.jobs) {
     const root = info.get(j.id).root;
@@ -1086,41 +1091,22 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
 
 // ---------------------------------------------------------------- reintentar y copiar enlace
 
-/** Relanza un trabajo fallido o cancelado tal cual, en un clic (antes: Reutilizar + bajar al formulario
- *  + enviar). Cambios y adaptaciones a móvil se relanzan sobre la misma versión de origen. */
-async function retryJob(job) {
-  const input = job.input;
-  const post = (url, body) =>
-    apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
-  let res;
-  if (input.revisionOf) {
-    res = await post(`/api/jobs/${encodeURIComponent(input.revisionOf)}/revise`, { changes: input.changeRequest, requesterName: input.requesterName });
-  } else if (input.mobileFixOf) {
-    res = await post(`/api/jobs/${encodeURIComponent(input.mobileFixOf)}/mobile-fix`, { requesterName: input.requesterName });
-  } else {
-    res = await post('/api/jobs', {
-      mode: 'standalone',
-      inputKind: input.instruction ? 'instruction' : 'brief',
-      clientName: input.clientName,
-      existingBrand: input.brandMode === 'existing' ? input.clientSlug : '',
-      promptText: input.instruction || input.briefText,
-      imageMode: input.imageMode,
-      requesterName: input.requesterName || '',
-      confirmBrand: true, // ya se envió una vez con esta marca
-    });
-  }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) return showToast(data.error || 'No se pudo reintentar.', 'error');
-  history.pushState({}, '', `?job=${data.id}`);
-  showJobView(data.id);
-}
-
+/** Relanza un trabajo fallido o cancelado tal cual, en un clic. Lo hace el servidor (2026-10-01): enlaza
+ *  el reintento con el fallido (misma familia en el historial) y, si Hermes ya había escrito el brief,
+ *  lo reutiliza en vez de generarlo otra vez. Cambios y adaptaciones, sobre la misma versión de origen. */
 async function retryJobById(id, btn) {
   if (btn) btn.disabled = true;
   try {
-    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
-    if (!res.ok) return showToast('No se pudo cargar ese trabajo.', 'error');
-    await retryJob((await res.json()).job);
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/retry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requesterName: savedRequester() || undefined }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(data.error || 'No se pudo reintentar.', 'error');
+    if (data.briefReused) showToast('Reintentando con el brief que Hermes ya había escrito.');
+    history.pushState({}, '', `?job=${data.id}`);
+    showJobView(data.id);
   } catch {
     showToast(NETWORK_ERROR, 'error');
   } finally {
@@ -2375,7 +2361,7 @@ async function poll(id) {
     document.getElementById('job-title').textContent = res.status === 401 ? 'Inicia sesión para ver este trabajo' : 'Trabajo no encontrado';
     return;
   }
-  const { job, events, notes, meta, queue, hermesOnline, versions } = await res.json();
+  const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy } = await res.json();
   renderVersions(job, versions || []);
   currentJobData = job;
   currentVersions = versions || [];
@@ -2458,6 +2444,7 @@ async function poll(id) {
     return;
   }
 
+  renderRetried(retriedBy);
   if (job.status === 'cancelled') {
     document.getElementById('job-cancelled').hidden = false;
     return;
@@ -2467,9 +2454,9 @@ async function poll(id) {
     document.getElementById('job-blocked').hidden = false;
     const why = window.HermesFailure.explainFailure(job.blockedReason || job.error);
     document.getElementById('failed-summary').textContent = why.summary;
-    document.getElementById('failed-advice').textContent = why.advice;
+    document.getElementById('failed-advice').textContent = retriedBy ? '' : why.advice;
     document.getElementById('blocked-reason').textContent = why.detail || 'Sin detalle.';
-    document.querySelector('#job-blocked [data-retry-current]').hidden = !why.retry;
+    document.querySelector('#job-blocked [data-retry-current]').hidden = !why.retry || !!retriedBy;
     // "Editar y reintentar" abre el formulario con lo pedido: no aplica a cambios ni adaptaciones de una versión.
     document.getElementById('failed-edit').hidden = !!(job.input.revisionOf || job.input.mobileFixOf || job.input.textEditOf);
     document.getElementById('log-box').open = true;
@@ -2477,6 +2464,17 @@ async function poll(id) {
   }
 
   pollTimer = setTimeout(() => poll(id), 10000);
+}
+
+/** Fallido o cancelado que ya se reintentó (2026-10-01): enlace al reintento en vez de un segundo «Reintentar». */
+function renderRetried(retriedBy) {
+  document.querySelectorAll('[data-retried]').forEach((p) => {
+    p.hidden = !retriedBy;
+    if (!retriedBy) return;
+    const state = STATUS_LABELS[retriedBy.status] || retriedBy.status;
+    p.innerHTML = `Ya se reintentó: <a href="?job=${encodeURIComponent(retriedBy.id)}">ver el reintento</a> (${escapeHtml(state.toLowerCase())}).`;
+  });
+  document.querySelector('#job-cancelled [data-retry-current]').hidden = !!retriedBy;
 }
 
 // ---------------------------------------------------------------- lo que se pidió (2026-09-30)
@@ -2827,12 +2825,15 @@ const PREVIEW_VIEWS = {
   free: { width: null, label: 'Libre' },
 };
 
+/** Sin vista elegida antes, en pantallas estrechas se abre en Móvil: Escritorio cabía al 33 %, ilegible
+ *  en un teléfono (2026-10-01). Una elección guardada, incluida Escritorio, se respeta. */
 function readPreviewView() {
+  const fallback = window.matchMedia('(max-width: 600px)').matches ? 'mobile' : 'desktop';
   try {
     const v = localStorage.getItem('previewView');
-    return v === 'mobile' || v === 'free' ? v : 'desktop';
+    return v === 'mobile' || v === 'free' || v === 'desktop' ? v : fallback;
   } catch {
-    return 'desktop';
+    return fallback;
   }
 }
 
@@ -2914,7 +2915,7 @@ function applyPreviewView(view) {
 
 // ---------------------------------------------------------------- versiones y comparación
 
-const VERSION_KIND = { original: 'Original', revision: 'Cambios', 'mobile-fix': 'Adaptación a móvil', 'text-edit': 'Texto editado' };
+const VERSION_KIND = { original: 'Original', revision: 'Cambios', 'mobile-fix': 'Adaptación a móvil', 'text-edit': 'Texto editado', retry: 'Reintento' };
 
 function renderVersions(job, versions) {
   const self = versions.find((v) => v.id === job.id);
@@ -3375,6 +3376,8 @@ function renderProgress(job, queue, hermesOnline) {
       ? 'Aplicará los cambios pedidos: unos minutos.'
       : job.input.mobileFixOf
       ? 'Solo adapta la versión móvil: unos minutos.'
+      : job.input.briefReused
+      ? 'Parte del brief que ya escribió en el intento anterior.'
       : job.input.instruction
       ? 'Primero escribirá el brief creativo.'
       : '';

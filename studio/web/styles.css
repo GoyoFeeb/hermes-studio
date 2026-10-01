@@ -248,10 +248,9 @@ a { color: var(--accent-text); }
 }
 .theme-btn:hover { border-color: var(--pink); }
 
+/* inline-block, no flex: con flex el texto suelto no recibe la elipsis y el punto encoge (móvil, 2026-10-01). */
 .status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: inline-block;
   padding: 6px 16px;
   border: 1px solid var(--border);
   border-radius: var(--pill);
@@ -262,6 +261,9 @@ a { color: var(--accent-text); }
 }
 .status-pill::before {
   content: '';
+  display: inline-block;
+  vertical-align: 1px;
+  margin-right: 8px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -731,6 +733,8 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .job-failed { padding: 16px 20px; border: 1px solid var(--error-line); border-radius: var(--radius-md); background: var(--error-subtle); }
 .failed-title { margin: 0 0 6px; font-weight: 700; color: var(--error); }
 .failed-summary { margin: 0; }
+.retried-note { margin: 8px 0 0; color: var(--text); }
+.retried-note a { color: var(--accent-text); font-weight: 600; }
 .job-failed .actions { margin-top: 4px; }
 #job-blocked .actions .btn { margin-top: 8px; }
 .failed-detail { margin-top: 16px; font-size: var(--fs-small); }
@@ -854,7 +858,8 @@ body.has-sticky .foot { padding-bottom: 88px; }
 @media (max-width: 640px) {
   .topbar, #app, .foot { padding-left: 16px; padding-right: 16px; }
   /* Píldora de estado y botón de tema con su nombre: más compactos para que quepan junto al logo. */
-  .status-pill { padding: 6px 12px; gap: 6px; }
+  .status-pill { padding: 6px 12px; }
+  .status-pill::before { margin-right: 6px; }
   .theme-btn { padding: 0 10px; gap: 5px; }
   .brand img { height: 28px; }
   .hero { padding: 36px 0 24px; }

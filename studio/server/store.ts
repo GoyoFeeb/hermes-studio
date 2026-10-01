@@ -38,6 +38,11 @@ export interface JobInput {
   /** "Editar texto" (2026-09-28): versión hecha en Studio, sin Hermes, retocando el texto del trabajo
    *  indicado (ver studio/server/textEdit.ts). Nace terminada. */
   textEditOf?: string;
+  /** "Reintentar" (2026-10-01): id del trabajo fallido o cancelado que se relanza. Enlaza los dos en la
+   *  misma familia para que el historial no muestre el intento fallido como otra newsletter. */
+  retryOf?: string;
+  /** El reintento parte del brief que Hermes ya escribió en el intento fallido (no se vuelve a generar). */
+  briefReused?: boolean;
 }
 
 export interface Job {
