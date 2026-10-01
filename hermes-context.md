@@ -1116,3 +1116,9 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   menú en móvil), sin desborde horizontal. `npm test` 149/149.
 - **Desplegado (con permiso del usuario):** `cb2cc1a` → Vercel (3 archivos idénticos al local) y Railway (sin cambios
   de servidor). Worker sin cambios.
+
+### 2026-10-01 — Punto 9 ("Enviarme una prueba" por correo): aparcado por el usuario
+
+- No se ha escrito código. Si se retoma, decidir antes: proveedor (propuesto Resend por HTTPS, sin dependencias;
+  alternativa SMTP con nodemailer) y a quién se permite enviar (propuesto: solo dominios del equipo, en una
+  variable de entorno). La API key la pone el usuario en Railway.
