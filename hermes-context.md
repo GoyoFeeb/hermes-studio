@@ -1101,3 +1101,16 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   REMOVED, no CRASHED: el apagado limpio funciona), Vercel (3 archivos idénticos; `/p/…` responde a través de
   Vercel) y worker reiniciado con el trabajo libre, conectado sin errores. **Pendiente:** primer uso real de la
   revisión del brief y del enlace para el cliente.
+
+### 2026-10-01 (continuación) — Interfaz 7 y 8: menú "⋯" en el historial y versiones en móvil
+
+- **Elegidos por el usuario.** Solo la web de Studio.
+- **7. Historial:** a la vista solo Ver + Descargar (o Reintentar); "Reutilizar la petición" y "Archivar"/"Recuperar
+  del archivo" pasan a un menú "⋯" (`<details>`). Uno abierto a la vez (se gestiona con el clic: con el evento
+  `toggle`, dos clics seguidos dejaban dos abiertos y uno tapaba al otro), se cierra al pulsar fuera, con Escape
+  (el foco vuelve al botón) o al elegir; sobrevive al repintado del historial. Fondo opaco; en móvil se abre hacia
+  la derecha (alineado a la derecha se salía 33 px por la izquierda a 375 px).
+- **8. Versiones:** número a la izquierda y descripción en su columna (`grid`); "esta" pasa a etiqueta. A 375 px
+  la descripción se parte alineada y la etiqueta ya no queda suelta.
+- **Verificación (copia aislada):** 800 y 375 px, clics reales (exclusividad, fuera, Escape, Archivar desde el
+  menú en móvil), sin desborde horizontal. `npm test` 149/149.

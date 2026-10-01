@@ -550,14 +550,14 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .versions { margin: -8px 0 24px; }
 .versions .eyebrow { margin-bottom: 8px; }
 .versions ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.versions li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: var(--fs-ui); }
-.versions li a { font-weight: 600; text-decoration: none; }
+.versions li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 2px 12px; font-size: var(--fs-ui); }
+.versions li a { font-weight: 600; text-decoration: none; white-space: nowrap; }
 .versions li a:hover { text-decoration: underline; }
 .versions li[aria-current] a { color: var(--text); }
-.versions li[aria-current]::before { content: '▸'; content: '▸' / ''; color: var(--accent-text); }
+.versions li[aria-current] a::before { content: '▸ '; content: '▸ ' / ''; color: var(--accent-text); }
 .versions .v-desc { color: var(--muted); overflow-wrap: anywhere; }
-.versions .v-state { font-size: var(--fs-caption); color: var(--muted); }
-.versions .v-here { color: var(--text); font-weight: 600; }
+.versions .v-state { font-size: var(--fs-caption); color: var(--muted); white-space: nowrap; }
+.versions .v-here { display: inline-block; padding: 0 8px; border-radius: var(--pill); background: var(--selected-bg); color: var(--text); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; }
 .compare { margin: 0 0 24px; padding: 20px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--field); }
 .compare .hint { margin: 0 0 12px; }
 .compare-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--fs-ui); }
@@ -839,8 +839,19 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .job-row .name:hover { color: var(--accent-text); }
 .job-row .meta { grid-column: 2; grid-row: 2; margin: 0; font-size: var(--fs-small); color: var(--muted); }
 .job-row .err { grid-column: 2 / -1; margin: 0; font-size: var(--fs-small); color: var(--error); opacity: 0.85; }
-.job-row .row-actions { grid-column: 3; grid-row: 2; display: flex; gap: 8px; justify-content: flex-end; }
+.job-row .row-actions { grid-column: 3; grid-row: 2; display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
 .job-row .row-actions .btn { padding: 4px 16px; font-size: var(--fs-small); }
+/* Menú "⋯" de la fila (2026-10-01) */
+.row-menu { position: relative; }
+.row-menu > summary { list-style: none; cursor: pointer; }
+.row-menu > summary::-webkit-details-marker { display: none; }
+.job-row .row-actions .row-menu-btn { display: flex; align-items: center; padding: 4px 12px; font-size: var(--fs-small); letter-spacing: 1px; }
+.row-menu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 220px; padding: 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--field); box-shadow: 0 12px 32px var(--shadow-strong); display: grid; gap: 2px; }
+.menu-item { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; font-size: var(--fs-small); text-align: left; cursor: pointer; }
+.menu-item small { display: block; color: var(--muted); font-size: var(--fs-caption); }
+.menu-item:hover, .menu-item:focus-visible { background: var(--surface-row-hover); }
+.job-row:has(.row-menu[open]) { position: relative; z-index: 5; }
+.job-row:has(.row-menu[open]) .row-actions { z-index: 5; }
 .job-row .mini-track { grid-column: 2 / -1; height: 4px; border-radius: var(--pill); background: var(--field); overflow: hidden; }
 .job-row .mini-track > div { height: 100%; background: linear-gradient(90deg, var(--purple), var(--pink)); }
 
@@ -888,6 +899,8 @@ body.has-sticky .foot { padding-bottom: 88px; }
   .job-row .meta { grid-column: 2 / -1; grid-row: 2; }
   .job-row .row-actions { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; flex-wrap: wrap; margin-top: 6px; }
   .job-row > .row-actions .row-view { display: none; }
+  /* En móvil los botones van a la izquierda: el menú "⋯" se abre hacia la derecha para no salirse. */
+  .row-menu-pop { right: auto; left: 0; }
   .job-row .row-actions .btn { min-height: 40px; padding: 8px 16px; }
   .job-row .mini-track, .job-row .err { grid-column: 1 / -1; }
   /* Lo que se pulsa dentro de la tarjeta queda por encima del enlace que la cubre. */

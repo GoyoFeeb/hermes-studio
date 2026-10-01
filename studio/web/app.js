@@ -724,9 +724,46 @@ function jobActions(j, { compact = false } = {}) {
     (!j.error || window.HermesFailure.explainFailure(j.error).retry) // sin la versión de partida, reintentar no sirve
       ? `<button type="button" class="btn btn-secondary" data-retry="${escapeHtml(j.id)}">Reintentar</button>`
       : '',
-    compact ? '' : `<button type="button" class="btn btn-secondary" data-reuse="${escapeHtml(j.id)}">Reutilizar</button>`,
   ].join('');
 }
+
+/** Menú "⋯" de cada fila (2026-10-01): antes, 3-4 botones iguales por fila. A la vista quedan los de uso
+ *  frecuente (Ver, Descargar o Reintentar); Reutilizar y Archivar/Recuperar van aquí. */
+let openRowMenu = null;
+function rowMenu(j, archiveBtn) {
+  const id = escapeHtml(j.id);
+  const items = [
+    `<button type="button" class="menu-item" data-reuse="${id}">Reutilizar la petición</button>`,
+    archiveBtn,
+  ].join('');
+  return `<details class="row-menu" data-menu="${id}"${openRowMenu === j.id ? ' open' : ''}>
+      <summary class="btn btn-ghost row-menu-btn" aria-label="Más acciones: ${escapeHtml(j.clientName)}" title="Más acciones">⋯</summary>
+      <div class="row-menu-pop">${items}</div>
+    </details>`;
+}
+
+function closeRowMenus(except) {
+  document.querySelectorAll('.row-menu[open]').forEach((d) => d !== except && d.removeAttribute('open'));
+  if (!except) openRowMenu = null;
+}
+// Abrir uno cierra los demás y se recuerda para el repintado del historial. Con el clic y no con el evento
+// toggle: este llega después y, con dos clics seguidos, quedaban dos menús abiertos y uno tapaba al otro.
+document.addEventListener('click', (e) => {
+  const summary = e.target.closest('.row-menu > summary');
+  if (summary) {
+    const menu = summary.parentElement;
+    closeRowMenus(menu);
+    openRowMenu = menu.open ? null : menu.dataset.menu; // el navegador lo abre o cierra justo después
+    return;
+  }
+  if (!e.target.closest('.row-menu') || e.target.closest('.menu-item')) closeRowMenus();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !openRowMenu) return;
+  const open = document.querySelector('.row-menu[open]');
+  closeRowMenus();
+  open?.querySelector('summary')?.focus();
+});
 
 function statusLabel(j) {
   const running = j.status === 'running' && j.pct != null;
@@ -788,10 +825,10 @@ function renderHistory() {
         : '';
       const busy = [j, ...others].some((x) => x.status === 'queued' || x.status === 'running' || x.status === 'review');
       const archiveBtn = j.archivedAt
-        ? `<button type="button" class="btn btn-ghost" data-unarchive="${escapeHtml(j.id)}">Recuperar</button>`
+        ? `<button type="button" class="menu-item" data-unarchive="${escapeHtml(j.id)}">Recuperar del archivo</button>`
         : busy
         ? ''
-        : `<button type="button" class="btn btn-ghost" data-archive="${escapeHtml(j.id)}" title="Sacarla del historial con todas sus versiones (no se borra)">Archivar</button>`;
+        : `<button type="button" class="menu-item" data-archive="${escapeHtml(j.id)}">Archivar<small>Con todas sus versiones; no se borra</small></button>`;
       const meta = approved + version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j)]
         .filter(Boolean)
         .map(escapeHtml)
@@ -833,7 +870,7 @@ function renderHistory() {
           <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}</a>
           <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>
           <p class="meta">${meta}</p>
-          <div class="row-actions">${jobActions(j)}${archiveBtn}</div>
+          <div class="row-actions">${jobActions(j)}${rowMenu(j, archiveBtn)}</div>
           ${running ? `<div class="mini-track" aria-hidden="true"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}
           ${j.error ? `<p class="err">${escapeHtml(window.HermesFailure.explainFailure(j.error).summary)}</p>` : ''}
           ${older}
@@ -3063,11 +3100,13 @@ function renderVersions(job, versions) {
       const desc = v.kind === 'revision' && v.changeRequest ? `«${v.changeRequest}»` : VERSION_KIND[v.kind];
       const state = v.status === 'completed' ? '' : STATUS_LABELS[v.status] || v.status;
       const here = v.id === job.id;
+      // Número a la izquierda y el resto en su columna (2026-10-01): en móvil la descripción se partía y
+      // "· esta" quedaba suelto en otra línea.
       return `<li${here ? ' aria-current="page"' : ''}>
           <a href="?job=${encodeURIComponent(v.id)}">Versión ${v.number}</a>
-          <span class="v-desc">${escapeHtml(desc)}${here ? '<span class="v-here"> · esta</span>' : ''}</span>
-          ${state ? `<span class="v-state">${escapeHtml(state)}</span>` : ''}
-          ${v.approved ? '<span class="v-approved">✓ Aprobada</span>' : ''}
+          <span class="v-body"><span class="v-desc">${escapeHtml(desc)}</span>${here ? ' <span class="v-here">esta</span>' : ''}${
+            state ? ` <span class="v-state">${escapeHtml(state)}</span>` : ''
+          }${v.approved ? ' <span class="v-approved">✓ Aprobada</span>' : ''}</span>
         </li>`;
     })
     .join('');
