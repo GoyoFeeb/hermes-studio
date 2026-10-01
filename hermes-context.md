@@ -1061,4 +1061,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Verificación:** copia aislada con Chrome del panel: 375 px sin desborde; reintento de Lacoste fallida con
   brief → versión 2 «Reintento», aviso, texto de cola correcto; claim simulado del worker → `prompt` con el
   brief, sin `briefPrompt`, `expectedSec` 1200. Test nuevo `studio/server/retry.test.js`. `npm test` 148/148.
-- **Pendiente:** desplegar (Vercel: `app.js`, `index.html`, `styles.css`; Railway: servidor). El worker no cambia.
+- **Desplegado (con permiso del usuario):** `71d8f0e` → Vercel (3 archivos idénticos al local) y Railway SUCCESS
+  15:56. El worker no cambia. Nota: el despliegue de Railway anterior (2026-09-30 12:48) figuraba como CRASHED
+  antes de este; el nuevo responde (401 sin contraseña, como debe).
