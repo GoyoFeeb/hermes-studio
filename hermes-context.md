@@ -1097,4 +1097,7 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   antiguo → encargo directo); panel en la web con edición que sobrevive al sondeo. Enlace: con contraseña activa,
   `/p/…` 200 y `/api` 401; token falso 404; visitas contadas; desactivado → "ya no está disponible"; móvil 375 px
   sin desbordes. Tests nuevos `share.test.js`; `npm test` 149/149.
-- **Pendiente:** desplegar (Vercel con `vercel.json` nuevo, Railway) y reiniciar el worker (launchd) para la pausa.
+- **Desplegado (con permiso del usuario):** `4d3a28d` → Railway SUCCESS 16:13 (el despliegue sustituido salió
+  REMOVED, no CRASHED: el apagado limpio funciona), Vercel (3 archivos idénticos; `/p/…` responde a través de
+  Vercel) y worker reiniciado con el trabajo libre, conectado sin errores. **Pendiente:** primer uso real de la
+  revisión del brief y del enlace para el cliente.
