@@ -1114,3 +1114,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   la descripción se parte alineada y la etiqueta ya no queda suelta.
 - **Verificación (copia aislada):** 800 y 375 px, clics reales (exclusividad, fuera, Escape, Archivar desde el
   menú en móvil), sin desborde horizontal. `npm test` 149/149.
+- **Desplegado (con permiso del usuario):** `cb2cc1a` → Vercel (3 archivos idénticos al local) y Railway (sin cambios
+  de servidor). Worker sin cambios.
