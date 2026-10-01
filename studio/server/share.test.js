@@ -32,3 +32,22 @@ test('enlace: caduca, rechaza tokens mal formados y la página no deja ejecutar 
   `);
   assert.deepEqual(out, [false, true, false, null, null, true, true]);
 });
+
+test('revisión del cliente: nombre y texto obligatorios, y "Pedir cambios" necesita saber qué', () => {
+  const out = run(`
+    const mm = await import(${JSON.stringify(path.join(__dirname, 'share.ts'))});
+    const { addShareComment, setShareDecision } = mm.default ?? mm;
+    const job = { id: 'x', share: { token: 't', createdAt: '', expiresAt: '2999-01-01T00:00:00Z', comments: [] } };
+    const err = (fn) => { try { fn(); return 'ok'; } catch (e) { return e.constructor.name + ': ' + e.message; } };
+    console.log(JSON.stringify([
+      err(() => addShareComment(job, { text: 'hola' })),
+      err(() => addShareComment(job, { author: 'Ana', text: '   ' })),
+      err(() => setShareDecision(job, { kind: 'otro', author: 'Ana' })),
+      err(() => setShareDecision(job, { kind: 'changes', author: 'Ana' })),
+    ]));
+  `);
+  assert.match(out[0], /^ShareInputError: Escribe tu nombre/);
+  assert.match(out[1], /^ShareInputError: El comentario está vacío/);
+  assert.match(out[2], /^ShareInputError: Decisión no válida/);
+  assert.match(out[3], /^ShareInputError: Cuenta qué hay que cambiar/);
+});

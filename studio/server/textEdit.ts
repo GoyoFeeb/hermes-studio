@@ -30,6 +30,24 @@ export interface AltEdit {
   after: string;
 }
 
+/** Destino de enlace (2026-10-01): cambia TODOS los <a> que apuntan a `before` (y su copia en el VML de Outlook). */
+export interface LinkEdit {
+  before: string;
+  after: string;
+}
+
+/** Imagen (2026-10-01): `index` entre todas las <img>; `after` es una URL https o una imagen subida (data URI),
+ *  que Studio publica en /assets antes de guardar. */
+export interface ImageEdit {
+  index: number;
+  before: string;
+  after: string;
+}
+
+/** Destinos válidos: web, correo, teléfono o una variable de la plataforma de envío ({{…}}, *|…|*, %%…%%). */
+export const LINK_RE = /^(https?:\/\/[^\s<>"']+|mailto:[^\s<>"']+|tel:[+\d][\d\s-]*|\{\{[^{}]+\}\}|\*\|[A-Z_:]+\|\*|%%[a-z_]+%%|\{%[^%]+%\})$/i;
+export const IMAGE_SRC_RE = /^(https:\/\/[^\s<>"']+|data:image\/(png|jpeg|gif|webp);base64,[a-z0-9+/=]+)$/i;
+
 export class TextEditError extends Error {}
 
 type Loc = {
@@ -165,6 +183,14 @@ function outlookCopies(doc: PNode, html: string, before: string, after: string):
   return out;
 }
 
+function anchors(root: PNode, out: PNode[] = []): PNode[] {
+  for (const c of root.childNodes || []) {
+    if (c.tagName === 'a') out.push(c);
+    anchors(c, out);
+  }
+  return out;
+}
+
 function images(root: PNode, out: PNode[] = []): PNode[] {
   for (const c of root.childNodes || []) {
     if (c.tagName === 'img') out.push(c);
@@ -196,7 +222,9 @@ export function applyTextEdits(
   html: string,
   edits: TextEdit[],
   subject?: string | null,
-  alts: AltEdit[] = []
+  alts: AltEdit[] = [],
+  links: LinkEdit[] = [],
+  imageEdits: ImageEdit[] = []
 ): { html: string; changes: { before: string; after: string }[]; outlookCopies: number } {
   const doc = parse(html, { sourceCodeLocationInfo: true }) as unknown as PNode;
   const body = find(doc, 'body');
@@ -239,6 +267,51 @@ export function applyTextEdits(
         replacements.push({ start: at, end: at, text: ` alt="${escapeAttr(clean)}"` });
       }
       changes.push({ before: `Texto alternativo de la imagen ${alt.index + 1}: ${normalizeText(current?.value ?? '') || '(sin texto)'}`, after: `Texto alternativo de la imagen ${alt.index + 1}: ${clean || '(vacío: imagen decorativa)'}` });
+    }
+  }
+
+  for (const link of links) {
+    const after = link.after.trim();
+    if (!LINK_RE.test(after)) throw new TextEditError(`«${after.slice(0, 80)}» no es un destino válido: usa una dirección que empiece por https://.`);
+    const before = decodeBasic(link.before.trim());
+    let found = 0;
+    for (const a of anchors(doc)) {
+      const href = a.attrs?.find((x) => x.name === 'href');
+      const loc = a.sourceCodeLocation?.attrs?.href;
+      if (!href || !loc || href.value.trim() !== before) continue;
+      replacements.push({ start: loc.startOffset, end: loc.endOffset, text: `href="${escapeAttr(after)}"` });
+      found++;
+    }
+    if (!found) throw new TextEditError(`El enlace ${link.before.slice(0, 80)} ya no está en la pieza: recarga la página y vuelve a editar.`);
+    // Botones de Outlook (VML): <v:roundrect href="…"> dentro de <!--[if mso]>, con el mismo destino.
+    for (const c of comments(doc)) {
+      const cl = c.sourceCodeLocation;
+      if (!cl || !/^\[if[^\]]*mso/i.test(c.data || '')) continue;
+      const raw = html.slice(cl.startOffset, cl.endOffset);
+      for (const m of raw.matchAll(/\bhref\s*=\s*"([^"]*)"/gi)) {
+        if (decodeBasic(m[1]).trim() !== before) continue;
+        const start = cl.startOffset + (m.index ?? 0);
+        replacements.push({ start, end: start + m[0].length, text: `href="${escapeAttr(after)}"` });
+        outlook++;
+      }
+    }
+    changes.push({ before: `Enlace (${found}): ${before}`, after: `Enlace (${found}): ${after}` });
+  }
+
+  if (imageEdits.length) {
+    const imgs = images(doc);
+    for (const edit of imageEdits) {
+      const img = imgs[edit.index];
+      const src = img?.attrs?.find((a) => a.name === 'src');
+      const loc = img?.sourceCodeLocation?.attrs?.src;
+      if (!img || !src || !loc) throw new TextEditError('La pieza no coincide con la vista previa (¿ha cambiado mientras editabas?).');
+      if (src.value.trim() !== decodeBasic(edit.before.trim())) {
+        throw new TextEditError(`La imagen ${edit.index + 1} no coincide con la de la pieza: recarga la página y vuelve a editar.`);
+      }
+      const after = edit.after.trim();
+      if (!IMAGE_SRC_RE.test(after)) throw new TextEditError(`La imagen ${edit.index + 1} necesita una dirección https:// o un archivo PNG, JPG, GIF o WebP.`);
+      replacements.push({ start: loc.startOffset, end: loc.endOffset, text: `src="${after.startsWith('data:') ? after : escapeAttr(after)}"` });
+      changes.push({ before: `Imagen ${edit.index + 1}: ${src.value}`, after: `Imagen ${edit.index + 1}: ${after.startsWith('data:') ? '(archivo subido en Studio)' : after}` });
     }
   }
 

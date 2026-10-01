@@ -183,6 +183,17 @@
       <div class="job-head">
         <div>
           <h2 id="job-title" tabindex="-1"></h2>
+          <!-- Nombre de la newsletter (2026-10-01): el del equipo o, si no hay, el asunto. Es de la familia entera. -->
+          <p class="job-name" id="job-name-row" hidden>
+            <span id="job-name-text"></span>
+            <button type="button" id="rename-btn" class="link-btn">Renombrar</button>
+          </p>
+          <form class="rename-form" id="rename-form" hidden>
+            <label for="rename-input" class="sr-only">Nombre de la newsletter</label>
+            <input type="text" id="rename-input" maxlength="120" placeholder="Ej.: Pegasus 42 · lanzamiento octubre" />
+            <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+            <button type="button" id="rename-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
+          </form>
           <p id="job-meta" class="hint"></p>
           <p id="job-change" class="change-request" hidden></p>
           <!-- Lo que se pidió, visible también mientras trabaja o si falla (2026-09-30): antes solo se veía con «Reutilizar». -->
@@ -288,8 +299,9 @@
               <div class="share-block" id="share-block">
                 <p class="share-title">Enseñarla al cliente</p>
                 <div id="share-empty">
+                  <button type="button" id="share-move" class="btn btn-secondary btn-sm" hidden>Pasar el enlace del cliente a esta versión</button>
                   <button type="button" id="share-create" class="btn btn-ghost btn-sm">Crear enlace de vista previa</button>
-                  <p class="hint">Sin contraseña, solo esta versión y solo para verla. Caduca a los 14 días.</p>
+                  <p class="hint" id="share-empty-hint">Sin contraseña, solo esta versión. El cliente puede comentar sobre la pieza y aprobarla o pedir cambios. Caduca a los 14 días.</p>
                 </div>
                 <div id="share-active" hidden>
                   <div class="share-url-row">
@@ -363,7 +375,7 @@
         </form>
         <form id="textedit-box" class="revise-box textedit-box" hidden>
           <p class="label">Editar el texto</p>
-          <p class="hint">Haz clic en cualquier texto de la vista previa y escribe encima; en una imagen, para cambiar su texto alternativo. Solo cambia el texto: diseño, imágenes y enlaces se quedan igual. Se guarda como versión nueva al momento, sin Hermes, y pasa la revisión automática.</p>
+          <p class="hint">Haz clic en cualquier texto de la vista previa y escribe encima; en una imagen, para cambiarla o cambiar su texto alternativo. Abajo, los destinos de los enlaces. El diseño se queda igual. Se guarda como versión nueva al momento, sin Hermes, y pasa la revisión automática (los enlaces e imágenes nuevos se comprueban al guardar).</p>
           <label>
             <span class="label">Asunto</span>
             <input type="text" id="te-subject" maxlength="300" />
@@ -372,6 +384,11 @@
             <span class="label">Preheader</span>
             <input type="text" id="te-preheader" maxlength="300" />
           </label>
+          <details class="te-links" id="te-links">
+            <summary>Destinos de los enlaces <span class="hint" id="te-links-count"></span></summary>
+            <p class="hint">Cambiar uno cambia todos los enlaces de la pieza que van a ese mismo sitio (también el botón de Outlook).</p>
+            <ol id="te-links-list"></ol>
+          </details>
           <p id="te-status" class="hint te-status" aria-live="polite"></p>
           <p id="te-error" class="form-error" role="alert" hidden></p>
           <div class="actions">
@@ -387,6 +404,7 @@
           <button type="button" role="tab" class="job-tab" id="tab-review" data-tab="review" aria-controls="panel-review" aria-selected="false" tabindex="-1">Revisión <span class="tab-badge" id="tab-review-badge"></span></button>
           <button type="button" role="tab" class="job-tab" id="tab-compare" data-tab="compare" aria-controls="panel-compare" aria-selected="false" tabindex="-1" hidden><span class="lbl-long">Qué ha cambiado</span><span class="lbl-short">Cambios</span></button>
           <button type="button" role="tab" class="job-tab" id="tab-meta" data-tab="meta" aria-controls="panel-meta" aria-selected="false" tabindex="-1" hidden><span class="lbl-long">Asunto y bandeja</span><span class="lbl-short">Asunto</span></button>
+          <button type="button" role="tab" class="job-tab" id="tab-client" data-tab="client" aria-controls="panel-client" aria-selected="false" tabindex="-1" hidden>Cliente <span class="tab-badge" id="tab-client-badge"></span></button>
         </div>
         <div class="job-panel" role="tabpanel" id="panel-preview" aria-labelledby="tab-preview">
           <div class="preview-head">
@@ -518,6 +536,20 @@
             </div>
           </details>
         </div>
+        <!-- Revisión del cliente (2026-10-01): lo que el cliente comenta y decide en su enlace (share.ts). -->
+        <div class="job-panel" role="tabpanel" id="panel-client" aria-labelledby="tab-client" hidden>
+          <p id="client-decision" class="client-decision" hidden></p>
+          <p class="hint" id="client-empty">El cliente aún no ha comentado ni decidido. Lo que haga en su enlace aparece aquí y en el registro.</p>
+          <ol class="client-comments" id="client-comments"></ol>
+          <div class="actions" id="client-actions" hidden>
+            <button type="button" id="client-to-hermes" class="btn btn-secondary btn-sm">Pasar los comentarios a Hermes</button>
+            <p class="hint">Abre «Pedir cambios» con los comentarios sin resolver y lo que señaló el cliente. Puedes retocarlo antes de enviarlo.</p>
+          </div>
+          <details class="client-older" id="client-older" hidden>
+            <summary id="client-older-summary"></summary>
+            <ol class="client-comments" id="client-older-list"></ol>
+          </details>
+        </div>
       </div>
 
       <!-- Fallo explicado para el equipo (2026-09-30, ver failure.js); el error original queda en «Detalle técnico». -->
@@ -596,6 +628,15 @@
     <label for="alt-pop-input" class="label" id="alt-pop-title">Texto alternativo · imagen <span id="alt-pop-n"></span></label>
     <input type="text" id="alt-pop-input" maxlength="300" placeholder="Describe la imagen (vacío si es decorativa)" />
     <p class="hint">Lo leen los lectores de pantalla y se ve cuando el correo bloquea las imágenes.</p>
+    <!-- Cambiar la imagen (2026-10-01): por dirección https o subiendo un archivo (se publica al guardar). -->
+    <label for="img-pop-url" class="label">Imagen</label>
+    <input type="url" id="img-pop-url" maxlength="2000" placeholder="https://… (dirección de la imagen nueva)" />
+    <div class="img-pop-upload">
+      <label class="btn btn-ghost btn-sm" for="img-pop-file">Subir archivo</label>
+      <input type="file" id="img-pop-file" accept="image/png,image/jpeg,image/gif,image/webp" hidden />
+      <span class="hint" id="img-pop-note">Mejor con la misma proporción que la actual: el ancho se mantiene.</span>
+    </div>
+    <p class="form-error" id="img-pop-error" role="alert" hidden></p>
     <div class="alt-pop-actions">
       <button type="button" id="alt-pop-ok" class="btn btn-primary btn-sm">Aplicar</button>
       <button type="button" id="alt-pop-cancel" class="btn btn-ghost btn-sm">Cancelar</button>

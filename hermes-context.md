@@ -1122,3 +1122,42 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - No se ha escrito código. Si se retoma, decidir antes: proveedor (propuesto Resend por HTTPS, sin dependencias;
   alternativa SMTP con nodemailer) y a quién se permite enviar (propuesto: solo dominios del equipo, en una
   variable de entorno). La API key la pone el usuario en Railway.
+
+### 2026-10-01 — Comparativa con Migma (y Knak para aprobaciones): solo análisis
+
+- Referente elegido: **Migma** (IA de instrucción/web → email completo de marca, chat + editor visual, Email
+  Preflight por cliente, exportación a ESPs); **Knak** como referente de revisión/aprobación. Análisis con páginas y
+  documentación públicas (sin cuenta). Nada cambiado en el código.
+- Huecos propuestos por prioridad: (1) revisión del cliente en el enlace `/p/` con comentarios anclados y
+  Aprobar / Pedir cambios que alimente "Pedir cambios"; (2) editar enlaces e imágenes sin Hermes (ampliar "Editar
+  texto"); (3) nombre/asunto de cada newsletter en el historial y renombrar; (4) ficha de marca visible en Studio
+  (solo lectura: editarla saltaría al agente 02); (5) preflight presentado por cliente (Outlook/Gmail/Apple
+  Mail/móvil) con enlace compartible; (6) aviso a Slack; (7) variantes, asuntos alternativos, "usar como referencia",
+  selección por área. Pendiente de que el usuario elija.
+
+### 2026-10-01 (continuación) — Comparativa Migma/Knak: puntos 1, 2 y 3
+
+- **Elegidos por el usuario.** Studio (web y servidor); worker, motor y agentes 00-09 sin tocar.
+- **1. Revisión del cliente en su enlace** (`share.ts`): la página `/p/<token>` permite comentar señalando en la
+  pieza (mismo `pick.js` que Studio, incrustado porque en Railway la web está tras la contraseña) o en general, y
+  "Aprobar" / "Pedir cambios" (este exige un comentario o una nota). Rutas públicas `POST /p/:token/comments` y
+  `/decision` con límite por IP (40/10 min), máximo 100 comentarios y textos acotados; CSP con `connect-src 'self'`;
+  estado en JSON sin `<` literal. En Studio, pestaña "Cliente" (decisión, comentarios con "Ver" en la pieza y
+  "Resuelto", refresco cada minuto) y "Pasar los comentarios a Hermes" → abre "Pedir cambios" con las referencias
+  y marca lo señalado. "Pasar el enlace del cliente a esta versión" (`/share/move-here`): misma URL, comentarios
+  conservados (por versión), decisión borrada. El historial muestra "Cliente: aprobada / pide cambios / N comentarios".
+  Todo queda en el registro de Hermes del trabajo. En móvil, acceso "Aprobar o comentar ↓".
+- **2. Enlaces e imágenes sin Hermes** (`textEdit.ts`, "Editar texto"): lista de destinos (uno por URL distinta,
+  marca los rotos según la revisión) que cambia todos los `<a>` con ese destino y el `href` del VML de Outlook;
+  imagen nueva por URL https o archivo PNG/JPG/GIF/WebP ≤ 3 MB, que se publica en `/assets` al guardar. Si cambian
+  enlaces o imágenes, la ruta ejecuta `runQualityCheck` antes de responder (unos segundos). Parser JSON propio de
+  12 MB solo para `/text-edit`. Ruta asíncrona con errores capturados (Express 4).
+- **3. Nombre de cada newsletter:** el historial (lista y galería) muestra el nombre del equipo o, si no hay, el asunto
+  (`cachedSubject`, en caché por ruta); el buscador lo incluye. "Renombrar" en la página del trabajo
+  (`/api/jobs/:id/rename`, guardado en la versión raíz: vale para toda la familia).
+- **Verificación (copia aislada, Chrome del panel):** nombres en el historial y renombrar; cambio de enlace y de imagen
+  por URL → versión 3 con enlaces/imágenes comprobados de verdad; imagen subida → `/assets/...png` 200 y sin `data:`
+  en el HTML; cliente: señalar imagen + comentario + "Pedir cambios" con nota, pestaña Cliente, pasar a Hermes, pasar
+  el enlace a la v3 (misma URL, imagen nueva, comentario plegado), aprobar; validaciones (sin nombre, vacío, cambios
+  sin nada, token falso 404, `<script>` como texto); 375 px. Tests nuevos `textEditLinks.test.js` y ampliado
+  `share.test.js`; `npm test` 152/152.

@@ -32,6 +32,9 @@ import {
   queueInfo,
   queueWait,
   versionFamily,
+  familyJobs,
+  cachedSubject,
+  renameFamily,
   typicalDurations,
   typicalSeconds,
   durationSec,
@@ -51,8 +54,24 @@ import {
   saveWorkerBrands,
   readWorkerBrands,
 } from './standalone';
-import { TextEditError, type TextEdit, type AltEdit } from './textEdit';
-import { SHARE_DAYS, createShare, findSharedJob, isShareActive, recordShareView, renderShareGone, renderSharePage, revokeShare, shareHeaders } from './share';
+import { TextEditError, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
+import { runQualityCheck } from '../worker/qualityCheck';
+import {
+  SHARE_DAYS,
+  ShareInputError,
+  addShareComment,
+  createShare,
+  findSharedJob,
+  isShareActive,
+  moveShare,
+  recordShareView,
+  renderShareGone,
+  renderSharePage,
+  resolveShareComment,
+  revokeShare,
+  setShareDecision,
+  shareHeaders,
+} from './share';
 
 loadEnv(ROOT);
 loadEnv(STUDIO_DIR);
@@ -95,8 +114,9 @@ const TRUST_PROXY_HOPS = Number(process.env.TRUST_PROXY_HOPS || 1);
 app.set('trust proxy', Number.isInteger(TRUST_PROXY_HOPS) && TRUST_PROXY_HOPS >= 0 ? TRUST_PROXY_HOPS : 1);
 // Las rutas del worker llevan su propio parser (la newsletter llega con las imágenes en base64).
 const jsonSmall = express.json({ limit: '2mb' });
+// "Editar" con imagen subida (2026-10-01) también lleva su propio parser, más grande.
 app.use((req: Request, res: Response, next: NextFunction) =>
-  req.path.startsWith('/api/worker/') ? next() : jsonSmall(req, res, next)
+  req.path.startsWith('/api/worker/') || /^\/api\/jobs\/[^/]+\/text-edit$/.test(req.path) ? next() : jsonSmall(req, res, next)
 );
 
 // Límite de intentos de contraseña (auditoría 2026-09-23, BUG-H09): antes la única barrera de
@@ -144,6 +164,48 @@ app.get('/p/:token', (req: Request, res: Response) => {
   }
   recordShareView(job);
   res.type('html').send(page);
+});
+
+// Revisión del cliente (2026-10-01): comentarios y "Aprobar" / "Pedir cambios" desde el enlace, sin contraseña.
+// Solo con un enlace activo, con límite por IP y con todo acotado (ver addShareComment / setShareDecision).
+const shareWriteLimit = createRateLimiter({
+  windowMs: 10 * 60 * 1000,
+  max: 40,
+  keyPrefix: 'share-write',
+  message: 'Demasiados comentarios seguidos. Espera unos minutos.',
+});
+function sharedJobOr404(req: Request, res: Response): Job | null {
+  const job = findSharedJob(String(req.params.token));
+  if (!job) res.status(404).json({ error: 'Este enlace ya no está disponible.' });
+  return job;
+}
+app.post('/p/:token/comments', shareWriteLimit.middleware, (req: Request, res: Response) => {
+  const job = sharedJobOr404(req, res);
+  if (!job) return;
+  try {
+    const c = addShareComment(job, req.body || {});
+    hermesLog(job.id, `Comentario del cliente (${c.author})${c.ref ? ` ${c.ref}` : ''}: «${c.text.slice(0, 300)}»`);
+    res.status(201).json({ comment: { id: c.id, current: true, author: c.author, text: c.text, ref: c.ref || null, path: c.path || null, at: c.at, resolved: false } });
+  } catch (err) {
+    if (err instanceof ShareInputError) return void res.status(400).json({ error: err.message });
+    throw err;
+  }
+});
+app.post('/p/:token/decision', shareWriteLimit.middleware, (req: Request, res: Response) => {
+  const job = sharedJobOr404(req, res);
+  if (!job) return;
+  try {
+    const d = setShareDecision(job, req.body || {});
+    hermesLog(
+      job.id,
+      d.kind === 'approved' ? `El cliente (${d.author}) ha APROBADO esta versión.${d.note ? ` Nota: «${d.note.slice(0, 300)}»` : ''}` : `El cliente (${d.author}) pide cambios.${d.note ? ` «${d.note.slice(0, 300)}»` : ''}`,
+      d.kind === 'approved' ? 'success' : 'info'
+    );
+    res.json({ decision: d });
+  } catch (err) {
+    if (err instanceof ShareInputError) return void res.status(400).json({ error: err.message });
+    throw err;
+  }
 });
 
 // --- Worker de Hermes (2026-09-24) -------------------------------------------------------
@@ -505,6 +567,15 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       revisionOf: j.input.revisionOf || null,
       textEditOf: j.input.textEditOf || null,
       retryOf: j.input.retryOf || null,
+      title: j.title || null,
+      subject: cachedSubject(j),
+      // Revisión del cliente (2026-10-01): comentarios sin resolver y su decisión sobre esta versión.
+      client: isShareActive(j.share)
+        ? {
+            open: (j.share.comments || []).filter((c) => c.jobId === j.id && !c.resolvedAt).length,
+            decision: j.share.decision?.jobId === j.id ? j.share.decision.kind : null,
+          }
+        : null,
       durationSec: durationSec(j),
       hasThumb: !!j.thumbRelPath,
       pct: j.progress?.pct ?? null,
@@ -531,6 +602,7 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
     meta: resultMeta(job),
     queue: queueInfo(job),
     versions: versionFamily(job),
+    familyTitle: getJob(versionFamily(job)[0]?.id || job.id)?.title || null,
     retriedBy: retriedBy(job),
     hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000,
   });
@@ -625,7 +697,9 @@ app.post('/api/jobs/:id/revise', createJobRateLimit.middleware, (req: Request, r
 });
 
 // "Editar texto": versión nueva al momento, sin Hermes (ver createTextEditVersion y textEdit.ts).
-app.post('/api/jobs/:id/text-edit', createJobRateLimit.middleware, (req: Request, res: Response) => {
+/** Imagen subida: hasta ~3 MB de archivo (en base64 ocupa 4/3). Más pesada no tiene sentido en un email. */
+const MAX_IMAGE_DATA_URI = 4 * 1024 * 1024;
+app.post('/api/jobs/:id/text-edit', createJobRateLimit.middleware, express.json({ limit: '12mb' }), async (req: Request, res: Response) => {
   const source = getJob(req.params.id);
   if (!source || source.input.mode !== 'standalone' || source.status !== 'completed' || !readResultHtml(source)) {
     res.status(404).json({ error: 'Solo se puede editar el texto de una newsletter terminada.' });
@@ -645,21 +719,48 @@ app.post('/api/jobs/:id/text-edit', createJobRateLimit.middleware, (req: Request
     if (!a || !isInt(a.index) || typeof a.before !== 'string' || typeof a.after !== 'string' || a.after.length > 500 || a.before.length > 2000) continue;
     alts.push({ index: a.index, before: a.before, after: a.after });
   }
-  if (edits.length !== raw.length || alts.length !== rawAlts.length) {
+  const rawLinks = Array.isArray(req.body?.links) ? req.body.links : [];
+  const links: LinkEdit[] = [];
+  for (const l of rawLinks.slice(0, 100)) {
+    if (!l || typeof l.before !== 'string' || typeof l.after !== 'string' || l.before.length > 2000 || l.after.length > 2000) continue;
+    links.push({ before: l.before, after: l.after });
+  }
+  const rawImages = Array.isArray(req.body?.images) ? req.body.images : [];
+  const imageEdits: ImageEdit[] = [];
+  for (const im of rawImages.slice(0, 50)) {
+    if (!im || !isInt(im.index) || typeof im.before !== 'string' || typeof im.after !== 'string' || im.before.length > 4000) continue;
+    if (im.after.length > MAX_IMAGE_DATA_URI) {
+      res.status(413).json({ error: `La imagen ${im.index + 1} pesa demasiado: usa una de menos de 3 MB (en un email, mejor de menos de 500 KB).` });
+      return;
+    }
+    imageEdits.push({ index: im.index, before: im.before, after: im.after });
+  }
+  if (edits.length !== raw.length || alts.length !== rawAlts.length || links.length !== rawLinks.length || imageEdits.length !== rawImages.length) {
     res.status(400).json({ error: 'Cambios no válidos.' });
     return;
   }
   const subject = typeof req.body?.subject === 'string' ? req.body.subject.slice(0, 300) : null;
   const requester = typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : undefined;
   try {
-    const job = createTextEditVersion(source, edits, subject, requester, alts);
+    const job = createTextEditVersion(source, edits, subject, requester, alts, links, imageEdits);
+    // Enlaces o imágenes nuevos: se comprueban de verdad (404, dominio inexistente…) antes de responder; la
+    // comprobación de la versión anterior ya no vale para ellos. Unos segundos.
+    if (links.length || imageEdits.length) {
+      const html = readResultHtml(job) || '';
+      const mobile = source.quality?.checks.find((c) => c.id === 'mobile');
+      const quality = await runQualityCheck(html, { mobileProblem: mobile ? (mobile.status === 'error' ? mobile.details[0] || 'Desborda a 375 px' : null) : undefined });
+      updateJob(job.id, { quality });
+      hermesLog(job.id, `Revisión automática de los enlaces e imágenes nuevos: ${quality.errors} error(es), ${quality.warnings} aviso(s).`, quality.errors ? 'error' : 'success');
+    }
     res.status(201).json({ id: job.id });
   } catch (err) {
     if (err instanceof TextEditError || err instanceof TextEditNoChanges) {
       res.status(err instanceof TextEditNoChanges ? 400 : 409).json({ error: err.message });
       return;
     }
-    throw err;
+    // Ruta asíncrona en Express 4: un error sin capturar no llegaría al manejador de errores.
+    console.error('text-edit', err);
+    if (!res.headersSent) res.status(500).json({ error: 'No se pudo guardar la versión nueva.' });
   }
 });
 
@@ -718,6 +819,50 @@ app.post('/api/jobs/:id/share', (req: Request, res: Response) => {
   const share = createShare(job, by);
   if (!existed) hermesLog(job.id, `Enlace de vista previa para el cliente creado${by ? ` por ${by}` : ''} (caduca en ${SHARE_DAYS} días).`);
   res.status(existed ? 200 : 201).json({ share });
+});
+
+// Renombrar la newsletter (2026-10-01): el nombre es de la familia entera (vive en la versión raíz).
+app.post('/api/jobs/:id/rename', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone' || typeof req.body?.title !== 'string') {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  const root = renameFamily(job, req.body.title);
+  res.json({ title: root.title || null, rootId: root.id });
+});
+
+// Marcar un comentario del cliente como resuelto (o reabrirlo).
+app.post('/api/jobs/:id/share/comments/:cid/resolve', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  const cid = String(req.params.cid);
+  if (!job || !/^[A-Za-z0-9_-]{1,20}$/.test(cid) || !resolveShareComment(job, cid, req.body?.resolved !== false, typeof req.body?.by === 'string' ? req.body.by.slice(0, 80) : undefined)) {
+    res.status(404).json({ error: 'Comentario no encontrado.' });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+// Pasar el enlace del cliente a esta versión (2026-10-01): misma URL para el cliente, ahora con la pieza nueva.
+app.post('/api/jobs/:id/share/move-here', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone' || job.status !== 'completed' || !readResultHtml(job)) {
+    res.status(404).json({ error: 'Solo se puede compartir una newsletter terminada.' });
+    return;
+  }
+  if (isShareActive(job.share)) {
+    res.status(409).json({ error: 'Esta versión ya tiene su enlace.' });
+    return;
+  }
+  const from = familyJobs(job).find((j) => j.id !== job.id && isShareActive(j.share));
+  if (!from) {
+    res.status(404).json({ error: 'Ninguna otra versión de esta newsletter tiene un enlace activo.' });
+    return;
+  }
+  const share = moveShare(from, job);
+  hermesLog(job.id, `Enlace del cliente pasado a esta versión (antes en ${from.id}): la misma URL muestra ahora esta pieza.`);
+  hermesLog(from.id, `Enlace del cliente pasado a la versión ${job.id}.`);
+  res.json({ share });
 });
 
 app.delete('/api/jobs/:id/share', (req: Request, res: Response) => {

@@ -611,6 +611,7 @@ async function loadHistory() {
     const res = await apiFetch('/api/jobs');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { jobs } = await res.json();
+    assignFamilyTitles(jobs);
     historyState.jobs = jobs;
     // Nombres de marca tal como los escribe el equipo ("El Corte Inglés", no "El Corte Ingles"), solo
     // si llevan a su carpeta: si no, la sugerencia no reconocería la marca.
@@ -660,10 +661,28 @@ function filteredJobs() {
     if (historyState.status === 'approved' && !j.approvedAt) return false;
     // Archivadas (2026-09-28): fuera del historial salvo con el chip "Archivadas".
     if (!!j.archivedAt !== historyState.archived) return false;
-    if (q && !normalize(`${j.clientName} ${j.requesterName || ''}`).includes(q)) return false;
+    if (q && !normalize(`${j.clientName} ${j.requesterName || ''} ${j.familyTitle || ''}`).includes(q)) return false;
     if (historyState.mine && normalize(j.requesterName || '') !== normalize(savedRequester())) return false;
     return true;
   });
+}
+
+/** Nombre de cada newsletter (2026-10-01): el que le puso el equipo (en la versión raíz) o, si no, el asunto de
+ *  su versión terminada más reciente. Antes cada fila decía solo la marca y varias de Nike no se distinguían. */
+function assignFamilyTitles(jobs) {
+  const info = familyInfo(jobs);
+  const byRoot = new Map();
+  for (const j of jobs) {
+    const root = info.get(j.id).root;
+    if (!byRoot.has(root)) byRoot.set(root, []);
+    byRoot.get(root).push(j);
+  }
+  for (const [root, members] of byRoot) {
+    const rootJob = members.find((m) => m.id === root);
+    const latest = members.filter((m) => m.subject).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    const title = rootJob?.title || latest?.subject || null;
+    for (const m of members) m.familyTitle = title;
+  }
 }
 
 /** Familias de versiones (2026-09-28): cada "Pedir cambios" o "Adaptar a móvil" cuelga de la newsletter
@@ -701,6 +720,14 @@ const openFamilies = new Set();
 
 function jobKindLabel(j) {
   return j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.textEditOf ? 'Texto editado' : j.retryOf ? 'Reintento' : j.fromInstruction ? 'Desde instrucción' : null;
+}
+
+/** Lo que ha hecho el cliente en su enlace (2026-10-01), para la fila del historial. */
+function clientLabel(j) {
+  if (!j.client) return null;
+  if (j.client.decision === 'approved') return 'Cliente: aprobada';
+  if (j.client.decision === 'changes') return 'Cliente: pide cambios';
+  return j.client.open ? `Cliente: ${j.client.open} comentario${j.client.open === 1 ? '' : 's'}` : null;
 }
 
 /** "tardó 9 min" (de que Hermes lo recoge a que termina); los retoques de texto son al momento. */
@@ -829,7 +856,7 @@ function renderHistory() {
         : busy
         ? ''
         : `<button type="button" class="menu-item" data-archive="${escapeHtml(j.id)}">Archivar<small>Con todas sus versiones; no se borra</small></button>`;
-      const meta = approved + version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j)]
+      const meta = approved + version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j), clientLabel(j)]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
@@ -867,7 +894,7 @@ function renderHistory() {
         : '';
       return `<li class="job-row">
           ${thumb}
-          <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}</a>
+          <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}${j.familyTitle ? `<span class="row-title">${escapeHtml(j.familyTitle)}</span>` : ''}</a>
           <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>
           <p class="meta">${meta}</p>
           <div class="row-actions">${jobActions(j)}${rowMenu(j, archiveBtn)}</div>
@@ -908,7 +935,7 @@ function renderGallery(groups, info) {
       const status = j.status === 'completed' ? '' : `<span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>`;
       return `<li><a class="g-card" href="?job=${id}" title="${escapeHtml(`${j.clientName} · ${new Date(j.createdAt).toLocaleString('es-ES')}`)}">
           ${thumb}
-          <span class="g-name">${escapeHtml(j.clientName)}</span>
+          <span class="g-name">${escapeHtml(j.clientName)}</span>${j.familyTitle ? `<span class="g-title">${escapeHtml(j.familyTitle)}</span>` : ''}
           <span class="g-meta">${escapeHtml(bits.join(' · '))}</span>
           ${approved ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (v${info.get(approved.id).number})` : ''}</span>` : ''}
           ${status}
@@ -1074,7 +1101,7 @@ function unsavedWork() {
   if (viewJob.hidden) return null;
   if (te.active) {
     const { edits } = teEdits();
-    if ((edits || []).length || te.alts.size) return 'textos editados sin guardar';
+    if ((edits || []).length || te.alts.size || te.links.size || te.images.size) return 'cambios sin guardar en la pieza';
   }
   if (!reviseBox.hidden && document.getElementById('revise-input').value.trim()) return 'una petición de cambios sin enviar';
   return null;
@@ -1184,10 +1211,19 @@ document.getElementById('copy-link-btn').addEventListener('click', () => {
 
 /** Enlace público de solo lectura de esta versión (studio/server/share.ts). Se arma con el origen de esta
  *  página: en Vercel, /p/* se reescribe a Railway igual que /api y /assets. */
-function renderShare(share) {
+let shareVersions = [];
+function renderShare(share, versions = shareVersions) {
+  shareVersions = versions;
   const active = !!share && Date.parse(share.expiresAt) > Date.now();
   document.getElementById('share-empty').hidden = active;
   document.getElementById('share-active').hidden = !active;
+  renderClientReview(share);
+  // El cliente ya tiene un enlace de otra versión de esta newsletter: se le puede pasar a esta (misma URL).
+  const elsewhere = !active && versions.some((v) => v.shared && v.id !== currentJob);
+  document.getElementById('share-move').hidden = !elsewhere;
+  document.getElementById('share-empty-hint').textContent = elsewhere
+    ? 'El cliente tiene el enlace de otra versión. Pásalo a esta y verá la pieza nueva con la misma dirección (sus comentarios se conservan), o crea otro enlace.'
+    : 'Sin contraseña, solo esta versión. El cliente puede comentar sobre la pieza y aprobarla o pedir cambios. Caduca a los 14 días.';
   if (!active) return;
   document.getElementById('share-url').value = `${location.origin}/p/${share.token}`;
   const until = new Date(share.expiresAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
@@ -1220,6 +1256,204 @@ async function shareRequest(method) {
   }
 }
 document.getElementById('share-create').addEventListener('click', () => shareRequest('POST'));
+document.getElementById('share-move').addEventListener('click', async (e) => {
+  if (!currentJob) return;
+  const id = currentJob;
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/share/move-here`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(data.error || 'No se pudo pasar el enlace.', 'error');
+    if (id !== currentJob) return;
+    shareVersions = shareVersions.map((v) => ({ ...v, shared: v.id === id }));
+    renderShare(data.share);
+    showToast('Enlace pasado a esta versión: el cliente ve la pieza nueva con la misma dirección.');
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------------------------------------------------------------- nombre de la newsletter (2026-10-01)
+
+let jobFamilyTitle = null;
+function renderJobName(familyTitle, meta) {
+  jobFamilyTitle = familyTitle || null;
+  if (!document.getElementById('rename-form').hidden) return; // no pisar lo que se está escribiendo
+  const shown = jobFamilyTitle || meta?.subject || '';
+  document.getElementById('job-name-row').hidden = false;
+  const text = document.getElementById('job-name-text');
+  text.textContent = shown;
+  text.title = jobFamilyTitle ? 'Nombre puesto por el equipo' : shown ? 'Asunto del correo (aún sin nombre propio)' : '';
+  document.getElementById('rename-btn').textContent = shown ? 'Renombrar' : 'Ponerle nombre';
+}
+function closeRename() {
+  document.getElementById('rename-form').hidden = true;
+  document.getElementById('job-name-row').hidden = false;
+}
+document.getElementById('rename-btn').addEventListener('click', () => {
+  document.getElementById('job-name-row').hidden = true;
+  const form = document.getElementById('rename-form');
+  form.hidden = false;
+  const input = document.getElementById('rename-input');
+  input.value = jobFamilyTitle || document.getElementById('job-name-text').textContent;
+  input.focus();
+  input.select();
+});
+document.getElementById('rename-cancel').addEventListener('click', closeRename);
+document.getElementById('rename-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeRename();
+});
+document.getElementById('rename-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentJob) return;
+  const title = document.getElementById('rename-input').value;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/rename`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(data.error || 'No se pudo renombrar.', 'error');
+    closeRename();
+    renderJobName(data.title, currentMeta);
+    showToast(data.title ? 'Nombre guardado para todas sus versiones.' : 'Nombre quitado: se muestra el asunto.');
+    loadHistory();
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
+  }
+});
+
+// ---------------------------------------------------------------- revisión del cliente (2026-10-01)
+
+let clientShare = null;
+let clientPollTimer = null;
+
+function clientCommentItem(c, current) {
+  const when = new Date(c.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return `<li class="${c.resolvedAt ? 'is-resolved' : ''}" data-comment="${escapeHtml(c.id)}">
+      <div class="c-head"><span><strong>${escapeHtml(c.author)}</strong> · ${escapeHtml(when)}${c.resolvedAt ? ` · resuelto${c.resolvedBy ? ` por ${escapeHtml(c.resolvedBy)}` : ''}` : ''}</span>
+        <span class="c-actions">${current && c.path ? '<button type="button" class="link-btn" data-client-see>Ver</button>' : ''}${
+          current ? `<button type="button" class="link-btn" data-client-resolve="${c.resolvedAt ? '0' : '1'}">${c.resolvedAt ? 'Reabrir' : 'Resuelto'}</button>` : ''
+        }</span></div>
+      ${c.ref ? `<span class="c-ref">${escapeHtml(c.ref)}</span>` : ''}
+      <p class="c-text">${escapeHtml(c.text)}</p>
+    </li>`;
+}
+
+function renderClientReview(share) {
+  clientShare = share && Date.parse(share.expiresAt) > Date.now() ? share : null;
+  const comments = clientShare?.comments || [];
+  const current = comments.filter((c) => c.jobId === currentJob);
+  const older = comments.filter((c) => c.jobId !== currentJob);
+  const decision = clientShare?.decision?.jobId === currentJob ? clientShare.decision : null;
+  const open = current.filter((c) => !c.resolvedAt).length;
+  document.getElementById('tab-client').hidden = !clientShare;
+  if (!clientShare && activeJobTab === 'client') showJobTab('preview');
+  const badge = document.getElementById('tab-client-badge');
+  badge.textContent = decision?.kind === 'approved' ? '✓' : open ? String(open) : '';
+  badge.className = `tab-badge${decision?.kind === 'approved' ? ' is-ok' : open || decision?.kind === 'changes' ? ' is-warning' : ''}`;
+  const decEl = document.getElementById('client-decision');
+  decEl.hidden = !decision;
+  if (decision) {
+    const when = new Date(decision.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    decEl.className = `client-decision is-${decision.kind}`;
+    decEl.innerHTML = `${decision.kind === 'approved' ? '✓ El cliente ha aprobado esta versión' : 'El cliente pide cambios'} · <strong>${escapeHtml(decision.author)}</strong>, ${escapeHtml(when)}${
+      decision.note ? `<span class="c-text">${escapeHtml(decision.note)}</span>` : ''
+    }`;
+  }
+  document.getElementById('client-empty').hidden = !!(current.length || decision);
+  document.getElementById('client-comments').innerHTML = current.map((c) => clientCommentItem(c, true)).join('');
+  document.getElementById('client-actions').hidden = !(open || (decision?.kind === 'changes' && decision.note));
+  document.getElementById('client-older').hidden = !older.length;
+  document.getElementById('client-older-summary').textContent = `Comentarios sobre otras versiones (${older.length})`;
+  document.getElementById('client-older-list').innerHTML = older.map((c) => clientCommentItem(c, false)).join('');
+  // Con el enlace activo, lo que haga el cliente aparece sin recargar (cada minuto, con la pestaña visible).
+  clearTimeout(clientPollTimer);
+  if (clientShare) clientPollTimer = setTimeout(refreshClientReview, 60000);
+}
+
+async function refreshClientReview() {
+  const id = currentJob;
+  if (!id || document.hidden) {
+    clientPollTimer = setTimeout(refreshClientReview, 60000);
+    return;
+  }
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
+    if (!res.ok || id !== currentJob) return;
+    const data = await res.json();
+    const before = JSON.stringify([clientShare?.comments?.length, clientShare?.decision?.at]);
+    renderShare(data.job.share, data.versions || shareVersions);
+    if (JSON.stringify([clientShare?.comments?.length, clientShare?.decision?.at]) !== before) announce('Hay novedades del cliente.');
+  } catch {
+    clientPollTimer = setTimeout(refreshClientReview, 60000);
+  }
+}
+
+function clientCommentById(id) {
+  return clientShare?.comments?.find((c) => c.id === id) || null;
+}
+
+document.getElementById('panel-client').addEventListener('click', async (e) => {
+  const li = e.target.closest('li[data-comment]');
+  if (!li) return;
+  const c = clientCommentById(li.dataset.comment);
+  if (!c) return;
+  if (e.target.closest('[data-client-see]')) {
+    showJobTab('preview');
+    await wait(50);
+    const el = c.path ? byPath(previewDoc(), c.path) : null;
+    if (!el) return showToast('No aparece en la vista previa.');
+    flashInPreview(el);
+    return;
+  }
+  const btn = e.target.closest('[data-client-resolve]');
+  if (!btn) return;
+  const resolved = btn.dataset.clientResolve === '1';
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/share/comments/${encodeURIComponent(c.id)}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolved, by: savedRequester() || undefined }),
+    });
+    if (!res.ok) return showToast('No se pudo cambiar el comentario.', 'error');
+    Object.assign(c, resolved ? { resolvedAt: new Date().toISOString(), resolvedBy: savedRequester() || undefined } : { resolvedAt: undefined, resolvedBy: undefined });
+    renderClientReview(clientShare);
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/** Abre «Pedir cambios» con los comentarios sin resolver (y lo que señaló el cliente, marcado en la pieza). */
+document.getElementById('client-to-hermes').addEventListener('click', () => {
+  if (!clientShare) return;
+  const open = (clientShare.comments || []).filter((c) => c.jobId === currentJob && !c.resolvedAt);
+  const decision = clientShare.decision?.jobId === currentJob ? clientShare.decision : null;
+  const lines = open.map((c) => `${c.ref ? `${c.ref} ` : ''}${c.text.replace(/\s*\n\s*/g, ' ')} (comentario de ${c.author})`);
+  if (decision?.kind === 'changes' && decision.note) lines.push(`${decision.note.replace(/\s*\n\s*/g, ' ')} (nota de ${decision.author})`);
+  if (!lines.length) return;
+  toggleRevise(true);
+  const input = document.getElementById('revise-input');
+  input.value = (input.value.trim() ? `${input.value.trim()}\n` : '') + `Cambios que pide el cliente:\n${lines.map((l) => `- ${l}`).join('\n')}`;
+  showJobTab('preview');
+  const doc = previewDoc();
+  for (const c of open) {
+    if (!c.path) continue;
+    pick.picked.push(c.path);
+    byPath(doc, c.path)?.setAttribute('data-studio-picked', '');
+  }
+  if (doc) ensureStudioStyle(doc);
+  reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  input.focus({ preventScroll: true });
+  showToast('Comentarios del cliente pasados a «Pedir cambios»: revísalos y envíalos a Hermes.');
+});
 document.getElementById('share-revoke').addEventListener('click', () => shareRequest('DELETE'));
 document.getElementById('share-copy').addEventListener('click', () =>
   copyText(document.getElementById('share-url').value, 'Enlace copiado: el cliente lo abre sin contraseña.', 'Copia el enlace del recuadro.')
@@ -1613,7 +1847,21 @@ document.addEventListener('keydown', (e) => {
 /** "Editar texto": la vista previa se vuelve editable y al guardar se manda solo lo que cambió (ver
  *  textedit.js y studio/server/textEdit.ts). Se bloquea lo que rompería la estructura (saltos de línea,
  *  negritas, pegar HTML, arrastrar); si aun así se rompe, no se guarda y se dice dónde. */
-const te = { active: false, before: null, pre: null, confirmCancel: false, altBefore: [], alts: new Map() };
+const te = {
+  active: false,
+  before: null,
+  pre: null,
+  confirmCancel: false,
+  altBefore: [],
+  alts: new Map(),
+  // Enlaces e imágenes (2026-10-01): destino de antes → nuevo; índice de imagen → src nuevo (URL o archivo subido).
+  links: new Map(),
+  imgBefore: [],
+  images: new Map(),
+};
+/** Mismo criterio que LINK_RE en studio/server/textEdit.ts. */
+const TE_LINK_RE = /^(https?:\/\/[^\s<>"']+|mailto:[^\s<>"']+|tel:[+\d][\d\s-]*|\{\{[^{}]+\}\}|\*\|[A-Z_:]+\|\*|%%[a-z_]+%%|\{%[^%]+%\})$/i;
+const TE_MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const teBox = document.getElementById('textedit-box');
 const teBtn = document.getElementById('edit-text-btn');
 const PREVIEW_CONTROLS = '.preview-head input';
@@ -1641,8 +1889,8 @@ function teEdits() {
 
 function teRenderStatus() {
   const { edits, brokenAt } = teEdits();
-  const n = (edits || []).length + te.alts.size;
-  const text = brokenAt !== undefined ? 'Se ha borrado o partido un bloque: no se podrá guardar así.' : n ? `${n} texto${n === 1 ? '' : 's'} cambiado${n === 1 ? '' : 's'}.` : 'Sin cambios en la pieza todavía.';
+  const n = (edits || []).length + te.alts.size + te.links.size + te.images.size;
+  const text = brokenAt !== undefined ? 'Se ha borrado o partido un bloque: no se podrá guardar así.' : n ? `${n} cambio${n === 1 ? '' : 's'} sin guardar.` : 'Sin cambios en la pieza todavía.';
   document.getElementById('te-status').textContent = text;
   document.getElementById('te-banner-count').textContent = text;
   te.confirmCancel = false;
@@ -1844,6 +2092,10 @@ function teOpen() {
     te.before = HermesTextEdit.snapshot(d.body);
     te.altBefore = [...d.querySelectorAll('img')].map((img) => img.getAttribute('alt') ?? '');
     te.alts = new Map();
+    te.imgBefore = [...d.querySelectorAll('img')].map((img) => img.getAttribute('src') ?? '');
+    te.images = new Map();
+    te.links = new Map();
+    renderTeLinks(d);
     armTextEdit(d);
     // Sin los contornos de "Resaltar cambios" mientras se escribe: vuelven al guardar o cancelar.
     d.querySelectorAll('[data-studio-added]').forEach((el) => el.removeAttribute('data-studio-added'));
@@ -1875,6 +2127,8 @@ function teClose({ discard = true } = {}) {
   if (!te.active && teBox.hidden) return;
   closeAltPop();
   te.alts = new Map();
+  te.links = new Map();
+  te.images = new Map();
   te.active = false;
   te.before = null;
   te.confirmCancel = false;
@@ -1887,7 +2141,7 @@ function teClose({ discard = true } = {}) {
 }
 
 function teCancel() {
-  const dirty = (teEdits().edits || []).length || te.alts.size || teEdits().brokenAt !== undefined;
+  const dirty = (teEdits().edits || []).length || te.alts.size || te.links.size || te.images.size || teEdits().brokenAt !== undefined;
   if (dirty && !te.confirmCancel) {
     te.confirmCancel = true;
     document.getElementById('te-cancel').textContent = 'Descartar los cambios';
@@ -1929,18 +2183,29 @@ async function teSave() {
   const subjectInput = document.getElementById('te-subject').value.trim();
   const subject = subjectInput && subjectInput !== (currentMeta?.subject || '') ? subjectInput : null;
   const alts = [...te.alts].map(([index, after]) => ({ index, before: te.altBefore[index], after }));
-  if (!edits.length && !subject && !alts.length) {
+  const links = [...te.links].map(([before, after]) => ({ before, after }));
+  const images = [...te.images].map(([index, after]) => ({ index, before: te.imgBefore[index], after }));
+  const badLink = links.find((l) => !TE_LINK_RE.test(l.after));
+  if (badLink) {
+    errorEl.textContent = `«${badLink.after.slice(0, 80)}» no es un destino válido: usa una dirección que empiece por https://.`;
+    errorEl.hidden = false;
+    document.getElementById('te-links').open = true;
+    return;
+  }
+  if (!edits.length && !subject && !alts.length && !links.length && !images.length) {
     errorEl.textContent = 'No has cambiado nada todavía.';
     errorEl.hidden = false;
     return;
   }
   const buttons = [teBox.querySelector('button[type="submit"]'), document.getElementById('te-banner-save')];
   buttons.forEach((b) => (b.disabled = true));
+  const checking = links.length || images.length;
+  if (checking) document.getElementById('te-status').textContent = 'Guardando y comprobando los enlaces e imágenes nuevos (unos segundos)…';
   try {
     const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/text-edit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ edits, subject, alts, requesterName: savedRequester() || undefined }),
+      body: JSON.stringify({ edits, subject, alts, links, images, requesterName: savedRequester() || undefined }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -1964,10 +2229,55 @@ async function teSave() {
 const altPop = document.getElementById('alt-pop');
 let altTarget = null;
 
+// ---- destinos de los enlaces (2026-10-01): uno por destino distinto; cambiarlo cambia todos los que van ahí.
+function renderTeLinks(doc) {
+  const groups = new Map();
+  for (const a of doc.querySelectorAll('a[href]')) {
+    const href = (a.getAttribute('href') || '').trim();
+    if (!href || href.startsWith('#')) continue;
+    if (!groups.has(href)) groups.set(href, []);
+    groups.get(href).push(a);
+  }
+  const broken = (reviewChecks.find((c) => c.id === 'links')?.details || []).filter((d) => !/^No verificable/.test(d));
+  const list = document.getElementById('te-links-list');
+  const isBroken = (href) => broken.some((d) => d.startsWith(`${href} →`));
+  const brokenHere = [...groups.keys()].filter(isBroken).length;
+  list.innerHTML = [...groups]
+    .map(([href, as], i) => {
+      const text = as.map((a) => HermesPick.excerpt(a.textContent, 50)).find(Boolean) || (as[0].querySelector('img') ? 'imagen con enlace' : 'sin texto');
+      const bad = isBroken(href);
+      return `<li${bad ? ' class="is-broken"' : ''}>
+          <label for="te-link-${i}"><span>«${escapeHtml(text)}»${as.length > 1 ? ` y ${as.length - 1} más` : ''}</span>${bad ? ' <strong class="te-link-flag">Roto según la revisión</strong>' : ''}</label>
+          <input type="text" id="te-link-${i}" data-href="${escapeHtml(href)}" value="${escapeHtml(href)}" spellcheck="false" />
+        </li>`;
+    })
+    .join('');
+  document.getElementById('te-links-count').textContent = `(${groups.size}${brokenHere ? `, ${brokenHere} roto${brokenHere === 1 ? '' : 's'}` : ''})`;
+  document.getElementById('te-links').open = brokenHere > 0;
+}
+document.getElementById('te-links-list').addEventListener('input', (e) => {
+  const input = e.target.closest('input[data-href]');
+  if (!input) return;
+  const before = input.dataset.href;
+  const after = input.value.trim();
+  if (!after || after === before) te.links.delete(before);
+  else te.links.set(before, after);
+  input.classList.toggle('is-invalid', !!after && after !== before && !TE_LINK_RE.test(after));
+  teRenderStatus();
+});
+
+let pendingImage = null; // archivo subido en el recuadro de la imagen, como data URL
+
 function openAltPop(doc, img) {
   const index = [...doc.querySelectorAll('img')].indexOf(img);
   if (index < 0) return;
   altTarget = { img, index };
+  pendingImage = null;
+  const changed = te.images.get(index);
+  document.getElementById('img-pop-url').value = changed && !changed.startsWith('data:') ? changed : '';
+  document.getElementById('img-pop-file').value = '';
+  document.getElementById('img-pop-note').textContent = changed?.startsWith('data:') ? 'Archivo subido (se publica al guardar).' : 'Mejor con la misma proporción que la actual: el ancho se mantiene.';
+  document.getElementById('img-pop-error').hidden = true;
   document.getElementById('alt-pop-n').textContent = `${index + 1} de ${te.altBefore.length}`;
   const input = document.getElementById('alt-pop-input');
   input.value = te.alts.has(index) ? te.alts.get(index) : te.altBefore[index];
@@ -1996,6 +2306,20 @@ function applyAlt() {
   if (!altTarget) return;
   const value = document.getElementById('alt-pop-input').value.replace(/\s+/g, ' ').trim();
   const { img, index } = altTarget;
+  // Imagen nueva: un archivo subido manda sobre la dirección escrita.
+  const url = document.getElementById('img-pop-url').value.trim();
+  const nextSrc = pendingImage || (url && url !== te.imgBefore[index] ? url : null);
+  if (nextSrc && !nextSrc.startsWith('data:') && !/^https:\/\/\S+$/i.test(nextSrc)) {
+    const err = document.getElementById('img-pop-error');
+    err.textContent = 'La dirección tiene que empezar por https:// (los correos bloquean las imágenes sin https).';
+    err.hidden = false;
+    return;
+  }
+  if (nextSrc) {
+    te.images.set(index, nextSrc);
+    img.setAttribute('src', nextSrc);
+    img.setAttribute('data-studio-alt', '');
+  }
   if (value === te.altBefore[index].replace(/\s+/g, ' ').trim()) {
     te.alts.delete(index);
     img.removeAttribute('data-studio-alt');
@@ -2009,7 +2333,39 @@ function applyAlt() {
 }
 
 document.getElementById('alt-pop-ok').addEventListener('click', applyAlt);
+document.getElementById('img-pop-file').addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  const err = document.getElementById('img-pop-error');
+  err.hidden = true;
+  pendingImage = null;
+  if (!file) return;
+  if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) {
+    err.textContent = 'Solo PNG, JPG, GIF o WebP.';
+    err.hidden = false;
+    return;
+  }
+  if (file.size > TE_MAX_IMAGE_BYTES) {
+    err.textContent = `Pesa ${Math.round(file.size / 1024)} KB: el máximo es 3 MB (en un email, mejor menos de 500 KB).`;
+    err.hidden = false;
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImage = String(reader.result);
+    document.getElementById('img-pop-note').textContent = `${file.name} · ${Math.round(file.size / 1024)} KB${file.size > 500 * 1024 ? ' (pesada para un email)' : ''}. Pulsa «Aplicar».`;
+  };
+  reader.readAsDataURL(file);
+});
 document.getElementById('alt-pop-cancel').addEventListener('click', closeAltPop);
+document.getElementById('img-pop-url').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    applyAlt();
+  } else if (e.key === 'Escape') {
+    e.stopPropagation();
+    closeAltPop();
+  }
+});
 document.getElementById('alt-pop-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') {
     e.preventDefault();
@@ -2375,7 +2731,7 @@ document.getElementById('result-errors-link').addEventListener('click', (e) => {
 // Vista previa, revisión, comparación y asunto/bandeja comparten sitio bajo las acciones: antes iban
 // apilados y la vista previa empezaba casi dos pantallas más abajo. "Qué ha cambiado" y "Asunto y
 // bandeja" solo salen si su bloque tiene algo (lo decide el render de siempre con su `hidden`).
-const JOB_TABS = ['preview', 'review', 'compare', 'meta'];
+const JOB_TABS = ['preview', 'review', 'compare', 'meta', 'client'];
 let activeJobTab = 'preview';
 
 function showJobTab(name, { focus = false } = {}) {
@@ -2457,6 +2813,9 @@ function showJobView(id) {
   document.getElementById('job-blocked').hidden = true;
   document.getElementById('job-cancelled').hidden = true;
   document.getElementById('job-review').hidden = true;
+  clearTimeout(clientPollTimer);
+  document.getElementById('rename-form').hidden = true;
+  document.getElementById('job-name-row').hidden = true;
   document.getElementById('cancel-row').hidden = true;
   document.getElementById('job-change').hidden = true;
   reviseBox.hidden = true;
@@ -2518,7 +2877,8 @@ async function poll(id) {
     document.getElementById('job-title').textContent = res.status === 401 ? 'Inicia sesión para ver este trabajo' : 'Trabajo no encontrado';
     return;
   }
-  const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy } = await res.json();
+  const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy, familyTitle } = await res.json();
+  renderJobName(familyTitle, meta);
   renderVersions(job, versions || []);
   currentJobData = job;
   currentVersions = versions || [];
@@ -2588,7 +2948,7 @@ async function poll(id) {
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes);
-      renderShare(job.share);
+      renderShare(job.share, versions || []);
       renderMeta(meta, job.input.clientName);
       setupExport(job);
       loadResultHtml(id).then(() => {
@@ -3297,6 +3657,20 @@ function annotateLocations() {
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Baja hasta un elemento de la vista previa y lo hace parpadear (para lo que no es un aviso de la revisión). */
+function flashInPreview(el) {
+  const frame = document.getElementById('preview-frame');
+  const device = frame.closest('.preview-device');
+  const t = getComputedStyle(device).transform;
+  const scale = t && t !== 'none' ? new DOMMatrix(t).a : 1;
+  const r = el.getBoundingClientRect();
+  const top = frame.getBoundingClientRect().top + window.scrollY + r.top * scale;
+  window.scrollTo({ top: Math.max(0, top - Math.max(80, (window.innerHeight - r.height * scale) / 2)), behavior: 'smooth' });
+  ensureStudioStyle(el.ownerDocument);
+  el.setAttribute('data-studio-flash', '');
+  setTimeout(() => el.removeAttribute('data-studio-flash'), 3000);
+}
 
 async function goToLocation(loc, side) {
   if (activeJobTab !== 'preview') {

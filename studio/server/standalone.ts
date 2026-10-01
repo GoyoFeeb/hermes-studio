@@ -22,7 +22,7 @@ import { getJob, updateJob, appendEvent, listJobs, type Job } from './store';
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
 import { findPreheader, staticChecks } from '../worker/qualityCheck';
-import { applyTextEdits, type TextEdit, type AltEdit } from './textEdit';
+import { applyTextEdits, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { createJob } from './store';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
@@ -429,6 +429,8 @@ export interface JobVersion {
   parentId: string | null;
   changeRequest: string | null;
   approved: boolean;
+  /** Tiene el enlace del cliente activo (2026-10-01): para ofrecer pasarlo a otra versión. */
+  shared: boolean;
 }
 
 function parentIdOf(job: Job): string | null {
@@ -463,7 +465,24 @@ export function versionFamily(job: Job): JobVersion[] {
       parentId: parentIdOf(j),
       changeRequest: j.input.changeRequest ? j.input.changeRequest.slice(0, 300) : null,
       approved: !!j.approvedAt,
+      shared: !!j.share && Date.parse(j.share.expiresAt) > Date.now(),
     }));
+}
+
+/** Asunto de una versión terminada para el historial (2026-10-01). El HTML publicado no cambia: se guarda por
+ *  ruta y solo se lee del disco la primera vez (el historial pide la lista entera cada pocos segundos). */
+const subjectCache = new Map<string, string | null>();
+export function cachedSubject(job: Job): string | null {
+  if (job.status !== 'completed' || !job.resultRelPath) return null;
+  if (!subjectCache.has(job.resultRelPath)) subjectCache.set(job.resultRelPath, resultMeta(job)?.subject || null);
+  return subjectCache.get(job.resultRelPath) ?? null;
+}
+
+/** Pone (o quita, con texto vacío) el nombre de la newsletter: va a la versión raíz de su familia. */
+export function renameFamily(job: Job, title: string): Job {
+  const root = getJob(versionFamily(job)[0]?.id || job.id) || job;
+  const clean = title.replace(/\s+/g, ' ').trim().slice(0, 120);
+  return updateJob(root.id, { title: clean || undefined });
 }
 
 /** Autoauditoría de Hermes (notas.md) de un trabajo terminado, para el panel de revisión. */
@@ -545,10 +564,20 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
  * versión de origen (editar el texto no cambia URLs; el móvil se midió con el mismo diseño).
  * Todo síncrono: el worker no puede recoger el trabajo entre que se crea y se marca terminado.
  */
-export function createTextEditVersion(source: Job, edits: TextEdit[], subject: string | null, requesterName?: string, alts: AltEdit[] = []): Job {
+export function createTextEditVersion(
+  source: Job,
+  edits: TextEdit[],
+  subject: string | null,
+  requesterName?: string,
+  alts: AltEdit[] = [],
+  links: LinkEdit[] = [],
+  imageEdits: ImageEdit[] = []
+): Job {
   const html = readResultHtml(source);
   if (!html) throw new Error('La newsletter de origen no está disponible.');
-  const { html: out, changes, outlookCopies } = applyTextEdits(html, edits, subject, alts);
+  const applied = applyTextEdits(html, edits, subject, alts, links, imageEdits);
+  const { changes, outlookCopies } = applied;
+  let out = applied.html;
   if (!changes.length) throw new TextEditNoChanges('No hay cambios que guardar.');
 
   const clip = (t: string): string => (t.length > 160 ? `${t.slice(0, 159)}…` : t);
@@ -565,6 +594,8 @@ export function createTextEditVersion(source: Job, edits: TextEdit[], subject: s
     changeRequest: summary.slice(0, 4000),
   });
 
+  // Imágenes subidas en Studio (2026-10-01): se publican en /assets como las de Hermes, con URL absoluta.
+  if (imageEdits.some((e) => e.after.trim().startsWith('data:'))) out = publishEmbeddedImages(out, job).html;
   const outRel = standaloneOutputDir(job);
   const outAbs = path.join(ROOT, outRel);
   fs.mkdirSync(outAbs, { recursive: true });
@@ -574,11 +605,13 @@ export function createTextEditVersion(source: Job, edits: TextEdit[], subject: s
   const who = job.input.requesterName ? ` por ${job.input.requesterName}` : '';
   const notes = [
     (readResultNotes(source) || '').trim(),
-    `## Retoque de texto en Studio (${new Date().toISOString().slice(0, 16).replace('T', ' ')}${who}, sin Hermes)`,
+    `## Retoque en Studio (${new Date().toISOString().slice(0, 16).replace('T', ' ')}${who}, sin Hermes)`,
     ...changes.map((c) => `- «${c.before}» → «${c.after}»`),
     '',
-    'Solo cambió el texto: diseño, imágenes y enlaces son los de la versión anterior. Los datos nuevos que',
-    'se hayan escrito aquí no tienen fuente anotada.',
+    links.length || imageEdits.length
+      ? 'Cambiaron textos, enlaces o imágenes; el diseño es el de la versión anterior. Los datos nuevos no tienen fuente anotada.'
+      : 'Solo cambió el texto: diseño, imágenes y enlaces son los de la versión anterior. Los datos nuevos que',
+    links.length || imageEdits.length ? '' : 'se hayan escrito aquí no tienen fuente anotada.',
   ]
     .filter((l, i) => i > 0 || l)
     .join('\n');
@@ -593,7 +626,7 @@ export function createTextEditVersion(source: Job, edits: TextEdit[], subject: s
     checks,
   };
   const now = new Date().toISOString();
-  log(job.id, `Retoque de texto${who} sobre la newsletter ${source.id}: ${changes.length} cambio(s), sin Hermes.`, 'success');
+  log(job.id, `Retoque en Studio${who} sobre la newsletter ${source.id}: ${changes.length} cambio(s), sin Hermes.`, 'success');
   if (outlookCopies) log(job.id, `También en la versión para Outlook de ${outlookCopies} botón(es) (VML).`, 'success');
   return updateJob(job.id, {
     status: 'completed',

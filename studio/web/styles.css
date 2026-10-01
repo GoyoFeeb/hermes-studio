@@ -1293,3 +1293,49 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 /* Lista de aprobación: cada punto lleva a donde se comprueba (2026-09-30). */
 .approve-checklist li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .check-go { font-size: var(--fs-small); }
+
+/* Revisión del cliente (2026-10-01): pestaña "Cliente" del trabajo */
+#panel-client { padding-top: 8px; }
+.client-decision { margin: 0 0 16px; padding: 12px 16px; border-radius: var(--radius-md); font-size: var(--fs-ui); }
+.client-decision.is-approved { background: var(--success-tint); color: var(--success); }
+.client-decision.is-changes { background: var(--warning-tint); color: var(--warning); }
+.client-decision .c-text { display: block; margin-top: 6px; color: var(--text); white-space: pre-wrap; }
+.client-comments { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; }
+.client-comments li { padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-row); }
+.client-comments li.is-resolved { opacity: 0.6; }
+.client-comments .c-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: var(--fs-small); color: var(--muted); }
+.client-comments .c-head strong { color: var(--text); }
+.client-comments .c-actions { display: flex; gap: 12px; }
+.client-comments .c-ref { display: block; margin: 8px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent-text); background: var(--field); font-size: var(--fs-small); color: var(--muted); overflow-wrap: anywhere; }
+.client-comments .c-text { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#client-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 16px; }
+#client-actions .hint { margin: 0; flex: 1 1 260px; }
+.client-older summary { cursor: pointer; font-size: var(--fs-small); color: var(--muted); }
+.client-older .client-comments { margin-top: 10px; }
+#share-move { margin-bottom: 8px; }
+
+/* Nombre de la newsletter (2026-10-01) */
+.job-row .name { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.job-row .row-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; font-size: var(--fs-ui); color: var(--muted); }
+.g-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--muted); }
+.job-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 4px 0 0; font-size: var(--fs-body); color: var(--text); }
+.job-name #job-name-text { overflow-wrap: anywhere; }
+.rename-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
+.rename-form input { flex: 1 1 260px; min-width: 0; }
+@media (max-width: 640px) {
+  .job-row .name { flex-direction: column; gap: 0; }
+  .job-row .row-title { font-size: var(--fs-small); }
+}
+
+/* Editar enlaces e imágenes sin Hermes (2026-10-01) */
+.te-links { margin: 12px 0; }
+.te-links summary { cursor: pointer; font-weight: 600; font-size: var(--fs-small); }
+.te-links ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; max-height: 360px; overflow: auto; }
+.te-links li label { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 4px; font-size: var(--fs-small); color: var(--muted); }
+.te-links li input { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-small); }
+.te-links li.is-broken input { border-color: var(--error); }
+.te-link-flag { color: var(--error); font-weight: 600; }
+.te-links input.is-invalid { border-color: var(--error); background: var(--error-tint); }
+.img-pop-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 0; }
+.img-pop-upload .hint { margin: 0; flex: 1 1 180px; }
+#img-pop-url { width: 100%; }

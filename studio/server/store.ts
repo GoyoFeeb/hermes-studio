@@ -92,6 +92,9 @@ export interface Job {
   archivedAt?: string;
   /** Enlace de vista previa para el cliente (2026-10-01, ver share.ts). */
   share?: JobShare;
+  /** Nombre que el equipo le pone a la newsletter (2026-10-01). Vive en la versión raíz de la familia;
+   *  sin él, el historial muestra el asunto. */
+  title?: string;
 }
 
 export interface JobEvent {

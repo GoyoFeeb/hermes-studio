@@ -9,15 +9,45 @@
  *   - solo muestra la pieza: ni el registro, ni el brief, ni las demás versiones, ni acciones;
  *   - la pieza se pinta en un marco sin scripts (la escribe un modelo que ha leído webs) y la página
  *     lleva una CSP estricta que el marco hereda; noindex y sin Referer.
+ *
+ * Revisión del cliente (2026-10-01, como Knak/Migma): en la misma página el cliente puede comentar
+ * pinchando en la pieza (misma referencia que "Señalar" de Studio, pick.js) y decir "Aprobar" o "Pedir
+ * cambios". Studio lo muestra en la página del trabajo y lo convierte en un "Pedir cambios" a Hermes.
+ * El enlace se puede pasar a una versión nueva de la misma newsletter: el cliente conserva la URL.
  */
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { listJobs, updateJob, type Job } from './store';
 import { readResultHtml, resultMeta } from './standalone';
+import { STUDIO_DIR } from './paths';
 
 export const SHARE_DAYS = 14;
 export const SHARE_TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
 /** Las visitas se cuentan como mucho una vez por minuto (recargar no infla el número ni escribe en disco). */
 const VIEW_THROTTLE_MS = 60 * 1000;
+
+export interface ShareComment {
+  id: string;
+  /** Versión sobre la que se escribió (el enlace puede pasar a una versión nueva). */
+  jobId: string;
+  author: string;
+  text: string;
+  /** Referencia de lo señalado en la pieza (formato de pick.js) y su ruta desde <body> para volver a marcarlo. */
+  ref?: string;
+  path?: number[];
+  at: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+}
+
+export interface ShareDecision {
+  kind: 'approved' | 'changes';
+  jobId: string;
+  author: string;
+  note?: string;
+  at: string;
+}
 
 export interface JobShare {
   token: string;
@@ -26,6 +56,72 @@ export interface JobShare {
   by?: string;
   views?: number;
   lastViewedAt?: string;
+  comments?: ShareComment[];
+  decision?: ShareDecision;
+}
+
+export const MAX_COMMENTS = 100;
+export class ShareInputError extends Error {}
+
+const cleanLine = (v: unknown, max: number): string =>
+  typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '';
+const cleanText = (v: unknown, max: number): string =>
+  typeof v === 'string' ? v.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]+/g, ' ').trim().slice(0, max) : '';
+
+/** Comentario del cliente: autor y texto obligatorios; lo señalado, opcional y acotado. */
+export function addShareComment(job: Job, body: Record<string, unknown>): ShareComment {
+  const share = job.share!;
+  const author = cleanLine(body.author, 80);
+  const text = cleanText(body.text, 2000);
+  if (author.length < 2) throw new ShareInputError('Escribe tu nombre para que el equipo sepa quién comenta.');
+  if (text.length < 2) throw new ShareInputError('El comentario está vacío.');
+  if ((share.comments || []).length >= MAX_COMMENTS) throw new ShareInputError('Esta newsletter ya tiene demasiados comentarios.');
+  const ref = cleanLine(body.ref, 300);
+  const p = Array.isArray(body.path) && body.path.length <= 80 && body.path.every((n) => Number.isInteger(n) && n >= 0 && n < 10000) ? (body.path as number[]) : undefined;
+  const comment: ShareComment = {
+    id: crypto.randomBytes(6).toString('base64url'),
+    jobId: job.id,
+    author,
+    text,
+    ref: ref.startsWith('[Señalado:') ? ref : undefined,
+    path: ref.startsWith('[Señalado:') ? p : undefined,
+    at: new Date().toISOString(),
+  };
+  updateJob(job.id, { share: { ...share, comments: [...(share.comments || []), comment] } });
+  return comment;
+}
+
+export function setShareDecision(job: Job, body: Record<string, unknown>): ShareDecision {
+  const share = job.share!;
+  const kind = body.kind === 'approved' ? 'approved' : body.kind === 'changes' ? 'changes' : null;
+  if (!kind) throw new ShareInputError('Decisión no válida.');
+  const author = cleanLine(body.author, 80);
+  if (author.length < 2) throw new ShareInputError('Escribe tu nombre para que el equipo sepa quién decide.');
+  const note = cleanText(body.note, 2000) || undefined;
+  const open = (share.comments || []).filter((c) => c.jobId === job.id && !c.resolvedAt).length;
+  if (kind === 'changes' && !note && !open) throw new ShareInputError('Cuenta qué hay que cambiar: deja un comentario en la pieza o escríbelo aquí.');
+  const decision: ShareDecision = { kind, jobId: job.id, author, note, at: new Date().toISOString() };
+  updateJob(job.id, { share: { ...share, decision } });
+  return decision;
+}
+
+export function resolveShareComment(job: Job, commentId: string, resolved: boolean, by?: string): boolean {
+  const share = job.share;
+  if (!share?.comments?.some((c) => c.id === commentId)) return false;
+  const comments = share.comments.map((c) =>
+    c.id !== commentId ? c : resolved ? { ...c, resolvedAt: new Date().toISOString(), resolvedBy: by || undefined } : { ...c, resolvedAt: undefined, resolvedBy: undefined }
+  );
+  updateJob(job.id, { share: { ...share, comments } });
+  return true;
+}
+
+/** Pasa el enlace del cliente de `from` a `to` (otra versión de la misma newsletter): misma URL, misma
+ *  caducidad, comentarios conservados (cada uno dice de qué versión es) y la decisión se borra: es otra pieza. */
+export function moveShare(from: Job, to: Job): JobShare {
+  const share: JobShare = { ...from.share!, decision: undefined };
+  updateJob(from.id, { share: undefined });
+  updateJob(to.id, { share });
+  return share;
 }
 
 export function isShareActive(share: JobShare | undefined, now = Date.now()): share is JobShare {
@@ -80,7 +176,8 @@ function withBaseTarget(html: string): string {
   return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (m) => m + base) : base + html;
 }
 
-/** Cabeceras de la página pública: la CSP también la hereda el marco `srcdoc` (sin scripts en la pieza). */
+/** Cabeceras de la página pública: la CSP también la hereda el marco `srcdoc` (sin scripts en la pieza).
+ *  connect-src 'self': la propia página envía comentarios y la decisión a /p/<token>/… */
 export function shareHeaders(nonce: string): Record<string, string> {
   return {
     'Content-Security-Policy': [
@@ -90,6 +187,7 @@ export function shareHeaders(nonce: string): Record<string, string> {
       "img-src 'self' https: data:",
       'font-src https: data:',
       "frame-src 'self'",
+      "connect-src 'self'",
       "base-uri 'self'",
       "form-action 'none'",
       "frame-ancestors 'none'",
@@ -101,30 +199,101 @@ export function shareHeaders(nonce: string): Record<string, string> {
   };
 }
 
+/** pick.js (qué se señala y cómo se describe) es el mismo que usa Studio: se incrusta en la página para no
+ *  depender de los archivos de la web, que en Railway están detrás de la contraseña. */
+let pickSource: string | null = null;
+function pickScript(): string {
+  if (pickSource == null) {
+    try {
+      pickSource = fs.readFileSync(path.join(STUDIO_DIR, 'web', 'pick.js'), 'utf8');
+    } catch {
+      pickSource = '';
+    }
+  }
+  return pickSource;
+}
+
 const PAGE_STYLE = `
-  :root { color-scheme: light; --bg: #eef0f5; --text: #0e1545; --muted: #5b6285; --line: #d7dae6; --accent: #050c2a; }
+  :root { color-scheme: light; --bg: #eef0f5; --card: #fff; --text: #0e1545; --muted: #5b6285; --line: #d7dae6; --accent: #050c2a;
+    --ok: #0f7a52; --ok-bg: #e3f6ee; --warn: #8a5d00; --warn-bg: #fff4d6; --pick: #e6007e; --err: #b42318; }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  header { max-width: 860px; margin: 0 auto; padding: 24px 16px 16px; }
+  button, input, textarea { font: inherit; color: inherit; }
+  header { max-width: 1180px; margin: 0 auto; padding: 24px 16px 8px; }
   h1 { margin: 0; font-size: 20px; font-weight: 650; }
+  h2 { margin: 0 0 8px; font-size: 16px; }
   .meta { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-  .subject { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 14px; }
+  .subject { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 14px; }
   .subject b { display: block; font-size: 15px; }
   .subject span { color: var(--muted); }
-  .views { display: flex; gap: 4px; margin: 16px 0 0; padding: 3px; width: max-content; border: 1px solid var(--line); border-radius: 999px; background: #fff; }
-  .views button { border: 0; border-radius: 999px; padding: 6px 14px; background: transparent; color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 16px 0 0; }
+  .views { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+  .views button { border: 0; border-radius: 999px; padding: 6px 14px; background: transparent; font-size: 14px; cursor: pointer; }
   .views button[aria-pressed="true"] { background: var(--accent); color: #fff; }
-  main { padding: 0 16px 40px; }
+  .btn { border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; background: var(--card); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn[aria-pressed="true"] { background: var(--pick); border-color: var(--pick); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .layout { max-width: 1180px; margin: 0 auto; padding: 16px 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
   .stage { margin: 0 auto; width: 100%; max-width: 800px; transition: max-width .2s ease; }
   .stage.is-mobile { max-width: 375px; }
+  .stage.is-picking iframe { outline: 3px solid var(--pick); outline-offset: 2px; }
   iframe { display: block; width: 100%; height: 900px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
-  footer { max-width: 860px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: 13px; }
+  aside { position: sticky; top: 16px; display: grid; gap: 16px; }
+  .panel { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+  .panel p { margin: 0 0 8px; }
+  .hint { color: var(--muted); font-size: 13px; }
+  label { display: block; margin: 8px 0 4px; font-size: 13px; font-weight: 600; }
+  input[type=text], textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  textarea { min-height: 84px; resize: vertical; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .ref { display: block; margin: 0 0 6px; padding: 6px 8px; border-left: 3px solid var(--pick); background: #fdf0f7; font-size: 13px; }
+  .comments { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .comments li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+  .comments li.is-resolved { opacity: .6; }
+  .c-head { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+  .c-head b { color: var(--text); }
+  .c-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .linkbtn { border: 0; padding: 0; background: none; color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: underline; cursor: pointer; }
+  .decision { padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+  .decision.approved { background: var(--ok-bg); color: var(--ok); }
+  .decision.changes { background: var(--warn-bg); color: var(--warn); }
+  .error { color: var(--err); font-size: 13px; }
+  .older summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  .jump { display: none; text-decoration: none; color: inherit; }
+  footer { max-width: 1180px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: 13px; }
   .gone { max-width: 520px; margin: 15vh auto; padding: 0 16px; text-align: center; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } aside { position: static; } .jump { display: inline-block; } }
   @media (prefers-reduced-motion: reduce) { .stage { transition: none; } }
 `;
 
 const fmtDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' });
+
+/** Lo que el cliente ve de la revisión (nada del equipo: ni quién creó el enlace ni las visitas). */
+function publicState(job: Job): unknown {
+  const share = job.share!;
+  return {
+    jobId: job.id,
+    comments: (share.comments || []).map((c) => ({
+      id: c.id,
+      current: c.jobId === job.id,
+      author: c.author,
+      text: c.text,
+      ref: c.ref || null,
+      path: c.path || null,
+      at: c.at,
+      resolved: !!c.resolvedAt,
+    })),
+    decision: share.decision && share.decision.jobId === job.id ? share.decision : null,
+  };
+}
+
+/** JSON dentro de <script type="application/json">: sin "<" literal no puede cerrar la etiqueta. */
+const jsonForScript = (v: unknown): string => JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
 export function renderSharePage(job: Job, nonce: string): string | null {
   const html = readResultHtml(job);
@@ -148,39 +317,285 @@ export function renderSharePage(job: Job, nonce: string): string | null {
   <h1>Newsletter de ${name}</h1>
   <p class="meta">Vista previa para revisar. No es un envío: los enlaces de baja y personalización se activan en la plataforma de envío.</p>
   ${subject}
-  <div class="views" role="group" aria-label="Ver como">
-    <button type="button" data-view="desktop" aria-pressed="true">Escritorio</button>
-    <button type="button" data-view="mobile" aria-pressed="false">Móvil</button>
+  <div class="bar">
+    <div class="views" role="group" aria-label="Ver como">
+      <button type="button" data-view="desktop" aria-pressed="true">Escritorio</button>
+      <button type="button" data-view="mobile" aria-pressed="false">Móvil</button>
+    </div>
+    <button type="button" class="btn" id="pick" aria-pressed="false">Comentar en la pieza</button>
+    <a class="btn jump" href="#review">Aprobar o comentar ↓</a>
   </div>
 </header>
-<main>
-  <div class="stage" id="stage">
-    <iframe id="frame" title="Newsletter de ${name}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(withBaseTarget(html))}"></iframe>
-  </div>
-</main>
+<div class="layout">
+  <main>
+    <div class="stage" id="stage">
+      <iframe id="frame" title="Newsletter de ${name}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(withBaseTarget(html))}"></iframe>
+    </div>
+  </main>
+  <aside id="review">
+    <section class="panel" aria-labelledby="dec-title">
+      <h2 id="dec-title">Tu revisión</h2>
+      <div id="decision-box"></div>
+      <div class="actions" id="decision-actions">
+        <button type="button" class="btn btn-primary" data-decide="approved">Aprobar</button>
+        <button type="button" class="btn" data-decide="changes">Pedir cambios</button>
+      </div>
+      <form id="decision-form" hidden>
+        <p id="decision-form-title"></p>
+        <label for="decision-note">Nota para el equipo <span class="hint" id="decision-note-hint">(opcional)</span></label>
+        <textarea id="decision-note" maxlength="2000"></textarea>
+        <label for="decision-author">Tu nombre</label>
+        <input type="text" id="decision-author" maxlength="80" autocomplete="name">
+        <p class="error" id="decision-error" role="alert" hidden></p>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Enviar</button>
+          <button type="button" class="btn" id="decision-cancel">Cancelar</button>
+        </div>
+      </form>
+    </section>
+    <section class="panel" aria-labelledby="com-title">
+      <h2 id="com-title">Comentarios</h2>
+      <p class="hint" id="com-hint">Pulsa «Comentar en la pieza» y toca el texto, la imagen o el botón que quieras comentar. También puedes dejar un comentario general.</p>
+      <form id="comment-form">
+        <span class="ref" id="comment-ref" hidden></span>
+        <label for="comment-text">Comentario</label>
+        <textarea id="comment-text" maxlength="2000" placeholder="Qué cambiarías y por qué"></textarea>
+        <label for="comment-author">Tu nombre</label>
+        <input type="text" id="comment-author" maxlength="80" autocomplete="name">
+        <p class="error" id="comment-error" role="alert" hidden></p>
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Enviar comentario</button>
+          <button type="button" class="btn" id="comment-clear" hidden>Quitar lo señalado</button>
+        </div>
+      </form>
+      <ul class="comments" id="comments" aria-live="polite"></ul>
+      <details class="older" id="older" hidden><summary id="older-summary"></summary><ul class="comments" id="older-list"></ul></details>
+    </section>
+  </aside>
+</div>
 <footer>Enlace válido hasta el ${esc(fmtDate(job.share.expiresAt))}.</footer>
+<p class="sr-only" id="sr" role="status" aria-live="polite"></p>
+<script type="application/json" id="state">${jsonForScript(publicState(job))}</script>
+<script nonce="${nonce}">${pickScript()}</script>
 <script nonce="${nonce}">
 (function () {
+  'use strict';
+  var state = JSON.parse(document.getElementById('state').textContent);
+  var base = location.pathname.replace(/\\/$/, '');
   var frame = document.getElementById('frame');
   var stage = document.getElementById('stage');
+  var picking = false;
+  var picked = null; // { ref, path }
+  var $ = function (id) { return document.getElementById(id); };
+  var announce = function (t) { $('sr').textContent = t; };
+
+  function remembered() { try { return localStorage.getItem('hermesReviewer') || ''; } catch (e) { return ''; } }
+  function remember(n) { try { localStorage.setItem('hermesReviewer', n); } catch (e) { /* sin almacenamiento */ } }
+  $('comment-author').value = remembered();
+  $('decision-author').value = remembered();
+
+  function doc() { try { return frame.contentDocument; } catch (e) { return null; } }
   function fit() {
-    try {
-      var doc = frame.contentDocument;
-      if (!doc || !doc.documentElement) return;
-      frame.style.height = '0px';
-      frame.style.height = Math.max(400, doc.documentElement.scrollHeight) + 'px';
-    } catch (e) { /* sin acceso al marco: se queda la altura por defecto */ }
+    var d = doc();
+    if (!d || !d.documentElement) return;
+    frame.style.height = '0px';
+    frame.style.height = Math.max(400, d.documentElement.scrollHeight) + 'px';
   }
-  frame.addEventListener('load', fit);
-  var buttons = document.querySelectorAll('[data-view]');
+
+  // ---- vista
+  var viewButtons = document.querySelectorAll('[data-view]');
   function setView(view) {
     stage.classList.toggle('is-mobile', view === 'mobile');
-    buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-view') === view)); });
+    viewButtons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-view') === view)); });
     setTimeout(fit, 250);
   }
-  buttons.forEach(function (b) { b.addEventListener('click', function () { setView(b.getAttribute('data-view')); }); });
+  viewButtons.forEach(function (b) { b.addEventListener('click', function () { setView(b.getAttribute('data-view')); }); });
   if (window.matchMedia('(max-width: 600px)').matches) setView('mobile');
   window.addEventListener('resize', fit);
+
+  // ---- señalar en la pieza (misma lógica que Studio, pick.js)
+  var CSS = '[data-hr-hover]{outline:3px solid #e6007e!important;outline-offset:-3px;cursor:crosshair!important}' +
+    '[data-hr-picked]{outline:3px dashed #8a3ffc!important;outline-offset:-3px}' +
+    '[data-hr-flash]{outline:4px solid #ffb020!important;outline-offset:2px}' +
+    'html[data-hr-picking] *{cursor:crosshair!important}';
+  function pathOf(el) {
+    var p = [];
+    while (el && el.parentElement && el.tagName !== 'BODY') { p.unshift([].indexOf.call(el.parentElement.children, el)); el = el.parentElement; }
+    return p;
+  }
+  function byPath(d, p) { var el = d.body; for (var i = 0; i < p.length && el; i++) el = el.children[p[i]]; return el || null; }
+  function hasBg(el) { return el.hasAttribute('background') || /background(-image)?\\s*:[^;]*url\\(/i.test(el.getAttribute('style') || ''); }
+  function target(start) {
+    var chain = [];
+    for (var el = start; el && el.nodeType === 1; el = el.parentElement) {
+      var tag = el.tagName.toLowerCase();
+      chain.push({ el: el, tag: tag, text: tag === 'img' ? '' : el.textContent, isImage: tag === 'img', hasBackground: hasBg(el) });
+      if (tag === 'body') break;
+    }
+    var i = HermesPick.chooseTarget(chain);
+    return i >= 0 ? chain[i] : null;
+  }
+  function describe(d, t) {
+    if (t.isImage) { var imgs = [].slice.call(d.querySelectorAll('img')); return HermesPick.describe({ kind: 'image', index: imgs.indexOf(t.el) + 1, total: imgs.length, alt: t.el.getAttribute('alt') || '' }); }
+    if (t.tag === 'a' || t.tag === 'button') {
+      var style = (t.el.getAttribute('style') || '') + ' ' + ((t.el.parentElement && t.el.parentElement.getAttribute('style')) || '');
+      return HermesPick.describe({ kind: 'link', text: t.el.textContent, href: t.el.getAttribute('href') || '', isButton: t.tag === 'button' || /background(-color)?\\s*:|padding\\s*:\\s*[1-9]/i.test(style) });
+    }
+    if (t.hasBackground && !/^(h[1-6]|p|li|blockquote)$/.test(t.tag)) return HermesPick.describe({ kind: 'background', text: t.el.textContent });
+    return HermesPick.describe({ kind: 'text', tag: t.tag, text: t.el.textContent });
+  }
+  function clearAttr(d, a) { if (d) [].forEach.call(d.querySelectorAll('[' + a + ']'), function (el) { el.removeAttribute(a); }); }
+  function setPicking(on) {
+    picking = on;
+    $('pick').setAttribute('aria-pressed', String(on));
+    $('pick').textContent = on ? 'Toca la pieza… (Esc para salir)' : 'Comentar en la pieza';
+    stage.classList.toggle('is-picking', on);
+    var d = doc();
+    if (d) { d.documentElement.toggleAttribute('data-hr-picking', on); if (!on) clearAttr(d, 'data-hr-hover'); }
+  }
+  function arm() {
+    var d = doc();
+    if (!d || !d.body) return;
+    if (!d.querySelector('style[data-hr]')) { var st = d.createElement('style'); st.setAttribute('data-hr', ''); st.textContent = CSS; (d.head || d.documentElement).appendChild(st); }
+    d.addEventListener('mouseover', function (e) {
+      if (!picking) return;
+      clearAttr(d, 'data-hr-hover');
+      var t = target(e.target);
+      if (t) t.el.setAttribute('data-hr-hover', '');
+    });
+    d.addEventListener('click', function (e) {
+      if (!picking) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var t = target(e.target);
+      if (!t) return;
+      clearAttr(d, 'data-hr-picked');
+      t.el.setAttribute('data-hr-picked', '');
+      picked = { ref: describe(d, t), path: pathOf(t.el) };
+      $('comment-ref').textContent = picked.ref;
+      $('comment-ref').hidden = false;
+      $('comment-clear').hidden = false;
+      setPicking(false);
+      $('comment-text').focus();
+      announce('Señalado. Escribe tu comentario.');
+    }, true);
+    d.addEventListener('keydown', function (e) { if (e.key === 'Escape' && picking) setPicking(false); });
+  }
+  frame.addEventListener('load', function () { fit(); arm(); });
+  $('pick').addEventListener('click', function () { setPicking(!picking); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && picking) setPicking(false); });
+  $('comment-clear').addEventListener('click', function () {
+    picked = null;
+    clearAttr(doc(), 'data-hr-picked');
+    $('comment-ref').hidden = true;
+    $('comment-clear').hidden = true;
+  });
+
+  function flash(p) {
+    var d = doc();
+    var el = d && p ? byPath(d, p) : null;
+    if (!el) return;
+    el.scrollIntoView({ block: 'center' });
+    var r = el.getBoundingClientRect();
+    var fr = frame.getBoundingClientRect();
+    window.scrollTo({ top: window.scrollY + fr.top + r.top - window.innerHeight / 2, behavior: 'smooth' });
+    el.setAttribute('data-hr-flash', '');
+    setTimeout(function () { el.removeAttribute('data-hr-flash'); }, 2500);
+  }
+
+  // ---- pintar
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function when(iso) { return new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+  function item(c) {
+    return '<li' + (c.resolved ? ' class="is-resolved"' : '') + '><div class="c-head"><span><b>' + esc(c.author) + '</b> · ' + esc(when(c.at)) + (c.resolved ? ' · resuelto' : '') + '</span>' +
+      (c.path && c.current ? '<button type="button" class="linkbtn" data-path="' + esc(JSON.stringify(c.path)) + '">Ver</button>' : '') + '</div>' +
+      (c.ref ? '<span class="ref">' + esc(c.ref) + '</span>' : '') + '<p class="c-text">' + esc(c.text) + '</p></li>';
+  }
+  function render() {
+    var cur = state.comments.filter(function (c) { return c.current; });
+    var old = state.comments.filter(function (c) { return !c.current; });
+    $('comments').innerHTML = cur.map(item).join('');
+    $('older').hidden = !old.length;
+    $('older-summary').textContent = 'Comentarios sobre la versión anterior (' + old.length + ')';
+    $('older-list').innerHTML = old.map(item).join('');
+    var d = state.decision;
+    $('decision-box').innerHTML = d
+      ? '<p class="decision ' + d.kind + '">' + (d.kind === 'approved' ? '✓ Aprobada' : 'Cambios pedidos') + ' por <b>' + esc(d.author) + '</b> el ' + esc(when(d.at)) + (d.note ? '<br>' + esc(d.note) : '') + '</p>'
+      : '<p class="hint">Cuando la hayas revisado, apruébala o pide cambios. El equipo lo ve al momento.</p>';
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-path]');
+    if (b) flash(JSON.parse(b.getAttribute('data-path')));
+  });
+  render();
+
+  async function post(pathname, body) {
+    var res = await fetch(base + pathname, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || 'No se ha podido enviar. Inténtalo de nuevo.');
+    return data;
+  }
+
+  // ---- comentar
+  $('comment-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var err = $('comment-error');
+    err.hidden = true;
+    var author = $('comment-author').value.trim();
+    var btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+      var data = await post('/comments', { author: author, text: $('comment-text').value, ref: picked ? picked.ref : '', path: picked ? picked.path : null });
+      remember(author);
+      $('decision-author').value = author;
+      state.comments.push(data.comment);
+      $('comment-text').value = '';
+      $('comment-clear').click();
+      render();
+      announce('Comentario enviado.');
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---- aprobar o pedir cambios
+  var deciding = null;
+  document.querySelectorAll('[data-decide]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      deciding = b.getAttribute('data-decide');
+      $('decision-form').hidden = false;
+      $('decision-actions').hidden = true;
+      $('decision-form-title').textContent = deciding === 'approved' ? 'Vas a aprobar esta newsletter.' : 'Vas a pedir cambios. Los comentarios que hayas dejado ya le llegan al equipo.';
+      $('decision-note-hint').textContent = deciding === 'approved' ? '(opcional)' : '(si no has comentado en la pieza)';
+      $('decision-note').focus();
+    });
+  });
+  $('decision-cancel').addEventListener('click', function () {
+    $('decision-form').hidden = true;
+    $('decision-actions').hidden = false;
+  });
+  $('decision-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var err = $('decision-error');
+    err.hidden = true;
+    var author = $('decision-author').value.trim();
+    try {
+      var data = await post('/decision', { kind: deciding, author: author, note: $('decision-note').value });
+      remember(author);
+      state.decision = data.decision;
+      $('decision-form').hidden = true;
+      $('decision-actions').hidden = false;
+      $('decision-note').value = '';
+      render();
+      announce(deciding === 'approved' ? 'Aprobación enviada.' : 'Petición de cambios enviada.');
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+  });
 })();
 </script>
 </body>
