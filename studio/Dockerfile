@@ -27,4 +27,7 @@ EXPOSE 3000
 # inofensivo: los directorios ya existen con el contenido correcto y los symlinks apuntan a sí
 # mismos en la práctica.
 ENTRYPOINT ["studio/docker-entrypoint.sh"]
-CMD ["npx", "tsx", "studio/server/index.ts"]
+# node directamente (no npx/npm): así es el proceso principal y recibe el SIGTERM del despliegue para
+# cerrarse limpio (ver el final de studio/server/index.ts). Con npx, npm moría por la señal y Railway
+# marcaba como CRASHED cada despliegue sustituido (2026-10-01).
+CMD ["node", "--import", "tsx", "studio/server/index.ts"]

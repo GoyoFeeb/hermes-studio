@@ -1066,3 +1066,12 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **"CRASHED" del despliegue anterior = falsa alarma (logs revisados):** `0938bf57` arrancó el 30-09 a las 12:50 y
   sirvió peticiones sin interrupción hasta el 01-10 a las 15:57, cuando Railway lo paró al activar `71d8f0e`
   (SIGTERM). `npx` sale con error ante SIGTERM y Railway lo etiqueta como CRASHED. Sin caída de servicio.
+
+### 2026-10-01 (continuación) — Studio se apaga limpio en cada despliegue
+
+- **Aprobado por el usuario** tras revisar el falso CRASHED. `studio/Dockerfile`: `CMD ["node", "--import", "tsx", …]`
+  (antes `npx tsx`: npm moría por el SIGTERM). `studio/server/index.ts`: con SIGTERM/SIGINT deja de aceptar
+  conexiones, cierra las inactivas, espera las peticiones en curso y sale con 0 (forzado a los 5 s).
+- **Verificación:** copia aislada arrancada como en el contenedor (`node --import tsx`), SIGTERM con una conexión
+  keep-alive abierta → "cerrando… / cerrado", exit 0. `npm test` 148/148. El despliegue que se sustituye esta vez
+  aún tiene el arranque viejo (puede salir CRASHED una última vez); desde el siguiente, REMOVED.

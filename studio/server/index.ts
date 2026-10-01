@@ -722,6 +722,28 @@ app.get('/api/jobs/:id/result', (req: Request, res: Response) => {
 
 if (PIPELINE_ENABLED) recoverOnStartup();
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Hermes Studio escuchando en http://localhost:${PORT}`);
 });
+
+// Apagado limpio (2026-10-01): Railway para el contenedor anterior con SIGTERM en cada despliegue. Antes el
+// proceso moría por la señal (vía npx) y el despliegue sustituido salía como CRASHED sin haber fallado. Ahora
+// deja de aceptar conexiones, termina las peticiones en curso y sale con 0; si alguna se alarga, a los 5 s.
+// Los trabajos se guardan con escritura atómica (store.ts): no hay nada más que vaciar.
+let shuttingDown = false;
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`${signal} recibido: cerrando Hermes Studio…`);
+    server.close(() => {
+      console.log('Hermes Studio cerrado.');
+      process.exit(0);
+    });
+    server.closeIdleConnections();
+    setTimeout(() => {
+      console.log('Cierre forzado: quedaban peticiones abiertas a los 5 s.');
+      process.exit(0);
+    }, 5000).unref();
+  });
+}
