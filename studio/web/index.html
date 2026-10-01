@@ -195,6 +195,7 @@
             <button type="button" id="rename-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
           </form>
           <p id="job-meta" class="hint"></p>
+          <a id="job-brand-link" class="job-brand-link" href="#" hidden>Ficha de marca</a>
           <p id="job-change" class="change-request" hidden></p>
           <!-- Lo que se pidió, visible también mientras trabaja o si falla (2026-09-30): antes solo se veía con «Reutilizar». -->
           <div id="job-request" class="job-request" hidden></div>
@@ -474,6 +475,25 @@
               <span id="review-summary" class="review-summary"></span>
             </div>
             <p id="review-empty" class="hint" hidden>Sin revisión automática: esta newsletter es anterior al control de calidad.</p>
+            <!-- Por programa de correo (2026-10-01, ver studio/server/clientMatrix.ts): las mismas comprobaciones,
+                 repartidas según a qué programa afectan. -->
+            <div class="review-tools" id="review-tools" hidden>
+              <span class="segmented view-switch review-views" role="group" aria-label="Agrupar la revisión">
+                <button type="button" class="seg-btn" data-review-view="clients" aria-pressed="true">Por programa</button>
+                <button type="button" class="seg-btn" data-review-view="checks" aria-pressed="false">Por comprobación</button>
+              </span>
+              <div class="review-share">
+                <button type="button" id="report-copy" class="btn btn-ghost btn-sm">Copiar como texto</button>
+                <button type="button" id="report-create" class="btn btn-ghost btn-sm">Compartir informe</button>
+              </div>
+            </div>
+            <div class="report-link" id="report-link" hidden>
+              <input type="text" id="report-url" readonly aria-label="Enlace al informe" />
+              <button type="button" id="report-url-copy" class="btn btn-secondary btn-sm">Copiar</button>
+              <p class="hint"><span id="report-info"></span> · <button type="button" id="report-revoke" class="link-btn">Desactivar</button></p>
+            </div>
+            <p class="hint review-disclaimer" id="review-disclaimer" hidden>Comprobaciones del código de la pieza, no capturas de cada programa.</p>
+            <div id="review-clients" class="review-clients"></div>
             <ul id="review-list" class="review-list"></ul>
             <details class="notes-box" id="notes-box" hidden>
               <summary>Autoauditoría de Hermes <span>fuente de cada dato y origen de cada imagen</span></summary>
@@ -595,6 +615,12 @@
         <button id="archive-btn" type="button" class="btn btn-ghost" title="La saca del historial con todas sus versiones. No se borra nada: se recupera desde «Archivadas».">Archivar</button>
         <button id="shortcuts-btn" type="button" class="link-btn shortcuts-link" aria-haspopup="dialog">Atajos de teclado <kbd>?</kbd></button>
       </div>
+    </section>
+
+    <!-- Ficha de marca (2026-10-01, ver studio/worker/brandCard.ts): lo que Hermes sabe de la marca, de solo lectura. -->
+    <section id="view-brand" class="card" hidden>
+      <a href="/" id="brand-back" class="back-link">← Todas las newsletters</a>
+      <div id="brand-body" aria-live="polite"></div>
     </section>
   </main>
 

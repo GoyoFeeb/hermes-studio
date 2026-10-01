@@ -25,6 +25,7 @@ import { chromium } from 'playwright';
 import { runQualityCheck, describeErrors, staticChecks, type QualityReport } from './qualityCheck';
 import { renderThumbnail } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
+import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -608,34 +609,21 @@ const BRIEF_EXPECTED_SEC = 6 * 60;
  *  Hermes usó como "assets oficiales" de Adidas dos fotos generadas con fal.ai que estaban en
  *  brands/adidas/design-input/. Las copias reducidas pierden los metadatos, así que también se
  *  marcan las que comparten nombre base con una detectada (hero-banner.png → hero-banner-email.jpg). */
-function brandAssets(slug: string): { dir: string; logos: string[]; photos: string[]; ai: string[] } {
-  const dir = path.join('brands', slug, 'design-input');
-  const abs = path.join(ROOT, dir);
-  const files = fs.existsSync(abs) ? fs.readdirSync(abs).filter((f) => /\.(png|jpe?g|svg|webp)$/i.test(f)) : [];
-  const detected = files.filter((f) => {
-    try {
-      return fs.readFileSync(path.join(abs, f)).includes('trainedAlgorithmicMedia');
-    } catch {
-      return false;
-    }
-  });
-  const base = (f: string): string => f.replace(/\.[^.]+$/, '').replace(/-(email|original|raw|crop|v\d+)$/i, '');
-  const aiBases = new Set(detected.map(base));
-  const ai = files.filter((f) => detected.includes(f) || aiBases.has(base(f)));
-  const rest = files.filter((f) => !ai.includes(f));
-  return { dir, logos: rest.filter((f) => /logo/i.test(f)), photos: rest.filter((f) => !/logo/i.test(f)), ai };
-}
-
 function brandAssetsNote(outputDir: string): string {
   const slug = outputDir.split(path.sep)[2] || '';
-  const { dir, logos, photos, ai } = brandAssets(slug);
-  if (!logos.length && !photos.length && !ai.length) return '';
+  const { dir, logos, photos, ai, broken, mismatched } = brandAssets(ROOT, slug);
+  if (!logos.length && !photos.length && !ai.length && !broken.length) return '';
   return [
     '',
     `## Nota de entorno: imágenes de ${dir}/`,
     logos.length ? `- Logos: ${logos.join(', ')}` : '',
     photos.length ? `- Fotos sin verificar (pueden ser de campañas anteriores): ${photos.join(', ')}` : '',
     ai.length ? `- GENERADAS CON IA (metadatos C2PA), NO son assets oficiales: ${ai.join(', ')}` : '',
+    // 2026-10-01: páginas de error guardadas como imagen al fallar una descarga (el logo de Prozis era HTML).
+    broken.length ? `- NO SON IMÁGENES (descargas fallidas: páginas de error con extensión de imagen), no las uses: ${broken.join(', ')}` : '',
+    mismatched.length
+      ? `- Formato distinto de la extensión (conviértelas antes de usarlas en la pieza): ${mismatched.map((m) => `${m.file} es ${m.kind.toUpperCase()}`).join(', ')}`
+      : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -1050,6 +1038,30 @@ async function backfillThumbnails(): Promise<void> {
   console.log(`[${stamp()}] Miniaturas del historial: ${jobs.length} generada(s)`);
 }
 
+/** Fichas de marca (2026-10-01, ver brandCard.ts): el brand pack vive en este Mac; con el worker libre se
+ *  envían a Studio las que han cambiado (Studio dice qué huellas tiene). Como mucho cada 10 minutos. */
+const BRAND_SYNC_EVERY_MS = 10 * 60 * 1000;
+let brandSyncAt = 0;
+
+async function syncBrandCards(): Promise<void> {
+  if (Date.now() < brandSyncAt) return;
+  brandSyncAt = Date.now() + BRAND_SYNC_EVERY_MS;
+  const res = await api('/api/worker/brand-cards/known', {}, 1);
+  if (!res.ok) return; // Studio sin la ruta todavía
+  const { hashes = {} } = (await res.json()) as { hashes?: Record<string, string> };
+  const changed: { card: BrandCard; hash: string }[] = [];
+  for (const slug of localBrands()) {
+    const card = buildBrandCard(ROOT, slug);
+    const hash = cardHash(card);
+    if (hashes[slug] !== hash) changed.push({ card, hash });
+  }
+  for (let i = 0; i < changed.length; i += 6) {
+    const r = await api('/api/worker/brand-cards', { cards: changed.slice(i, i + 6) }, 2);
+    if (!r.ok) throw new Error(`Studio respondió ${r.status} al guardar fichas de marca`);
+  }
+  if (changed.length) console.log(`[${stamp()}] Fichas de marca enviadas a Studio: ${changed.length}`);
+}
+
 /** Un solo worker a la vez (servicio de launchd + uno abierto a mano en un terminal): con dos, se
  *  reparten trabajos y el /reset del que arranca marcaba como fallido lo que hacía el otro. */
 const LOCK_FILE = path.join(__dirname, '.worker.lock');
@@ -1125,6 +1137,7 @@ async function main(): Promise<void> {
       }
       if (res.status === 204) {
         await backfillThumbnails().catch((err) => console.error(`[${stamp()}] Miniaturas: ${(err as Error).message}`));
+        await syncBrandCards().catch((err) => console.error(`[${stamp()}] Fichas de marca: ${(err as Error).message}`));
       } else if (res.status === 401) {
         console.error('Studio rechaza el WORKER_TOKEN — revisa que coincide con el de Railway.');
       } else {

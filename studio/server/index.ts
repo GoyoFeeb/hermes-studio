@@ -56,6 +56,9 @@ import {
 } from './standalone';
 import { TextEditError, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { runQualityCheck } from '../worker/qualityCheck';
+import { clientMatrix } from './clientMatrix';
+import { knownBrandHashes, readBrandCard, saveBrandCards } from './brandCards';
+import { REPORT_DAYS, REPORT_HEADERS, createReportShare, findReportJob, isReportActive, renderReportGone, renderReportPage, revokeReportShare } from './report';
 import {
   SHARE_DAYS,
   ShareInputError,
@@ -163,6 +166,18 @@ app.get('/p/:token', (req: Request, res: Response) => {
     return;
   }
   recordShareView(job);
+  res.type('html').send(page);
+});
+
+// Informe de la revisión por programa de correo (2026-10-01, ver report.ts): público con su propio token.
+app.get('/r/:token', (req: Request, res: Response) => {
+  res.set(REPORT_HEADERS);
+  const job = findReportJob(String(req.params.token));
+  const page = job ? renderReportPage(job) : null;
+  if (!page) {
+    res.status(404).type('html').send(renderReportGone());
+    return;
+  }
   res.type('html').send(page);
 });
 
@@ -376,6 +391,15 @@ app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256k
 
 // Miniaturas de newsletters anteriores (2026-09-28): el worker, cuando está libre, pide unas pocas sin
 // miniatura, las renderiza en el Mac y las sube. Railway no abre ningún navegador.
+// Fichas de marca (2026-10-01, ver brandCards.ts y studio/worker/brandCard.ts): el worker pregunta qué huellas
+// hay y envía solo las fichas que han cambiado.
+app.post('/api/worker/brand-cards/known', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
+  res.json({ hashes: knownBrandHashes() });
+});
+app.post('/api/worker/brand-cards', requireWorker, express.json({ limit: '4mb' }), (req: Request, res: Response) => {
+  res.json({ saved: saveBrandCards(req.body?.cards) });
+});
+
 app.post('/api/worker/thumbs/pending', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
   res.json({ jobs: pendingThumbnails(3) });
 });
@@ -439,6 +463,45 @@ app.get('/api/brands', (_req: Request, res: Response) => {
   // Las del Mac del worker primero: es donde Hermes busca brands/{marca}/.
   const brands = [...new Set([...readWorkerBrands(), ...local])].sort();
   res.json({ brands });
+});
+
+// Ficha de marca (2026-10-01): la que envió el worker y las últimas newsletters de esa marca.
+app.get('/api/brands/:slug', (req: Request, res: Response) => {
+  const slug = String(req.params.slug);
+  if (!SLUG_RE.test(slug)) {
+    res.status(404).json({ error: 'Marca no válida.' });
+    return;
+  }
+  // Una línea por newsletter (su versión más reciente), no por versión: v1 y v2 suelen tener el mismo asunto.
+  const families = new Map<string, { latest: Job; root: Job; count: number }>();
+  for (const j of listJobs()) {
+    if (j.input.mode !== 'standalone' || j.input.clientSlug !== slug || j.archivedAt) continue;
+    const rootId = versionFamily(j)[0]?.id || j.id;
+    const f = families.get(rootId);
+    if (!f) families.set(rootId, { latest: j, root: getJob(rootId) || j, count: 1 });
+    else {
+      f.count++;
+      if (j.createdAt > f.latest.createdAt) f.latest = j;
+    }
+  }
+  const newsletters = [...families.values()]
+    .sort((a, b) => b.latest.createdAt.localeCompare(a.latest.createdAt))
+    .slice(0, 12)
+    .map(({ latest, root, count }) => ({
+      id: latest.id,
+      createdAt: latest.createdAt,
+      status: latest.status,
+      title: root.title || null,
+      subject: cachedSubject(latest),
+      versions: count,
+    }));
+  const stored = readBrandCard(slug);
+  res.json({
+    card: stored?.card || null,
+    receivedAt: stored?.receivedAt || null,
+    onWorker: readWorkerBrands().includes(slug),
+    newsletters,
+  });
 });
 
 // Límite de creación de jobs (auditoría 2026-09-23, BUG-H09): cada job dispara varias llamadas
@@ -603,6 +666,8 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
     queue: queueInfo(job),
     versions: versionFamily(job),
     familyTitle: getJob(versionFamily(job)[0]?.id || job.id)?.title || null,
+    // Revisión agrupada por programa de correo (2026-10-01, ver clientMatrix.ts).
+    clientMatrix: job.quality ? clientMatrix(job.quality) : null,
     retriedBy: retriedBy(job),
     hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000,
   });
@@ -819,6 +884,33 @@ app.post('/api/jobs/:id/share', (req: Request, res: Response) => {
   const share = createShare(job, by);
   if (!existed) hermesLog(job.id, `Enlace de vista previa para el cliente creado${by ? ` por ${by}` : ''} (caduca en ${SHARE_DAYS} días).`);
   res.status(existed ? 200 : 201).json({ share });
+});
+
+// Enlace al informe de la revisión (2026-10-01): uno por versión, se reutiliza mientras esté activo.
+app.post('/api/jobs/:id/report-share', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone' || job.status !== 'completed' || !job.quality) {
+    res.status(404).json({ error: 'Esta versión no tiene revisión automática que compartir.' });
+    return;
+  }
+  const by = typeof req.body?.by === 'string' ? req.body.by.trim().slice(0, 80) : '';
+  const existed = isReportActive(job.reportShare);
+  const reportShare = createReportShare(job, by);
+  if (!existed) hermesLog(job.id, `Enlace al informe de la revisión creado${by ? ` por ${by}` : ''} (caduca en ${REPORT_DAYS} días).`);
+  res.status(existed ? 200 : 201).json({ reportShare });
+});
+
+app.delete('/api/jobs/:id/report-share', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone') {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (job.reportShare) {
+    revokeReportShare(job);
+    hermesLog(job.id, 'Enlace al informe de la revisión desactivado.');
+  }
+  res.json({ ok: true });
 });
 
 // Renombrar la newsletter (2026-10-01): el nombre es de la familia entera (vive en la versión raíz).

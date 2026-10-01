@@ -8,6 +8,7 @@ import * as path from 'path';
 import { JOBS_DIR } from './paths';
 import type { QualityReport } from '../worker/qualityCheck';
 import type { JobShare } from './share';
+import type { JobReportShare } from './report';
 
 /** 'cancelled' (2026-09-28): cancelado desde la web; el worker lo ve al enviar progreso y para. */
 /** 'review' (2026-10-01): Hermes escribió el brief y espera a que el equipo lo apruebe (`reviewBrief`). */
@@ -95,6 +96,8 @@ export interface Job {
   /** Nombre que el equipo le pone a la newsletter (2026-10-01). Vive en la versión raíz de la familia;
    *  sin él, el historial muestra el asunto. */
   title?: string;
+  /** Enlace público al informe de la revisión por programa de correo (2026-10-01, ver report.ts). */
+  reportShare?: JobReportShare;
 }
 
 export interface JobEvent {

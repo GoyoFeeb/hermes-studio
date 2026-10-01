@@ -1,6 +1,7 @@
 const form = document.getElementById('brief-form');
 const viewForm = document.getElementById('view-form');
 const viewJob = document.getElementById('view-job');
+const viewBrand = document.getElementById('view-brand');
 const hero = document.querySelector('.hero');
 const clientNameInput = document.getElementById('client-name-input');
 const existingBrandInput = document.getElementById('existing-brand-input');
@@ -92,8 +93,38 @@ function updateBrandMatch() {
   hint.textContent = !name
     ? ''
     : match
-    ? 'Marca conocida: Hermes usará sus colores, tipografías y logos ya guardados.'
-    : 'Marca nueva: Hermes la investigará desde cero y guardará su identidad para la próxima vez.';
+    ? 'Marca conocida.'
+    : 'Marca nueva: Hermes la investigará desde cero.';
+  if (match) describeKnownBrand(match);
+}
+
+// Qué sabe Hermes de una marca conocida (2026-10-01): antes el aviso decía siempre «usará sus colores,
+// tipografías y logos», pero 16 de 34 marcas no tienen brand pack medido (solo logos o nada).
+const brandSummaries = new Map();
+async function describeKnownBrand(slug) {
+  const hint = document.getElementById('brand-match');
+  const render = (data) => {
+    if (existingBrandInput.value !== slug) return;
+    const card = data?.card;
+    const text = !card
+      ? 'Marca conocida.'
+      : card.hasPack
+      ? 'Marca conocida: Hermes usará su brand pack (colores, tipografías, tono y logos).'
+      : card.assets.logos.length
+      ? 'Marca conocida, sin brand pack medido: Hermes usará sus logos e investigará colores y tono.'
+      : 'Marca conocida, sin brand pack ni logos: Hermes la investigará como nueva.';
+    hint.innerHTML = `${escapeHtml(text)} <a href="?brand=${encodeURIComponent(slug)}" target="_blank" rel="noopener">Ver ficha</a>`;
+  };
+  if (brandSummaries.has(slug)) return render(brandSummaries.get(slug));
+  try {
+    const res = await apiFetch(`/api/brands/${encodeURIComponent(slug)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    brandSummaries.set(slug, data);
+    render(data);
+  } catch {
+    // sin red: se queda el aviso corto
+  }
 }
 clientNameInput.addEventListener('input', updateBrandMatch);
 
@@ -1126,6 +1157,7 @@ function showFormView() {
   setFaviconStatus(null);
   history.pushState({}, '', location.pathname);
   viewJob.hidden = true;
+  viewBrand.hidden = true;
   viewForm.hidden = false;
   hero.hidden = false;
   document.title = BASE_TITLE;
@@ -1275,6 +1307,178 @@ document.getElementById('share-move').addEventListener('click', async (e) => {
     btn.disabled = false;
   }
 });
+
+// ---------------------------------------------------------------- ficha de marca (2026-10-01)
+// Solo lectura: el brand pack lo mide el agente 02 en la web real y cada valor lleva su procedencia. La ficha la
+// envía el worker desde el Mac (donde vive el brand pack que usa Hermes): ver studio/worker/brandCard.ts.
+
+const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([0-9.,\s%]{5,40}\))$/i;
+const SAFE_LEN = /^\d{1,3}(\.\d+)?(px|%)?( \d{1,3}(\.\d+)?(px|%)?){0,3}$/;
+
+const DARK_STATUS = { 'not-implemented': 'No preparado en el brand pack', implemented: 'Preparado', partial: 'Parcial' };
+
+function brandSection(title, body) {
+  return body ? `<section class="brand-section"><h3>${escapeHtml(title)}</h3>${body}</section>` : '';
+}
+function brandDl(rows) {
+  const items = rows.filter(([, v]) => v != null && v !== '').map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`);
+  return items.length ? `<dl class="brand-dl">${items.join('')}</dl>` : '';
+}
+
+function renderBrandView(slug, data) {
+  const body = document.getElementById('brand-body');
+  const card = data?.card;
+  const name = card?.name || brandDisplayName(slug);
+  document.title = `Ficha de marca · ${name} · Hermes Studio`;
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+  const logo = card?.logo && /^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(card.logo)
+    ? `<img src="${escapeHtml(card.logo)}" alt="Logo de ${escapeHtml(name)}" />`
+    : `<span>${escapeHtml(initials)}</span>`;
+  const when = (iso) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+  const head = `<div class="brand-head">
+      <div class="brand-logo${card?.logoOnDark ? ' is-dark' : ''}">${logo}</div>
+      <div>
+        <h2 id="brand-title" tabindex="-1">${escapeHtml(name)}</h2>
+        <p class="hint">${
+          !card
+            ? 'Sin ficha todavía'
+            : card.hasPack
+            ? `Brand pack${card.version ? ` v${escapeHtml(card.version)}` : ''}${card.updatedAt ? ` · actualizado el ${escapeHtml(when(card.updatedAt))}` : ''}`
+            : 'Sin brand pack medido'
+        }</p>
+      </div>
+    </div>`;
+  let content = '';
+  if (!card) {
+    content = `<p class="brand-empty">${
+      data?.onWorker
+        ? 'Aún no ha llegado la ficha: la envía el Mac de Hermes cuando está libre (como mucho cada 10 minutos).'
+        : 'Esta marca no está en el Mac de Hermes: no hay brand pack ni logos guardados. Hermes la investigará como nueva.'
+    }</p>`;
+  } else if (!card.hasPack) {
+    content = `<p class="brand-empty">Esta marca no tiene brand pack medido. Hermes investiga su web en cada newsletter: lo que encontró (colores, tono, fuentes) está en el brief y en la autoauditoría de cada una.</p>`;
+  } else {
+    const colors = card.colors
+      .filter((c) => SAFE_COLOR.test(c.value))
+      .map((c) => `<li><span class="swatch" style="background:${c.value}"></span><span class="swatch-label">${escapeHtml(c.labels.join(' · '))}</span><code>${escapeHtml(c.value)}</code></li>`)
+      .join('');
+    const ty = card.typography;
+    const cta = card.cta;
+    const ctaStyle = cta
+      ? [
+          cta.background && SAFE_COLOR.test(cta.background) ? `background:${cta.background}` : '',
+          cta.text && SAFE_COLOR.test(cta.text) ? `color:${cta.text}` : '',
+          cta.radius && SAFE_LEN.test(cta.radius) ? `border-radius:${cta.radius}` : '',
+          cta.padding && SAFE_LEN.test(cta.padding) ? `padding:${cta.padding}` : '',
+        ].filter(Boolean).join(';')
+      : '';
+    const v = card.voice;
+    const ph = card.photography;
+    const ic = card.iconography;
+    const dm = card.darkMode;
+    content = [
+      // Solo «en <web> el <fecha>»: el paréntesis técnico (getComputedStyle…) no le dice nada al equipo.
+      card.measuredFrom ? `<p class="hint brand-source">Medido ${escapeHtml(card.measuredFrom.replace(/^observado\s+/i, '').split(' (')[0])}</p>` : '',
+      brandSection('Colores', colors ? `<ul class="swatches">${colors}</ul>` : ''),
+      brandSection(
+        'Tipografía',
+        ty
+          ? brandDl([
+              ['Texto', ty.family],
+              ['Titulares', ty.display],
+              ['Fuente web', ty.webFont],
+              ['Titular principal', ty.h1],
+              ['Cuerpo', ty.body],
+            ]) + (ty.note ? `<p class="hint">${escapeHtml(ty.note)}</p>` : '')
+          : ''
+      ),
+      brandSection(
+        'Botón',
+        cta && (ctaStyle || cta.label)
+          ? `<span class="cta-sample" style="${ctaStyle}">${escapeHtml(cta.label || 'Botón')}</span>${brandDl([['Esquinas', cta.radius], ['Relleno', cta.padding]])}`
+          : ''
+      ),
+      brandSection(
+        'Tono de voz',
+        v
+          ? brandDl([
+              ['Tono', v.tone],
+              ['Trato', v.formality],
+              ['Frases', v.sentenceLength],
+              ['Modo', v.mode],
+              ['Puntuación', v.punctuation],
+            ]) +
+            (v.examples.length ? `<ul class="voice-examples">${v.examples.map((e) => `<li>«${escapeHtml(e)}»</li>`).join('')}</ul>` : '') +
+            (v.source ? `<p class="hint">Fuente: ${escapeHtml(v.source)}</p>` : '')
+          : ''
+      ),
+      brandSection(
+        'Fotografía',
+        ph ? brandDl([['Fotografía real', ph.real == null ? null : ph.real ? 'Sí' : 'No']]) + (ph.treatment ? `<p class="brand-text">${escapeHtml(ph.treatment)}</p>` : '') : ''
+      ),
+      brandSection(
+        'Iconos',
+        ic ? brandDl([['Estilo', ic.style], ['Monocromo', ic.monochrome == null ? null : ic.monochrome ? 'Sí' : 'No'], ['Color', ic.color]]) + (ic.implication ? `<p class="hint">${escapeHtml(ic.implication)}</p>` : '') : ''
+      ),
+      brandSection('Modo oscuro', dm ? brandDl([['Estado', DARK_STATUS[dm.status] || dm.status], ['Nota', dm.note]]) : ''),
+    ].join('');
+  }
+  const assets = card
+    ? brandSection(
+        'Archivos en el Mac de Hermes',
+        `<p class="brand-text">${
+          card.assets.logos.length ? `Logos: ${card.assets.logos.map((l) => `<code>${escapeHtml(l)}</code>`).join(', ')}.` : 'Sin logos guardados.'
+        } ${card.assets.photos ? `${card.assets.photos} foto${card.assets.photos === 1 ? '' : 's'} sin verificar (pueden ser de campañas anteriores).` : ''} ${
+          card.assets.ai ? `${card.assets.ai} ${card.assets.ai === 1 ? 'imagen generada' : 'imágenes generadas'} con IA (no son oficiales).` : ''
+        }</p>${
+          card.assets.broken?.length
+            ? `<p class="brand-warn">No son imágenes (descargas fallidas: páginas de error guardadas como imagen), Hermes no las usa: ${card.assets.broken.map((f) => `<code>${escapeHtml(f)}</code>`).join(', ')}.</p>`
+            : ''
+        }${
+          card.assets.mismatched?.length
+            ? `<p class="brand-warn">Con la extensión cambiada (hay que convertirlas antes de usarlas): ${card.assets.mismatched.map((f) => `<code>${escapeHtml(f)}</code>`).join(', ')}.</p>`
+            : ''
+        }`
+      )
+    : '';
+  const list = (data?.newsletters || [])
+    .map((n) => {
+      const label = n.title || n.subject || new Date(n.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      const versions = n.versions > 1 ? ` · ${n.versions} versiones` : '';
+      return `<li><a href="?job=${encodeURIComponent(n.id)}">${escapeHtml(label)}</a> <span class="hint">· ${escapeHtml(new Date(n.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))} · ${escapeHtml(STATUS_LABELS[n.status] || n.status)}${versions}</span></li>`;
+    })
+    .join('');
+  const readonly = `<p class="brand-readonly">Solo lectura. El brand pack lo mide el agente de marca en la web real (cada valor con su procedencia). Si algo está mal, pide en una newsletter que Hermes lo vuelva a medir, o avisa a quien mantiene el sistema.</p>`;
+  body.innerHTML = head + readonly + content + assets + brandSection('Newsletters de esta marca', list ? `<ul class="brand-newsletters">${list}</ul>` : '<p class="hint">Todavía ninguna.</p>');
+}
+
+async function showBrandView(slug) {
+  if (!confirmLeaveJob()) return;
+  clearTimeout(pollTimer);
+  clearTimeout(historyTimer);
+  currentJob = null;
+  setFaviconStatus(null);
+  viewForm.hidden = true;
+  hero.hidden = true;
+  viewJob.hidden = true;
+  viewBrand.hidden = false;
+  updateSticky();
+  const body = document.getElementById('brand-body');
+  body.innerHTML = '<p class="hint">Cargando la ficha…</p>';
+  try {
+    const res = await apiFetch(`/api/brands/${encodeURIComponent(slug)}`);
+    const data = res.ok ? await res.json() : null;
+    if (!res.ok) {
+      body.innerHTML = `<p class="brand-empty">${res.status === 401 ? 'Inicia sesión para ver la ficha.' : 'No se ha encontrado esa marca.'}</p>`;
+      return;
+    }
+    renderBrandView(slug, data);
+    document.getElementById('brand-title')?.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  } catch {
+    body.innerHTML = `<p class="brand-empty">${escapeHtml(NETWORK_ERROR)}</p>`;
+  }
+}
 
 // ---------------------------------------------------------------- nombre de la newsletter (2026-10-01)
 
@@ -2805,6 +3009,7 @@ function showJobView(id) {
   setReconnecting(false);
   viewForm.hidden = true;
   hero.hidden = true;
+  viewBrand.hidden = true;
   viewJob.hidden = false;
   document.getElementById('job-result').hidden = true;
   showJobTab('preview');
@@ -2877,7 +3082,7 @@ async function poll(id) {
     document.getElementById('job-title').textContent = res.status === 401 ? 'Inicia sesión para ver este trabajo' : 'Trabajo no encontrado';
     return;
   }
-  const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy, familyTitle } = await res.json();
+  const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy, familyTitle, clientMatrix: matrix } = await res.json();
   renderJobName(familyTitle, meta);
   renderVersions(job, versions || []);
   currentJobData = job;
@@ -2894,6 +3099,10 @@ async function poll(id) {
     : job.input.textEditOf
     ? `${job.input.clientName} · texto editado`
     : job.input.clientName;
+  const brandLink = document.getElementById('job-brand-link');
+  brandLink.hidden = !job.input.clientSlug;
+  brandLink.href = `?brand=${encodeURIComponent(job.input.clientSlug || '')}`;
+  brandLink.textContent = `Ficha de marca de ${job.input.clientName}`;
   const changeEl = document.getElementById('job-change');
   changeEl.hidden = !job.input.changeRequest;
   changeEl.textContent = !job.input.changeRequest
@@ -2947,7 +3156,8 @@ async function poll(id) {
       applyPreviewView(job.input.mobileFixOf ? 'mobile' : readPreviewView());
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
-      renderReview(job.quality, notes);
+      renderReview(job.quality, notes, matrix);
+      renderReportShare(job.reportShare);
       renderShare(job.share, versions || []);
       renderMeta(meta, job.input.clientName);
       setupExport(job);
@@ -3292,7 +3502,8 @@ function plural(n, one, many) {
 // lo que tiene que mirar quien revisa la pieza antes de enviarla, sin abrir el registro.
 let reviewChecks = [];
 
-function renderReview(quality, notes) {
+function renderReview(quality, notes, matrix = null) {
+  reviewMatrix = matrix;
   const summary = document.getElementById('review-summary');
   const list = document.getElementById('review-list');
   const message = document.getElementById('result-message');
@@ -3334,12 +3545,143 @@ function renderReview(quality, notes) {
       })
       .join('');
   }
+  renderClientMatrix();
 
   const notesBox = document.getElementById('notes-box');
   notesBox.hidden = !notes;
   notesBox.open = false;
   document.getElementById('notes-text').innerHTML = notes && window.HermesMarkdown ? window.HermesMarkdown.render(notes) : '';
 }
+
+// ---------------------------------------------------------------- revisión por programa de correo (2026-10-01)
+// Las mismas comprobaciones repartidas por programa (Outlook, Gmail, Apple Mail, móvil y comunes); el reparto lo
+// hace el servidor (studio/server/clientMatrix.ts) para que Studio y el informe compartido digan lo mismo.
+
+let reviewMatrix = null;
+const CLIENT_STATE = { ok: 'Correcto', warning: 'Revisar', error: 'Error', unknown: 'Sin medir' };
+
+function readReviewView() {
+  try {
+    return localStorage.getItem('reviewView') === 'checks' ? 'checks' : 'clients';
+  } catch {
+    return 'clients';
+  }
+}
+
+function renderClientMatrix() {
+  const has = !!reviewMatrix?.length;
+  const view = has ? readReviewView() : 'checks';
+  document.getElementById('review-tools').hidden = !has;
+  document.getElementById('review-disclaimer').hidden = !has || view !== 'clients';
+  document.querySelectorAll('[data-review-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.reviewView === view)));
+  const box = document.getElementById('review-clients');
+  box.hidden = view !== 'clients';
+  document.getElementById('review-list').hidden = view === 'clients';
+  if (!has) {
+    box.innerHTML = '';
+    return;
+  }
+  const indexOf = (id) => reviewChecks.findIndex((c) => c.id === id);
+  box.innerHTML = reviewMatrix
+    .map((row) => {
+      // A la vista, solo errores y avisos; lo correcto, resumido en una línea (la cabecera ya dice el estado).
+      const items = row.items
+        .filter((it) => it.text && it.level !== 'ok')
+        .map((it) => {
+          const ci = indexOf(it.checkId);
+          const data = ci >= 0 && it.detailIndex >= 0 ? ` data-check="${ci}" data-detail="${it.detailIndex}"` : '';
+          return `<li class="is-${escapeHtml(it.level)}"${data}><span><span class="client-item-label">${escapeHtml(it.label)}:</span> ${escapeHtml(it.text)}</span></li>`;
+        })
+        .join('');
+      const okLabels = [...new Set(row.items.filter((it) => it.level === 'ok' && !row.items.some((o) => o.checkId === it.checkId && o.level !== 'ok')).map((it) => it.label))];
+      const okAll = okLabels.length && row.id === 'all' ? `<p class="hint client-ok">Correcto: ${escapeHtml(okLabels.join(', '))}.</p>` : '';
+      return `<section class="client-card check-${escapeHtml(row.status)}">
+          <div class="client-card-head">
+            <span class="check-dot" aria-hidden="true"></span>
+            <h4>${escapeHtml(row.name)}</h4>
+            <span class="client-scope">${escapeHtml(row.scope)}</span>
+            <span class="check-state">${escapeHtml(CLIENT_STATE[row.status] || row.status)}</span>
+          </div>
+          ${items ? `<ul class="check-details">${items}</ul>` : ''}${okAll}
+          ${row.notes.map((n) => `<p class="client-note">${escapeHtml(n)}</p>`).join('')}
+        </section>`;
+    })
+    .join('');
+  annotateLocations();
+}
+
+document.querySelectorAll('[data-review-view]').forEach((b) =>
+  b.addEventListener('click', () => {
+    try {
+      localStorage.setItem('reviewView', b.dataset.reviewView);
+    } catch {
+      // sin almacenamiento: solo esta visita
+    }
+    renderClientMatrix();
+  })
+);
+document.getElementById('review-clients').addEventListener('click', (e) => {
+  const btn = e.target.closest('.locate-btn');
+  if (!btn) return;
+  const li = btn.closest('li[data-check]');
+  const check = reviewChecks[Number(li.dataset.check)];
+  const loc = check && HermesLocate.locatorsFor(check)[Number(li.dataset.detail)];
+  if (loc) goToLocation(loc, 'after');
+});
+
+/** Texto para pegar en un correo o en Slack: el informe por programa, sin enlaces de Studio. */
+function reportText() {
+  if (!reviewMatrix) return '';
+  // El nombre propio solo si lo tiene: si no, el asunto ya va en su línea.
+  const lines = [`Revisión técnica · ${currentJobData?.input.clientName || ''}${jobFamilyTitle ? ` · ${jobFamilyTitle}` : ''}`];
+  if (currentMeta?.subject) lines.push(`Asunto: ${currentMeta.subject}`);
+  if (currentMeta?.preheader) lines.push(`Preheader: ${currentMeta.preheader}`);
+  lines.push('(Comprobaciones del código de la pieza, no capturas de cada programa.)', '');
+  for (const row of reviewMatrix) {
+    lines.push(`${row.name} · ${row.scope}: ${CLIENT_STATE[row.status] || row.status}`);
+    for (const it of row.items) if (it.level !== 'ok' && it.text) lines.push(`  - ${it.label}: ${it.text}`);
+    for (const n of row.notes) lines.push(`  · ${n}`);
+  }
+  return lines.join('\n');
+}
+document.getElementById('report-copy').addEventListener('click', () =>
+  copyText(reportText(), 'Informe copiado como texto.', 'Selecciona y copia el informe a mano.')
+);
+
+function renderReportShare(reportShare) {
+  const active = !!reportShare && Date.parse(reportShare.expiresAt) > Date.now();
+  document.getElementById('report-link').hidden = !active;
+  document.getElementById('report-create').hidden = active;
+  if (!active) return;
+  document.getElementById('report-url').value = `${location.origin}/r/${reportShare.token}`;
+  const until = new Date(reportShare.expiresAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  document.getElementById('report-info').textContent = `Sin contraseña, solo el informe (no la pieza). Caduca el ${until}`;
+}
+async function reportShareRequest(method) {
+  if (!currentJob) return;
+  const id = currentJob;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/report-share`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: method === 'POST' ? JSON.stringify({ by: savedRequester() || undefined }) : undefined,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(data.error || 'No se pudo cambiar el enlace del informe.', 'error');
+    if (id !== currentJob) return;
+    renderReportShare(method === 'POST' ? data.reportShare : null);
+    if (method === 'POST') copyText(document.getElementById('report-url').value, 'Enlace al informe creado y copiado.', 'Copia el enlace del recuadro.');
+    else showToast('Enlace al informe desactivado.');
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
+  }
+}
+document.getElementById('report-create').addEventListener('click', () => reportShareRequest('POST'));
+document.getElementById('report-revoke').addEventListener('click', () => reportShareRequest('DELETE'));
+document.getElementById('report-url-copy').addEventListener('click', () =>
+  copyText(document.getElementById('report-url').value, 'Enlace al informe copiado.', 'Copia el enlace del recuadro.')
+);
+document.getElementById('report-url').addEventListener('focus', (e) => e.target.select());
 
 // ---------------------------------------------------------------- vista previa escritorio / móvil
 
@@ -3643,7 +3985,7 @@ function annotateLocations() {
     btn.setAttribute('aria-label', `Ver en la vista previa: ${label}`);
     li.appendChild(btn);
   };
-  document.querySelectorAll('#review-list li[data-check]').forEach((li) => {
+  document.querySelectorAll('#review-list li[data-check], #review-clients li[data-check]').forEach((li) => {
     const check = reviewChecks[Number(li.dataset.check)];
     const loc = check && HermesLocate.locatorsFor(check)[Number(li.dataset.detail)];
     if (!loc) return;
@@ -4126,9 +4468,13 @@ function escapeHtml(str) {
 }
 
 function route() {
-  const id = new URLSearchParams(location.search).get('job');
+  const params = new URLSearchParams(location.search);
+  const id = params.get('job');
+  const brand = params.get('brand');
   if (id) {
     showJobView(id);
+  } else if (brand) {
+    showBrandView(brand);
   } else {
     if (!confirmLeaveJob()) {
       history.pushState({}, '', `?job=${encodeURIComponent(currentJob)}`);
@@ -4138,6 +4484,7 @@ function route() {
     currentJob = null;
     setFaviconStatus(null);
     viewJob.hidden = true;
+    viewBrand.hidden = true;
     viewForm.hidden = false;
     hero.hidden = false;
     document.title = BASE_TITLE;

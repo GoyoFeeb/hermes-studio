@@ -1165,3 +1165,33 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   idénticos tras unos segundos de propagación). En producción, `/p/<token falso>` y `POST …/comments` responden "ya no
   está disponible" por Railway y por Vercel; `/api` sigue pidiendo contraseña. Worker sin cambios. **Pendiente:** primer
   uso real con un cliente (comentar, aprobar, pasar a Hermes, pasar el enlace a la versión nueva).
+
+### 2026-10-01 (continuación) — Comparativa Migma: puntos 4 (ficha de marca) y 5 (revisión por programa)
+
+- **Elegidos por el usuario.** Studio (web, servidor y worker); motor y agentes 00-09 sin tocar.
+- **4. Ficha de marca** (`?brand=<marca>`, solo lectura): la resume el WORKER desde el Mac (`studio/worker/brandCard.ts`),
+  porque el brand pack que usa Hermes vive allí y la copia de Railway puede estar desfasada (el arranque no sobrescribe).
+  Con el worker libre, como mucho cada 10 min: `POST /api/worker/brand-cards/known` (huellas) → envía solo las que
+  cambian (`/api/worker/brand-cards`, lotes de 6) → `studio/data/brand-cards/<marca>.json` (`brandCards.ts`, tamaños
+  acotados, logo como data URI ≤ 150 KB). `GET /api/brands/:slug` (ficha + una línea por newsletter de la marca).
+  Muestra colores (agrupados por valor), tipografía, botón de muestra, tono de voz con ejemplos, fotografía, iconos,
+  modo oscuro, procedencia ("medido en <web> el <fecha>") y archivos. Enlaces: "Ficha de marca de X" en cada trabajo y
+  "Ver ficha" en el formulario. **El aviso del formulario ya no miente**: decía siempre "usará sus colores, tipografías y
+  logos", pero solo 18 de 34 marcas tienen brand pack; ahora distingue con brand pack / solo logos / nada.
+- **Hallazgo y arreglo de paso (worker):** 4 "imágenes" de `brands/*/design-input` eran páginas de error guardadas al
+  fallar una descarga (el logo principal de **Prozis** `prozis-logo.svg`, `logo-veci-claim.svg` de El Corte Inglés
+  "Access Denied", una de Supreme y otra de Volkswagen) y 6 tenían la extensión cambiada (logos de Toyota JPEG como
+  .png, fotos de Adeslas WebP como .jpg). El worker se las listaba a Hermes como logos/fotos. Ahora `imageKind()` mira
+  los bytes: las rotas ya no se le ofrecen (se le dice que no las use) y de las otras se le avisa; la ficha las señala.
+  **Pendiente del usuario:** volver a descargar el logo de Prozis y el de VECI (y las otras dos), o borrarlos.
+- **5. Revisión por programa de correo** (`clientMatrix.ts`, un solo reparto para Studio y el informe): Outlook de
+  escritorio (check outlook), Gmail (peso; nota: ignora el modo oscuro de la pieza), Apple Mail (modo oscuro), Móvil
+  (medición 375 px) y Todos (resto, también comprobaciones futuras). En "Revisión", selector "Por programa / Por
+  comprobación" (recordado), solo errores y avisos a la vista, "Ver" en la pieza, "Copiar como texto" y "Compartir
+  informe": enlace público `/r/<token>` propio (`report.ts`, 14 días, desactivable, sin scripts, noindex; rewrite en
+  `vercel.json`), distinto del enlace del cliente. Avisa de que son comprobaciones del código, no capturas por programa.
+- **Verificación (copia aislada):** sincronización simulada con las 34 fichas reales (1.ª vez 34, 2.ª 0; sin token 401);
+  fichas de Nike, El Corte Inglés (sin brand pack, logo real) y Prozis (logo roto señalado, logo blanco sobre oscuro);
+  aviso del formulario; revisión de la newsletter real de Puma (24-09) con Apple Mail en error por modo oscuro; texto
+  copiado; informe público y desactivado; 375 px sin desborde. Tests nuevos `clientMatrix.test.js` y `brandCard.test.js`
+  (contra los brand packs reales); `npm test` 155/155.
