@@ -944,7 +944,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         'name="color-scheme" content="light dark"> y <meta name="supported-color-schemes" content="light dark">, y un ' +
         '@media (prefers-color-scheme: dark) con fondos, textos y CTA en oscuro coherentes con la marca (logo claro si ' +
         'hace falta). Outlook → tabla fantasma de 600 px en <!--[if mso]>, ajuste de 96 ppp en <head>, width en cada ' +
-        '<img>, tablas en vez de flex/grid. Renderiza también en oscuro para comprobarlo. No cambies el diseño en ' +
+        '<img>, tablas en vez de flex/grid. Logo arriba y abajo → el del pie pasa a ser exactamente el de la cabecera ' +
+        '(mismo archivo, misma versión de color, mismos width/height en atributo y estilo, mismas variantes de modo ' +
+        'oscuro); si con ese logo no se lee sobre el fondo del pie, quita el logo del pie. ' +
+        'Renderiza también en oscuro para comprobarlo. No cambies el diseño en ' +
         'claro. Actualiza notas.md con lo que has corregido.',
       sessionId,
       () => undefined

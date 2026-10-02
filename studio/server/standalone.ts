@@ -45,6 +45,16 @@ export function standaloneOutputDir(job: Job): string {
   return path.join('newsletters', job.createdAt.slice(0, 4), job.input.clientSlug, 'hermes', standaloneCampaignSlug(job));
 }
 
+/** Norma del 2026-10-02: el logo del pie, si lo hay, es exactamente el de la cabecera. Studio lo comprueba
+ *  (studio/worker/qualityCheck.ts, "Logo arriba y abajo") y devuelve la pieza si no coincide. */
+const LOGO_RULE = [
+  '- Logo arriba y abajo: el logo del pie es opcional, pero si lo pones tiene que ser EXACTAMENTE el de la',
+  '  cabecera: el mismo archivo (misma versión de color) y el mismo tamaño (mismos width/height en atributos',
+  '  y estilo). No lo encojas en el pie ni cambies a la versión blanca porque el pie sea oscuro: pon el logo',
+  '  sobre un fondo donde se lea o déjalo fuera. Si en modo oscuro cambias a otra versión, cámbiala igual',
+  '  arriba y abajo. Studio lo comprueba y te devolverá la pieza si no coinciden.',
+];
+
 /** Encargo completo para Hermes: el prompt pegado, tal cual, más las reglas de entrega. */
 export function buildHermesPrompt(job: Job): string {
   const outDir = standaloneOutputDir(job);
@@ -83,6 +93,7 @@ export function buildHermesPrompt(job: Job): string {
     '  tipografías con alternativa genérica (p. ej. Arial, sans-serif).',
     '- Footer: incluye SIEMPRE un enlace de baja con href="{{unsubscribe_url}}" (obligatorio en un',
     '  email comercial; el ESP sustituye la variable) y, si procede, el aviso legal de la marca.',
+    ...LOGO_RULE,
     `- Scripts y archivos auxiliares (conversiones, comprobaciones, capturas): en ${outDir}/_trabajo/`,
     '  o en /tmp. Nunca en scripts/, en la raíz del repo ni en brands/ (ahí solo logos e imágenes de marca).',
     '- Móvil OBLIGATORIO: renderiza la pieza también a 375 px de ancho (iPhone). Nada puede salirse del',
@@ -210,6 +221,9 @@ export function buildRevisionPrompt(job: Job): string {
           '  (logo incluido); los textos se citan tal cual aparecen. Aplica cada petición a ese elemento.',
         ]
       : []),
+    '- Si cambias el logo (archivo, versión o tamaño), cámbialo igual arriba y abajo: el del pie, si lo hay,',
+    '  tiene que ser exactamente el de la cabecera. Si la pieza ya los tiene distintos (otro archivo o más',
+    '  pequeño en el pie), iguala el del pie al de la cabecera aunque no se haya pedido: es una norma de Studio.',
     '- Si un cambio pedido contradice una regla de la pieza (claims, datos sin fuente, enlace de baja),',
     '  no lo apliques en esa parte y explícalo en las notas.',
     '',

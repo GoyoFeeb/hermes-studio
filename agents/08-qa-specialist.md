@@ -129,6 +129,9 @@ reales del brand pack — no contra una impresión:
 - **Enlaces**: ningún `href` vacío/`#`; todos https absolutos; UTM presente en los enlaces de
   campaña; enlaces de baja/preferencias presentes (merge-tag de ESP válido).
 - **Imágenes**: toda `<img>` con `src` https y `alt` no vacío; dimensiones declaradas.
+- **Logo arriba y abajo** (norma, 2026-10-02): si el pie lleva logo, es el mismo archivo y del
+  mismo tamaño que el de la cabecera, con las mismas variantes de modo oscuro. Distinto = error
+  alto, se devuelve a 07 (o a 04 si viene de la spec). Sin logo en el pie, correcto.
 - **Legal**: textos legales, precios y promociones idénticos al brief (comparación literal).
 - **Accesibilidad**: contrastes de combinaciones nuevas verificados contra el umbral correcto
   (§5 del patrón); jerarquía de headings coherente (1 `<h1>`, `<h2>`/`<h3>` anidados).

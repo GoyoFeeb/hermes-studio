@@ -118,6 +118,12 @@ no solo "imagen de 600x400px", que es una especificación técnica sin identidad
   (`iconGlyph`/`-img`/`-sin-icono`) elegida contra `iconography.style`/`componentImplication`
   del brand pack, con el motivo escrito en `assets-notes.md` — nunca "iconGlyph por defecto"
   sin haber consultado el pack.
+- **Logo arriba y abajo** (norma, 2026-10-02): el logo del pie es opcional; si la spec lo pone,
+  es exactamente el de la cabecera — mismo archivo, misma versión de color y mismo tamaño
+  (`width`/`height`). Ni más pequeño en el pie ni la versión blanca porque el pie sea oscuro:
+  se especifica un fondo donde se lea o se deja fuera. En modo oscuro, si cambia de versión,
+  cambia igual arriba y abajo. (El `footer.html` del motor no lleva logo, solo
+  `footer.brandName` en texto: hoy la norma se cumple sola; aplica si se añade.)
 
 ## Fase completada cuando
 

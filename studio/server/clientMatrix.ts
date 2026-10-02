@@ -11,7 +11,7 @@
  *  - Gmail: recorta los correos de más de ~102 KB; ignora prefers-color-scheme e invierte colores por su cuenta.
  *  - Apple Mail (iPhone y Mac): respeta color-scheme y prefers-color-scheme → el modo oscuro de la pieza.
  *  - Móvil: la medición a 375 px del worker.
- *  - Todos: enlaces, imágenes publicadas, alt, baja, preheader y claims (contenido, igual en cualquier programa).
+ *  - Todos: enlaces, imágenes publicadas, alt, logo arriba y abajo, baja, preheader y claims (contenido, igual en cualquier programa).
  */
 import type { CheckStatus, QualityReport } from '../worker/qualityCheck';
 
@@ -69,7 +69,7 @@ const CLIENTS: { id: ClientId; name: string; scope: string; checks: string[]; no
   {
     id: 'all',
     name: 'Todos los programas',
-    scope: 'Enlaces, imágenes, baja, preheader y textos',
+    scope: 'Enlaces, imágenes, logo, baja, preheader y textos',
     checks: [], // el resto de comprobaciones, incluidas las que se añadan en el futuro
     notes: [],
   },

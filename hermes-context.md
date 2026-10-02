@@ -1198,3 +1198,24 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `01e442f` → Railway SUCCESS 17:59 (el sustituido, REMOVED), Vercel (3 archivos
   idénticos; `/r/` responde por Railway y por Vercel, `/api/brands/:slug` pide contraseña) y worker reiniciado con el
   trabajo libre: a las 18:01 envió a producción las 34 fichas de marca.
+
+### 2026-10-02 — Norma: el logo del pie es exactamente el de la cabecera
+
+- **Pedida por el usuario:** "que los logos siempre coincidan arriba y abajo, que sean exactamente el mismo". Elegido:
+  mismo archivo y mismo tamaño; el logo del pie es opcional (solo se compara si lo hay).
+- **Por qué:** las 12 newsletters de Hermes con logo en el pie (de 15) lo encogían (Nike 120→96 px, Lacoste 190→120,
+  Inglesina 148→118, Puma, ECI, Helly Hansen, Talaria, Adidas) y las 2 de Adidas además cambiaban de archivo (negro
+  arriba, blanco abajo). Adeslas y Prozis no llevan logo abajo.
+- **Encargo a Hermes** (`standalone.ts`, `LOGO_RULE`): mismo archivo, misma versión de color y mismos width/height;
+  nada de encogerlo ni pasar a la versión blanca en un pie oscuro (fondo donde se lea, o sin logo); en modo oscuro,
+  el cambio de versión es igual arriba y abajo. En "Pedir cambios", además, se iguala aunque no se pida (a diferencia
+  de modo oscuro y Outlook, no se trata como heredado: las piezas actuales lo corregirán en su próxima revisión).
+- **Control de calidad** (`qualityCheck.ts`, `logoMatchCheck`, id `logo-match`, "Logo arriba y abajo", en "Todos los
+  programas"): error si el logo del pie es otro archivo, otro tamaño (estilo en línea, si no atributo; "auto" = sin
+  alto) o le faltan/sobran variantes de modo oscuro (clase con "dark" o display:none). Detección: "logo" en src, clase
+  o id; sin esa pista (publicada, Studio renombra a `img-<hash>.png`), la primera imagen pequeña cuyo src o alt se
+  repite abajo. Se devuelve a Hermes (con pauta propia en el mensaje de corrección) y se comprueba al guardar "Editar".
+  Contra las piezas reales: las 12 con logo en el pie, en error; Adeslas "el pie no lleva logo", Prozis y Lacoste fallida "sin logo detectado".
+- **Pipeline:** norma escrita en `agents/04-email-designer.md` (validaciones) y `agents/08-qa-specialist.md`
+  (checklist; error alto). El `footer.html` del motor no lleva logo (solo `footer.brandName`): se cumple sin tocarlo.
+  Motor íntegro (68 archivos). Tests nuevos en `qualityCheck.test.js`; `npm test` 159/159.

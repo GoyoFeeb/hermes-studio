@@ -144,3 +144,50 @@ test('collectUrls: ignora variables del ESP, mailto y rutas locales', () => {
   assert.deepEqual(r.links, ['https://a.es/x?a=1&b=2']);
   assert.deepEqual(r.images, ['https://c.es/i.png', 'https://c.es/bg.jpg']);
 });
+
+// Norma del 2026-10-02: si el pie lleva logo, es exactamente el de la cabecera (archivo, versión y tamaño).
+function logoPiece(head, foot) {
+  return `<body>${head}<p>Titular de la pieza</p><img src="https://cdn.example.org/hero.jpg" alt="Hero" width="600">
+<p>Texto largo de la pieza con la oferta.</p>${foot}<p>Aviso legal</p><a href="{{unsubscribe_url}}">Baja</a></body>`;
+}
+const logoCheck = (html) => run(`process.stdout.write(JSON.stringify(q.logoMatchCheck(${JSON.stringify(html)})));`);
+
+test('logoMatchCheck: mismo archivo y tamaño arriba y abajo es correcto; sin logo en el pie, también', () => {
+  const logo = '<img src="img/logo.png" alt="Marca" width="150" height="40" style="width:150px;height:40px">';
+  assert.equal(logoCheck(logoPiece(logo, logo)).status, 'ok');
+  const sinPie = logoCheck(logoPiece(logo, ''));
+  assert.equal(sinPie.status, 'ok');
+  assert.equal(sinPie.details[0], 'El pie no lleva logo.');
+});
+
+test('logoMatchCheck: logo más pequeño en el pie (Nike 120→96, con variante oscura) es error', () => {
+  const pair = (w, h) =>
+    `<img src="logo-nike.png" width="${w}" height="${h}" alt="Nike" class="logo-light" style="display:block;width:${w}px;height:${h}px">` +
+    `<img src="logo-nike-white.png" width="${w}" height="${h}" alt="Nike" class="logo-dark" style="display:none;width:${w}px;height:${h}px">`;
+  const r = logoCheck(logoPiece(pair(120, 42), pair(96, 34)));
+  assert.equal(r.status, 'error');
+  assert.equal(r.errorCount, 2);
+  assert.ok(r.details[0].includes('arriba 120px × 42px, abajo 96px × 34px'));
+  assert.ok(r.details[1].startsWith('La versión de modo oscuro'));
+});
+
+test('logoMatchCheck: otro archivo en el pie (Adidas: negro arriba, blanco abajo) es error, también ya publicado', () => {
+  const r = logoCheck(logoPiece('<img src="logo-black.png" width="120" alt="adidas">', '<img src="logo-white.png" width="120" alt="adidas">'));
+  assert.equal(r.status, 'error');
+  assert.ok(r.details[0].includes('arriba logo-black.png, abajo logo-white.png'));
+  // Publicada: Studio renombra a img-<hash>.png y se pierde "logo" del nombre; se reconoce por el alt.
+  const pub = logoCheck(logoPiece(
+    '<img src="https://s.example/assets/a/img-16d9c3c165a5.png" width="120" alt="adidas">',
+    '<img src="https://s.example/assets/a/img-f34e24dc4289.png" width="120" alt="adidas">'
+  ));
+  assert.equal(pub.status, 'error');
+  assert.ok(pub.details[0].includes('img-16d9c3c165a5.png'));
+});
+
+test('logoMatchCheck: si arriba cambia en modo oscuro, abajo tiene que cambiar igual', () => {
+  const head = '<img src="logo.png" width="150" alt="M" class="logo-light"><img src="logo-white.png" width="150" alt="M" class="logo-dark" style="display:none">';
+  const r = logoCheck(logoPiece(head, '<img src="logo.png" width="150" alt="M" class="logo-light">'));
+  assert.equal(r.status, 'error');
+  assert.ok(r.details[0].includes('en modo oscuro'));
+  assert.equal(logoCheck(logoPiece(head, head)).status, 'ok');
+});

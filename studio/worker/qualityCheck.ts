@@ -154,7 +154,7 @@ export function staticChecks(html: string, missingLocal: string[] = []): Quality
   });
   checks.push(item('claims', 'Claims de riesgo', [], claims));
 
-  checks.push(darkModeCheck(html), outlookCheck(html));
+  checks.push(darkModeCheck(html), outlookCheck(html), logoMatchCheck(html));
 
   if (missingLocal.length) {
     checks.push(item('local-images', 'Imágenes locales', missingLocal.map((r) => `La imagen ${r} no existe en el Mac.`)));
@@ -224,6 +224,130 @@ export function outlookCheck(html: string): QualityCheckItem {
   for (const f of fonts.slice(0, 3)) warnings.push(`Tipografía sin alternativa genérica ("${f.slice(0, 60)}"): añade p. ej. Arial, sans-serif o Outlook pondrá Times New Roman.`);
   const result = item('outlook', 'Outlook', errors, warnings);
   if (!errors.length && !warnings.length) result.details.push('Bloque <!--[if mso]>, 96 ppp, tablas e imágenes con width.');
+  return result;
+}
+
+interface LogoImg {
+  tag: string;
+  pos: number;
+  src: string;
+  alt: string;
+  marked: boolean;
+  dark: boolean;
+  width: string;
+  height: string;
+}
+
+function cssPx(style: string, prop: string): string | null {
+  const m = style.match(new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, 'i'));
+  return m ? m[1].trim().toLowerCase() : null;
+}
+
+/** Tamaño tal como se pinta: el estilo en línea manda sobre el atributo; "auto" y sin alto son lo mismo. */
+function imgSize(tag: string): { width: string; height: string } {
+  const style = attr(tag, 'style') || '';
+  const norm = (v: string | null): string => {
+    const t = (v || '').trim().toLowerCase().replace(/\s*!important$/, '');
+    if (!t || t === 'auto') return '';
+    return /^\d+(\.\d+)?$/.test(t) ? `${Number(t)}px` : t;
+  };
+  return {
+    width: norm(cssPx(style, 'width') ?? attr(tag, 'width')),
+    height: norm(cssPx(style, 'height') ?? attr(tag, 'height')),
+  };
+}
+
+function srcLabel(src: string): string {
+  if (src.startsWith('data:')) return `imagen incrustada (${src.length} caracteres)`;
+  return src.split(/[?#]/)[0].split('/').pop() || src;
+}
+
+/** Logo arriba y abajo (norma del 2026-10-02): si el pie lleva logo, es exactamente el de la cabecera —
+ *  mismo archivo, misma versión de color y mismo tamaño. En las 13 piezas de Hermes hasta entonces, 11
+ *  lo encogían en el pie (Nike 120→96 px, Lacoste 190→120) y Adidas cambiaba de archivo (negro arriba,
+ *  blanco abajo). El logo del pie es opcional: sin él no hay nada que comparar.
+ *  Se detecta por "logo" en el src, la clase o el id, y también sin esa pista (al publicar, Studio renombra
+ *  las imágenes a img-<hash>.png): la primera imagen de la pieza, pequeña, cuyo src o alt se repite abajo.
+ *  Las variantes de modo oscuro (clase con "dark" o display:none en línea) se comparan entre sí. */
+export function logoMatchCheck(html: string): QualityCheckItem {
+  const label = 'Logo arriba y abajo';
+  const body = bodyOf(html).replace(/data:image\/[a-z+]+;base64,[A-Za-z0-9+/=]+/g, (m) => `data:${m.length}:${m.slice(-24)}`);
+  const imgs: LogoImg[] = [...body.matchAll(/<img\b[^>]*>/gi)].map((m) => {
+    const tag = m[0];
+    const src = (attr(tag, 'src') || '').trim().replace(/^\.\//, '');
+    const hints = `${src.startsWith('data:') ? '' : src.split(/[?#]/)[0]} ${attr(tag, 'class') || ''} ${attr(tag, 'id') || ''}`;
+    const style = (attr(tag, 'style') || '').toLowerCase().replace(/\s+/g, '');
+    return {
+      tag,
+      pos: m.index || 0,
+      src,
+      alt: (attr(tag, 'alt') || '').trim().toLowerCase(),
+      marked: /logo/i.test(hints),
+      dark: /dark/i.test(attr(tag, 'class') || '') || /display:none/.test(style),
+      ...imgSize(tag),
+    };
+  });
+  const small = (i: LogoImg): boolean => {
+    const w = parseFloat(i.width);
+    return !i.width || (i.width.endsWith('px') && w <= 320);
+  };
+  // Imágenes seguidas, sin texto de por medio: el logo y su variante oscura.
+  const adjacent = (a: LogoImg, b: LogoImg): boolean =>
+    imgs.indexOf(b) === imgs.indexOf(a) + 1 && stripTags(body.slice(a.pos + a.tag.length, b.pos)).length < 20;
+  const run = (start: number, belongs: (i: LogoImg) => boolean): LogoImg[] => {
+    const out = [imgs[start]];
+    for (let k = start + 1; k < imgs.length && belongs(imgs[k]) && adjacent(imgs[k - 1], imgs[k]); k++) out.push(imgs[k]);
+    return out;
+  };
+
+  let first = imgs.findIndex((i) => i.marked);
+  if (first < 0 && imgs.length > 1 && small(imgs[0]) && imgs.slice(1).some((i) => i.src === imgs[0].src || (imgs[0].alt && i.alt === imgs[0].alt))) {
+    first = 0;
+  }
+  if (first < 0) return { ...item('logo-match', label, []), details: ['No se ha detectado logo en la cabecera.'] };
+  const head = run(first, (i) => i.marked || (!!imgs[first].alt && i.alt === imgs[first].alt));
+  const headSrcs = new Set(head.map((i) => i.src));
+  const headAlts = new Set(head.map((i) => i.alt).filter(Boolean));
+  const isFootLogo = (i: LogoImg): boolean => i.marked || headSrcs.has(i.src) || (headAlts.has(i.alt) && small(i));
+  const after = imgs.slice(imgs.indexOf(head[head.length - 1]) + 1);
+  const lastIdx = after.length ? imgs.indexOf(after[after.length - 1]) : -1;
+  let footStart = -1;
+  for (let k = lastIdx; k > imgs.indexOf(head[head.length - 1]); k--) {
+    if (!isFootLogo(imgs[k])) continue;
+    footStart = k;
+    while (footStart - 1 > imgs.indexOf(head[head.length - 1]) && isFootLogo(imgs[footStart - 1]) && adjacent(imgs[footStart - 1], imgs[footStart])) footStart--;
+    break;
+  }
+  if (footStart < 0) return { ...item('logo-match', label, []), details: ['El pie no lleva logo.'] };
+  const foot = run(footStart, isFootLogo);
+
+  const size = (i: LogoImg): string => `${i.width || 'auto'} × ${i.height || 'auto'}`;
+  const errors: string[] = [];
+  for (const dark of [false, true]) {
+    const h = head.find((i) => i.dark === dark);
+    const f = foot.find((i) => i.dark === dark);
+    const which = dark ? 'La versión de modo oscuro del logo' : 'El logo';
+    if (!f) {
+      if (dark && h) errors.push('Arriba el logo cambia de versión en modo oscuro y abajo no: el pie tiene que llevar las mismas versiones que la cabecera.');
+      continue;
+    }
+    if (!h) {
+      errors.push(
+        dark
+          ? 'Abajo el logo cambia de versión en modo oscuro y arriba no: la cabecera y el pie tienen que llevar las mismas versiones.'
+          : `El pie lleva un logo (${srcLabel(f.src)}) que no aparece igual en la cabecera.`
+      );
+      continue;
+    }
+    if (h.src !== f.src) {
+      errors.push(`${which} del pie es otro archivo: arriba ${srcLabel(h.src)}, abajo ${srcLabel(f.src)}. Tiene que ser exactamente el mismo (también la misma versión de color).`);
+    }
+    if (h.width !== f.width || h.height !== f.height) {
+      errors.push(`${which} del pie tiene otro tamaño: arriba ${size(h)}, abajo ${size(f)}. Tiene que medir lo mismo en los dos sitios (atributos width/height y estilo).`);
+    }
+  }
+  const result = item('logo-match', label, errors);
+  if (!errors.length) result.details.push(`Mismo logo arriba y abajo (${srcLabel(head[0].src)}, ${size(head[0])}).`);
   return result;
 }
 
