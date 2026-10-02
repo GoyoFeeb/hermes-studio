@@ -1243,3 +1243,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   columnas Correo / Web (etiqueta blanca en negrita, dato debajo).
 - **Verificación (copia aislada, con la Nike real):** portada, trabajo terminado (acciones, revisión, notas,
   asunto) en oscuro, claro y 375 px sin desbordes; botón principal al pasar = rosa con texto azul.
+- **Desplegado (con permiso del usuario):** `82f9b64` → Vercel (styles.css e index.html idénticos a los locales) y
+  Railway SUCCESS 12:25. Worker sin reiniciar (no cambia): siguió con las correcciones de logos.
