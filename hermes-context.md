@@ -1292,3 +1292,13 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   ≥ 900 px, decorativa con alt vacío) y círculo de trazo fino #CF95D0 al 22 % de fondo (`body::after`, oculto en
   móvil porque cruzaba el texto).
 - **Verificación (copia aislada):** 1440 px oscuro, 1000 px claro y 375 px sin desbordes; la foto carga (420 px).
+- **Desplegado (con permiso del usuario):** `3d51881` → Vercel (styles.css, index.html, app.js y hero-equipo.jpg
+  idénticos) y Railway SUCCESS 13:32. Worker sin reiniciar.
+
+### 2026-10-02 — Logos corregidos en las newsletters existentes
+
+- "Pedir cambios" sobre la última versión de las 10 newsletters con el logo del pie distinto (Nike primero y
+  luego Helly Hansen, Lacoste, Adidas, El Corte Inglés, Talaria, 3 de Inglesina y Puma), con el tamaño concreto
+  de cada una. Las 10 terminadas con "Logo arriba y abajo" correcto (Adidas pasa al logo negro de la cabecera).
+  Puma queda con 1 error de modo oscuro heredado de la original (24-09, anterior a esa regla; en "Pedir cambios"
+  no se fuerza). Inglesina emtss3 y rtit5s tardaron 21 y 32 min; el resto, 1-7 min.
