@@ -1219,3 +1219,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Pipeline:** norma escrita en `agents/04-email-designer.md` (validaciones) y `agents/08-qa-specialist.md`
   (checklist; error alto). El `footer.html` del motor no lleva logo (solo `footer.brandName`): se cumple sin tocarlo.
   Motor íntegro (68 archivos). Tests nuevos en `qualityCheck.test.js`; `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `e15746d` → Railway SUCCESS 10:09 y worker reiniciado sin trabajo en curso
+  (el check corre en el worker). Vercel sin cambios (la web no cambia).
