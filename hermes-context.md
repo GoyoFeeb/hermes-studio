@@ -1277,3 +1277,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   vuelve a la portada con el aviso de cambios sin guardar; se cierra con ×, Escape o el fondo.
 - **Verificación (copia aislada):** escritorio y 375 px sin desbordes (la cabecera cabe con la hamburguesa); menú
   desde un trabajo → historial; "Cómo funciona" abre el bloque claro; Escape cierra.
+- **Desplegado (con permiso del usuario):** `c345d1d` → Vercel (styles.css, index.html y app.js idénticos) y
+  Railway SUCCESS 12:48. Worker sin reiniciar.
