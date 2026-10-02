@@ -1259,3 +1259,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   versiones) de lo que está a la vista; cada cifra pulsa el chip de estado correspondiente y se marca activa.
 - **Verificación (copia aislada, Nike real + 4 trabajos de prueba):** oscuro, claro y 375 px sin desbordes; la
   cifra "aprobada" deja 1 newsletter y "newsletters" vuelve a las 5.
+- **Desplegado (con permiso del usuario):** `8c8b9af` → Vercel (styles.css, index.html y app.js idénticos) y
+  Railway SUCCESS 12:31. Worker sin reiniciar.
