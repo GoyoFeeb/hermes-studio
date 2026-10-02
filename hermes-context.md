@@ -1279,3 +1279,16 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   desde un trabajo → historial; "Cómo funciona" abre el bloque claro; Escape cierra.
 - **Desplegado (con permiso del usuario):** `c345d1d` → Vercel (styles.css, index.html y app.js idénticos) y
   Railway SUCCESS 12:48. Worker sin reiniciar.
+
+### 2026-10-02 — Interfaz: componentes de feebbodigital.com, puntos 14-16
+
+- **14. Raíl vertical** (`.side-rail`, fijo a la izquierda, solo ≥ 1180 px): años "2010 – <año actual>" en vertical
+  (Barlow 12 px morado, el año lo pone app.js), línea rosa de 80 px y redes en círculo #14183F (LinkedIn
+  `company/feebbo-digital`, X `feebbodigital`, los de la web).
+- **15. Cuadrados de icono blancos** (`.integracion-icon` de la web: blanco, 12 px, sombra -2px 8px 11px
+  rgba(20,24,63,.2)): miniaturas con iniciales del historial (lista y galería) y logo de la ficha de marca.
+- **16. Detalles decorativos:** foto del equipo en círculo con capa azul y trazo fino junto al titular de la
+  portada (`studio/web/hero-equipo.jpg`, copia de `brands/feebbo/design-input/feebbo-raid-navy.jpg`, 30 KB; solo
+  ≥ 900 px, decorativa con alt vacío) y círculo de trazo fino #CF95D0 al 22 % de fondo (`body::after`, oculto en
+  móvil porque cruzaba el texto).
+- **Verificación (copia aislada):** 1440 px oscuro, 1000 px claro y 375 px sin desbordes; la foto carga (420 px).

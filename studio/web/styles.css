@@ -1602,3 +1602,72 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
   .action-num { display: none; }
   #notes-text.surface-light { padding: 16px; }
 }
+
+/* 14. Raíl vertical (como .column-left de la web): años en Barlow 12 px morado, línea rosa y redes en círculo.
+   Fijo a la izquierda; solo cuando sobra sitio a los lados del contenido (880 px). */
+.side-rail { display: none; }
+@media (min-width: 1180px) {
+  .side-rail {
+    position: fixed;
+    left: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+}
+.rail-years { writing-mode: vertical-rl; transform: rotate(180deg); font-family: 'Barlow', sans-serif; font-size: var(--fs-caption); letter-spacing: 1px; color: var(--purple); }
+.rail-line { width: 1px; height: 80px; background: var(--pink); }
+.rail-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #14183f;
+  font-family: 'Barlow', sans-serif;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  color: var(--pink);
+  text-decoration: none;
+}
+.rail-icon:hover { background: var(--pink); color: #14183f; }
+
+/* 15. Cuadrados de icono blancos (como .integracion-icon de la web: blanco, 12 px de radio y sombra azulada): las
+   miniaturas con iniciales del historial y el logo de la ficha de marca. */
+.job-row .thumb-empty, .g-card .thumb-empty {
+  border: none;
+  border-radius: var(--radius);
+  background: #ffffff;
+  color: #14183f;
+  box-shadow: -2px 8px 11px rgba(20, 24, 63, 0.2);
+}
+.brand-logo { border: none; border-radius: var(--radius); box-shadow: -2px 8px 11px rgba(20, 24, 63, 0.2); }
+
+/* 16. Detalles decorativos: la foto del equipo en círculo junto al titular (en anchos de escritorio) y un círculo
+   de trazo fino #CF95D0 de fondo, como el de la sección de consultoría de la web. */
+.hero-photo { display: none; }
+@media (min-width: 900px) {
+  .hero { display: grid; grid-template-columns: 1fr 200px; column-gap: 40px; align-items: start; }
+  .hero > * { grid-column: 1; }
+  .hero > .hero-photo { display: block; grid-column: 2; grid-row: 1 / span 3; width: 200px; height: 200px; border-radius: 50%; align-self: center; }
+  .hero > .how-panel { grid-column: 1 / -1; }
+}
+body::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  top: -20vh;
+  right: -18vw;
+  width: 70vh;
+  height: 70vh;
+  border: 1px solid rgba(207, 149, 208, 0.22);
+  border-radius: 50%;
+  pointer-events: none;
+}
+/* En móvil el círculo cruzaba el texto de la portada: solo a partir de tableta. */
+@media (max-width: 640px) { body::after { display: none; } }

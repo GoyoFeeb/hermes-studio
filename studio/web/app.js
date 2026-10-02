@@ -1151,6 +1151,9 @@ document.getElementById('back-link').addEventListener('click', (e) => {
   if (showFormView() === false) scrollToHistory = false;
 });
 
+// Raíl vertical: los años de Feebbo hasta el actual (la web dice "2010 - 2025" escrito a mano).
+document.getElementById('rail-years').textContent = `2010 – ${new Date().getFullYear()}`;
+
 // ---------------------------------------------------------------- menú lateral (2026-10-02)
 // Como el de feebbodigital.com: Nueva newsletter, Historial y Cómo funciona, más el contacto. Desde un trabajo,
 // cada enlace vuelve antes a la portada (con el aviso de cambios sin guardar de showFormView).
