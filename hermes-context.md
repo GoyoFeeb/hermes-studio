@@ -1221,3 +1221,25 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   Motor íntegro (68 archivos). Tests nuevos en `qualityCheck.test.js`; `npm test` 159/159.
 - **Desplegado (con permiso del usuario):** `e15746d` → Railway SUCCESS 10:09 y worker reiniciado sin trabajo en curso
   (el check corre en el worker). Vercel sin cambios (la web no cambia).
+
+### 2026-10-02 — Interfaz: identidad de feebbodigital.com, puntos 1-5 (nueva extracción)
+
+- **Extracción:** la web es un Webflow de una sola página (`css/feebo-digital-site.webflow.css`, 488 reglas); 14
+  secciones medidas con `getComputedStyle`. Pendientes de decidir (no hechos): título de sección numerado, lista
+  numerada, desplegable numerado, fila de cifras, tarjeta con icono y número, h3 rosa, secciones claras, menú
+  lateral, raíl vertical, iconos en cuadrado blanco, círculos decorativos.
+- **1. Botones:** la web nunca rellena un botón de rosa en reposo. `.btn-primary` pasa a azul `--button` con borde
+  rosa y se rellena de rosa al pasar (texto `--on-accent`); `.btn-secondary` pasa a `#5867F1` (`--btn-hover`) al
+  pasar. Deshace "rosa relleno solo para la acción principal" de la crítica del 30-09.
+- **2. Tarjetas:** `.card` con el `.item` de la web: degradado 156° `rgba(16,40,125,.8)`→`.2` sobre `#0A1258`
+  (`--card-base`), sin borde (`--card-border`; en claro, el borde de siempre) y 22 px (`--radius-card`).
+- **3. Etiquetas:** títulos de sección (`.eyebrow`, `.action-title`, `.review-head h3`, `.brand-section h3`) en
+  Barlow 14 px/600, 5 px de espaciado y rosa `--accent-text` (3 px en móvil); las secundarias (asunto/preheader,
+  grupos de comparación, etiquetas de la vista previa) a 13 px y 4 px en `--pink-soft`. Columna de etiqueta del
+  asunto: 90 → 124 px.
+- **4. Texto corrido a 18 px** (`--fs-prose`, interlínea 1.6): notas y brief (`.md`, encabezados 22/20/18),
+  "¿Cómo funciona?" y el resumen del fallo. Los controles siguen a 14 px.
+- **5. Pie** como `.footer-feebbo`: negro a todo el ancho (también en tema claro), logo, copyright gris a 12 px y
+  columnas Correo / Web (etiqueta blanca en negrita, dato debajo).
+- **Verificación (copia aislada, con la Nike real):** portada, trabajo terminado (acciones, revisión, notas,
+  asunto) en oscuro, claro y 375 px sin desbordes; botón principal al pasar = rosa con texto azul.
