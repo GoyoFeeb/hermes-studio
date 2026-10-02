@@ -1245,3 +1245,17 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   asunto) en oscuro, claro y 375 px sin desbordes; botón principal al pasar = rosa con texto azul.
 - **Desplegado (con permiso del usuario):** `82f9b64` → Vercel (styles.css e index.html idénticos a los locales) y
   Railway SUCCESS 12:25. Worker sin reiniciar (no cambia): siguió con las correcciones de logos.
+
+### 2026-10-02 — Interfaz: componentes de feebbodigital.com, puntos 6-9
+
+- **6. Título de sección numerado** (`.section-title`): "01" de 88 px en `--section-num` (#1A2168; #DFE2F3 en
+  claro) detrás y el título en rosa de 28 px encima. "01 Nueva newsletter" sobre el formulario y "02 Historial"
+  (sustituye a la etiqueta "Historial"). El número va en absoluto y el título ocupa su sitio (en móvil se montaba
+  sobre "5 newsletters" con el título en absoluto).
+- **7. Lista numerada**: "¿Cómo funciona?" (01-05 en rosa, texto en claro) y la lista de "Aprobar para envío".
+- **8. Desplegable numerado**: revisión "Por comprobación" con número rosa de 22 px, título a 16 px y filas más
+  altas (`.check-num`, añadido en `renderReview`).
+- **9. Fila de cifras** (`#history-stats`, `renderHistoryStats`): newsletters, en curso y aprobadas (familias, no
+  versiones) de lo que está a la vista; cada cifra pulsa el chip de estado correspondiente y se marca activa.
+- **Verificación (copia aislada, Nike real + 4 trabajos de prueba):** oscuro, claro y 375 px sin desbordes; la
+  cifra "aprobada" deja 1 newsletter y "newsletters" vuelve a las 5.

@@ -44,6 +44,8 @@
   --footer-bg: #000000;
   --footer-text: #ffffff;
   --footer-muted: #8991ae;
+  /* Número grande de los títulos de sección (el "01" azul de la web, sobre el fondo de la página). */
+  --section-num: #1a2168;
   --glow-1: rgba(16, 40, 125, 0.55);
   --glow-2: rgba(178, 85, 195, 0.12);
   --surface-row: rgba(14, 21, 69, 0.6);
@@ -117,6 +119,7 @@
   --card-grad-1: #ffffff;
   --card-grad-2: #fbfbff;
   --card-border: #dcdeec;
+  --section-num: #dfe2f3;
   --glow-1: rgba(120, 140, 255, 0.18);
   --glow-2: rgba(251, 115, 255, 0.12);
   --surface-row: #ffffff;
@@ -160,6 +163,7 @@
   --card-grad-1: #ffffff;
   --card-grad-2: #fbfbff;
   --card-border: #dcdeec;
+  --section-num: #dfe2f3;
   --glow-1: rgba(120, 140, 255, 0.18);
   --glow-2: rgba(251, 115, 255, 0.12);
   --surface-row: #ffffff;
@@ -1305,6 +1309,10 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
   color: var(--muted);
 }
 .how-panel strong { color: var(--text); font-weight: 600; }
+/* Lista numerada como la de la web (2026-10-02): "01" en rosa y el texto en claro. */
+.how-panel { list-style: none; padding-left: 20px; counter-reset: step; color: var(--text); }
+.how-panel li { counter-increment: step; position: relative; padding-left: 40px; }
+.how-panel li::before { content: counter(step, decimal-leading-zero); position: absolute; left: 0; top: 0; color: var(--accent-text); }
 .history-jump {
   display: inline-flex;
   align-items: center;
@@ -1431,3 +1439,79 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 .brand-logo.is-dark { background: #111111; }
 .client-card .client-ok { margin: 6px 0 0 20px; }
 .review-views .seg-btn { white-space: nowrap; }
+
+/* ---------------------------------------------------------------- Componentes de feebbodigital.com (2026-10-02) */
+/* Título de sección numerado: "01" grande en azul y el título en rosa encima, como "01 Growth Hacking". */
+.section-title { position: relative; margin: 40px 0 20px; padding: 36px 0 0 40px; }
+.section-head .section-title { margin: 0; }
+/* El número va detrás y el título ocupa su sitio: así no se monta sobre lo que tenga al lado. */
+.section-num {
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  font-size: 88px;
+  font-weight: 800;
+  line-height: 0.8;
+  letter-spacing: -2px;
+  color: var(--section-num);
+  user-select: none;
+}
+.section-title h2 {
+  position: relative;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--accent-text);
+}
+.section-head { align-items: flex-end; }
+
+/* Lista numerada en la aprobación: el número antes de cada comprobación. */
+.approve-checklist { counter-reset: check; }
+.approve-checklist li { counter-increment: check; }
+.approve-checklist li::before {
+  content: counter(check, decimal-leading-zero);
+  flex: none;
+  width: 28px;
+  font-size: var(--fs-body);
+  color: var(--accent-text);
+}
+
+/* Desplegable numerado en la revisión "Por comprobación": número rosa, título más grande. */
+.check-num { flex: none; min-width: 32px; font-size: 22px; font-weight: 700; line-height: 1; color: var(--accent-text); }
+.review-list summary, .review-list .check-line { padding: 12px 0; }
+.review-list .check-label { font-size: var(--fs-body); }
+.review-list .check-details { margin-left: 66px; }
+
+/* Fila de cifras: número grande y lo que cuenta debajo; cada una filtra el historial. */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 20px; }
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px 20px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  background: linear-gradient(156deg, var(--card-grad-1) 11%, var(--card-grad-2) 76%), var(--card-base);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.stat:hover { transform: translateY(-1px); border-color: var(--border-strong); }
+.stat.is-active { border-color: var(--pink); }
+.stat-num { font-size: 36px; font-weight: 600; line-height: 1; }
+.stat-label { font-size: var(--fs-ui); color: var(--lilac); }
+
+@media (max-width: 640px) {
+  .section-title { margin-top: 32px; padding: 26px 0 0 28px; }
+  .section-num { font-size: 64px; }
+  .section-title h2 { font-size: 22px; }
+  .stats { gap: 8px; }
+  .stat { padding: 12px 14px; }
+  .stat-num { font-size: 28px; }
+  .stat-label { font-size: var(--fs-small); }
+  .review-list .check-details { margin-left: 0; }
+}

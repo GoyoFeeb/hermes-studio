@@ -828,6 +828,31 @@ function statusLabel(j) {
   return (STATUS_LABELS[j.status] || j.status) + (running ? ` · ${j.pct}%` : '');
 }
 
+// Fila de cifras (2026-10-02, como la de feebbodigital.com): newsletters, en curso y aprobadas de lo que está a
+// la vista. Cuenta newsletters (familias), no versiones; cada cifra pone su filtro de estado.
+const STAT_ACTIVE = new Set(['running', 'queued', 'review']);
+function renderHistoryStats(families) {
+  const box = document.getElementById('history-stats');
+  const stats = [
+    { status: '', n: families.length, one: 'newsletter', many: 'newsletters' },
+    { status: 'active', n: families.filter((m) => m.some((j) => STAT_ACTIVE.has(j.status))).length, one: 'en curso', many: 'en curso' },
+    { status: 'approved', n: families.filter((m) => m.some((j) => j.approvedAt)).length, one: 'aprobada', many: 'aprobadas' },
+  ];
+  box.hidden = !families.length;
+  box.innerHTML = stats
+    .map(
+      (st) =>
+        `<button type="button" class="stat${historyState.status === st.status ? ' is-active' : ''}" data-stat="${st.status}" aria-pressed="${historyState.status === st.status}">` +
+        `<span class="stat-num">${st.n}</span><span class="stat-label">${st.n === 1 ? st.one : st.many}</span></button>`
+    )
+    .join('');
+}
+document.getElementById('history-stats').addEventListener('click', (e) => {
+  const stat = e.target.closest('[data-stat]');
+  if (!stat) return;
+  document.querySelector(`#history-status .chip[data-status="${stat.dataset.stat}"]`)?.click();
+});
+
 function renderHistory() {
   renderMineChip();
   const info = familyInfo(historyState.jobs);
@@ -861,6 +886,7 @@ function renderHistory() {
   const newsletters = (n) => `${n} newsletter${n === 1 ? '' : 's'}${historyState.archived ? (n === 1 ? ' archivada' : ' archivadas') : ''}`;
   const count = scoped.length === scopedJobs ? newsletters(scopedJobs) : `${newsletters(scoped.length)} · ${scopedJobs} versiones`;
   document.getElementById('history-count').textContent = groups.length === scoped.length ? count : `${groups.length} de ${newsletters(scoped.length)}`;
+  renderHistoryStats(scoped);
   document.getElementById('history-empty').hidden = groups.length > 0;
   document.getElementById('history-more').hidden = groups.length <= visible.length;
 
@@ -3536,7 +3562,9 @@ function renderReview(quality, notes, matrix = null) {
     reviewChecks = [...quality.checks].sort((a, b) => CHECK_ORDER[a.status] - CHECK_ORDER[b.status]);
     list.innerHTML = reviewChecks
       .map((c, ci) => {
-        const head = `<span class="check-dot" aria-hidden="true"></span><span class="check-label">${escapeHtml(c.label)}</span><span class="check-state">${escapeHtml(CHECK_STATE[c.status] || c.status)}</span>`;
+        // Desplegable numerado como el de la web (2026-10-02): número en rosa, título grande y el estado a la derecha.
+        const num = `<span class="check-num" aria-hidden="true">${String(ci + 1).padStart(2, '0')}</span>`;
+        const head = `${num}<span class="check-dot" aria-hidden="true"></span><span class="check-label">${escapeHtml(c.label)}</span><span class="check-state">${escapeHtml(CHECK_STATE[c.status] || c.status)}</span>`;
         if (!c.details.length) return `<li class="check-${escapeHtml(c.status)}"><div class="check-line">${head}</div></li>`;
         const details = c.details
           .map((d, i) => `<li class="${i < (c.errorCount || 0) ? 'is-error' : ''}" data-check="${ci}" data-detail="${i}"><span>${escapeHtml(d)}</span></li>`)

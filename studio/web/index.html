@@ -57,6 +57,11 @@
     </section>
 
     <section id="view-form">
+      <!-- Título de sección numerado como los de feebbodigital.com (2026-10-02): número grande en azul y el título en rosa encima. -->
+      <div class="section-title">
+        <span class="section-num" aria-hidden="true">01</span>
+        <h2>Nueva newsletter</h2>
+      </div>
       <form id="brief-form" class="card" autocomplete="off">
         <input type="hidden" name="mode" value="standalone" />
         <p class="draft-note" id="draft-note" role="status" hidden>
@@ -143,7 +148,10 @@
 
       <section id="history" hidden>
         <div class="section-head">
-          <p class="eyebrow">Historial</p>
+          <div class="section-title">
+            <span class="section-num" aria-hidden="true">02</span>
+            <h2>Historial</h2>
+          </div>
           <span class="section-head-side">
             <span id="history-count" class="hint"></span>
             <span class="segmented view-switch" role="group" aria-label="Vista del historial">
@@ -152,6 +160,8 @@
             </span>
           </span>
         </div>
+        <!-- Fila de cifras como la de la web (2026-10-02): cada cifra filtra el historial. -->
+        <div class="stats" id="history-stats" role="group" aria-label="Resumen del historial"></div>
         <div class="history-tools">
           <input type="search" id="history-search" placeholder="Buscar por marca o persona…" aria-label="Buscar en el historial" />
           <select id="history-brand" aria-label="Filtrar por marca">
