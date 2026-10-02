@@ -1205,7 +1205,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
   transition: border-color 0.15s, background 0.15s;
 }
 .action-item strong { font-size: var(--fs-body); font-weight: 600; }
-.action-item > span { font-size: var(--fs-small); color: var(--muted); }
+.action-item > span:not(.action-top) { font-size: var(--fs-small); color: var(--muted); }
 .action-item:hover:not(:disabled) { border-color: var(--border-strong); background: var(--surface-row-hover); }
 .action-item:disabled { opacity: 0.5; cursor: not-allowed; }
 .action-item[aria-expanded="true"] { border-color: var(--pink); }
@@ -1233,7 +1233,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
   .action-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .action-item { padding: 12px 6px; text-align: center; align-content: center; }
   .action-item strong { font-size: var(--fs-small); line-height: 1.2; }
-  .action-item > span { display: none; }
+  .action-item > span:not(.action-top) { display: none; }
 }
 
 /* Pestañas del resultado (2026-09-30): vista previa, revisión, comparación y asunto/bandeja bajo las acciones. */
@@ -1514,4 +1514,91 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
   .stat-num { font-size: 28px; }
   .stat-label { font-size: var(--fs-small); }
   .review-list .check-details { margin-left: 0; }
+}
+
+/* 10. Tarjeta con icono y número ("Cambiar la pieza"): icono rosa arriba a la izquierda y el número a la derecha,
+   como las tarjetas de Class 5 de la web. */
+.action-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.action-icon svg { display: block; width: 24px; height: 24px; fill: none; stroke: var(--accent-text); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.action-num { font-size: var(--fs-small); color: var(--muted); }
+.action-item { padding: 16px 20px; border-radius: var(--radius); }
+
+/* 11. Título de nivel 3 en rosa (el h3 de la web: 28 px en negrita) para los paneles que se abren. */
+.panel-title { margin: 0 0 8px; font-size: 28px; font-weight: 700; line-height: 1.15; color: var(--accent-text); }
+
+/* 12. Sección clara dentro del tema oscuro (los bloques #F9F9FB / #EDF3FC de la web, con texto #14183F): para lo
+   que se lee como un documento. Redefine los colores dentro del bloque; el rosa pasa a uno oscuro que se lee. */
+.surface-light {
+  --text: #14183f;
+  --muted: #4f5679;
+  --lilac: #2c2f6b;
+  --accent-text: #9c1f9a;
+  --border: #d9ddeb;
+  --code-bg: rgba(20, 24, 63, 0.07);
+  --pre-bg: rgba(20, 24, 63, 0.05);
+  --th-bg: rgba(20, 24, 63, 0.04);
+  --purple: #9b3fae;
+  background: #edf3fc;
+  color: var(--text);
+  border-color: var(--border);
+}
+#notes-text.surface-light { padding: 20px 24px; border-radius: var(--radius-md); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .surface-light { background: #f9f9fb; } }
+:root[data-theme="light"] .surface-light { background: #f9f9fb; }
+
+/* 13. Menú lateral con hamburguesa (como .menu-lateral de la web): panel #14183F, enlaces numerados en Barlow
+   espaciada y contacto abajo. Oscuro también en el tema claro. */
+.menu-btn { flex: none; display: inline-flex; flex-direction: column; justify-content: center; gap: 4px; width: 34px; height: 34px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--pill); background: none; cursor: pointer; }
+.menu-btn span { display: block; height: 2px; border-radius: 1px; background: var(--text); }
+.menu-btn:hover { border-color: var(--pink); }
+.menu-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(5, 12, 42, 0.55); }
+.side-menu {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  width: min(320px, 86vw);
+  padding: 96px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  overflow-y: auto;
+  background: #14183f;
+  color: #ffffff;
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.35);
+}
+.menu-close { position: absolute; top: 24px; right: 24px; width: 36px; height: 36px; border: 0; background: none; color: #cf95d0; font-size: 28px; line-height: 1; cursor: pointer; }
+.menu-close:hover { color: #ffffff; }
+.menu-links { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+.menu-links button {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: 'Barlow', sans-serif;
+  font-size: var(--fs-ui);
+  font-weight: 500;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  text-align: left;
+  color: #cf95d0;
+  cursor: pointer;
+}
+.menu-links button:hover { color: #ffffff; }
+.menu-num { font-weight: 800; letter-spacing: 0; color: #fb73ff; }
+.menu-contact { margin: auto 0 0; display: grid; gap: 20px; }
+.menu-contact dt { font-size: var(--fs-lead); font-weight: 700; color: #fb73ff; }
+.menu-contact dd { margin: 4px 0 0; font-size: var(--fs-ui); }
+.menu-contact a { color: #ffffff; text-decoration: none; }
+.menu-contact a:hover { color: #fb73ff; }
+
+@media (max-width: 640px) {
+  .panel-title { font-size: 22px; }
+  .action-item { padding: 12px 8px; }
+  .action-top { justify-content: center; margin-bottom: 4px; }
+  .action-num { display: none; }
+  #notes-text.surface-light { padding: 16px; }
 }

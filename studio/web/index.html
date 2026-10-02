@@ -26,8 +26,23 @@
     <div class="topbar-side">
       <a id="hermes-status" class="status-pill">Comprobando Hermes…</a>
       <button id="theme-btn" type="button" class="theme-btn" aria-label="Tema: automático (como el sistema)" title="Tema: automático (como el sistema)"><span aria-hidden="true">◐</span><span class="theme-name">Auto</span></button>
+      <!-- Menú lateral como el de feebbodigital.com (2026-10-02): enlaces numerados y contacto. -->
+      <button id="menu-btn" type="button" class="menu-btn" aria-label="Abrir el menú" aria-expanded="false" aria-controls="side-menu"><span></span><span></span><span></span></button>
     </div>
   </header>
+  <div id="menu-backdrop" class="menu-backdrop" hidden></div>
+  <nav id="side-menu" class="side-menu" aria-label="Menú" hidden>
+    <button type="button" id="menu-close" class="menu-close" aria-label="Cerrar el menú">×</button>
+    <ol class="menu-links">
+      <li><button type="button" data-menu="new"><span class="menu-num">01</span>Nueva newsletter</button></li>
+      <li><button type="button" data-menu="history"><span class="menu-num">02</span>Historial</button></li>
+      <li><button type="button" data-menu="how"><span class="menu-num">03</span>Cómo funciona</button></li>
+    </ol>
+    <dl class="menu-contact">
+      <div><dt>Correo</dt><dd><a href="mailto:info@feebbodigital.com">info@feebbodigital.com</a></dd></div>
+      <div><dt>Web</dt><dd><a href="https://www.feebbodigital.com/" target="_blank" rel="noopener">feebbodigital.com</a></dd></div>
+    </dl>
+  </nav>
 
   <main id="app">
     <!-- Sin contraseña la API responde 401: antes la página se quedaba a medias sin decir por qué (2026-09-30). -->
@@ -47,7 +62,7 @@
         <!-- Ayuda (2026-09-30): en ningún sitio se explicaba el flujo completo, de pedirla a enviarla. -->
         <button type="button" id="how-btn" class="link-btn how-btn" aria-expanded="false" aria-controls="how-panel">¿Cómo funciona?</button>
       </div>
-      <ol id="how-panel" class="how-panel" hidden>
+      <ol id="how-panel" class="how-panel surface-light" hidden>
         <li><strong>Pides la newsletter.</strong> Con una frase («Instrucción rápida») o, si ya tienes un prompt de dirección creativa, pegándolo entero («Prompt completo»). Elige si las imágenes salen de la marca o se generan con IA.</li>
         <li><strong>Hermes la hace.</strong> Investiga la marca, escribe el brief creativo si pediste con una frase, diseña la pieza y la corrige. Suele tardar <span data-eta="new">unos 20 minutos</span>, y hace una a la vez: si hay otras delante, te dice cuándo empezará. Puedes cerrar la página y volver con el enlace del trabajo.</li>
         <li><strong>Pasa una revisión automática.</strong> Enlaces e imágenes que responden, preheader, peso para que Gmail no la recorte y cómo se ve en móvil. Lo que falle sale en la pestaña «Revisión».</li>
@@ -251,7 +266,7 @@
 
       <!-- Revisar el brief (2026-10-01): Hermes se ha parado tras el brief; se aprueba tal cual o corregido. -->
       <section id="job-review" class="job-review" hidden aria-labelledby="review-title">
-        <h3 id="review-title" class="review-title">El brief está listo: revísalo antes de que Hermes haga la newsletter</h3>
+        <h3 id="review-title" class="review-title panel-title">El brief está listo: revísalo antes de que Hermes haga la newsletter</h3>
         <p class="hint">Apruébalo tal cual o corrígelo aquí mismo. Al aprobarlo vuelve a la cola y Hermes hace la newsletter
           (<span data-eta="brief">unos 20 minutos</span>) sin volver a escribir el brief.</p>
         <label for="review-brief-text" class="sr-only">Brief creativo</label>
@@ -327,13 +342,13 @@
               <h3 class="action-title" id="ag-change">Cambiar la pieza</h3>
               <div class="action-list">
                 <button id="edit-text-btn" type="button" class="action-item" aria-expanded="false" aria-controls="textedit-box">
-                  <strong>Editar texto</strong><span>Tú, sobre la vista previa · al momento</span>
+<span class="action-top"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg></span><span class="action-num" aria-hidden="true">01</span></span><strong>Editar texto</strong><span>Tú, sobre la vista previa · al momento</span>
                 </button>
                 <button id="revise-btn" type="button" class="action-item" aria-expanded="false" aria-controls="revise-box">
-                  <strong>Pedir cambios</strong><span>Hermes · <span data-eta="revision">unos minutos</span></span>
+<span class="action-top"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4V5z"/><path d="M8 9h8M8 12h5"/></svg></span><span class="action-num" aria-hidden="true">02</span></span><strong>Pedir cambios</strong><span>Hermes · <span data-eta="revision">unos minutos</span></span>
                 </button>
                 <button id="mobile-fix-btn" type="button" class="action-item">
-                  <strong>Adaptar a móvil</strong><span>Hermes, sin tocar el escritorio · <span data-eta="mobile-fix">unos minutos</span></span>
+<span class="action-top"><span class="action-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg></span><span class="action-num" aria-hidden="true">03</span></span><strong>Adaptar a móvil</strong><span>Hermes, sin tocar el escritorio · <span data-eta="mobile-fix">unos minutos</span></span>
                 </button>
               </div>
             </section>
@@ -342,7 +357,7 @@
         <p class="approval-elsewhere" id="approved-elsewhere" hidden></p>
 
         <form id="approve-box" class="revise-box" hidden>
-          <p class="label">Aprobar para envío</p>
+          <h3 class="panel-title">Aprobar para envío</h3>
           <p class="hint">Marca lo que has comprobado. Solo una versión de cada newsletter puede estar aprobada: si otra lo estaba, deja de estarlo.</p>
           <p class="approve-quality" id="approve-quality" hidden></p>
           <ul class="approve-checklist" id="approve-checklist"></ul>
@@ -385,7 +400,7 @@
           </div>
         </form>
         <form id="textedit-box" class="revise-box textedit-box" hidden>
-          <p class="label">Editar el texto</p>
+          <h3 class="panel-title">Editar el texto</h3>
           <p class="hint">Haz clic en cualquier texto de la vista previa y escribe encima; en una imagen, para cambiarla o cambiar su texto alternativo. Abajo, los destinos de los enlaces. El diseño se queda igual. Se guarda como versión nueva al momento, sin Hermes, y pasa la revisión automática (los enlaces e imágenes nuevos se comprueban al guardar).</p>
           <label>
             <span class="label">Asunto</span>
@@ -507,7 +522,7 @@
             <ul id="review-list" class="review-list"></ul>
             <details class="notes-box" id="notes-box" hidden>
               <summary>Autoauditoría de Hermes <span>fuente de cada dato y origen de cada imagen</span></summary>
-              <div id="notes-text" class="md"></div>
+              <div id="notes-text" class="md surface-light"></div>
             </details>
           </section>
         </div>

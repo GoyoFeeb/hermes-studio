@@ -1151,6 +1151,49 @@ document.getElementById('back-link').addEventListener('click', (e) => {
   if (showFormView() === false) scrollToHistory = false;
 });
 
+// ---------------------------------------------------------------- menú lateral (2026-10-02)
+// Como el de feebbodigital.com: Nueva newsletter, Historial y Cómo funciona, más el contacto. Desde un trabajo,
+// cada enlace vuelve antes a la portada (con el aviso de cambios sin guardar de showFormView).
+const menuBtn = document.getElementById('menu-btn');
+const sideMenu = document.getElementById('side-menu');
+const menuBackdrop = document.getElementById('menu-backdrop');
+function setMenu(open) {
+  sideMenu.hidden = !open;
+  menuBackdrop.hidden = !open;
+  menuBtn.setAttribute('aria-expanded', String(open));
+  if (open) sideMenu.querySelector('[data-menu]').focus();
+  else menuBtn.focus({ preventScroll: true });
+}
+menuBtn.addEventListener('click', () => setMenu(sideMenu.hidden));
+document.getElementById('menu-close').addEventListener('click', () => setMenu(false));
+menuBackdrop.addEventListener('click', () => setMenu(false));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !sideMenu.hidden) setMenu(false);
+});
+sideMenu.addEventListener('click', (e) => {
+  const item = e.target.closest('[data-menu]');
+  if (!item) return;
+  const where = item.dataset.menu;
+  setMenu(false);
+  if (viewForm.hidden) {
+    if (where === 'history') scrollToHistory = true;
+    if (showFormView() === false) {
+      scrollToHistory = false;
+      return;
+    }
+  }
+  if (where === 'history') {
+    document.getElementById('history').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else if (where === 'how') {
+    const how = document.getElementById('how-panel');
+    if (how.hidden) document.getElementById('how-btn').click();
+    how.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    form.querySelector('textarea, input[type="text"]')?.focus({ preventScroll: true });
+  }
+});
+
 // ---------------------------------------------------------------- trabajo sin guardar (2026-09-30)
 // Textos editados sin guardar o una petición de cambios escrita y sin enviar: salir de la página del
 // trabajo (volver, otra newsletter, cerrar la pestaña) los perdía sin avisar.

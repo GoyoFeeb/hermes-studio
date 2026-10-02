@@ -1261,3 +1261,19 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   cifra "aprobada" deja 1 newsletter y "newsletters" vuelve a las 5.
 - **Desplegado (con permiso del usuario):** `8c8b9af` → Vercel (styles.css, index.html y app.js idénticos) y
   Railway SUCCESS 12:31. Worker sin reiniciar.
+
+### 2026-10-02 — Interfaz: componentes de feebbodigital.com, puntos 10-13
+
+- **10. Tarjeta con icono y número:** las tres de "Cambiar la pieza" (Editar texto, Pedir cambios, Adaptar a
+  móvil) llevan icono rosa en línea (SVG) arriba a la izquierda y 01-03 a la derecha (`.action-top`). En móvil,
+  icono centrado y sin número. El selector de la descripción pasa a `.action-item > span:not(.action-top)`.
+- **11. Título de nivel 3 en rosa** (`.panel-title`, 28 px/700; 22 px en móvil): "Aprobar para envío", "Editar el
+  texto" y "El brief está listo…".
+- **12. Sección clara dentro del tema oscuro** (`.surface-light`, fondo #EDF3FC; #F9F9FB en tema claro): redefine
+  los tokens dentro del bloque (texto #14183F, rosa oscuro #9C1F9A legible sobre claro). En "¿Cómo funciona?" y en
+  las notas de Hermes (`#notes-text`), lo que se lee como documento.
+- **13. Menú lateral con hamburguesa** (`#menu-btn`, `#side-menu`): panel #14183F a la derecha (oscuro también en
+  claro) con 01 Nueva newsletter, 02 Historial, 03 Cómo funciona y el contacto (Correo, Web). Desde un trabajo
+  vuelve a la portada con el aviso de cambios sin guardar; se cierra con ×, Escape o el fondo.
+- **Verificación (copia aislada):** escritorio y 375 px sin desbordes (la cabecera cabe con la hamburguesa); menú
+  desde un trabajo → historial; "Cómo funciona" abre el bloque claro; Escape cierra.
