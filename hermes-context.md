@@ -1405,3 +1405,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   «Corregir el brief» (`setBriefEditing`); al volver a «Ver con formato» se pinta lo corregido. Aprobar sigue
   enviando el texto del cuadro.
 - **Verificación (copia aislada):** 1440 oscuro, 375 claro; corregir → ver → deshacer; `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `39ef9a3` → Vercel (styles.css, index.html y app.js idénticos) y Railway
+  SUCCESS 10:20. En producción la franja muestra en "Te esperan" la de Helly Hansen ("El cliente pide cambios");
+  nada en curso. Worker sin reiniciar.
