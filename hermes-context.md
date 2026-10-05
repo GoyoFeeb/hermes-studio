@@ -1720,3 +1720,29 @@ El usuario pidió «vamos con todas».
   SUCCESS): el encargo y el brief ya piden imágenes locales y logo PNG. **Pendiente del usuario:** `git pull` en el
   Mac (seguía en `43544ac`) + `studio/worker/service.sh restart` (control de calidad y rondas acotadas) y
   `vercel --prod` desde `studio/web` (aviso de marca del formulario).
+
+### 2026-10-05 (tarde) — Auditoría de los agentes del flujo real (solo diagnóstico, nada cambiado)
+
+- **Agentes que intervienen hoy en un trabajo de Studio:** brief (Hermes con la skill newsletter-creative-brief),
+  maquetador (Hermes con el encargo), correctores (rondas de móvil y de calidad sobre la misma sesión), «Pedir
+  cambios», «Adaptar a móvil», inspectores automáticos (móvil, calidad, espacios), vigilantes (bucles, inactividad,
+  «continúa») y analista de marca (brand pack; hoy manual, fuera de Studio). Los agentes 00-09 de `agents/` ya no
+  intervienen en Studio: solo los usa el motor por línea de comandos.
+- **Tiempos conocidos:** Nike con brand pack 9 min (brief 1 min); El Corte Inglés 25 min; Prozis 10-15 min; Calvin
+  Klein 48 min (brief 2, primera versión 24, ronda de móvil 23); «Pedir cambios» de Nike 16 min para un recorte.
+  Se pierde tiempo sobre todo en: investigar la marca cuando no hay brand pack, las rondas de corrección, que
+  retoman una sesión de más de 70 acciones, las llamadas colgadas (8-15 min), los bucles y las skills de ~100 KB.
+- **Propuestas (21, numeradas en el chat):**
+  - medir el tiempo por fase;
+  - base técnica de email ya resuelta;
+  - comprobación que Hermes ejecuta antes de entregar;
+  - arreglos técnicos automáticos sin Hermes;
+  - una sola ronda de corrección, en sesión nueva y corta;
+  - ficha de marca medida automáticamente con Playwright en el Mac;
+  - brief propio de Studio, corto y sin la skill entera;
+  - ayudante de descarga de imágenes;
+  - inspectores nuevos (blanco en fotos, contraste, texto pequeño, colores fuera de la paleta, estructura repetida, peso);
+  - revisión visual opcional;
+  - prueba de un modelo más capaz para la primera versión;
+  - decidir qué se hace con `agents/` 00-09.
+  Pendiente de que el usuario elija.
