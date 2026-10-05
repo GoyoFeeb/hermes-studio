@@ -1,0 +1,412 @@
+/**
+ * renderChecks.ts — lo que se mide renderizando la newsletter en Chromium (y sus imágenes con sharp).
+ *
+ * Antes vivía dentro de hermes-worker.ts; desde el 2026-10-05 lo usan también `check-newsletter.ts` (la
+ * comprobación que Hermes ejecuta él mismo antes de entregar) y los arreglos automáticos (autoFix.ts), así
+ * que Hermes, el worker y Studio miden exactamente lo mismo.
+ *
+ * - Móvil: qué se sale de 375 px (Adidas, 2026-09-24).
+ * - Espacios: texto pegado a una foto y laterales de móvil (Siroko, 2026-10-05).
+ * - Inspectores del 2026-10-05 (auditoría de agentes): contraste del texto sobre su fondo, texto demasiado
+ *   pequeño en móvil, estructura «imagen + texto» repetida sin ningún módulo propio (Siroko), colores grandes
+ *   fuera de la paleta de la marca, fotos con mucho blanco alrededor (la zapatilla de Nike, 2026-09-28) y peso
+ *   de las imágenes.
+ * Sin JavaScript de la pieza: el HTML lo escribe un modelo que ha leído webs de terceros.
+ */
+import * as fs from 'fs';
+import * as path from 'path';
+import { chromium, type Browser } from 'playwright';
+import sharp from 'sharp';
+import { layoutFindings, LAYOUT_MIN_GAP } from './qualityCheck';
+
+export const MOBILE_WIDTH = 375;
+const DESKTOP_WIDTH = 700;
+
+/** En el contenedor de pruebas el Chromium del sistema no coincide con la versión de Playwright: CHROMIUM_PATH. */
+export function launchBrowser(): Promise<Browser> {
+  return chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+}
+
+/** Se ejecuta dentro de Chromium. Va como texto: tsx añade `__name(...)` a las funciones y eso no
+ *  existe en la página ("ReferenceError: __name is not defined").
+ *  Devuelve los elementos más internos que se salen (ninguno de sus hijos se sale): son la causa —
+ *  p. ej. una <img width="600"> — y no las tablas que la contienen, que solo heredan el ancho. */
+const MEASURE_OVERFLOW_JS = `function (limit) {
+  function overflows(el) { var r = el.getBoundingClientRect(); return r.width > 0 && r.right > limit + 1; }
+  var seen = {}, offenders = [], all = document.body.querySelectorAll('*');
+  for (var i = 0; i < all.length && offenders.length < 6; i++) {
+    var el = all[i];
+    if (!overflows(el) || Array.prototype.some.call(el.children, overflows)) continue;
+    var w = el.getAttribute('width'), cls = el.getAttribute('class');
+    var text = el.tagName === 'IMG' ? (el.getAttribute('alt') || '') : (el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 40);
+    var desc = '<' + el.tagName.toLowerCase() + (w ? ' width="' + w + '"' : '') + (cls ? ' class="' + cls + '"' : '') + '> ' +
+      Math.round(el.getBoundingClientRect().width) + ' px' + (text ? ' («' + text + '»)' : '');
+    if (seen[desc]) continue;
+    seen[desc] = true;
+    offenders.push(desc);
+  }
+  return { docWidth: document.documentElement.scrollWidth, offenders: offenders };
+}`;
+
+/** Se ejecuta dentro de Chromium (como texto, ver MEASURE_OVERFLOW_JS).
+ *  - `touching`: bloques de texto a menos de `gapMin` px de una foto de más de 60 px de alto, encima o debajo en
+ *    la misma columna. El preheader oculto no cuenta.
+ *  - `left`: margen izquierdo de cada bloque de texto con más de 20 caracteres.
+ *  - `contrast`: textos con su color y el de su fondo (null si el fondo es una imagen: no se puede saber).
+ *  - `fonts`: tamaño de letra de cada bloque de texto largo y su posición relativa en la página.
+ *  - Estructura: fotos a todo el ancho, filas con dos columnas y bloques de texto sobre color.
+ *  - `areas`: colores de fondo grandes y de los botones, para compararlos con la paleta de la marca.
+ *  - `imgs`: ancho pintado de cada <img>, en orden (para poner el atributo width que pide Outlook). */
+const MEASURE_LAYOUT_JS = `function (gapMin) {
+  function vis(r) { return r.width > 0 && r.height > 0; }
+  function ownText(el) {
+    var t = '';
+    for (var i = 0; i < el.childNodes.length; i++) if (el.childNodes[i].nodeType === 3) t += el.childNodes[i].textContent;
+    return t.replace(/\\s+/g, ' ').trim();
+  }
+  function parse(c) {
+    var m = (c || '').match(/rgba?\\(([^)]+)\\)/);
+    if (!m) return null;
+    var p = m[1].split(',').map(function (x) { return parseFloat(x); });
+    return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+  }
+  function hex(c) { return '#' + [c.r, c.g, c.b].map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''); }
+  // Fondo efectivo: el primer antepasado con color opaco. Si antes aparece una imagen de fondo, no se sabe (null).
+  function background(el) {
+    for (var n = el; n && n.nodeType === 1; n = n.parentElement) {
+      var cs = getComputedStyle(n);
+      if (cs.backgroundImage && cs.backgroundImage !== 'none') return null;
+      if (n.getAttribute('background')) return null;
+      var c = parse(cs.backgroundColor);
+      if (c && c.a > 0.5) return c;
+      var attr = n.getAttribute('bgcolor');
+      if (attr && /^#[0-9a-f]{6}$/i.test(attr)) return { r: parseInt(attr.substr(1, 2), 16), g: parseInt(attr.substr(3, 2), 16), b: parseInt(attr.substr(5, 2), 16), a: 1 };
+    }
+    return { r: 255, g: 255, b: 255, a: 1 };
+  }
+  var docH = Math.max(1, document.documentElement.scrollHeight);
+  var imgs = [], imgWidths = [], blocks = [];
+  document.querySelectorAll('img').forEach(function (img) {
+    var r = img.getBoundingClientRect();
+    imgWidths.push(vis(r) ? Math.round(r.width) : 0);
+    if (vis(r) && r.height > 60) imgs.push(r);
+  });
+  document.body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,td,div,a,span').forEach(function (el) {
+    var text = ownText(el);
+    if (text.length < 2) return;
+    var cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.maxHeight) === 0 || parseFloat(cs.opacity) === 0) return;
+    var r = el.getBoundingClientRect();
+    if (!vis(r) || r.height < 4) return;
+    // Lo que se mide es la caja del texto, no la celda entera.
+    var range = document.createRange(); range.selectNodeContents(el);
+    var tr = range.getBoundingClientRect();
+    blocks.push({ el: el, cs: cs, text: (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 50), r: vis(tr) ? tr : r, len: text.length });
+  });
+  var touching = [], seen = {};
+  blocks.forEach(function (b) {
+    if (b.el.tagName === 'SPAN') return;
+    imgs.forEach(function (ir) {
+      var overlap = Math.min(b.r.right, ir.right) - Math.max(b.r.left, ir.left);
+      if (overlap < Math.min(40, b.r.width / 2)) return;
+      var below = b.r.top - ir.bottom, above = ir.top - b.r.bottom;
+      var gap = below >= -2 && below < gapMin ? below : above >= -2 && above < gapMin ? above : null;
+      if (gap === null || seen[b.text]) return;
+      seen[b.text] = true;
+      touching.push({ text: b.text, gap: Math.max(0, gap) });
+    });
+  });
+  var left = blocks.filter(function (b) { return b.len > 20 && b.el.tagName !== 'SPAN'; }).map(function (b) { return b.r.left; });
+  var contrast = [], fonts = [], coloredText = false, seenC = {};
+  blocks.forEach(function (b) {
+    var fg = parse(b.cs.color), bg = background(b.el);
+    var size = parseFloat(b.cs.fontSize), weight = parseInt(b.cs.fontWeight, 10) || 400;
+    if (fg && bg && !seenC[b.text]) {
+      seenC[b.text] = true;
+      contrast.push({ text: b.text, fg: hex(fg), bg: hex(bg), size: size, bold: weight >= 700, at: (b.r.top + window.scrollY) / docH });
+    }
+    if (bg) {
+      var lum = (0.299 * bg.r + 0.587 * bg.g + 0.114 * bg.b) / 255;
+      var sat = Math.max(bg.r, bg.g, bg.b) - Math.min(bg.r, bg.g, bg.b);
+      // Solo cuenta en el cuerpo: la banda de color del cierre (antes del pie) la lleva cualquier plantilla.
+      if (b.len > 30 && (lum < 0.8 || sat > 40) && (b.r.top + window.scrollY) / docH < 0.8) coloredText = true;
+    }
+    if (b.len > 40) fonts.push({ text: b.text, size: size, at: (b.r.top + window.scrollY) / docH });
+  });
+  // Filas con dos o más columnas: bloques (texto largo o foto ancha) a la misma altura y uno al lado del otro.
+  // Dos fotos una al lado de la otra siguen siendo una banda de fotos: al menos una columna tiene que llevar texto.
+  var items = blocks.filter(function (b) { return b.len > 30; }).map(function (b) { return { r: b.r, text: true }; })
+    .concat(imgs.filter(function (r) { return r.width > 120; }).map(function (r) { return { r: r, text: false }; }));
+  var columns = 0;
+  for (var i = 0; i < items.length; i++) for (var j = i + 1; j < items.length; j++) {
+    if (!items[i].text && !items[j].text) continue;
+    var a = items[i].r, c = items[j].r;
+    // Ni la cabecera (logo y menú) ni el cierre y el pie (enlaces legales, redes) cuentan como módulo.
+    if (a.top + window.scrollY < 200 || c.top + window.scrollY < 200 || (a.top + window.scrollY) / docH > 0.8) continue;
+    var vOverlap = Math.min(a.bottom, c.bottom) - Math.max(a.top, c.top);
+    var apart = a.right <= c.left + 2 || c.right <= a.left + 2;
+    if (vOverlap > 20 && apart) columns++;
+  }
+  var widest = 0; imgs.forEach(function (r) { widest = Math.max(widest, r.width); });
+  var content = 0; document.querySelectorAll('table').forEach(function (t) { var w = t.getBoundingClientRect().width; if (w <= 720) content = Math.max(content, w); });
+  content = content || widest;
+  var fullImgs = imgs.filter(function (r) { return r.width >= content * 0.8; }).length;
+  // Colores: fondos que ocupan mucho y botones (enlaces con fondo de color).
+  var areas = [];
+  document.body.querySelectorAll('table,td,div,a').forEach(function (el) {
+    var cs = getComputedStyle(el), c = parse(cs.backgroundColor);
+    if (!c || c.a < 0.5) return;
+    var r = el.getBoundingClientRect(), area = r.width * r.height;
+    var button = el.tagName === 'A' || (el.tagName === 'TD' && el.querySelector('a') && r.height < 80 && r.width < 400);
+    if (area > 15000 || button) areas.push({ hex: hex(c), area: Math.round(area), button: !!button });
+  });
+  return { touching: touching, left: left, contrast: contrast, fonts: fonts, columns: columns, coloredText: coloredText,
+    fullImgs: fullImgs, areas: areas, imgWidths: imgWidths };
+}`;
+
+interface PageMetrics {
+  touching: { text: string; gap: number }[];
+  left: number[];
+  contrast: { text: string; fg: string; bg: string; size: number; bold: boolean; at: number }[];
+  fonts: { text: string; size: number; at: number }[];
+  columns: number;
+  coloredText: boolean;
+  fullImgs: number;
+  areas: { hex: string; area: number; button: boolean }[];
+  imgWidths: number[];
+}
+
+/** Errores (se devuelven a Hermes) y avisos (solo se enseñan) de los inspectores. */
+export interface Findings {
+  errors: string[];
+  warnings: string[];
+}
+
+export interface RenderReport {
+  /** null = cabe a 375 px. */
+  mobile: string | null;
+  layout: string[];
+  design: Findings;
+  images: Findings;
+  /** Ancho pintado a 700 px de cada <img>, en orden (0 si no se ve). */
+  imgWidths: number[];
+}
+
+export async function mobileOverflowWith(browser: Browser, htmlPath: string): Promise<string | null> {
+  const page = await browser.newPage({ viewport: { width: MOBILE_WIDTH, height: 800 }, javaScriptEnabled: true });
+  try {
+    await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
+    const result = (await page.evaluate(`(${MEASURE_OVERFLOW_JS})(${MOBILE_WIDTH})`)) as { docWidth: number; offenders: string[] };
+    if (result.docWidth <= MOBILE_WIDTH + 1 && !result.offenders.length) return null;
+    return `A ${MOBILE_WIDTH} px la página mide ${result.docWidth} px de ancho. Se salen: ${result.offenders.join('; ') || '(sin detalle)'}`;
+  } finally {
+    await page.close();
+  }
+}
+
+/** Renderiza el HTML a 375 px y devuelve qué se sale del ancho (null si cabe). La newsletter de
+ *  Adidas (2026-09-24) salió con imágenes de width="600" fijo y titular y CTA cortados en móvil, y
+ *  la autoauditoría de Hermes no lo vio: ahora lo mide el worker. Si Chromium no arranca, no bloquea. */
+export async function mobileOverflow(htmlPath: string): Promise<string | null> {
+  let browser;
+  try {
+    browser = await launchBrowser();
+    return await mobileOverflowWith(browser, htmlPath);
+  } catch (err) {
+    console.log(`No se pudo comprobar la versión móvil: ${(err as Error).message.slice(0, 200)}`);
+    return null;
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}
+
+async function measure(browser: Browser, htmlPath: string, width: number): Promise<PageMetrics> {
+  const page = await browser.newPage({ viewport: { width, height: 900 } });
+  try {
+    await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
+    return (await page.evaluate(`(${MEASURE_LAYOUT_JS})(${LAYOUT_MIN_GAP})`)) as PageMetrics;
+  } finally {
+    await page.close();
+  }
+}
+
+// --- Colores --------------------------------------------------------------------------------------
+
+function rgb(hex: string): [number, number, number] | null {
+  const m = hex.trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!m) return null;
+  const h = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1];
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
+}
+
+function luminance([r, g, b]: [number, number, number]): number {
+  const ch = (v: number): number => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+}
+
+/** Relación de contraste WCAG entre dos colores (1 a 21). */
+export function contrastRatio(a: string, b: string): number {
+  const ca = rgb(a);
+  const cb = rgb(b);
+  if (!ca || !cb) return 21;
+  const [hi, lo] = [luminance(ca), luminance(cb)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** Blancos, negros y grises: no son «de marca» ni dejan de serlo. */
+function isNeutral(hex: string): boolean {
+  const c = rgb(hex);
+  if (!c) return true;
+  return Math.max(...c) - Math.min(...c) < 24;
+}
+
+function distance(a: string, b: string): number {
+  const ca = rgb(a);
+  const cb = rgb(b);
+  if (!ca || !cb) return Infinity;
+  // Distancia «redmean»: barata y bastante cercana a la percepción.
+  const rm = (ca[0] + cb[0]) / 2;
+  const [dr, dg, db] = [ca[0] - cb[0], ca[1] - cb[1], ca[2] - cb[2]];
+  return Math.sqrt((2 + rm / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rm) / 256) * db * db);
+}
+
+// --- Inspectores --------------------------------------------------------------------------------
+
+/** Contraste, tamaño de letra en móvil, estructura y paleta. `palette`: colores de la marca (brand pack o
+ *  identidad medida); sin ella no se comparan colores. */
+export function designFindings(desktop: Pick<PageMetrics, 'contrast' | 'columns' | 'coloredText' | 'fullImgs' | 'areas'>, mobileFonts: PageMetrics['fonts'], palette: string[] = []): Findings {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Contraste (WCAG): por debajo de 3:1 no se lee en ningún tamaño; de 3 a 4,5 vale solo para texto grande.
+  const low: string[] = [];
+  const weak: string[] = [];
+  for (const c of desktop.contrast) {
+    const ratio = contrastRatio(c.fg, c.bg);
+    const large = c.size >= 24 || (c.size >= 18.6 && c.bold);
+    const line = `«${c.text}» (${c.fg} sobre ${c.bg}, ${ratio.toFixed(1)}:1)`;
+    // Pies de foto y pie legal (letra de 12 px o menos, o último quinto de la pieza) suelen ir en gris a propósito:
+    // ahí es aviso. En el texto del cuerpo, por debajo de 3:1, error.
+    const secondary = c.size <= 12.5 || c.at > 0.8;
+    if (ratio < 3 && !secondary) low.push(line);
+    else if (ratio < 4.5 && !large) weak.push(line);
+  }
+  for (const l of low.slice(0, 3)) errors.push(`Texto que no se lee por falta de contraste: ${l}. Necesita al menos 4,5:1 (3:1 si es un titular grande).`);
+  if (low.length > 3) errors.push(`… y ${low.length - 3} texto(s) más con contraste insuficiente.`);
+  for (const l of weak.slice(0, 2)) warnings.push(`Contraste bajo: ${l}; lo recomendable es 4,5:1.`);
+
+  // Texto pequeño en móvil. El pie legal (último cuarto de la pieza) puede ir más pequeño.
+  // Por debajo de 12 px no se lee; de 12 a 14 px puede ser un pie de foto (aviso).
+  const tiny = mobileFonts.filter((f) => f.at < 0.75 && f.size < 11.5);
+  const small = mobileFonts.filter((f) => f.at < 0.75 && f.size >= 11.5 && f.size < 14);
+  for (const f of tiny.slice(0, 3)) errors.push(`Texto demasiado pequeño en móvil (${Math.round(f.size)} px): «${f.text}». El texto corrido necesita al menos 14 px a 375 px.`);
+  if (small.length) warnings.push(`${small.length} bloque(s) de texto de ${Math.round(small[0].size)} px en móvil (lo recomendable para texto corrido es 14-16 px), p. ej. «${small[0].text}».`);
+
+  // Estructura (Siroko, 2026-10-05): tres o más fotos a todo el ancho y nada más que «foto + texto».
+  if (desktop.fullImgs >= 3 && !desktop.columns && !desktop.coloredText) {
+    errors.push(
+      `Estructura repetida: ${desktop.fullImgs} fotos a todo el ancho seguidas de texto y ningún otro módulo (ni dos columnas, ni texto sobre ` +
+        'color). Cambia al menos un bloque por un módulo propio del concepto: dos columnas, rejilla, cita o dato sobre color, secuencia…'
+    );
+  }
+
+  // Paleta: fondos grandes y botones con un color que no es de la marca (ni neutro).
+  const brand = palette.filter((p) => rgb(p) && !isNeutral(p));
+  if (brand.length) {
+    const off = new Map<string, { area: number; button: boolean }>();
+    for (const a of desktop.areas) {
+      if (isNeutral(a.hex) || brand.some((p) => distance(p, a.hex) < 60)) continue;
+      const prev = off.get(a.hex);
+      off.set(a.hex, { area: (prev?.area || 0) + a.area, button: !!prev?.button || a.button });
+    }
+    const list = [...off.entries()].sort((x, y) => y[1].area - x[1].area).slice(0, 3);
+    if (list.length) {
+      warnings.push(
+        `Colores que no están en la paleta de la marca: ${list.map(([hex, v]) => `${hex}${v.button ? ' (botón)' : ''}`).join(', ')}. ` +
+          `Paleta: ${brand.slice(0, 6).join(', ')}.`
+      );
+    }
+  }
+  return { errors, warnings };
+}
+
+/** Archivo local de una imagen referenciada en la pieza (relativa al HTML o a la raíz), o null. */
+export function resolveLocal(ref: string, htmlDir: string, root: string): string | null {
+  if (/^(https?:|data:|cid:|mailto:|#|\{\{)/i.test(ref)) return null;
+  let clean: string;
+  try {
+    clean = decodeURI(ref.replace(/^file:\/\//, '').split(/[?#]/)[0]);
+  } catch {
+    return null;
+  }
+  const candidates = path.isAbsolute(clean) ? [clean] : [path.resolve(htmlDir, clean), path.resolve(root, clean)];
+  return candidates.find((c) => fs.existsSync(c) && fs.statSync(c).isFile()) || null;
+}
+
+export const IMAGE_MAX_BYTES = 600 * 1024;
+export const IMAGES_TOTAL_MAX_BYTES = 2.5 * 1024 * 1024;
+
+/** Peso de las imágenes y fotos con mucho margen vacío (fondo liso) arriba y abajo: la zapatilla de Nike
+ *  (2026-09-28) dejaba más de 400 px de blanco. Solo se miran las que se pintan a más de 300 px. */
+export async function imageFindings(html: string, htmlDir: string, root: string, widths: number[] = []): Promise<Findings> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const tags = [...html.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
+  const seen = new Set<string>();
+  let total = 0;
+  for (let i = 0; i < tags.length; i++) {
+    const src = tags[i].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || '';
+    const file = resolveLocal(src, htmlDir, root);
+    if (!file || seen.has(file)) continue;
+    seen.add(file);
+    const bytes = fs.statSync(file).size;
+    total += bytes;
+    const name = path.basename(file);
+    if (bytes > IMAGE_MAX_BYTES) warnings.push(`${name} pesa ${Math.round(bytes / 1024)} KB: redúcela a 1200 px de ancho y comprímela (tarda en cargar en el móvil).`);
+    const painted = widths[i] || Number(tags[i].match(/\bwidth\s*=\s*["']?(\d+)/i)?.[1] || 0);
+    if (painted < 300 || /\.svg$/i.test(file)) continue;
+    try {
+      const meta = await sharp(file).metadata();
+      const { info } = await sharp(file).trim({ threshold: 12 }).toBuffer({ resolveWithObject: true });
+      const h = meta.height || 0;
+      if (!h || !info.height) continue;
+      const empty = 1 - info.height / h;
+      const pct = Math.round(empty * 100);
+      const msg = `${name}: el ${pct} % de su alto es fondo liso (arriba y abajo). Recórtala dejando ~10 % de margen alrededor del producto.`;
+      if (empty > 0.45) errors.push(`Foto con mucho espacio vacío — ${msg}`);
+      else if (empty > 0.3) warnings.push(`Foto con bastante espacio vacío — ${msg}`);
+    } catch {
+      // formato que sharp no lee: sin medir
+    }
+  }
+  if (total > IMAGES_TOTAL_MAX_BYTES) warnings.push(`Las imágenes suman ${(total / 1024 / 1024).toFixed(1)} MB: la pieza tardará en abrirse en el móvil.`);
+  return { errors, warnings };
+}
+
+/** Todo lo que se mide renderizando, con un solo Chromium. `palette`: colores de la marca para el inspector de
+ *  paleta. Si Chromium no arranca, devuelve null y no bloquea nada. */
+export async function renderChecks(htmlPath: string, root: string, palette: string[] = []): Promise<RenderReport | null> {
+  let browser;
+  try {
+    browser = await launchBrowser();
+    const mobile = await mobileOverflowWith(browser, htmlPath);
+    const desktop = await measure(browser, htmlPath, DESKTOP_WIDTH);
+    const small = await measure(browser, htmlPath, MOBILE_WIDTH);
+    const html = fs.readFileSync(htmlPath, 'utf8');
+    return {
+      mobile,
+      layout: layoutFindings({ touching: desktop.touching, mobileLeft: small.left }),
+      design: designFindings(desktop, small.fonts, palette),
+      images: await imageFindings(html, path.dirname(htmlPath), root, desktop.imgWidths),
+      imgWidths: desktop.imgWidths,
+    };
+  } catch (err) {
+    console.log(`No se pudo renderizar la pieza para medirla: ${(err as Error).message.slice(0, 200)}`);
+    return null;
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}

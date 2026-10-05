@@ -76,6 +76,11 @@ export function imageKind(abs: string): ImageKind | null {
   } catch {
     return null;
   }
+  return imageKindOf(b);
+}
+
+/** Lo mismo sobre los bytes ya leídos (fetch-image.ts comprueba la descarga antes de guardarla). */
+export function imageKindOf(b: Buffer): ImageKind | null {
   if (b[0] === 0x89 && b.toString('latin1', 1, 4) === 'PNG') return 'png';
   if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpeg';
   if (b.toString('latin1', 0, 4) === 'GIF8') return 'gif';

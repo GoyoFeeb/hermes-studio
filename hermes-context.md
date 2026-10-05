@@ -1746,3 +1746,85 @@ El usuario pidió «vamos con todas».
   - prueba de un modelo más capaz para la primera versión;
   - decidir qué se hace con `agents/` 00-09.
   Pendiente de que el usuario elija.
+
+### 2026-10-05 (tarde) — Auditoría de agentes: las 17 mejoras aplicadas
+
+- **Medir (13-14).** Nuevo `studio/worker/timeline.ts`. El worker anota cada fase (identidad medida, brief, primera
+  versión, comprobación, cada corrección, revisión visual), las esperas al modelo que hubo que cortar y las rondas.
+  Lo manda al terminar o al fallar (`timings`), Studio lo guarda (`sanitizeTimings`) y lo enseña en «Tiempo por fase»
+  del panel de revisión; el log del worker lleva una línea de resumen. El corte de llamadas colgadas baja de 12 a 8
+  min (`HERMES_STALL_MIN`) y el aviso, a 5.
+- **Base técnica (3).** `studio/hermes/email-base.html` trae lo técnico resuelto: tabla fantasma y 96 ppp, modo oscuro
+  declarado, preheader, media query con `.px`/`.stack`/`.fluid` y baja. Los módulos de ejemplo van en
+  `studio/hermes/email-modulos.md`. El encargo pide copiar la base y diseñar dentro, y pierde las reglas técnicas
+  que la base ya cumple. El check `placeholders` da error por marcadores sin rellenar.
+- **Autocomprobación (4).** `npm run check-newsletter -- <ruta> [--retoque]`, con `check-newsletter.ts` e
+  `inspect.ts`: es la misma comprobación que hace el worker. El encargo la pide antes de entregar; «Pedir cambios» y
+  «Adaptar a móvil», con `--retoque`.
+- **Arreglos automáticos (8).** `autoFix.ts`:
+  - metas de modo oscuro, solo si la pieza ya trae sus estilos oscuros;
+  - 96 ppp y xmlns;
+  - `width` de las imágenes, con su ancho pintado;
+  - `box-sizing` en `width:100%` + padding;
+  - href de «Darse de baja»;
+  - imágenes de más de 600 KB → 1200 px comprimidas.
+
+  Se anotan en `notas.md` («Arreglos automáticos de Studio») y en el registro.
+- **Ayudante de imágenes (5).** `npm run fetch-image -- <url> <carpeta> [nombre]`:
+  - descarga con cabeceras de navegador; si la web bloquea, con Chromium;
+  - comprueba los bytes (una página de error con extensión .jpg no pasa);
+  - convierte SVG a PNG al doble;
+  - reduce a 1200 px y comprime.
+- **Una ronda corta (6-7).** Móvil, espacios y calidad van en una sola ronda (antes, dos bucles seguidos), en una
+  sesión nueva de Hermes con la lista de errores, `FIX_GUIDE`, `SCOPED_FIX` y el encargo guardado en
+  `_trabajo/encargo.md`. La segunda ronda retoma esa sesión corta, no la de la pieza. En «Adaptar a móvil» solo se
+  devuelve el móvil; en «Pedir cambios», nada heredado.
+- **Brief propio (1-2).** `buildBriefPrompt` ya no carga la skill. Lleva su método condensado (un concepto, 3-5
+  escenas con función, módulo propio, copy) y 8 secciones fijas (concepto, identidad, datos verificados, asunto y
+  preheader, escenas, imágenes, prohibido, autoauditoría), con un tope de 1.200 palabras (`BRIEF_MAX_WORDS`).
+- **Pedir cambios (9-10).**
+  - `isSimpleTextChange` (formcheck.js): si la petición es solo de texto (titular, errata, asunto, enlace…), la caja
+    propone «Editar texto».
+  - El encargo de revisión pide un solo render de comprobación, `check-newsletter --retoque` y `fetch-image`.
+- **Inspectores nuevos (11).** En `renderChecks.ts`, junto con lo que antes estaba en el worker:
+  - contraste WCAG: error por debajo de 3:1 en el cuerpo; en pies de foto y pie legal, aviso;
+  - texto de menos de 12 px en móvil: error; de 12-13 px, aviso;
+  - estructura repetida: error con 3 o más fotos a todo el ancho y ningún módulo en el cuerpo (dos columnas con
+    texto o texto sobre color). Ni la banda del cierre ni dos fotos lado a lado cuentan; con la pieza de Siroko salta;
+  - colores fuera de la paleta del brand pack o de la identidad medida: aviso;
+  - fotos con fondo liso: error por encima del 45 % de su alto; aviso por encima del 30 %;
+  - peso de las imágenes: aviso.
+
+  Probados contra 8 piezas buenas del repo: solo dan avisos de contraste en pies, salvo los laterales de móvil, que
+  ya existían.
+- **Revisión visual (12).** Casilla «Revisión de dirección de arte al final» (`artReview`). Es una sesión nueva con
+  capturas a 600 y 375 px: puntúa identidad, concepto, jerarquía, aire y originalidad, retoca lo que baje de 4 y
+  escribe `_trabajo/revision-visual.md`.
+- **Identidad medida (15).** `measureBrand.ts` (`npm run measure-brand`):
+  - cuándo: marcas sin brand pack y sin medición de menos de 90 días;
+  - qué web: la del campo nuevo «Web oficial (opcional)» del formulario o las candidatas `www.<marca>.es`,
+    `.com/es/`…; comprueba por dominio o título que es la marca;
+  - qué mide: titulares, texto (el que va sobre el fondo de la página), botones, paleta por superficie, fuentes de
+    Google Fonts y logo de cabecera (SVG o imagen → PNG);
+  - dónde lo deja: `brands/<marca>/tokens/identidad-medida.json` y `design-input/logo-medido.png`.
+
+  El brief y el encargo reciben la nota «Identidad de la marca ya medida».
+- **Modelo por fase (16).** `HERMES_MODEL_BRIEF`, `_DRAFT` y `_FIX` en el worker: se pasan con `--model` solo si
+  `hermes chat --help` lo anuncia. Vacías, todo sigue como siempre. **Pendiente del usuario:** decidir si prueba un
+  modelo más capaz para la primera versión.
+- **agents/ (17).** `agents/README.md`: los agentes 00-09 son del motor de la terminal y Studio ya no los usa. No se
+  archiva nada (se decide si algún día se retira el motor).
+- **Verificación:**
+  - Studio y worker en una copia aislada con un Hermes falso: identidad medida → brief → primera versión con dos
+    fallos → arreglo automático (width) → una ronda en sesión nueva (espacios) → revisión visual → control superado.
+    Studio recibió `timings`, `notas.md` con los arreglos y la sesión del borrador con `--model`.
+  - `measureBrand` contra una web simulada: Barlow Condensed y Barlow de Google Fonts, botón, paleta y logo SVG →
+    PNG de 320×80.
+  - `fetch-image`: SVG → PNG 400×100; una foto de 6,9 MB → 242 KB; la página de error se rechaza.
+  - Web a 1280 y 375 px sin desbordes.
+  - +19 tests (`agents.test.js`, formcheck). `npm test` 188/190 (los 2 de siempre del contenedor). check-engine limpio.
+- **Para desplegar:**
+  - Railway: encargo, brief y tiempos;
+  - Vercel: formulario, tiempos y aviso de texto;
+  - en el Mac: `git pull` y `studio/worker/service.sh restart`. No hay dependencias nuevas: playwright y sharp ya
+    estaban.

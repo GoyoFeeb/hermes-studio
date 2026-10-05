@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { ROOT, DATA_DIR } from './paths';
-import { getJob, updateJob, appendEvent, listJobs, type Job } from './store';
+import { getJob, updateJob, appendEvent, listJobs, type Job, type JobTimings } from './store';
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
 import { findPreheader, staticChecks } from '../worker/qualityCheck';
@@ -107,38 +107,41 @@ export function buildHermesPrompt(job: Job): string {
     '  Si falta un dato, no lo inventes: déjalo fuera de la pieza y anótalo como pendiente.',
     `- Entrega UN ÚNICO archivo HTML de email, final y listo para enviar, en: ${outDir}/newsletter.html`,
     '  Revisa el resultado renderizado (capturas) y corrígelo antes de darlo por terminado, como haces siempre.',
-    '- Imágenes en ese HTML: SIEMPRE descargadas en la carpeta del trabajo y enlazadas con ruta local (relativa',
-    '  al HTML). Nunca URLs de la web o del CDN de la marca: suelen bloquear el enlace directo (403) y en el correo',
-    '  no se verían. No hace falta subirlas ni incrustarlas en base64: Studio las publica al recibir la newsletter.',
-    '- Logo OBLIGATORIO arriba del todo: el oficial de la marca, en PNG (Gmail y Outlook no muestran SVG; si solo',
-    '  existe en SVG, conviértelo a PNG al doble de su tamaño), descargado en la carpeta del trabajo, con alt con el',
-    '  nombre de la marca. Si no consigues el logo oficial, dilo como pendiente en notas.md; no lo sustituyas por texto.',
+    `- Base técnica: copia studio/hermes/email-base.html a ${outDir}/newsletter.html y diseña DENTRO. Trae resuelto lo`,
+    '  técnico (tabla fantasma y 96 ppp de Outlook, modo oscuro declarado, preheader, media query de móvil con .px/.stack/',
+    '  .fluid, enlace de baja). Módulos técnicos de ejemplo (foto + texto, dos columnas, botón VML) en',
+    '  studio/hermes/email-modulos.md. La base NO decide el diseño: tipografía, colores, módulos y ritmo salen del brief',
+    '  y de la marca. Rellena todos los [MARCADORES] y no quites lo técnico.',
+    '- Imágenes en ese HTML: SIEMPRE descargadas en la carpeta del trabajo y enlazadas con ruta local (relativa al HTML).',
+    `  Descárgalas con \`npm run fetch-image -- <url> ${outDir} [nombre]\`: funciona aunque la web bloquee el enlace`,
+    '  directo (403), convierte un SVG a PNG al doble de tamaño y comprime a 1200 px. Nunca URLs de la web o del CDN de',
+    '  la marca en el HTML. Studio las publica al recibir la newsletter.',
+    '- Logo OBLIGATORIO arriba del todo: el oficial de la marca, en PNG, en la carpeta del trabajo, con alt con el nombre',
+    '  de la marca (si Studio ya lo midió, está en brands/<marca>/design-input/logo-medido.png). Si no consigues el logo',
+    '  oficial, dilo como pendiente en notas.md; no lo sustituyas por texto.',
     '- Si una imagen no se ve en tu propio render (rota, en blanco, 403), la pieza NO está terminada: descárgala de',
     '  otra forma o cámbiala por otra oficial. No la des por buena como «problema de red».',
-    '- Celdas fluidas: si una celda tiene width:100% y padding, ponle box-sizing:border-box (sin él mide el 100 %',
-    '  más el padding y se sale del ancho en móvil).',
-    '- Preheader OBLIGATORIO: al principio del <body>, un bloque oculto (display:none; max-height:0;',
-    '  overflow:hidden; mso-hide:all) con una frase que complemente al asunto (se ve junto a él en la bandeja).',
+    '- Preheader OBLIGATORIO (el bloque oculto ya está en la base): una frase que complemente al asunto (<title>).',
     '- Enlaces: cada href debe llevar a una página que exista (compruébalo con el navegador); nunca inventes',
-    '  una URL. Studio comprueba enlaces e imágenes al recibir la pieza y te devolverá los que den 404.',
-    '- Modo oscuro OBLIGATORIO: en <head>, <meta name="color-scheme" content="light dark"> y',
-    '  <meta name="supported-color-schemes" content="light dark">, y un @media (prefers-color-scheme: dark) con',
-    '  fondos, textos y CTA en oscuro coherentes con la marca (si el logo es oscuro, una versión clara o un fondo',
-    '  que lo haga legible). Renderiza la pieza también en oscuro y revísala.',
-    '- Outlook de escritorio OBLIGATORIO: tabla "fantasma" de 600 px en <!--[if mso]> alrededor del contenido,',
-    '  ajuste de 96 ppp en <head> (<o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch>), atributo',
-    '  width en cada <img>, maquetación con tablas (nada de flex/grid), fondos con imagen con alternativa VML y',
-    '  la tipografía de la marca con un respaldo genérico DETRÁS (p. ej. \'Fuente de marca\', Arial, sans-serif).',
-    '- Footer: incluye SIEMPRE un enlace de baja con href="{{unsubscribe_url}}" (obligatorio en un',
-    '  email comercial; el ESP sustituye la variable) y, si procede, el aviso legal de la marca.',
+    '  una URL.',
+    '- Modo oscuro OBLIGATORIO: define en el @media (prefers-color-scheme: dark) de la base los fondos, textos y CTA en',
+    '  oscuro coherentes con la marca (si el logo es oscuro, una versión clara o un fondo que lo haga legible).',
+    '  Renderiza la pieza también en oscuro y revísala.',
+    '- Outlook de escritorio OBLIGATORIO: maqueta con tablas (nada de flex/grid), atributo width en cada <img>, fondos',
+    '  con imagen con alternativa VML y la tipografía de la marca con un respaldo genérico DETRÁS (p. ej. \'Fuente de',
+    '  marca\', Arial, sans-serif).',
+    '- Footer: el enlace de baja (href="{{unsubscribe_url}}", ya en la base) es obligatorio; añade el aviso legal de la',
+    '  marca si procede.',
     ...LOGO_RULE,
     ...DESIGN_RULES,
     `- Scripts y archivos auxiliares (conversiones, comprobaciones, capturas): en ${outDir}/_trabajo/`,
     '  o en /tmp. Nunca en scripts/, en la raíz del repo ni en brands/ (ahí solo logos e imágenes de marca).',
-    '- Móvil OBLIGATORIO: renderiza la pieza también a 375 px de ancho (iPhone). Nada puede salirse del',
-    '  ancho ni quedar cortado: en la media query de móvil, imágenes con width:100% y height:auto, tablas',
-    '  y celdas fluidas (sin anchos fijos de 600 px), titulares y botones que puedan partir línea. Studio',
-    '  lo mide al recibir la pieza y te la devolverá si se sale.',
+    '- Móvil OBLIGATORIO: renderiza la pieza también a 375 px de ancho (iPhone). Nada puede salirse del ancho ni',
+    '  quedar cortado; usa las clases de la base (.px en cada celda con texto, .stack en columnas, .fluid en imágenes).',
+    `- Comprobación OBLIGATORIA antes de terminar: \`npm run check-newsletter -- ${outDir}/newsletter.html\`. Es la misma`,
+    '  que hace Studio al recibir la pieza (móvil, espacios, contraste, letra, estructura, enlaces, imágenes, tipografía,',
+    '  logo, Outlook, modo oscuro, marcadores): aplica sola los arreglos mecánicos y te dice el resto. Corrige y repítela',
+    '  hasta que salga sin errores. Si sale limpia, Studio no te devolverá la pieza.',
     `- Autoauditoría por escrito, OBLIGATORIA: antes de terminar, escribe ${outDir}/notas.md con:`,
     '  1. Concepto (una frase) y titular principal de la pieza; explica cómo deriva el titular del',
     '     concepto. Si no deriva de él, corrige el titular antes de entregar.',
@@ -146,7 +149,7 @@ export function buildHermesPrompt(job: Job): string {
     '     (URL oficial). Lo que no tenga fuente no puede estar en la pieza: quítalo o reescríbelo.',
     '  3. Origen de cada imagen: URL oficial, brand pack o generada con IA.',
     '  3b. Tipografía y colores usados, con su origen (web oficial o brand pack), y el módulo propio del concepto.',
-    '  4. Resultado de la comprobación a 375 px (qué revisaste y qué corregiste).',
+    '  4. Resultado de npm run check-newsletter y de tu revisión a 375 px y en oscuro (qué corregiste).',
     '  5. Las preguntas de autoauditoría del prompt con su respuesta.',
     '- Respuesta final: breve — concepto y lo que quede pendiente.',
   ].join('\n');
@@ -157,47 +160,65 @@ export function needsBrief(job: Job): boolean {
   return !!job.input.instruction && !job.input.briefText.trim();
 }
 
-/** Paso previo para una instrucción básica: Hermes escribe el prompt de dirección creativa con la
- *  skill newsletter-creative-brief (destino standalone, fijado aquí: la skill pregunta el destino si
- *  es ambiguo y en esta ejecución nadie responde). El worker lo lee de `{outDir}/brief.md`. */
+/** Brief creativo propio de Studio (2026-10-05, auditoría de agentes). Antes se cargaba la skill
+ *  newsletter-creative-brief, que en el Mac ha crecido a ~100 KB por archivo (bucles de skill_view, contexto enorme en
+ *  cada llamada) y que en destino standalone omite la identidad de marca, así que el encargo tenía que contradecirla.
+ *  Aquí va su método condensado —un solo concepto, escenas con función narrativa, patrones prohibidos y
+ *  autoauditoría— con secciones fijas (la newsletter las encuentra siempre en el mismo sitio) y un tope de extensión:
+ *  el brief se pega entero en el encargo de la newsletter y cada palabra se paga en cada llamada al modelo. */
+export const BRIEF_MAX_WORDS = 1200;
+
 export function buildBriefPrompt(job: Job): string {
   const outDir = standaloneOutputDir(job);
+  const slug = job.input.clientSlug || '{marca}';
   const images =
     job.input.imageMode === 'ai'
-      ? 'Las imágenes de la pieza se generarán con IA (el logo, siempre el oficial).'
-      : 'La pieza usará solo fotografía oficial de la marca, sacada de su web oficial (nada de imágenes ' +
-        'generadas con IA; las fotos del brand pack pueden serlo). Pide en el brief localizar las imágenes ' +
-        'oficiales concretas (URL) de la web de la marca.';
+      ? 'Las imágenes de la pieza se generarán con IA (el logo, siempre el oficial): describe en la sección 6 qué debe mostrar cada una.'
+      : 'Solo fotografía oficial de la marca, de su web oficial (nada generado con IA): en la sección 6, la URL concreta de cada imagen.';
   return [
-    'Carga la skill newsletter-creative-brief (skill_view) y sigue su "Modo 1 — Generar un brief nuevo".',
+    `Escribe el brief de dirección creativa de una newsletter de ${job.input.clientName}. NO cargues skills: el método está aquí.`,
     '',
     `Petición del equipo: «${job.input.instruction!.trim()}»`,
-    `Marca: ${job.input.clientName}${job.input.clientSlug ? ` (carpeta brands/${job.input.clientSlug}/ si existe)` : ''}.`,
+    `Marca: ${job.input.clientName} (carpeta brands/${slug}/ si existe).`,
     '',
     '## Decisiones ya tomadas (no preguntes)',
-    '- Destino: **standalone** (HTML standalone). Usa la variante `standalone` de la sección 6 de la',
-    '  plantilla; no uses la variante `hermes` ni preguntes por el destino.',
-    `- ${images} Tenlo en cuenta en el brief.`,
-    '- Nadie va a responder preguntas: no uses clarify. Si falta el producto o la campaña concreta,',
-    '  elige la opción más razonable para la marca ahora mismo (lanzamiento o campaña vigente en su web',
-    '  oficial) y dilo explícitamente en el brief.',
-    '- Investigación: ligera para el contenido, como pide la skill (2-4 búsquedas o páginas de la web oficial), pero',
-    '  la identidad visual se mide de verdad en la web oficial de la marca (estilos calculados de titulares, texto y',
-    '  botones; colores de fondo, texto y acento).',
-    '- Identidad de marca: aunque el destino sea standalone, NO dejes fuera la identidad (esto manda sobre la',
-    '  indicación de la skill de omitir la nota del brand pack en standalone). Añade al brief una sección',
-    '  «Identidad de marca» con: tipografía de titulares y de texto (nombre exacto y de dónde sale), paleta (hex de',
-    '  fondo, texto, acento y botón, con su origen), tono de voz y tratamiento de foto. Si existe',
-    `  brands/${job.input.clientSlug || '{marca}'}/tokens/brand-tokens.json, parte de él (cita su versión).`,
-    '- Estructura: en las escenas, al menos una con un módulo pensado para el concepto (comparativa, rejilla, cita,',
-    '  dos columnas, texto sobre color, secuencia…), no solo «imagen + titular + texto». Indica el aire entre bloques.',
+    '- Nadie va a responder preguntas: no uses clarify. Si falta el producto o la campaña concreta, elige la opción más',
+    '  razonable para la marca ahora mismo (lanzamiento o campaña vigente en su web oficial española) y dilo en el brief.',
     '- Mercado: España y castellano. Precios en euros y páginas de la web española de la marca.',
-    '- Logo e imágenes: el logo oficial en PNG (no SVG) y todas las imágenes descargadas en la carpeta del trabajo,',
-    '  nunca enlazadas a la web de la marca. Pídelo así en el brief.',
+    `- Imágenes: ${images}`,
+    '- Investigación: como mucho 5 búsquedas o páginas, solo para el CONTENIDO (producto, campaña, datos con fuente). La',
+    '  identidad visual: si más abajo hay una sección «Identidad de la marca ya medida» o existe',
+    `  brands/${slug}/tokens/brand-tokens.json, úsala tal cual y no la vuelvas a medir; si no, mídela en la web oficial`,
+    '  (estilos calculados de titulares, texto y botones; colores de fondo, texto y acento).',
     '',
-    '## Entrega',
-    `- Escribe el brief completo, con todas las {{VARIABLES}} resueltas, en ${outDir}/brief.md (write_file).`,
-    '  Es el entregable: ignora las instrucciones de la skill sobre present_files o guardar la skill.',
+    '## Método (no lo copies en el brief: aplícalo)',
+    '- Un solo concepto rector, escrito como frase. Todo titular deriva de él; nada compite con él.',
+    '- 3 a 5 escenas, cada una con una función narrativa distinta (apertura de impacto, revelación de una capacidad',
+    '  contada como experiencia, pausa o detalle diferenciador, cierre). Si dos escenas cumplen la misma función, fusiónalas.',
+    '- Al menos una escena con un módulo propio del concepto (comparativa, rejilla, cita, dos columnas, dato sobre color de',
+    '  marca, secuencia…), no solo «foto a todo el ancho + titular + texto».',
+    '- Copy: máximo 40 palabras por bloque; cada dato técnico dentro de una frase con verbo, contado como experiencia.',
+    '',
+    `## Entregable: ${outDir}/brief.md (write_file), con EXACTAMENTE estas secciones y como mucho ${BRIEF_MAX_WORDS} palabras`,
+    `# Brief — ${job.input.clientName} — <producto o campaña>`,
+    '## 1. Concepto — la frase rectora y por qué encaja con la marca y el producto (2-3 líneas).',
+    '## 2. Identidad de marca — tipografía de titulares y de texto (nombre exacto, de dónde sale y cómo cargarla en un',
+    '   email: Google Fonts o la alternativa web más parecida), paleta (hex de fondo, texto, acento y botón, con su',
+    '   origen), estilo de botón, tono de voz y tratamiento de foto. Logo: ruta del PNG si ya existe o URL oficial.',
+    '## 3. Datos verificados — cada precio, cifra, nombre de modelo o dato técnico con su URL oficial. Lo no verificado',
+    '   va en «Pendiente» y NO entra en la pieza.',
+    '## 4. Asunto y preheader — asunto (≤ 50 caracteres) y preheader (≤ 90) que lo complemente.',
+    '## 5. Escenas — una por escena: función narrativa, titular, texto (≤ 40 palabras), imagen, módulo/composición,',
+    '   CTA (si lleva; cada CTA con un texto distinto) y el aire con la anterior.',
+    '## 6. Imágenes — lista: para qué escena, URL oficial concreta (o descripción si son de IA) y encuadre.',
+    '## 7. Prohibido en esta pieza — siempre: ficha de datos sueltos sin verbo; rejilla de 3 columnas icono + título +',
+    '   párrafo; la misma composición imagen/texto repetida; el mismo texto de CTA dos veces; texto duplicado; marcadores',
+    '   sin rellenar; el nombre de la marca en texto con CSS en lugar del logo oficial; Arial como fuente principal;',
+    '   grises o colores «de plantilla» que no son de la marca. Añade los vicios propios de esta categoría si los hay.',
+    '## 8. Autoauditoría — las preguntas que la pieza debe responder con «no» antes de entregarse: ¿dos frases compiten',
+    '   por ser el titular? ¿algún bloque de números sin verbo? ¿CTA repetido? ¿texto duplicado? ¿marcadores? ¿más de 5',
+    '   escenas o la misma composición 3 veces? ¿logo reconstruido con texto? ¿fuente o colores que no son de la marca?',
+    '',
     '- NO generes la newsletter ni ningún HTML: solo el brief. La newsletter se hace en otro paso.',
     '- Respuesta final: una línea con el concepto elegido.',
   ].join('\n');
@@ -236,7 +257,9 @@ export function buildMobileFixPrompt(job: Job): string {
     '## Entrega',
     `- Guarda el resultado en ${outDir}/newsletter.html (write_file). Scripts y capturas en ${outDir}/_trabajo/.`,
     '- Renderízalo a 375 px y a 600 px y míralo: a 375 px nada puede salirse del ancho ni quedar cortado, y a',
-    '  600 px debe verse igual que el original. Studio lo mide al recibirlo y te lo devolverá si se sale.',
+    '  600 px debe verse igual que el original.',
+    `- Antes de terminar: \`npm run check-newsletter -- ${outDir}/newsletter.html --retoque\` (lo mismo que mide Studio al`,
+    '  recibirlo). Corrige lo que diga del móvil y repítelo hasta que salga sin errores de móvil.',
     `- Escribe ${outDir}/notas.md con los cambios hechos y el resultado de las comprobaciones a 375 y 600 px.`,
     '- Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
   ].join('\n');
@@ -281,8 +304,12 @@ export function buildRevisionPrompt(job: Job): string {
     '',
     '## Entrega',
     `- Guarda el resultado en ${outDir}/newsletter.html (write_file). Scripts y capturas en ${outDir}/_trabajo/.`,
-    '- Renderízalo a 600 y a 375 px y míralo: nada puede salirse del ancho. Studio comprueba el móvil, los',
-    '  enlaces, las imágenes y el preheader al recibirlo y te devolverá lo que falle.',
+    '- Un render a 600 y a 375 px para comprobar el cambio basta: no rehagas capturas de toda la pieza ni revises lo',
+    '  que no has tocado.',
+    `- Antes de terminar: \`npm run check-newsletter -- ${outDir}/newsletter.html --retoque\` (lo mismo que mide Studio`,
+    '  al recibirlo: móvil, enlaces, imágenes, preheader…). Corrige lo que hayas introducido tú y repítelo.',
+    `- Imagen nueva: \`npm run fetch-image -- <url> ${outDir} [nombre]\` (la descarga aunque la web bloquee el enlace`,
+    '  directo, convierte SVG a PNG y comprime); enlázala con ruta local.',
     `- Escribe ${outDir}/notas.md: qué cambiaste y dónde, la fuente de cada dato nuevo, el origen de cada`,
     '  imagen nueva y lo que no pudiste aplicar (y por qué).',
     '- Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
@@ -399,6 +426,24 @@ export function sanitizeQuality(raw: unknown): QualityReport | undefined {
     errors: checks.filter((c) => c.status === 'error').length,
     warnings: checks.filter((c) => c.status === 'warning').length,
     checks,
+  };
+}
+
+/** Tiempos por fase que manda el worker (timeline.ts): llegan por la red, se guarda solo lo que tiene forma. */
+export function sanitizeTimings(raw: unknown): JobTimings | undefined {
+  if (!raw || typeof raw !== 'object' || !Array.isArray((raw as JobTimings).phases)) return undefined;
+  const r = raw as JobTimings;
+  const n = (v: unknown, max = 86400): number => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
+  return {
+    phases: r.phases.slice(0, 20).map((p) => ({
+      id: String(p?.id || '').slice(0, 20),
+      label: String(p?.label || '').slice(0, 60),
+      sec: n(p?.sec),
+      ...(p && Number.isFinite(Number(p.actions)) ? { actions: n(p.actions, 10000) } : {}),
+    })),
+    hangs: { count: n(r.hangs?.count, 100), sec: n(r.hangs?.sec) },
+    rounds: n(r.rounds, 20),
+    totalSec: n(r.totalSec),
   };
 }
 
@@ -587,7 +632,7 @@ export function pendingThumbnails(limit: number): { id: string; html: string }[]
     });
 }
 
-export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessage: string, quality?: QualityReport, thumbnail?: string): void {
+export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessage: string, quality?: QualityReport, thumbnail?: string, timings?: JobTimings): void {
   const job = getJob(jobId);
   if (!job) throw new Error(`Job ${jobId} no encontrado`);
   const outRel = standaloneOutputDir(job);
@@ -614,6 +659,7 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
     campaignRelPath: outRel,
     resultRelPath: path.join(outRel, 'newsletter.html'),
     ...(quality ? { quality } : {}),
+    ...(timings ? { timings } : {}),
   });
   // Después de marcarla terminada: saveThumbnail necesita campaignRelPath. Si falla, el historial
   // muestra las iniciales de la marca; no es motivo para perder la newsletter.

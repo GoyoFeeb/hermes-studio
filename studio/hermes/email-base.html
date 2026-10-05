@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!--
+  BASE TÉCNICA DE EMAIL — Hermes Studio (2026-10-05)
+
+  Lo técnico ya está resuelto aquí: Outlook (tabla fantasma, 96 ppp, VML), modo oscuro declarado, preheader,
+  móvil (clases .px, .stack, .fluid con box-sizing) y enlace de baja. Cópiala a newsletter.html y diseña DENTRO:
+  la tipografía, los colores, los módulos y el ritmo son de la marca y del concepto, no de esta base.
+
+  - Sustituye todo lo que va entre [CORCHETES] y borra estos comentarios de ayuda.
+  - No quites: los <meta> de color-scheme, el bloque [if mso] de <head>, la tabla fantasma, el preheader,
+    la media query de móvil ni el enlace {{unsubscribe_url}}.
+  - Módulos técnicos de ejemplo en studio/hermes/email-modulos.md (foto + texto con aire, dos columnas apilables,
+    botón a prueba de Outlook). Son el punto de partida técnico; la composición la decide el brief.
+  - Antes de entregar: npm run check-newsletter -- <ruta de tu newsletter.html>
+-->
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>[ASUNTO DEL EMAIL]</title>
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <style>table, td, h1, h2, h3, p, a { font-family: Arial, Helvetica, sans-serif !important; }</style>
+  <![endif]-->
+  <!-- Fuente de la marca (Google Fonts u otra URL pública). Outlook la ignora y usa el respaldo de arriba. -->
+  <!--[if !mso]><!-->
+  <link href="[URL DE LA FUENTE DE LA MARCA]" rel="stylesheet">
+  <!--<![endif]-->
+  <style>
+    html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    * { -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-collapse: collapse; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; display: block; }
+    a { text-decoration: none; }
+    a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; }
+    td, .px, .stack { box-sizing: border-box; }
+
+    @media only screen and (max-width: 620px) {
+      .container { width: 100% !important; max-width: 100% !important; }
+      /* Laterales de 20-24 px: aplica .px a CADA celda con texto y a la del botón. */
+      .px { padding-left: 22px !important; padding-right: 22px !important; }
+      .stack { display: block !important; width: 100% !important; max-width: 100% !important; }
+      .stack-gap { padding-top: 24px !important; }
+      .fluid { width: 100% !important; max-width: 100% !important; height: auto !important; }
+      .hide-mobile { display: none !important; max-height: 0 !important; overflow: hidden !important; }
+      .h1 { font-size: 32px !important; line-height: 1.12 !important; }
+      .btn a { display: block !important; }
+    }
+
+    /* Modo oscuro: define los colores de la pieza en oscuro (fondos, textos, botones, logo claro si hace falta). */
+    @media (prefers-color-scheme: dark) {
+      .dm-bg { background-color: [FONDO OSCURO] !important; }
+      .dm-text { color: [TEXTO CLARO] !important; }
+      .dm-logo-light { display: none !important; }
+      .dm-logo-dark { display: block !important; max-height: none !important; overflow: visible !important; }
+    }
+    [data-ogsc] .dm-text { color: [TEXTO CLARO] !important; }
+    [data-ogsb] .dm-bg { background-color: [FONDO OSCURO] !important; }
+  </style>
+</head>
+<body class="dm-bg" style="margin:0; padding:0; background-color:[FONDO DE LA PIEZA];">
+  <!-- Preheader: se ve junto al asunto en la bandeja. -->
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:[FONDO DE LA PIEZA];">
+    [PREHEADER: una frase que complemente al asunto]&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="dm-bg" style="background-color:[FONDO DE LA PIEZA];">
+    <tr>
+      <td align="center">
+        <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
+        <table role="presentation" class="container" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px;">
+
+          <!-- Cabecera: logo oficial en PNG, descargado en la carpeta del trabajo. -->
+          <tr>
+            <td class="px" align="center" style="padding:28px 40px;">
+              <a href="[URL DE LA WEB ESPAÑOLA DE LA MARCA]"><img src="[logo.png]" width="[ANCHO]" alt="[MARCA]" style="width:[ANCHO]px; height:auto;"></a>
+            </td>
+          </tr>
+
+          <!-- ============ MÓDULOS DE LA PIEZA (los decide el brief) ============ -->
+
+          <!-- Módulos técnicos de ejemplo (foto + texto, dos columnas, botón VML): studio/hermes/email-modulos.md -->
+
+          <!-- ============ FIN DE LOS MÓDULOS ============ -->
+
+          <!-- Pie: aviso legal de la marca y enlace de baja (obligatorio). Si lleva logo, el mismo que la cabecera. -->
+          <tr>
+            <td class="px dm-text" align="center" style="padding:32px 40px 40px; font-family:'[FUENTE DE MARCA]', Arial, sans-serif; font-size:12px; line-height:1.6; color:[TEXTO SECUNDARIO];">
+              <p style="margin:0 0 8px;">[AVISO LEGAL DE LA MARCA]</p>
+              <p style="margin:0;"><a href="{{unsubscribe_url}}" class="dm-text" style="color:[TEXTO SECUNDARIO]; text-decoration:underline;">Darse de baja</a></p>
+            </td>
+          </tr>
+        </table>
+        <!--[if mso]></td></tr></table><![endif]-->
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

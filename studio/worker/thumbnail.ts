@@ -8,7 +8,7 @@
  * parte de arriba de la pieza (600 × 800 centrados), que es lo que la identifica: logo, hero y titular.
  * Sin JavaScript: el HTML lo escribe un modelo que ha leído webs de terceros.
  */
-import { chromium } from 'playwright';
+import { launchBrowser } from './renderChecks';
 import sharp from 'sharp';
 
 const VIEWPORT = { width: 800, height: 800 };
@@ -22,7 +22,7 @@ export async function renderThumbnail(source: { path?: string; html?: string }):
   for (let attempt = 1; attempt <= 2; attempt++) {
     let browser;
     try {
-      browser = await chromium.launch();
+      browser = await launchBrowser();
       const page = await browser.newPage({ viewport: VIEWPORT, javaScriptEnabled: false });
       if (source.path) await page.goto(`file://${source.path}`, { waitUntil: 'load', timeout: 30000 });
       else await page.setContent(source.html || '', { waitUntil: 'load', timeout: 30000 });

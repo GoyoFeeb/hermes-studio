@@ -41,7 +41,7 @@ test('Pedir cambios: al guardar el HTML pasa a "Aplicando los cambios"', () => {
 test('Newsletter nueva: los scripts de apoyo siguen siendo preparación; web y capturas, investigación', () => {
   const prep = progress([{ name: 'skill_view', target: '' }, { name: 'terminal', target: '' }], 60, 1200, false);
   assert.equal(prep.stage, 'preparando');
-  assert.equal(prep.stageLabel, 'Preparando: skills y brand pack');
+  assert.equal(prep.stageLabel, 'Preparando: brand pack e identidad');
   const inv = progress([{ name: 'skill_view', target: '' }, { name: 'vision_analyze', target: '' }], 120, 1200, false);
   assert.equal(inv.stage, 'investigando');
 });

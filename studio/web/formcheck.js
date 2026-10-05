@@ -89,7 +89,18 @@
     return issues;
   }
 
-  var api = { checkInstruction: checkInstruction, contentWords: contentWords, checkChangeRequest: checkChangeRequest };
+  /** ¿Es un cambio solo de texto? (2026-10-05, auditoría de agentes): «Pedir cambios» tarda minutos (Nike: 16) y
+   *  cambiar un titular, una errata, el asunto o un enlace se hace al momento con «Editar texto», sin Hermes. Cuenta
+   *  si nombra algo de texto y nada que necesite a Hermes (fotos, colores, diseño, móvil, bloques nuevos, datos). */
+  var TEXT_TARGET = /\b(titular|t[ií]tulo|subt[ií]tulo|texto|frase|palabra|errata|falta de ortograf[ií]a|asunto|preheader|bot[oó]n|cta|enlace|link|url|alt\b|texto alternativo|pie legal|firma)/i;
+  var NEEDS_HERMES = /\b(foto|imagen|im[aá]genes|recort|color|colores|fondo|tipograf|fuente|tama[nñ]o|aire|espacio|m[aá]rgen|padding|dise[nñ]o|maquet|m[oó]vil|logo|mueve|mover|orden|bloque|secci[oó]n|m[oó]dulo|columna|a[nñ]ade|añadir|incluye|quita el bloque|acorta|resume|reescribe|tono|investiga|busca|precio|dato|cifra|oscuro|outlook|grande|peque[nñ]|visible|destac|negrita|alinea|centra|subray)/i;
+  function isSimpleTextChange(text) {
+    var value = String(text || '').trim();
+    if (value.length < 8) return false;
+    return TEXT_TARGET.test(value) && !NEEDS_HERMES.test(value);
+  }
+
+  var api = { checkInstruction: checkInstruction, contentWords: contentWords, checkChangeRequest: checkChangeRequest, isSimpleTextChange: isSimpleTextChange };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HermesFormCheck = api;
 })(this);

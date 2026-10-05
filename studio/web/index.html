@@ -154,6 +154,11 @@
           </div>
           <input type="hidden" name="existingBrand" id="existing-brand-input" value="" />
           <p class="hint brand-match" id="brand-match" aria-live="polite"></p>
+          <!-- Marca nueva (2026-10-05): el worker mide su identidad en la web; con la dirección no tiene que adivinarla. -->
+          <label class="brand-url-field" id="brand-url-field" hidden>
+            <span class="hint">Web oficial (opcional): con ella Studio mide su tipografía, colores y logo antes de empezar.</span>
+            <input type="url" name="brandUrl" id="brand-url-input" placeholder="https://www.marca.es/" inputmode="url" autocomplete="off" />
+          </label>
         </div>
 
         <label>
@@ -166,6 +171,10 @@
         <div class="review-brief-field" id="review-brief-field">
           <label class="toggle"><input type="checkbox" name="reviewBrief" value="true" id="review-brief-input" /><span>Revisar el brief antes de que haga la newsletter</span></label>
           <p class="hint">Hermes se para tras escribir el brief (unos minutos) para que lo apruebes o lo corrijas. Se recuerda.</p>
+        </div>
+        <div class="review-brief-field">
+          <label class="toggle"><input type="checkbox" name="artReview" value="true" id="art-review-input" /><span>Revisión de dirección de arte al final</span></label>
+          <p class="hint">Hermes mira las capturas, puntúa identidad, concepto, jerarquía, aire y originalidad, y retoca lo que baje de 4. Unos minutos más. Se recuerda.</p>
         </div>
 
         <fieldset>
@@ -465,6 +474,10 @@
             <span class="label">¿Qué quieres cambiar?</span>
             <textarea id="revise-input" rows="4" maxlength="4000" required placeholder="Ej: cambia el titular por «…», quita el precio del segundo bloque y usa otra foto del producto"></textarea>
           </label>
+          <!-- Cambio solo de texto (2026-10-05): se hace al momento con «Editar texto», sin esperar a Hermes. -->
+          <p id="revise-text-hint" class="form-hint" role="status" hidden>
+            Parece un cambio solo de texto: con <button type="button" id="revise-to-textedit" class="link-btn">Editar texto</button> lo haces al momento, sin esperar a Hermes.
+          </p>
           <div class="revise-tools">
             <button type="button" id="pick-btn" class="btn btn-secondary btn-sm" aria-pressed="false" aria-describedby="pick-help">Señalar en la vista previa</button>
             <span class="hint" id="pick-help">Haz clic en un bloque o una imagen de la pieza y se añade aquí cuál es exactamente.</span>
@@ -618,6 +631,11 @@
             <details class="notes-box" id="notes-box" hidden>
               <summary>Autoauditoría de Hermes <span>fuente de cada dato y origen de cada imagen</span></summary>
               <div id="notes-text" class="md surface-light"></div>
+            </details>
+            <!-- Tiempo por fase (2026-10-05): dónde se fue el tiempo de este trabajo (studio/worker/timeline.ts). -->
+            <details class="notes-box" id="timings-box" hidden>
+              <summary>Tiempo por fase <span id="timings-sum"></span></summary>
+              <ul id="timings-list" class="timings-list"></ul>
             </details>
           </section>
         </div>

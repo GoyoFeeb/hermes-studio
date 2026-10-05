@@ -44,6 +44,7 @@ import {
   saveThumbnail,
   pendingThumbnails,
   sanitizeQuality,
+  sanitizeTimings,
   needsBrief,
   completeStandaloneJob,
   standaloneOutputDir,
@@ -298,6 +299,9 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
     // Lo que suelen tardar los de su tipo (mediana real): el worker lo usa para el porcentaje y la
     // estimación de los cambios y adaptaciones (2026-09-28).
     expectedSec: typicalSeconds(job),
+    // Para medir la identidad en la web si la marca no tiene brand pack, y la revisión visual (2026-10-05).
+    brand: { slug: job.input.clientSlug, name: job.input.clientName, ...(job.input.brandUrl ? { url: job.input.brandUrl } : {}) },
+    artReview: !!job.input.artReview,
     // Instrucción básica: el worker ejecuta primero briefPrompt y luego pide el encargo final
     // a /brief. Con prompt pegado, el encargo va directamente.
     ...(job.input.revisionOf
@@ -370,7 +374,7 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     return;
   }
   try {
-    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality), req.body.thumbnail);
+    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality), req.body.thumbnail, sanitizeTimings(req.body.timings));
     res.json({ ok: true });
   } catch (err) {
     updateJob(job.id, { status: 'failed', error: (err as Error).message });
@@ -383,7 +387,8 @@ app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256k
   if (!job) return;
   const error = String(req.body?.error || 'Hermes no pudo terminar la newsletter.').slice(0, 4000);
   hermesLog(job.id, error, 'error');
-  updateJob(job.id, { status: 'failed', error });
+  const timings = sanitizeTimings(req.body?.timings);
+  updateJob(job.id, { status: 'failed', error, ...(timings ? { timings } : {}) });
   res.json({ ok: true });
 });
 
@@ -617,6 +622,8 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       briefText: fromInstruction ? '' : body.promptText,
       instruction: fromInstruction ? String(body.promptText).slice(0, 4000) : undefined,
       reviewBrief: fromInstruction && body.reviewBrief === true ? true : undefined,
+      artReview: body.artReview === true ? true : undefined,
+      brandUrl: typeof body.brandUrl === 'string' && /^https:\/\/[^\s"'<>]{4,300}$/.test(body.brandUrl.trim()) ? body.brandUrl.trim() : undefined,
       imageMode: body.imageMode,
       requesterName: body.requesterName || undefined,
     });

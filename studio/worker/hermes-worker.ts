@@ -18,11 +18,14 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { spawn, execFile } from 'child_process';
+import { spawn, execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
-import { chromium } from 'playwright';
-import { runQualityCheck, describeErrors, staticChecks, layoutFindings, LAYOUT_MIN_GAP, type QualityReport } from './qualityCheck';
+import { describeErrors, staticChecks, type QualityReport } from './qualityCheck';
+import { inspectNewsletter } from './inspect';
+import { MOBILE_WIDTH, launchBrowser } from './renderChecks';
+import { measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote } from './measureBrand';
+import { Timeline, summarize, type JobTimings } from './timeline';
 import { renderThumbnail } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
@@ -137,7 +140,7 @@ function newestHtml(dir: string): string | null {
 
 type Stage = 'preparando' | 'investigando' | 'escribiendo' | 'revisando';
 const STAGES: Record<Stage, { label: string; from: number; to: number }> = {
-  preparando: { label: 'Preparando: skills y brand pack', from: 2, to: 15 },
+  preparando: { label: 'Preparando: brand pack e identidad', from: 2, to: 15 },
   investigando: { label: 'Investigando la marca', from: 15, to: 45 },
   escribiendo: { label: 'Escribiendo la newsletter', from: 45, to: 75 },
   revisando: { label: 'Revisando y corrigiendo', from: 75, to: 97 },
@@ -386,13 +389,15 @@ function markCancelled(): void {
  *  y terminó el turno sin reintentar). */
 const MAX_CONTINUES = 3;
 /** Sin ninguna actividad en la sesión durante este tiempo, la barra avisa de que parece atascado. */
-const STALL_WARN_SEC = 10 * 60;
+const STALL_WARN_SEC = 5 * 60;
 /** Sin actividad este tiempo, se corta el turno de Hermes y se retoma la sesión: una llamada al
  *  modelo colgada no siempre la corta Hermes (Adidas, 2026-09-24: 14 min esperando sin respuesta;
  *  Lacoste, 2026-09-29: 15 min hasta que el proveedor cortó la conexión). "Sin acciones" no siempre es
  *  cuelgue: el modelo puede estar generando una respuesta larga (Talaria, 2026-09-25: una llamada de
- *  5 min y 7.200 tokens). 12 min deja más del doble de margen a eso (antes, 20). */
-const STALL_KILL_SEC = 12 * 60;
+ *  5 min y 7.200 tokens). 12 min dejaba más del doble de margen a eso (antes, 20). Auditoría de agentes (2026-10-05):
+ *  esas esperas colgadas se comían 8-15 min por incidente; ahora se miden (timeline.ts) y el corte baja a 8 min, que
+ *  sigue dejando margen a la respuesta larga de Talaria. Se puede ajustar sin tocar código con HERMES_STALL_MIN. */
+const STALL_KILL_SEC = Math.max(4, Number(process.env.HERMES_STALL_MIN) || 8) * 60;
 
 /** Intentos que no terminaron (2026-09-29): su carpeta pasa a `_fallido-…` o `_cancelado-…` y el encargo
  *  le dice a Hermes que no las use. En Lacoste, el intento a medias del día anterior hizo que Hermes se
@@ -490,16 +495,42 @@ function skillReadingNote(): string {
   ].join('\n');
 }
 
+/** Modelo por fase (2026-10-05, auditoría de agentes): hoy todo va con el modelo por defecto de Hermes (DeepSeek
+ *  V4 Flash vía Nous). Con HERMES_MODEL_BRIEF, HERMES_MODEL_DRAFT (primera versión y revisión visual) y
+ *  HERMES_MODEL_FIX (correcciones, «Pedir cambios», «Adaptar a móvil») se puede probar otro por fase, p. ej. uno más
+ *  capaz solo para diseñar. Vacías = como siempre. Solo se pasa si `hermes chat --help` anuncia --model. */
+export const MODELS = {
+  brief: process.env.HERMES_MODEL_BRIEF || '',
+  draft: process.env.HERMES_MODEL_DRAFT || '',
+  fix: process.env.HERMES_MODEL_FIX || '',
+};
+let modelFlag: string | null | undefined;
+
+function modelArgs(model?: string): string[] {
+  if (!model) return [];
+  if (modelFlag === undefined) {
+    try {
+      const help = execFileSync(HERMES_BIN, ['chat', '--help'], { encoding: 'utf8', timeout: 15000, env: HERMES_ENV });
+      modelFlag = /--model\b/.test(help) ? '--model' : /(^|\s)-m[,\s]/m.test(help) ? '-m' : null;
+    } catch {
+      modelFlag = null;
+    }
+    if (!modelFlag) console.log(`[${stamp()}] AVISO: hermes chat no admite --model; se ignoran HERMES_MODEL_*.`);
+  }
+  return modelFlag ? [modelFlag, model] : [];
+}
+
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
  *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
 function runHermesTurn(
   query: string,
   resumeId: string | null,
-  onSession: (id: string) => void
+  onSession: (id: string) => void,
+  model?: string
 ): Promise<{ code: number | null; output: string; stderr: string }> {
   if (cancelled) return Promise.resolve({ code: null, output: '', stderr: 'Trabajo cancelado.' });
   if (loopStopped) return Promise.resolve({ code: null, output: '', stderr: `Hermes se quedó en bucle: ${loopStopped}.` });
-  const args = ['chat', '-q', query, '-Q', '--yolo', ...(resumeId ? ['--resume', resumeId] : [])];
+  const args = ['chat', '-q', query, '-Q', '--yolo', ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model)];
   const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: HERMES_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
   currentChild = child;
   let stdout = '';
@@ -522,11 +553,9 @@ function runHermesTurn(
   });
 }
 
-/** Ancho de móvil de referencia (iPhone): la vista previa móvil de Studio usa el mismo. */
-const MOBILE_WIDTH = 375;
-const MOBILE_FIX_ATTEMPTS = 2;
-/** Rondas en las que se le devuelven a Hermes los errores del control de calidad (qualityCheck.ts). */
-const QUALITY_FIX_ATTEMPTS = 2;
+/** Rondas de corrección (2026-10-05): móvil, espacios y calidad van JUNTOS en una sola ronda (antes, dos bucles
+ *  seguidos: hasta 4 turnos). La segunda ronda solo si la primera dejó errores. */
+const FIX_ROUNDS = 2;
 
 /** Las rondas de corrección rehacían la pieza entera: la de móvil de Calvin Klein (2026-10-05) duró 23 min para un
  *  padding de 28 px, porque Hermes cambió el logo, volvió a investigar las imágenes y renderizó 4 combinaciones. */
@@ -535,117 +564,30 @@ const SCOPED_FIX =
   'estructura que no estén en esta lista; no vuelvas a investigar la marca ni a verificar enlaces o imágenes que no ' +
   'se mencionan. Un render de comprobación basta. Esta ronda debería llevarte pocos minutos.';
 
-/** Errores que Hermes puede corregir en otra ronda: el móvil tiene su propio bucle, y `inherited` son los
- *  que ya traía la versión original en un "Pedir cambios" (ver runJob). */
-function fixableErrors(report: QualityReport, inherited: Set<string> = new Set()): QualityReport {
-  const checks = report.checks.filter((c) => c.status === 'error' && c.id !== 'mobile' && !inherited.has(c.id));
+/** Cómo se corrige cada tipo de error (va en el encargo de la ronda de corrección). */
+const FIX_GUIDE =
+  'Pautas: un enlace que da 404 o no existe → busca la URL oficial correcta con el navegador (browser_navigate) o ' +
+  'enlaza a la página de categoría o a la home de la marca; nunca inventes una URL. Una imagen rota, bloqueada, SVG o ' +
+  'enlazada desde fuera → npm run fetch-image -- <url> <carpeta del trabajo> (la descarga, la convierte a PNG si es SVG ' +
+  'y la comprime) y enlázala con ruta local. Sin preheader → al principio del <body>, un bloque oculto (display:none; ' +
+  'max-height:0; overflow:hidden; mso-hide:all) con una frase que complemente al asunto. Modo oscuro → @media ' +
+  '(prefers-color-scheme: dark) con fondos, textos y CTA en oscuro coherentes con la marca (logo claro si hace falta). ' +
+  'Outlook → tabla fantasma de 600 px en <!--[if mso]>, tablas en vez de flex/grid. Logo arriba y abajo → el del pie ' +
+  'pasa a ser exactamente el de la cabecera (mismo archivo, versión de color y tamaño) o se quita. Tipografía de la ' +
+  'marca → la de su web o brand pack, cargada con <link> o @import y primera en cada font-family, Arial solo detrás. ' +
+  'Espacios y márgenes → al menos 32 px de padding entre cada foto y su texto, y laterales de 20-24 px a 375 px ' +
+  'aplicando la clase de la media query a cada celda con texto (y a los botones). Móvil → en la media query, imágenes ' +
+  'con width:100% !important y height:auto; celdas fluidas con box-sizing:border-box. Contraste → oscurece el texto o ' +
+  'aclara el fondo dentro de la paleta de la marca. Texto pequeño → al menos 14 px en móvil. Estructura repetida → ' +
+  'convierte UN bloque en un módulo propio del concepto (dos columnas, rejilla, dato o cita sobre color de la marca). ' +
+  'Foto con mucho vacío → recórtala (sharp o el script que prefieras) dejando ~10 % de margen. Marcador sin rellenar → ' +
+  'sustitúyelo por el contenido real o quita el elemento.';
+
+/** Errores que Hermes puede corregir en la ronda. En «Adaptar a móvil» solo el móvil (no puede tocar textos ni
+ *  enlaces); en «Pedir cambios», no los que ya traía la original (`inherited`). */
+function fixableErrors(report: QualityReport, kind: 'new' | 'revision' | 'mobile-fix', inherited: Set<string> = new Set()): QualityReport {
+  const checks = report.checks.filter((c) => c.status === 'error' && (kind !== 'mobile-fix' || c.id === 'mobile') && !inherited.has(c.id));
   return { ...report, errors: checks.length, checks };
-}
-
-/** Se ejecuta dentro de Chromium. Va como texto: tsx añade `__name(...)` a las funciones y eso no
- *  existe en la página ("ReferenceError: __name is not defined").
- *  Devuelve los elementos más internos que se salen (ninguno de sus hijos se sale): son la causa —
- *  p. ej. una <img width="600"> — y no las tablas que la contienen, que solo heredan el ancho. */
-const MEASURE_OVERFLOW_JS = `function (limit) {
-  function overflows(el) { var r = el.getBoundingClientRect(); return r.width > 0 && r.right > limit + 1; }
-  var seen = {}, offenders = [], all = document.body.querySelectorAll('*');
-  for (var i = 0; i < all.length && offenders.length < 6; i++) {
-    var el = all[i];
-    if (!overflows(el) || Array.prototype.some.call(el.children, overflows)) continue;
-    var w = el.getAttribute('width'), cls = el.getAttribute('class');
-    var text = el.tagName === 'IMG' ? (el.getAttribute('alt') || '') : (el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 40);
-    var desc = '<' + el.tagName.toLowerCase() + (w ? ' width="' + w + '"' : '') + (cls ? ' class="' + cls + '"' : '') + '> ' +
-      Math.round(el.getBoundingClientRect().width) + ' px' + (text ? ' («' + text + '»)' : '');
-    if (seen[desc]) continue;
-    seen[desc] = true;
-    offenders.push(desc);
-  }
-  return { docWidth: document.documentElement.scrollWidth, offenders: offenders };
-}`;
-
-/** Renderiza el HTML a 375 px y devuelve qué se sale del ancho (null si cabe). La newsletter de
- *  Adidas (2026-09-24) salió con imágenes de width="600" fijo y titular y CTA cortados en móvil, y
- *  la autoauditoría de Hermes no lo vio: ahora lo mide el worker. Si Chromium no arranca, no bloquea. */
-export async function mobileOverflow(htmlPath: string): Promise<string | null> {
-  let browser;
-  try {
-    browser = await chromium.launch();
-    const page = await browser.newPage({ viewport: { width: MOBILE_WIDTH, height: 800 } });
-    await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
-    const result = (await page.evaluate(`(${MEASURE_OVERFLOW_JS})(${MOBILE_WIDTH})`)) as { docWidth: number; offenders: string[] };
-    if (result.docWidth <= MOBILE_WIDTH + 1 && !result.offenders.length) return null;
-    return `A ${MOBILE_WIDTH} px la página mide ${result.docWidth} px de ancho. Se salen: ${result.offenders.join('; ') || '(sin detalle)'}`;
-  } catch (err) {
-    console.log(`[${stamp()}] No se pudo comprobar la versión móvil: ${(err as Error).message.slice(0, 200)}`);
-    return null;
-  } finally {
-    await browser?.close().catch(() => undefined);
-  }
-}
-
-/** Se ejecuta dentro de Chromium (como texto, ver MEASURE_OVERFLOW_JS). Espacios (2026-10-05, Siroko):
- *  - `touching`: bloques de texto (titulares, párrafos, celdas con texto propio) a menos de `gapMin` px de una foto
- *    de más de 60 px de alto que está justo encima o debajo en la misma columna. El preheader oculto no cuenta.
- *  - `left`: margen izquierdo de cada bloque de texto con más de 20 caracteres (para medirlo a 375 px). */
-const MEASURE_LAYOUT_JS = `function (gapMin) {
-  function vis(r) { return r.width > 0 && r.height > 0; }
-  function ownText(el) {
-    var t = '';
-    for (var i = 0; i < el.childNodes.length; i++) if (el.childNodes[i].nodeType === 3) t += el.childNodes[i].textContent;
-    return t.replace(/\\s+/g, ' ').trim();
-  }
-  var imgs = [], blocks = [];
-  document.querySelectorAll('img').forEach(function (img) { var r = img.getBoundingClientRect(); if (vis(r) && r.height > 60) imgs.push(r); });
-  document.body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,td,div,a').forEach(function (el) {
-    var text = ownText(el);
-    if (text.length < 2) return;
-    var cs = getComputedStyle(el);
-    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.maxHeight) === 0) return;
-    var r = el.getBoundingClientRect();
-    if (!vis(r) || r.height < 4) return;
-    // Lo que se mide es la caja del texto, no la celda entera.
-    var range = document.createRange(); range.selectNodeContents(el);
-    var tr = range.getBoundingClientRect();
-    blocks.push({ el: el, text: (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 50), r: vis(tr) ? tr : r, len: text.length });
-  });
-  var touching = [], seen = {};
-  blocks.forEach(function (b) {
-    imgs.forEach(function (ir) {
-      var overlap = Math.min(b.r.right, ir.right) - Math.max(b.r.left, ir.left);
-      if (overlap < Math.min(40, b.r.width / 2)) return;
-      var below = b.r.top - ir.bottom, above = ir.top - b.r.bottom;
-      var gap = below >= -2 && below < gapMin ? below : above >= -2 && above < gapMin ? above : null;
-      if (gap === null || seen[b.text]) return;
-      seen[b.text] = true;
-      touching.push({ text: b.text, gap: Math.max(0, gap) });
-    });
-  });
-  var left = blocks.filter(function (b) { return b.len > 20; }).map(function (b) { return b.r.left; });
-  return { touching: touching, left: left };
-}`;
-
-/** Renderiza la pieza a 600 px (texto pegado a fotos) y a 375 px (laterales) y devuelve los errores para Hermes
- *  (layoutFindings en qualityCheck.ts). Si Chromium no arranca, no bloquea: devuelve undefined. */
-export async function layoutProblems(htmlPath: string): Promise<string[] | undefined> {
-  let browser;
-  try {
-    browser = await chromium.launch();
-    const measure = async (width: number) => {
-      const page = await browser!.newPage({ viewport: { width, height: 900 } });
-      await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
-      const r = (await page.evaluate(`(${MEASURE_LAYOUT_JS})(${LAYOUT_MIN_GAP})`)) as { touching: { text: string; gap: number }[]; left: number[] };
-      await page.close();
-      return r;
-    };
-    const desktop = await measure(700);
-    const mobile = await measure(MOBILE_WIDTH);
-    return layoutFindings({ touching: desktop.touching, mobileLeft: mobile.left });
-  } catch (err) {
-    console.log(`[${stamp()}] No se pudieron medir los espacios: ${(err as Error).message.slice(0, 200)}`);
-    return undefined;
-  } finally {
-    await browser?.close().catch(() => undefined);
-  }
 }
 
 interface ClaimedJob {
@@ -663,6 +605,10 @@ interface ClaimedJob {
   expectedSec?: number;
   /** Solo en "Pedir cambios": notas.md de la versión original (fuentes de cada dato). */
   sourceNotes?: string;
+  /** Marca (2026-10-05): para medir su identidad en la web si no tiene brand pack (measureBrand.ts). */
+  brand?: { slug: string; name: string; url?: string };
+  /** Revisión de dirección de arte al final (2026-10-05, opcional desde el formulario). */
+  artReview?: boolean;
 }
 
 /** Una adaptación a móvil es un retoque, no una newsletter: la barra estima con esto. */
@@ -708,7 +654,7 @@ function briefEnvNote(outputDir: string): string {
     '',
     '## Nota de entorno (worker de Hermes Studio): rutas ya comprobadas',
     fs.existsSync(path.join(ROOT, tokens))
-      ? `- Brand pack: EXISTE en ${tokens}. Léelo con read_file (una vez) y úsalo como pide la skill.`
+      ? `- Brand pack: EXISTE en ${tokens}. Léelo con read_file (una vez) y úsalo para la sección «Identidad de marca».`
       : `- Brand pack: NO existe para esta marca (${tokens}). Procede como marca nueva.`,
     '- No uses search_files para buscar el brand pack ni la estructura del repo: las rutas son estas.',
     '- Investigación: como máximo 5 búsquedas web. Después escribe el brief (write_file) aunque falten',
@@ -718,13 +664,15 @@ function briefEnvNote(outputDir: string): string {
     .join('\n');
 }
 
-/** Paso 1 de una instrucción básica: Hermes escribe `{outDir}/brief.md` con la skill
- *  newsletter-creative-brief; se sube a Studio, que devuelve el encargo final de la newsletter.
+/** Paso 1 de una instrucción básica: Hermes escribe `{outDir}/brief.md` con el método de buildBriefPrompt
+ *  (standalone.ts; hasta el 2026-10-05, con la skill newsletter-creative-brief); se sube a Studio, que devuelve el encargo final de la newsletter.
  *  Sesión propia: la newsletter arranca limpia con el brief, igual que al pegarlo a mano. */
 async function runBriefStep(
   job: ClaimedJob,
-  outAbs: string
-): Promise<{ prompt: string; seconds: number } | { paused: true } | { error: string }> {
+  outAbs: string,
+  timeline: Timeline,
+  identity: string
+): Promise<{ prompt: string; seconds: number; actions: number } | { paused: true } | { error: string }> {
   const started = Date.now();
   const briefFile = path.join(outAbs, 'brief.md');
   const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
@@ -751,6 +699,7 @@ async function runBriefStep(
     watchForLoop(loops, tools, job.id, 'brief');
     if ((Date.now() - lastChange) / 1000 >= STALL_KILL_SEC && currentChild) {
       console.log(`[${stamp()}] Brief de ${job.id}: Hermes sin actividad ${Math.round(STALL_KILL_SEC / 60)} min — se corta el turno y se retoma`);
+      timeline.hang((Date.now() - lastChange) / 1000);
       lastChange = Date.now();
       currentChild.kill('SIGTERM');
     }
@@ -771,9 +720,10 @@ async function runBriefStep(
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
   let turn = await runHermesTurn(
-    job.briefPrompt! + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
+    job.briefPrompt! + identity + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
     null,
-    (id) => (sessionId = sessionId || id)
+    (id) => (sessionId = sessionId || id),
+    MODELS.brief
   );
   for (let i = 1; i <= 3 && !ready() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     const message = loops.nudge
@@ -781,7 +731,7 @@ async function runBriefStep(
       : `Todavía no existe ${job.outputDir}/brief.md. Escríbelo AHORA con write_file, con lo que ya tengas ` +
         '(marca como pendiente lo que no hayas podido verificar). Sin texto previo: llama a la herramienta.';
     loops.nudge = null;
-    turn = await runHermesTurn(message, sessionId, () => undefined);
+    turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief);
   }
   clearInterval(heartbeat);
   clearTimeout(killer);
@@ -804,8 +754,35 @@ async function runBriefStep(
   }
   const prompt = reply.prompt || '';
   console.log(`[${stamp()}] Brief de ${job.id} listo en ${Math.round((Date.now() - started) / 60000)} min`);
-  return { prompt, seconds: (Date.now() - started) / 1000 };
+  return { prompt, seconds: (Date.now() - started) / 1000, actions: Math.max(0, lastCount) };
 }
+
+/** Capturas de la pieza a 600 y 375 px para la revisión visual (página entera). */
+async function screenshots(htmlPath: string, outDir: string): Promise<boolean> {
+  let browser;
+  try {
+    browser = await launchBrowser();
+    for (const width of [600, MOBILE_WIDTH]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 }, javaScriptEnabled: false });
+      await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
+      await page.screenshot({ path: path.join(outDir, `revision-${width}.png`), fullPage: true });
+      await page.close();
+    }
+    return true;
+  } catch (err) {
+    console.log(`[${stamp()}] No se pudieron hacer las capturas: ${(err as Error).message.slice(0, 200)}`);
+    return false;
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}
+
+/** Con un tope de tiempo: medir la marca no puede retrasar el trabajo más de la cuenta. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
+}
+
+const MEASURE_TIMEOUT_MS = 2 * 60 * 1000;
 
 async function runJob(claimed: ClaimedJob): Promise<void> {
   current = claimed.id;
@@ -815,12 +792,50 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   currentOutAbs = outAbs;
   fs.mkdirSync(outAbs, { recursive: true });
   console.log(`[${stamp()}] Trabajo ${claimed.id} → ${claimed.outputDir}${claimed.briefPrompt ? ' (desde instrucción: primero el brief)' : ''}`);
+  const timeline = new Timeline();
+  const fail = async (error: string): Promise<void> => {
+    await api(`/api/worker/jobs/${claimed.id}/fail`, { error, timings: timeline.toJSON() }).catch(() => undefined);
+  };
+  const editKind = claimed.editKind || (claimed.sourceHtml !== undefined ? 'mobile-fix' : undefined);
+  const isMobileFix = editKind === 'mobile-fix';
+  const isRevision = editKind === 'revision';
+  const slug = claimed.brand?.slug || claimed.outputDir.split(path.sep)[2] || '';
 
-  // Con instrucción básica la barra reserva BRIEF_SHARE % para el brief y el resto para la newsletter.
+  // 1. Identidad de la marca medida en su web (auditoría de agentes, 2026-10-05): solo en newsletters nuevas de marcas
+  // sin brand pack, y una vez cada 90 días. El brief y el encargo la reciben ya resuelta.
+  let identity = '';
+  if (!editKind && slug) {
+    if (needsMeasure(ROOT, slug)) {
+      timeline.start('measure', 'Identidad medida en la web');
+      await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Midiendo la identidad de la marca en su web (tipografía, colores, botones y logo)…' }).catch(() => undefined);
+      try {
+        const m = await withTimeout(measureBrand(ROOT, slug, claimed.brand?.name || slug, claimed.brand?.url), MEASURE_TIMEOUT_MS);
+        const msg = m
+          ? `Identidad medida en ${m.url}: ${[m.headings?.family.split(',')[0], m.palette.slice(0, 3).join(' ')].filter(Boolean).join(' · ')}${m.logo ? ' · logo descargado' : ' · sin logo'}.`
+          : 'No se encontró la web de la marca para medirla: Hermes la investigará como siempre.';
+        console.log(`[${stamp()}] ${claimed.id}: ${msg}`);
+        await api(`/api/worker/jobs/${claimed.id}/progress`, { message: msg }).catch(() => undefined);
+      } catch (err) {
+        console.log(`[${stamp()}] ${claimed.id}: no se pudo medir la marca — ${(err as Error).message.slice(0, 200)}`);
+      }
+      timeline.end();
+    }
+    const measured = hasBrandPack(ROOT, slug) ? null : readMeasuredIdentity(ROOT, slug);
+    if (measured) identity = identityNote(measured);
+  }
+  if (cancelled) {
+    setAsideFolder(outAbs, 'cancelado');
+    current = null;
+    return;
+  }
+
+  // 2. Brief (solo con instrucción básica).
   let briefSec = 0;
   let prompt = claimed.prompt || '';
   if (claimed.briefPrompt) {
-    const brief = await runBriefStep(claimed, outAbs);
+    timeline.start('brief', 'Brief');
+    const brief = await runBriefStep(claimed, outAbs, timeline, identity);
+    timeline.end('actions' in brief ? brief.actions : undefined);
     if (cancelled) {
       console.log(`[${stamp()}] ✗ ${claimed.id}: cancelado durante el brief`);
       setAsideFolder(outAbs, 'cancelado');
@@ -828,7 +843,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       return;
     }
     if ('error' in brief) {
-      await api(`/api/worker/jobs/${claimed.id}/fail`, { error: brief.error }).catch(() => undefined);
+      await fail(brief.error);
       setAsideFolder(outAbs, 'fallido');
       console.log(`[${stamp()}] ✗ ${claimed.id}: sin brief`);
       current = null;
@@ -842,12 +857,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     prompt = brief.prompt;
     briefSec = brief.seconds;
   }
-  const editKind = claimed.editKind || (claimed.sourceHtml !== undefined ? 'mobile-fix' : undefined);
-  const isMobileFix = editKind === 'mobile-fix';
-  const isRevision = editKind === 'revision';
   if (editKind) {
     if (!claimed.sourceHtml) {
-      await api(`/api/worker/jobs/${claimed.id}/fail`, { error: 'No se encontró el HTML de la newsletter original.' }).catch(() => undefined);
+      await fail('No se encontró el HTML de la newsletter original.');
       setAsideFolder(outAbs, 'fallido');
       current = null;
       return;
@@ -856,7 +868,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     fs.writeFileSync(path.join(outAbs, '_trabajo', 'original.html'), claimed.sourceHtml);
     if (isRevision) fs.writeFileSync(path.join(outAbs, '_trabajo', 'notas-original.md'), claimed.sourceNotes || '(La versión original no tiene notas.)\n');
   }
+  // El encargo, a mano para las sesiones cortas de corrección y de revisión visual (no lo tienen en su historial).
+  fs.mkdirSync(path.join(outAbs, '_trabajo'), { recursive: true });
+  fs.writeFileSync(path.join(outAbs, '_trabajo', 'encargo.md'), prompt);
   const job = { id: claimed.id, outputDir: claimed.outputDir, prompt };
+  const kind: 'new' | 'revision' | 'mobile-fix' = isMobileFix ? 'mobile-fix' : isRevision ? 'revision' : 'new';
   const scale = (p: Progress): Progress =>
     briefSec ? { ...p, pct: Math.round(BRIEF_SHARE + (p.pct * (100 - BRIEF_SHARE)) / 100), elapsedSec: Math.round(p.elapsedSec + briefSec) } : p;
   const started = Date.now();
@@ -872,19 +888,29 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const expected = isMobileFix || isRevision
     ? serverExpected ?? (isMobileFix ? MOBILE_FIX_EXPECTED_SEC : REVISION_EXPECTED_SEC)
     : expectedSeconds();
+  // Sesión que vigila el latido: la de la pieza y, después, la de cada corrección o revisión (sesiones nuevas).
   let sessionId: string | null = null;
+  let watched: string | null = null;
+  let watchedSince = started;
   let lastCount = -1;
   let lastChange = Date.now();
   let busy = false;
-  const loops = newLoopState();
+  let loops = newLoopState();
+  const watchNewSession = (): void => {
+    watched = null;
+    watchedSince = Date.now();
+    lastCount = -1;
+    lastChange = Date.now();
+    loops = newLoopState();
+  };
   const heartbeat = setInterval(async () => {
     if (busy) return;
     busy = true;
     const elapsed = (Date.now() - started) / 1000;
     let tools: ToolCall[] = [];
     try {
-      sessionId = sessionId || (await findSessionId(new Date(started)));
-      if (sessionId) tools = await sessionToolCalls(sessionId);
+      watched = watched || (await findSessionId(new Date(watchedSince)));
+      if (watched) tools = await sessionToolCalls(watched);
     } catch {
       // Si no se puede leer la sesión, el progreso sigue solo por tiempo.
     }
@@ -901,6 +927,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     }
     if (idleSec >= STALL_KILL_SEC && currentChild) {
       console.log(`[${stamp()}] ${job.id}: Hermes sin actividad ${Math.round(idleSec / 60)} min — se corta el turno y se retoma`);
+      timeline.hang(idleSec);
       lastChange = Date.now();
       currentChild.kill('SIGTERM');
     }
@@ -917,20 +944,23 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     setAsideFolder(outAbs, 'cancelado');
     current = null;
   };
+  const progressMessage = (message: string, level?: 'error'): Promise<unknown> =>
+    api(`/api/worker/jobs/${job.id}/progress`, { message, ...(level ? { level } : {}) }).catch(() => undefined);
+
+  // 3. La pieza (primera versión, cambios pedidos o adaptación a móvil).
+  timeline.start('draft', isRevision ? 'Cambios pedidos' : isMobileFix ? 'Adaptación a móvil' : 'Primera versión');
+  const model = editKind ? MODELS.fix : MODELS.draft;
   const envNotes =
-    (isMobileFix ? '' : isRevision ? brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE : skillReadingNote() + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE) +
+    (isMobileFix ? '' : isRevision ? brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE : identity + skillReadingNote() + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
-  let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id));
+  let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model);
+  sessionId = sessionId || watched;
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     const nudge = loops.nudge;
     loops.nudge = null;
     console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})${nudge ? ' — tras bucle' : ''}`);
-    if (!nudge) {
-      await api(`/api/worker/jobs/${job.id}/progress`, {
-        message: `Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${MAX_CONTINUES}).`,
-      }).catch(() => undefined);
-    }
+    if (!nudge) await progressMessage(`Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${MAX_CONTINUES}).`);
     turn = await runHermesTurn(
       nudge
         ? loopNudge(nudge, `${job.outputDir}/newsletter.html`)
@@ -939,7 +969,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
             'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
       sessionId,
-      () => undefined
+      () => undefined,
+      model
     );
   }
   // La autoauditoría por escrito es parte de la entrega (Adidas, 2026-09-24: titular que no salía
@@ -949,107 +980,138 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   if (cancelled) return finishCancelled();
   if (htmlReady() && !notesReady() && sessionId && Date.now() - started < TIMEOUT_MS) {
     console.log(`[${stamp()}] ${job.id}: falta notas.md — se pide la autoauditoría`);
-    await api(`/api/worker/jobs/${job.id}/progress`, { message: 'Falta la autoauditoría por escrito: se le pide a Hermes.' }).catch(() => undefined);
+    await progressMessage('Falta la autoauditoría por escrito: se le pide a Hermes.');
     await runHermesTurn(
-      `Falta ${job.outputDir}/notas.md, obligatorio. Escríbelo AHORA (write_file) con los 4 puntos de la ` +
+      `Falta ${job.outputDir}/notas.md, obligatorio. Escríbelo AHORA (write_file) con los puntos de la ` +
         'autoauditoría: concepto y titular (y cómo deriva), fuente de cada precio/cifra/dato de la pieza, ' +
-        'origen de cada imagen y las preguntas de autoauditoría. Si algo no cumple, corrige la newsletter.html antes.',
+        'origen de cada imagen, tipografía y colores con su origen, y las preguntas de autoauditoría. Si algo no cumple, corrige la newsletter.html antes.',
       sessionId,
-      () => undefined
+      () => undefined,
+      model
     );
   }
-  // Comprobación móvil medida (no la declarada por Hermes): si se sale del ancho, se le devuelve.
-  let mobileProblem = htmlReady() ? await mobileOverflow(htmlReady()!) : null;
-  for (let i = 1; i <= MOBILE_FIX_ATTEMPTS && mobileProblem && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
-    console.log(`[${stamp()}] ${job.id}: se sale del ancho en móvil — corrección ${i}/${MOBILE_FIX_ATTEMPTS}`);
-    await api(`/api/worker/jobs/${job.id}/progress`, {
-      message: `La versión móvil se sale del ancho (${MOBILE_WIDTH} px): se le pide a Hermes que la corrija (${i}/${MOBILE_FIX_ATTEMPTS}).`,
-    }).catch(() => undefined);
-    await runHermesTurn(
-      `Comprobación automática: ${mobileProblem}.\n\nCorrige ${job.outputDir}/newsletter.html para que a ` +
-        `${MOBILE_WIDTH} px nada se salga del ancho: en la media query de móvil, imágenes con width:100% ` +
-        '!important y height:auto; tablas y celdas con width:100% (o max-width) en vez de anchos fijos; ' +
-        'botones y titulares que puedan partir línea. Si una celda tiene width:100% y padding, añádele ' +
-        'box-sizing:border-box (sin él mide el 100 % MÁS el padding). Mantén el aspecto de escritorio. Renderiza a ' +
-        `${MOBILE_WIDTH} px para comprobarlo y actualiza notas.md.\n\n${SCOPED_FIX}`,
-      sessionId,
-      () => undefined
-    );
-    mobileProblem = htmlReady() ? await mobileOverflow(htmlReady()!) : null;
-  }
-  if (mobileProblem) {
-    await api(`/api/worker/jobs/${job.id}/progress`, { message: `Aviso: la versión móvil sigue sin caber. ${mobileProblem}`, level: 'error' }).catch(() => undefined);
-  }
-  // Control de calidad medido (2026-09-28): enlaces e imágenes que responden, preheader, baja, alt,
-  // peso para Gmail y claims. Los errores vuelven a Hermes como los del móvil; el informe viaja con
-  // la newsletter para el panel de revisión. En "Adaptar a móvil" solo se informa: ahí Hermes no
-  // puede cambiar textos ni enlaces.
-  const qualityOf = async (): Promise<QualityReport | null> => {
-    const p = htmlReady();
-    if (!p) return null;
-    const raw = fs.readFileSync(p, 'utf8');
-    // Espacios: en «Adaptar a móvil» y «Pedir cambios» no se fuerzan (cambiarían la pieza más allá de lo pedido).
-    const layout = isMobileFix || isRevision ? undefined : await layoutProblems(p);
-    return runQualityCheck(raw, { missingLocal: embedLocalImages(raw, path.dirname(p), ROOT).missing, mobileProblem, layoutProblems: layout });
-  };
-  if (cancelled) return finishCancelled();
-  // En "Pedir cambios", modo oscuro y Outlook que ya faltaban en la original no se fuerzan: añadirlos
-  // cambiaría la pieza más allá de lo pedido. Se ven en el panel de revisión y se pueden pedir aparte.
+  timeline.end(Math.max(0, lastCount));
+
+  // 4. Comprobación de Studio (inspect.ts): arreglos automáticos y, después, lo medido. Lo mecánico ya no vuelve a
+  // Hermes; lo que necesita criterio va en UNA ronda corta, en una sesión nueva (no la de la pieza, con 70+ acciones).
+  // En «Pedir cambios», lo que ya traía la original no se fuerza: cambiaría la pieza más allá de lo pedido.
   const inherited = new Set(
     isRevision && claimed.sourceHtml
-      ? staticChecks(claimed.sourceHtml)
-          .filter((c) => c.status === 'error' && ['dark-mode', 'outlook', 'typography', 'logo-present', 'email-images'].includes(c.id))
-          .map((c) => c.id)
+      ? [
+          ...staticChecks(claimed.sourceHtml)
+            .filter((c) => c.status === 'error' && ['dark-mode', 'outlook', 'typography', 'logo-present', 'email-images'].includes(c.id))
+            .map((c) => c.id),
+          'image-quality',
+        ]
       : []
   );
-  let quality = await qualityOf();
-  for (let i = 1; i <= QUALITY_FIX_ATTEMPTS && quality && fixableErrors(quality, inherited).errors && !isMobileFix && !cancelled && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
-    const fixable = fixableErrors(quality, inherited);
-    console.log(`[${stamp()}] ${job.id}: ${fixable.errors} error(es) de calidad — corrección ${i}/${QUALITY_FIX_ATTEMPTS}`);
-    await api(`/api/worker/jobs/${job.id}/progress`, {
-      message: `Control de calidad: ${fixable.checks.map((c) => c.label.toLowerCase()).join(', ')} con errores — se le devuelven a Hermes (${i}/${QUALITY_FIX_ATTEMPTS}).`,
-    }).catch(() => undefined);
-    await runHermesTurn(
-      `Control de calidad automático de Studio (medido, no declarado). Corrige estos errores en ${job.outputDir}/newsletter.html:\n\n` +
-        `${describeErrors(fixable)}\n\n` +
-        'Pautas: un enlace que da 404 o no existe → busca la URL oficial correcta con el navegador (browser_navigate) o ' +
-        'enlaza a la página de categoría o a la home de la marca; nunca inventes una URL. Una imagen rota → sustitúyela por ' +
-        'otra oficial. Sin preheader → añade al principio del <body> un bloque oculto (display:none; max-height:0; ' +
-        'overflow:hidden; mso-hide:all) con una frase que complemente al asunto. Modo oscuro → en <head>, <meta ' +
-        'name="color-scheme" content="light dark"> y <meta name="supported-color-schemes" content="light dark">, y un ' +
-        '@media (prefers-color-scheme: dark) con fondos, textos y CTA en oscuro coherentes con la marca (logo claro si ' +
-        'hace falta). Outlook → tabla fantasma de 600 px en <!--[if mso]>, ajuste de 96 ppp en <head>, width en cada ' +
-        '<img>, tablas en vez de flex/grid. Logo arriba y abajo → el del pie pasa a ser exactamente el de la cabecera ' +
-        '(mismo archivo, misma versión de color, mismos width/height en atributo y estilo, mismas variantes de modo ' +
-        'oscuro); si con ese logo no se lee sobre el fondo del pie, quita el logo del pie. ' +
-        'Tipografía de la marca → mira la fuente de la web oficial o del brand pack, cárgala con <link> o @import y ' +
-        'ponla primera en cada font-family, con Arial/Helvetica solo detrás. Espacios y márgenes → al menos 32 px de ' +
-        'padding entre cada foto y su texto, y laterales de 20-24 px a 375 px aplicando la clase de la media query a ' +
-        'cada celda con texto (y a los botones). ' +
-        'Logo de la marca → el logo oficial en PNG, descargado en la carpeta del trabajo, arriba del todo. Imágenes ' +
-        'que se ven en el correo / imagen bloqueada → descarga cada imagen (también el logo) a la carpeta del trabajo y ' +
-        'enlázala con ruta local; un SVG, conviértelo a PNG al doble de tamaño. ' +
-        'Renderiza también en oscuro para comprobarlo. Fuera de lo que te pido aquí, no cambies el diseño en ' +
-        'claro. Actualiza notas.md con lo que has corregido.\n\n' + SCOPED_FIX,
-      sessionId,
-      () => undefined
-    );
-    mobileProblem = htmlReady() ? await mobileOverflow(htmlReady()!) : null;
-    quality = await qualityOf();
-  }
+  const appliedFixes: string[] = [];
+  const check = async (): Promise<QualityReport | null> => {
+    const p = htmlReady();
+    if (!p) return null;
+    timeline.start('check', 'Comprobación de Studio');
+    try {
+      const { report, applied } = await inspectNewsletter(p, ROOT, { fix: true, design: !editKind, brandSlug: slug });
+      appliedFixes.push(...applied.filter((a) => !appliedFixes.includes(a)));
+      return report;
+    } finally {
+      timeline.end();
+    }
+  };
   if (cancelled) return finishCancelled();
+  let quality = await check();
+  if (appliedFixes.length) await progressMessage(`Arreglos automáticos de Studio (sin Hermes): ${appliedFixes.join(' ')}`);
+  let fixSession: string | null = null;
+  const checkFlag = isMobileFix || isRevision ? ' --retoque' : '';
+  for (let i = 1; i <= FIX_ROUNDS && quality && fixableErrors(quality, kind, inherited).errors && !cancelled && Date.now() - started < TIMEOUT_MS; i++) {
+    const fixable = fixableErrors(quality, kind, inherited);
+    console.log(`[${stamp()}] ${job.id}: ${fixable.errors} comprobación(es) con errores — corrección ${i}/${FIX_ROUNDS}`);
+    await progressMessage(`Control de Studio: ${fixable.checks.map((c) => c.label.toLowerCase()).join(', ')} con errores — se le devuelven a Hermes (${i}/${FIX_ROUNDS}).`);
+    timeline.round();
+    timeline.start(`fix-${i}`, `Corrección ${i}`);
+    watchNewSession();
+    const checkCmd = `npm run check-newsletter -- ${job.outputDir}/newsletter.html${checkFlag}`;
+    const message =
+      i === 1 || !fixSession
+        ? [
+            `Corrige la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}). La pieza ya está hecha y revisada; ` +
+              'el control automático de Studio (medido, no declarado) ha encontrado esto:',
+            '',
+            describeErrors(fixable),
+            '',
+            `Contexto, solo si un error lo necesita: autoauditoría en ${job.outputDir}/notas.md; encargo original en ${job.outputDir}/_trabajo/encargo.md` +
+              (isMobileFix ? '. Es una adaptación a móvil: no cambies textos, imágenes ni enlaces.' : '.'),
+            '',
+            FIX_GUIDE,
+            '',
+            `Cuando termines, ejecuta \`${checkCmd}\` (aplica los arreglos mecánicos y te dice lo que queda) y repite hasta que salga sin errores, como mucho 3 veces. Añade a notas.md una línea por cada corrección.`,
+            '',
+            SCOPED_FIX,
+            WEB_ACCESS_NOTE,
+            SECRETS_NOTE,
+            '',
+            'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
+          ].join('\n')
+        : `Siguen estos errores tras tu corrección:\n\n${describeErrors(fixable)}\n\nCorrígelos con el mismo alcance y vuelve a ejecutar \`${checkCmd}\`.\n\n${SCOPED_FIX}`;
+    await runHermesTurn(message, fixSession, (id) => (fixSession = fixSession || id), MODELS.fix);
+    fixSession = fixSession || watched;
+    timeline.end(Math.max(0, lastCount));
+    if (cancelled) return finishCancelled();
+    quality = await check();
+  }
+
+  // 5. Revisión de dirección de arte (opcional, desde el formulario): sesión nueva con capturas y el encargo.
+  const finalPath = htmlReady();
+  if (claimed.artReview && !editKind && finalPath && !cancelled && Date.now() - started < TIMEOUT_MS) {
+    timeline.start('art', 'Revisión visual');
+    const workDir = path.join(outAbs, '_trabajo');
+    if (await screenshots(finalPath, workDir)) {
+      await progressMessage('Revisión de dirección de arte: Hermes mira las capturas y corrige lo que baje la nota.');
+      watchNewSession();
+      const rel = path.relative(ROOT, workDir);
+      await runHermesTurn(
+        [
+          `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
+          `Capturas ya hechas: ${rel}/revision-600.png (escritorio) y ${rel}/revision-375.png (móvil). Encargo: ${rel}/encargo.md.`,
+          '',
+          '1. Mira las dos capturas con vision_analyze.',
+          '2. Puntúa de 1 a 5, con una frase cada una: identidad de marca (¿se reconoce sin ver el logo?), concepto (¿todo deriva de él?), ' +
+            'jerarquía y lectura, aire y ritmo, originalidad (¿parece una plantilla de email marketing?).',
+          '3. Si alguna nota es menor que 4, corrige lo mínimo necesario en newsletter.html para subirla: sin rehacer la pieza, sin ' +
+            `investigar de nuevo y sin cambiar datos ni enlaces. Después ejecuta \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` y deja la pieza sin errores.`,
+          `4. Escribe ${rel}/revision-visual.md con las notas antes y después y lo que cambiaste, y añade un resumen de dos líneas al final de notas.md.`,
+          SECRETS_NOTE,
+          '',
+          'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea con las notas.',
+        ].join('\n'),
+        null,
+        () => undefined,
+        MODELS.draft
+      );
+    }
+    timeline.end(Math.max(0, lastCount));
+    if (cancelled) return finishCancelled();
+    quality = await check();
+  }
+
+  if (cancelled) return finishCancelled();
+  if (appliedFixes.length && notesReady()) {
+    fs.appendFileSync(notesFile, `\n\n## Arreglos automáticos de Studio\n${appliedFixes.map((a) => `- ${a}`).join('\n')}\n`);
+  }
   if (quality) {
     const pending = quality.checks.filter((c) => c.status === 'error').map((c) => c.label.toLowerCase());
-    await api(`/api/worker/jobs/${job.id}/progress`, {
-      message: pending.length
+    await progressMessage(
+      pending.length
         ? `Control de calidad: quedan errores en ${pending.join(', ')}. Revísalos en el panel de revisión.`
         : `Control de calidad superado${quality.warnings ? ` (${quality.warnings} aviso${quality.warnings === 1 ? '' : 's'})` : ''}.`,
-      level: pending.length ? 'error' : 'info',
-    }).catch(() => undefined);
+      pending.length ? 'error' : undefined
+    );
   }
   clearInterval(heartbeat);
   clearTimeout(killer);
   const minutes = Math.round((Date.now() - started) / 60000);
+  const timings: JobTimings = timeline.toJSON();
+  console.log(`[${stamp()}] ${job.id}: ${summarize(timings)}`);
 
   const htmlPath = htmlReady();
   if (!htmlPath) {
@@ -1058,9 +1120,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       : Date.now() - started >= TIMEOUT_MS
       ? `se agotó el tiempo (${minutes} min)`
       : `terminó (código ${turn.code}) sin dejar el HTML en ${job.outputDir}/`;
-    await api(`/api/worker/jobs/${job.id}/fail`, {
-      error: loopStopped ? `Hermes ${why}.` : `Hermes ${why}.\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2500)}`,
-    });
+    await fail(loopStopped ? `Hermes ${why}.` : `Hermes ${why}.\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2500)}`);
     console.log(`[${stamp()}] ✗ ${job.id}: ${why}`);
     setAsideFolder(outAbs, 'fallido');
     current = null;
@@ -1069,9 +1129,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
 
   const { html, missing } = embedLocalImages(fs.readFileSync(htmlPath, 'utf8'), path.dirname(htmlPath), ROOT);
   if (missing.length) {
-    await api(`/api/worker/jobs/${job.id}/progress`, {
-      message: `Aviso: ${missing.length} imagen(es) referenciadas que no existen en el Mac: ${missing.slice(0, 5).join(', ')}`,
-    });
+    await progressMessage(`Aviso: ${missing.length} imagen(es) referenciadas que no existen en el Mac: ${missing.slice(0, 5).join(', ')}`);
   }
   // Subida con más reintentos: un corte de red aquí perdía en Studio una newsletter ya terminada.
   let uploadError = '';
@@ -1080,16 +1138,14 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
     // Miniatura para el historial: si no sale, la newsletter se entrega igual.
     const thumbnail = (await renderThumbnail({ path: htmlPath })) || undefined;
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail }, 6);
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail, timings }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;
   }
   if (cancelled) return finishCancelled();
   if (uploadError) {
-    await api(`/api/worker/jobs/${job.id}/fail`, {
-      error: `La newsletter está terminada en el Mac del worker (${path.relative(ROOT, htmlPath)}) pero no se pudo subir a Studio: ${uploadError}`,
-    }).catch(() => undefined);
+    await fail(`La newsletter está terminada en el Mac del worker (${path.relative(ROOT, htmlPath)}) pero no se pudo subir a Studio: ${uploadError}`);
     console.log(`[${stamp()}] ✗ ${job.id}: terminada en ${path.relative(ROOT, htmlPath)} pero no se pudo subir (${uploadError})`);
   } else {
     if (!editKind) recordDuration(minutes);

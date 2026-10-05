@@ -354,7 +354,7 @@ a.status-pill[href]:hover { border-color: var(--pink); }
 
 label { display: block; margin-bottom: 20px; }
 
-input[type="text"], input[type="search"], textarea, select {
+input[type="text"], input[type="search"], input[type="url"], textarea, select {
   display: block;
   width: 100%;
   margin-top: 8px;
@@ -2012,3 +2012,22 @@ html { scroll-padding-top: 80px; }
 .test-email > summary::before { content: '▸ '; color: var(--accent-text); }
 .test-email[open] > summary::before { content: '▾ '; }
 .test-email[open] > summary { margin-bottom: 8px; }
+
+/* Web oficial de una marca nueva (2026-10-05): para medir su identidad antes de empezar. */
+.brand-url-field { display: block; margin: 8px 0 20px; }
+.brand-url-field .hint { display: block; margin-bottom: 4px; }
+.brand-url-field input { width: 100%; }
+
+/* Tiempo por fase (2026-10-05). */
+.timings-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.timings-list li { display: grid; grid-template-columns: minmax(120px, 34%) 1fr auto; align-items: center; gap: 12px; font-size: var(--fs-small); }
+.timings-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.timings-bar span { display: block; height: 100%; background: var(--pink); border-radius: 4px; }
+.timings-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 480px) {
+  .timings-list li { grid-template-columns: 1fr auto; }
+  .timings-bar { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* «Pedir cambios» con un cambio solo de texto (2026-10-05): se propone «Editar texto». */
+.form-hint { margin: 0 0 12px; padding: 10px 14px; border-left: 3px solid var(--pink); background: var(--surface-row); font-size: var(--fs-small); }

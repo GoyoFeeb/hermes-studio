@@ -33,6 +33,33 @@ rondas, como el móvil); los claims de riesgo solo se avisan (la regla da falsos
 se guarda con el trabajo y se ve en el **panel de revisión** del resultado, junto a la autoauditoría
 de Hermes (`notas.md`).
 
+**Circuito desde la auditoría de agentes (2026-10-05).** Cada trabajo pasa por estos pasos (el detalle y el tiempo de
+cada uno se ven en «Tiempo por fase», en el panel de revisión):
+
+1. **Identidad medida** (`studio/worker/measureBrand.ts`): si la marca no tiene brand pack ni una medición de los
+   últimos 90 días, el worker abre su web desde el Mac (la que dé el formulario o `www.<marca>.es`, `.com/es/`…), mide
+   con `getComputedStyle` titulares, texto, botones y colores, descarga el logo de la cabecera en PNG y lo guarda en
+   `brands/<marca>/tokens/identidad-medida.json` y `design-input/logo-medido.png`. El brief y el encargo la reciben
+   ya resuelta. A mano: `npm run measure-brand -- <slug> [url] ["Nombre"]`.
+2. **Brief** (`buildBriefPrompt`): método propio de Studio, sin cargar la skill (secciones fijas, ≤ 1.200 palabras).
+3. **Newsletter** (`buildHermesPrompt`) sobre la **base técnica** `studio/hermes/email-base.html` (Outlook, modo
+   oscuro declarado, preheader, móvil y baja ya resueltos; módulos de ejemplo en `studio/hermes/email-modulos.md`).
+   Hermes descarga las imágenes con `npm run fetch-image -- <url> <carpeta>` (403, SVG → PNG, compresión) y, antes
+   de entregar, ejecuta `npm run check-newsletter -- <ruta>`: la misma comprobación que hace después el worker.
+4. **Comprobación** (`studio/worker/inspect.ts`): arreglos mecánicos sin Hermes (`autoFix.ts`: declaración de modo
+   oscuro, 96 ppp, `width` de las imágenes, `box-sizing`, enlace de baja, imágenes de más de 600 KB) y medición
+   (`renderChecks.ts`: móvil, espacios, contraste, letra en móvil, estructura repetida, paleta de la marca, fotos con
+   mucho vacío, peso) + `qualityCheck.ts`.
+5. **Una ronda corta de corrección** si queda algún error, en una **sesión nueva** (no la de la pieza): solo la lista
+   de errores, `notas.md` y el encargo en `_trabajo/encargo.md`. Segunda ronda solo si hace falta.
+6. **Revisión de dirección de arte** (opcional, casilla del formulario): sesión nueva con capturas a 600 y 375 px;
+   puntúa identidad, concepto, jerarquía, aire y originalidad y retoca lo que baje de 4.
+
+Variables del worker (en `~/.config/hermes-studio/.env`, opcionales): `HERMES_STALL_MIN` (minutos sin actividad
+antes de cortar una llamada colgada; 8 por defecto) y `HERMES_MODEL_BRIEF`, `HERMES_MODEL_DRAFT` (primera versión y
+revisión visual) y `HERMES_MODEL_FIX` (correcciones y retoques) para probar otro modelo por fase. Vacías, Hermes usa
+su modelo por defecto; solo se pasan si `hermes chat --help` anuncia `--model`.
+
 Al recibir la newsletter, Studio publica sus imágenes en `/assets` (Gmail no muestra imágenes
 `data:`) y la entrega. `/assets/*` es público y solo sirve imágenes; el HTML se sirve con CSP `sandbox`.
 
@@ -74,9 +101,9 @@ Ajuste recomendado en `~/.hermes/config.yaml` (agent): `intent_ack_continuation:
 DeepSeek cierre el turno tras anunciar "Let me..." sin ejecutar nada.
 
 **Instrucción rápida:** en vez de pegar el prompt se puede escribir una frase ("quiero una
-newsletter de Adeslas…"). Hermes escribe antes el brief con la skill `newsletter-creative-brief`
-(instalada en `~/.hermes/skills/creative/`, destino fijado en HTML standalone) y luego hace la
-newsletter con él; el brief queda visible en la página del trabajo.
+newsletter de Adeslas…"). Hermes escribe antes el brief (desde el 2026-10-05 con el método de `buildBriefPrompt`,
+sin cargar la skill `newsletter-creative-brief`) y luego hace la newsletter con él; el brief queda visible en la
+página del trabajo.
 
 **Cancelar y pedir cambios** (2026-09-28): un trabajo en cola o en curso se puede cancelar desde su
 página (en curso, el worker lo ve en su siguiente aviso de progreso —cada 30 s—, detiene a Hermes y no

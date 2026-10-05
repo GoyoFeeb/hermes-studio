@@ -18,6 +18,9 @@
  * Identidad y espacios (2026-10-05, Siroko): error si toda la pieza va en fuentes genéricas (typographyCheck) y, medido
  * al renderizar en el worker (layoutProblems), si un texto queda a menos de 16 px de una foto o si a 375 px los
  * laterales del texto pasan de 32 px.
+ * Inspectores del 2026-10-05 (renderChecks.ts): contraste por debajo de 3:1, texto de menos de 13 px en móvil,
+ * estructura «foto a todo el ancho + texto» repetida sin ningún otro módulo y fotos con más del 45 % de fondo liso
+ * son errores; contraste justo, 13 px, colores fuera de la paleta de la marca y peso de las imágenes, avisos.
  * Avisos (no se devuelven): claims de riesgo — la regla da falsos positivos, p. ej. "potencia" en la
  * ficha técnica de una moto (Talaria) — y webs que bloquean a los robots (403/429: Prozis, Adeslas),
  * que en un navegador normal funcionan.
@@ -156,6 +159,10 @@ export function staticChecks(html: string, missingLocal: string[] = []): Quality
     return [`«${rule.label}» (${rule.severity}): …${text.slice(Math.max(0, i - 40), i + m[0].length + 40).trim()}… — ${rule.recommendation}`];
   });
   checks.push(item('claims', 'Claims de riesgo', [], claims));
+
+  // Marcadores de la base técnica (studio/hermes/email-base.html) que se quedaron sin rellenar.
+  const leftovers = [...new Set([...html.replace(/<!--(?!\[if)[\s\S]*?-->/g, '').matchAll(/\[(?:[A-ZÁÉÍÓÚÑ0-9][A-ZÁÉÍÓÚÑ0-9 .:,/-]{2,60}|[a-z0-9_-]+\.(?:png|jpe?g))\]/g)].map((m) => m[0]))];
+  checks.push(item('placeholders', 'Sin marcadores pendientes', leftovers.slice(0, 6).map((p) => `Marcador sin rellenar: ${p}`)));
 
   checks.push(darkModeCheck(html), outlookCheck(html), logoPresenceCheck(html), logoMatchCheck(html), typographyCheck(html), emailImagesCheck(html));
 
@@ -529,6 +536,10 @@ export interface QualityOptions {
   mobileProblem?: string | null;
   /** Problemas de espacios medidos al renderizar (layoutFindings); sin definir = no se midió. */
   layoutProblems?: string[];
+  /** Inspectores del 2026-10-05 (renderChecks.ts): contraste, letra en móvil, estructura y paleta. */
+  design?: { errors: string[]; warnings: string[] };
+  /** Peso y encuadre de las imágenes (renderChecks.ts, imageFindings). */
+  imageFindings?: { errors: string[]; warnings: string[] };
   fetcher?: Fetcher;
 }
 
@@ -545,6 +556,16 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
   }
   if (opts.layoutProblems !== undefined) {
     checks.push(item('layout', 'Espacios y márgenes', opts.layoutProblems));
+  }
+  if (opts.design) {
+    const d = item('design', 'Legibilidad y estructura', opts.design.errors, opts.design.warnings);
+    if (d.status === 'ok') d.details.push('Contraste, tamaño de letra en móvil, módulos y paleta correctos.');
+    checks.push(d);
+  }
+  if (opts.imageFindings) {
+    const d = item('image-quality', 'Peso y encuadre de las imágenes', opts.imageFindings.errors, opts.imageFindings.warnings);
+    if (d.status === 'ok') d.details.push('Sin fotos con exceso de fondo vacío ni imágenes pesadas.');
+    checks.push(d);
   }
   return {
     checkedAt: new Date().toISOString(),

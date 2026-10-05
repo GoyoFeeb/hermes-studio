@@ -1,0 +1,77 @@
+/**
+ * timeline.ts — tiempo de cada fase de un trabajo de Hermes (2026-10-05, auditoría de agentes).
+ *
+ * Hasta ahora solo se sabía la duración total y el reparto se reconstruía leyendo el log del worker (Calvin
+ * Klein: brief 2 min, primera versión 24, ronda de móvil 23). El worker anota aquí cada fase —identidad medida,
+ * brief, primera versión, autoauditoría, comprobación, cada corrección, revisión visual, subida—, las esperas al
+ * modelo que hubo que cortar y las rondas; viaja con la newsletter y Studio lo enseña en el panel de revisión.
+ */
+
+export interface PhaseTiming {
+  id: string;
+  label: string;
+  sec: number;
+  /** Acciones de Hermes en la fase (si se pudieron leer de su sesión). */
+  actions?: number;
+}
+
+export interface JobTimings {
+  phases: PhaseTiming[];
+  /** Turnos cortados por llevar demasiado sin actividad (llamada al modelo colgada) y minutos perdidos en ellos. */
+  hangs: { count: number; sec: number };
+  /** Rondas de corrección (pieza devuelta a Hermes). */
+  rounds: number;
+  totalSec: number;
+}
+
+export class Timeline {
+  private phases: PhaseTiming[] = [];
+  private open: { id: string; label: string; at: number } | null = null;
+  private hangs = { count: 0, sec: 0 };
+  private rounds = 0;
+  private readonly startedAt: number;
+
+  constructor(private readonly now: () => number = Date.now) {
+    this.startedAt = now();
+  }
+
+  /** Empieza una fase (cierra la anterior si seguía abierta). */
+  start(id: string, label: string): void {
+    if (this.open) this.end();
+    this.open = { id, label, at: this.now() };
+  }
+
+  end(actions?: number): void {
+    if (!this.open) return;
+    const sec = Math.max(0, Math.round((this.now() - this.open.at) / 1000));
+    this.phases.push({ id: this.open.id, label: this.open.label, sec, ...(actions !== undefined ? { actions } : {}) });
+    this.open = null;
+  }
+
+  hang(idleSec: number): void {
+    this.hangs.count++;
+    this.hangs.sec += Math.round(idleSec);
+  }
+
+  round(): void {
+    this.rounds++;
+  }
+
+  toJSON(): JobTimings {
+    if (this.open) this.end();
+    return {
+      phases: this.phases,
+      hangs: { ...this.hangs },
+      rounds: this.rounds,
+      totalSec: Math.round((this.now() - this.startedAt) / 1000),
+    };
+  }
+}
+
+/** Línea de resumen para el log del worker: «medir 0:45 · brief 2:10 · primera versión 14:02 …». */
+export function summarize(t: JobTimings): string {
+  const mmss = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const parts = t.phases.map((p) => `${p.label.toLowerCase()} ${mmss(p.sec)}`);
+  if (t.hangs.count) parts.push(`esperas cortadas ${t.hangs.count} (${mmss(t.hangs.sec)})`);
+  return `${parts.join(' · ')} — total ${mmss(t.totalSec)}`;
+}

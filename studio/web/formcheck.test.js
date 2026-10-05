@@ -42,3 +42,14 @@ test('petición de cambios: avisa de los huecos de las peticiones frecuentes sin
   assert.deepEqual(ids('Acorta los textos de la pieza sin perder los datos clave.'), []);
   assert.deepEqual(ids(''), []);
 });
+
+test('Cambio solo de texto (2026-10-05): se propone «Editar texto»; con fotos, diseño o datos, no', () => {
+  const { isSimpleTextChange } = require('./formcheck.js');
+  assert.equal(isSimpleTextChange('Cambia el titular por «Hecho para correr»'), true);
+  assert.equal(isSimpleTextChange('Hay una errata en el segundo párrafo: «tecnologia» va con tilde'), true);
+  assert.equal(isSimpleTextChange('Cambia el asunto y el preheader'), true);
+  assert.equal(isSimpleTextChange('Cambia el titular y usa otra foto del producto'), false);
+  assert.equal(isSimpleTextChange('Haz el botón más grande'), false);
+  assert.equal(isSimpleTextChange('Cambia el texto del botón y añade el precio'), false);
+  assert.equal(isSimpleTextChange('Más aire entre bloques'), false);
+});

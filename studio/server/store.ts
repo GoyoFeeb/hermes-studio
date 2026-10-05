@@ -29,7 +29,7 @@ export interface JobInput {
   mode?: 'pipeline' | 'standalone';
   imageMode?: 'official' | 'ai';
   /** Instrucción básica ("quiero una newsletter de Adeslas", 2026-09-24): Hermes genera primero el
-   *  brief con la skill newsletter-creative-brief y lo guarda en briefText (vacío hasta entonces). */
+   *  brief (buildBriefPrompt en standalone.ts) y lo guarda en briefText (vacío hasta entonces). */
   instruction?: string;
   /** Adaptación a móvil de una newsletter ya terminada (2026-09-25): id del trabajo original.
    *  Hermes parte de su HTML publicado y solo añade/corrige la versión móvil. */
@@ -49,6 +49,8 @@ export interface JobInput {
   briefReused?: boolean;
   /** Desde instrucción (2026-10-01): parar tras el brief para que el equipo lo revise antes de la newsletter. */
   reviewBrief?: boolean;
+  /** Revisión de dirección de arte al final (2026-10-05): Hermes mira capturas y corrige lo que baje la nota. */
+  artReview?: boolean;
 }
 
 export interface Job {
@@ -98,6 +100,15 @@ export interface Job {
   title?: string;
   /** Enlace público al informe de la revisión por programa de correo (2026-10-01, ver report.ts). */
   reportShare?: JobReportShare;
+  /** Tiempo de cada fase (2026-10-05, studio/worker/timeline.ts): lo envía el worker al terminar o fallar. */
+  timings?: JobTimings;
+}
+
+export interface JobTimings {
+  phases: { id: string; label: string; sec: number; actions?: number }[];
+  hangs: { count: number; sec: number };
+  rounds: number;
+  totalSec: number;
 }
 
 export interface JobEvent {

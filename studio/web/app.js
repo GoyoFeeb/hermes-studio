@@ -120,7 +120,8 @@ function updateBrandMatch() {
     hint.innerHTML = `¿Quieres decir <button type="button" class="link-btn" data-brand-pick="${escapeHtml(prefix.name)}">${escapeHtml(prefix.name)}</button>? Si no, será una marca nueva (carpeta ${folder}).`;
   } else if (done) {
     hint.textContent = `Sin brand pack ni logos en el Mac, pero ya hay ${done} newsletter${done === 1 ? '' : 's'} de ${name}: Hermes la investigará otra vez.`;
-  } else hint.innerHTML = `Marca nueva: Hermes la investigará desde cero. Se guardará como ${folder}: revisa que el nombre esté bien escrito.`;
+  } else hint.innerHTML = `Marca nueva: Studio medirá su identidad en su web y Hermes investigará el contenido. Se guardará como ${folder}: revisa que el nombre esté bien escrito.`;
+  document.getElementById('brand-url-field').hidden = !name || !!match;
   if (match) describeKnownBrand(match);
 }
 document.getElementById('brand-match').addEventListener('click', (e) => {
@@ -456,6 +457,7 @@ form.addEventListener('reset', () =>
     }
     try {
       document.getElementById('review-brief-input').checked = localStorage.getItem('reviewBrief') === '1';
+      document.getElementById('art-review-input').checked = localStorage.getItem('artReview') === '1';
     } catch {
       // sin almacenamiento
     }
@@ -565,6 +567,7 @@ async function submitJob(payload) {
       localStorage.setItem('requesterName', payload.requesterName || '');
       localStorage.setItem('imageMode', payload.imageMode || '');
       if (payload.inputKind === 'instruction') localStorage.setItem('reviewBrief', payload.reviewBrief ? '1' : '0');
+      localStorage.setItem('artReview', payload.artReview ? '1' : '0');
     } catch {
       // sin almacenamiento: no se recuerda
     }
@@ -585,6 +588,11 @@ form.addEventListener('submit', (e) => {
   e.preventDefault();
   const payload = Object.fromEntries(new FormData(form).entries());
   payload.reviewBrief = payload.inputKind === 'instruction' && payload.reviewBrief === 'true';
+  payload.artReview = payload.artReview === 'true';
+  // La web solo cuenta para una marca nueva (el campo está oculto si es conocida).
+  if (!payload.brandUrl || document.getElementById('brand-url-field').hidden) delete payload.brandUrl;
+  else if (!/^https?:\/\//i.test(payload.brandUrl)) payload.brandUrl = `https://${payload.brandUrl}`;
+  if (payload.brandUrl) payload.brandUrl = payload.brandUrl.replace(/^http:/i, 'https:');
   // Instrucción poco concreta (formcheck.js): se avisa antes de gastar 20 minutos de Hermes, sin bloquear.
   const issues = HermesFormCheck.checkInstruction(payload.promptText, payload.inputKind, payload.clientName);
   if (issues.length) {
@@ -2510,6 +2518,15 @@ document.getElementById('cancel-yes').addEventListener('click', async (e) => {
 });
 
 const reviseBox = document.getElementById('revise-box');
+// Cambio solo de texto (2026-10-05): se propone «Editar texto», que no espera a Hermes.
+document.getElementById('revise-input').addEventListener('input', (e) => {
+  document.getElementById('revise-text-hint').hidden = !HermesFormCheck.isSimpleTextChange(e.target.value) || /\[Señalado:[^\]]*imagen/i.test(e.target.value);
+});
+document.getElementById('revise-to-textedit').addEventListener('click', () => {
+  document.getElementById('revise-text-hint').hidden = true;
+  document.getElementById('revise-close').click();
+  document.getElementById('edit-text-btn').click();
+});
 const reviseBtn = document.getElementById('revise-btn');
 const reviseError = document.getElementById('revise-error');
 
@@ -3932,6 +3949,7 @@ async function poll(id) {
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes, matrix);
+      renderTimings(job.timings);
       renderReportShare(job.reportShare);
       renderShare(job.share, versions || []);
       renderMeta(meta, job.input.clientName);
@@ -4344,6 +4362,44 @@ function renderReview(quality, notes, matrix = null) {
   notesBox.hidden = !notes;
   notesBox.open = false;
   document.getElementById('notes-text').innerHTML = notes && window.HermesMarkdown ? window.HermesMarkdown.render(notes) : '';
+}
+
+// Tiempo por fase (2026-10-05, studio/worker/timeline.ts): identidad medida, brief, primera versión, comprobación,
+// correcciones, revisión visual. Una barra por fase, proporcional a la más larga; las esperas al modelo que hubo
+// que cortar y las rondas de corrección, en el resumen.
+function mmss(sec) {
+  return `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+}
+
+function renderTimings(t) {
+  const box = document.getElementById('timings-box');
+  box.hidden = !t?.phases?.length;
+  if (box.hidden) return;
+  // Las comprobaciones se repiten tras cada corrección: se suman en una sola fila.
+  const rows = [];
+  for (const p of t.phases) {
+    const same = p.id === 'check' && rows.find((r) => r.id === 'check');
+    if (same) {
+      same.sec += p.sec;
+      same.times = (same.times || 1) + 1;
+    } else rows.push({ ...p });
+  }
+  const max = Math.max(1, ...rows.map((r) => r.sec));
+  document.getElementById('timings-sum').textContent = [
+    `total ${mmss(t.totalSec)}`,
+    t.rounds ? plural(t.rounds, 'corrección', 'correcciones') : 'sin correcciones',
+    t.hangs?.count ? `${plural(t.hangs.count, 'espera cortada', 'esperas cortadas')} (${mmss(t.hangs.sec)})` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  document.getElementById('timings-list').innerHTML = rows
+    .map(
+      (r) =>
+        `<li><span class="timings-label">${escapeHtml(r.label)}${r.times > 1 ? ` <span class="hint">×${r.times}</span>` : ''}</span>` +
+        `<span class="timings-bar" aria-hidden="true"><span style="width:${Math.max(2, Math.round((r.sec / max) * 100))}%"></span></span>` +
+        `<span class="timings-time">${mmss(r.sec)}${r.actions ? ` <span class="hint">· ${plural(r.actions, 'acción', 'acciones')}</span>` : ''}</span></li>`
+    )
+    .join('');
 }
 
 // ---------------------------------------------------------------- revisión por programa de correo (2026-10-01)
