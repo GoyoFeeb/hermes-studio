@@ -1525,3 +1525,7 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Verificación (local, 375 px, oscuro):** fotogramas 26, 30, 32, 36, 60, 236 y 240. «DIGITAL» ya no asoma y la
   F y la D del logo completo salen enteras. `npm test` 156/158 en este contenedor: los 2 fallos (logo de Prozis
   en `brandCard.test.js` y E2BIG en `qualityCheck.test.js`) también fallan sin el cambio, son del entorno.
+- **Desplegado (con permiso del usuario):** `30fbfa0` → Railway (push a `Javifeebbo/hermes-studio`, estado de GitHub
+  «striking-luck - hermes-studio» SUCCESS). **Vercel pendiente:** no tiene integración con GitHub y desde la nube no
+  hay CLI con sesión ni red hacia vercel.app; falta `vercel --prod` desde `studio/web` (solo cambia styles.css).
+  Worker sin reiniciar.
