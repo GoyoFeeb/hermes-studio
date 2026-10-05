@@ -322,12 +322,15 @@ async function loadHermesStatus() {
     renderEtaHints();
     const waiting = queued ? ` · ${queued} en cola` : '';
     busy = !!current;
+    // En móvil, texto corto («En pausa», sin «Hermes»): el entero no cabía junto al logo y salía cortado (2026-10-05).
     if (current) {
-      el.textContent = `Hermes · ${current.clientName}${current.pct != null ? ` · ${current.pct} %` : ''}${waiting}`;
+      el.innerHTML = `<span class="lbl-long">Hermes · </span>${escapeHtml(current.clientName)}${current.pct != null ? ` · ${current.pct} %` : ''}${waiting}`;
       el.href = `?job=${encodeURIComponent(current.id)}`;
       el.title = `${current.stageLabel || 'Trabajando'}: abre el trabajo`;
     } else {
-      el.textContent = (hermesOnline ? 'Hermes conectado' : 'Hermes desconectado') + waiting;
+      el.innerHTML = hermesOnline
+        ? `<span class="lbl-long">Hermes conectado</span><span class="lbl-short">Conectado</span>${waiting}`
+        : `<span class="lbl-long">Hermes desconectado</span><span class="lbl-short">En pausa</span>${waiting}`;
       el.removeAttribute('href');
       el.title = hermesOnline ? '' : 'Puedes enviar igualmente: empezará cuando Hermes se conecte.';
     }
@@ -923,7 +926,10 @@ let retriedIds = new Set();
 function jobActions(j, { compact = false } = {}) {
   const id = encodeURIComponent(j.id);
   return [
-    `<a class="btn btn-ghost row-view" href="?job=${id}">Ver</a>`,
+    // Brief pendiente: el botón dice qué hay que hacer, como en «Ahora mismo» (2026-10-05).
+    j.status === 'review'
+      ? `<a class="btn btn-secondary" href="?job=${id}">Revisar el brief</a>`
+      : `<a class="btn btn-ghost row-view" href="?job=${id}">Ver</a>`,
     j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
     (j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked') &&
     !retriedIds.has(j.id) &&
@@ -1162,7 +1168,7 @@ function renderHistory() {
           <p class="meta">${meta}</p>
           <div class="row-actions">${jobActions(j)}${rowMenu(j, archiveBtn)}</div>
           ${running ? `<div class="mini-track" aria-hidden="true"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}
-          ${j.error ? `<p class="err">${escapeHtml(window.HermesFailure.explainFailure(j.error).summary)}</p>` : ''}
+          ${j.error ? (({ short, summary }) => `<p class="err" title="${escapeHtml(summary)}">${escapeHtml(short)} <a href="?job=${id}">Ver por qué</a></p>`)(window.HermesFailure.explainFailure(j.error)) : ''}
           ${older}
         </li>`;
     })
@@ -1421,6 +1427,16 @@ sideMenu.addEventListener('click', (e) => {
   }
 });
 
+// El ejemplo largo del campo Marca salía cortado en móvil («…Nike, El C»): allí, uno que cabe (2026-10-05).
+{
+  const brandInput = document.getElementById('client-name-input');
+  const longHint = brandInput.placeholder;
+  const narrow = window.matchMedia('(max-width: 640px)');
+  const fitHint = () => { brandInput.placeholder = narrow.matches ? 'Marca, p. ej. Nike' : longHint; };
+  fitHint();
+  narrow.addEventListener('change', fitHint);
+}
+
 // ---------------------------------------------------------------- movimiento de feebbodigital.com (2026-10-05)
 // Logo animado y hamburguesa → × con las animaciones Lottie oficiales de la web (studio/web/feebbo-logo.json y
 // menu-icon.json); el reproductor llega con defer después de este script. Sin él (sin red, bloqueado), se queda
@@ -1607,6 +1623,7 @@ function renderShare(share, versions = shareVersions) {
   // El cliente ya tiene un enlace de otra versión de esta newsletter: se le puede pasar a esta (misma URL).
   const elsewhere = !active && versions.some((v) => v.shared && v.id !== currentJob);
   document.getElementById('share-move').hidden = !elsewhere;
+  syncClientEmptyShare();
   document.getElementById('share-empty-hint').textContent = elsewhere
     ? 'El cliente tiene el enlace de otra versión. Pásalo a esta y verá la pieza nueva con la misma dirección (sus comentarios se conservan), o crea otro enlace.'
     : 'Sin contraseña, solo esta versión. El cliente puede comentar sobre la pieza y aprobarla o pedir cambios. Caduca a los 14 días.';
@@ -1947,6 +1964,7 @@ function renderClientReview(share) {
     }${control}`;
   }
   document.getElementById('client-empty').hidden = !!(current.length || decision);
+  syncClientEmptyShare();
   document.getElementById('client-comments').innerHTML = current.map((c) => clientCommentItem(c, true)).join('');
   document.getElementById('client-actions').hidden = !(open || (pendingChanges && decision.note));
   document.getElementById('client-older').hidden = !older.length;
@@ -2060,6 +2078,20 @@ document.getElementById('client-to-hermes').addEventListener('click', () => {
   showToast('Comentarios del cliente pasados a «Pedir cambios»: revísalos y envíalos a Hermes.');
 });
 document.getElementById('share-revoke').addEventListener('click', () => shareRequest('DELETE'));
+
+/** El botón de la pestaña Cliente vacía hace lo mismo que el bloque «Enséñala al cliente»: copiar el enlace de
+ *  esta versión o, si apunta a otra, pasarlo a esta. Sin ninguno de los dos, no sale (2026-10-05). */
+function syncClientEmptyShare() {
+  const btn = document.getElementById('client-empty-share');
+  const copy = !document.getElementById('share-active').hidden;
+  const move = !copy && !document.getElementById('share-move').hidden;
+  btn.hidden = !(copy || move);
+  btn.textContent = copy ? 'Copiar el enlace del cliente' : 'Pasar el enlace del cliente a esta versión';
+  btn.dataset.target = copy ? 'share-copy' : 'share-move';
+}
+document.getElementById('client-empty-share').addEventListener('click', (e) => {
+  document.getElementById(e.currentTarget.dataset.target)?.click();
+});
 document.getElementById('share-copy').addEventListener('click', () =>
   copyText(document.getElementById('share-url').value, 'Enlace copiado: el cliente lo abre sin contraseña.', 'Copia el enlace del recuadro.')
 );
@@ -4804,6 +4836,8 @@ function renderLog(events) {
   if (key === lastLogKey) return;
   lastLogKey = key;
   const warnings = events.filter((ev) => ev.level === 'error').length;
+  // Sin líneas no hay nada que abrir: «Registro de Hermes · 0 líneas» solo ocupaba sitio (2026-10-05).
+  document.getElementById('log-box').hidden = !events.length;
   document.getElementById('log-count').innerHTML =
     `· ${events.length} línea${events.length === 1 ? '' : 's'}` +
     (warnings ? ` · <span class="warn">${warnings} aviso${warnings === 1 ? '' : 's'} o error${warnings === 1 ? '' : 'es'}</span>` : '');

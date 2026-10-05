@@ -1914,3 +1914,24 @@ html { scroll-padding-top: 80px; }
   .side-menu:not([hidden]), .side-menu:not([hidden]) .menu-links li, .side-menu:not([hidden]) .menu-contact { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* ---------- revisión de la interfaz (2026-10-05, tarde) ---------- */
+/* «Exportar para» se estiraba hasta su opción más larga y sobresalía 13 px de la columna de acciones. */
+.action-group .export-field { min-width: 0; max-width: 100%; }
+.action-group .export-field select { flex: 1 1 0; min-width: 0; max-width: 100%; }
+/* Píldora de estado: en móvil sin «Hermes», que la cortaba («Hermes desconecta…»). */
+.status-pill .lbl-short { display: none; }
+@media (max-width: 640px) {
+  .status-pill .lbl-long { display: none; }
+  .status-pill .lbl-short { display: inline; }
+}
+/* Atajos de teclado: no sirven en una pantalla táctil. */
+@media (hover: none), (max-width: 640px) { .shortcuts-link { display: none; } }
+/* Pestaña Cliente sin nada todavía: aviso con el siguiente paso en lugar de una línea gris. */
+.client-empty { display: grid; gap: 8px; justify-items: start; padding: 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); background: var(--field); }
+.client-empty[hidden] { display: none; }
+.client-empty p { margin: 0; }
+.client-empty-title { font-weight: 600; color: var(--text); }
+.client-empty .btn { margin-top: 4px; }
+/* Error en una línea en la fila del historial; la explicación completa, en la ficha. */
+.job-row .err a { color: inherit; font-weight: 600; white-space: nowrap; }

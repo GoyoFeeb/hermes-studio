@@ -38,3 +38,11 @@ test('un error desconocido o vacío da el mensaje genérico', () => {
   assert.equal(explainFailure('').summary, 'Hermes no pudo terminar la newsletter.');
   assert.equal(explainFailure(undefined).detail, '');
 });
+
+test('cada fallo tiene una versión corta, de una línea, para el historial', () => {
+  for (const error of [...Object.values(REAL), '']) {
+    const { summary, short } = explainFailure(error);
+    assert.ok(short && short.length <= 45, short);
+    assert.ok(short.length < summary.length, short);
+  }
+});

@@ -658,7 +658,12 @@
         <!-- Revisión del cliente (2026-10-01): lo que el cliente comenta y decide en su enlace (share.ts). -->
         <div class="job-panel" role="tabpanel" id="panel-client" aria-labelledby="tab-client" hidden>
           <p id="client-decision" class="client-decision" hidden></p>
-          <p class="hint" id="client-empty">El cliente aún no ha comentado ni decidido. Lo que haga en su enlace aparece aquí y en el registro.</p>
+          <!-- Sin nada del cliente (2026-10-05): antes, una línea gris; ahora dice qué hacer y deja el enlace a mano. -->
+          <div class="client-empty" id="client-empty">
+            <p class="client-empty-title">El cliente aún no ha comentado ni decidido</p>
+            <p class="hint">Lo que haga en su enlace (comentarios, aprobar o pedir cambios) aparece aquí y en el registro.</p>
+            <button type="button" id="client-empty-share" class="btn btn-secondary btn-sm" hidden></button>
+          </div>
           <ol class="client-comments" id="client-comments"></ol>
           <div class="actions" id="client-actions" hidden>
             <button type="button" id="client-to-hermes" class="btn btn-secondary btn-sm">Pasar los comentarios a Hermes</button>

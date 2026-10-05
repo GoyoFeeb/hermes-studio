@@ -1494,3 +1494,21 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   con la columna de acciones; 1280/1440/375 px, oscuro y claro, sin desbordes. `npm test` 159/159.
 - **Desplegado (con permiso del usuario):** `474c5fa` → Vercel (styles.css, index.html, app.js, feebbo-logo.json y
   menu-icon.json idénticos) y Railway 2026-10-05 11:31:01 +02:00 (SUCCESS). Worker sin reiniciar.
+
+### 2026-10-05 (tarde) — Interfaz: siete arreglos de la revisión
+
+- **1. «Exportar para»:** el desplegable se estiraba hasta su opción más larga y sobresalía 13 px de la columna de
+  acciones (≥1200 px). Ahora ocupa el ancho disponible (`flex: 1 1 0; min-width: 0`).
+- **2. Píldora de estado en móvil:** salía cortada («Hermes desconecta…»). En ≤640 px, texto corto con
+  `.lbl-long`/`.lbl-short`: «En pausa · 1 en cola», «Conectado», «Nike · 45 %». En ordenador, como antes.
+- **3. Campo Marca en móvil:** placeholder «Marca, p. ej. Nike» (el largo salía cortado); cambia con `matchMedia`.
+- **4. Ficha en móvil:** sin «Atajos de teclado» en pantallas táctiles o ≤640 px; «Registro de Hermes» oculto
+  cuando no tiene líneas (`renderLog`).
+- **5. Errores en el historial:** `failure.js` da `short` (una línea) además de `summary`; la fila enseña la corta
+  con «Ver por qué» (la frase entera, en `title` y en la ficha). Test nuevo en `failure.test.js`.
+- **6. Brief por revisar:** en el historial el botón es «Revisar el brief» (antes «Ver»), como en «Ahora mismo».
+- **7. Pestaña Cliente vacía:** aviso con borde discontinuo y botón que copia el enlace del cliente o, si apunta a
+  otra versión, lo pasa a esta (`syncClientEmptyShare`, delega en `share-copy`/`share-move`).
+- **Verificación (copia aislada):** 1280 y 375 px; desplegable dentro de la columna; píldora sin cortar; error en
+  una línea; «Revisar el brief»; botón de Cliente copia el enlace; registro oculto/visible según líneas.
+  `npm test` 160/160.
