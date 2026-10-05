@@ -1681,3 +1681,7 @@ El usuario pidió «vamos con todas».
   probó con el mismo código en el Chromium del contenedor.
 - **Pendiente:** brand pack de Siroko (`brands/siroko/` no existe; hay que hacerlo con Hermes en el Mac, que tiene
   red). Desplegar: Railway (encargo) y reiniciar el worker del Mac (control de calidad).
+- **Desplegado (con permiso del usuario):** `6cc97a2` → Railway (push a `Javifeebbo/hermes-studio`; estado de GitHub
+  SUCCESS): el encargo y el brief ya llevan las reglas nuevas. **Pendiente del usuario:** `git pull` en el Mac y
+  `studio/worker/service.sh restart` para el control de calidad nuevo; brand pack de Siroko con Hermes. Vercel no
+  cambia (sin cambios en la web).
