@@ -1638,3 +1638,8 @@ El usuario pidió «vamos con todas».
   Studio, pero quitarla toca el lockfile y queda para otro momento.
 - **Verificación:** tipos sin errores nuevos; el servidor arranca; `POST /api/jobs` sin modo → 400 y standalone →
   201; las 16 vistas sin errores de consola ni desbordes; `npm test` 162/164 (los 2 de siempre del contenedor).
+- **Desplegado (con permiso del usuario):** `d48f773` + `d88727d` → Railway (push a `Javifeebbo/hermes-studio`;
+  estado de GitHub «striking-luck - hermes-studio» SUCCESS). **Vercel pendiente:** `vercel --prod` desde
+  `studio/web` en el Mac (cambian app.js, styles.css, index.html y el nuevo metacheck.js). **Pendiente del
+  usuario:** `RESEND_API_KEY` y `MAIL_FROM` en Railway para la prueba por correo; puede quitar `OPENAI_API_KEY` y
+  `ANTHROPIC_API_KEY` de Railway, que Studio ya no usa. Worker sin reiniciar.
