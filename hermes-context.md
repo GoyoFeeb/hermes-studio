@@ -1514,3 +1514,14 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   `npm test` 160/160.
 - **Desplegado (con permiso del usuario):** `a7a293f` → Vercel (styles.css, index.html, app.js y failure.js
   idénticos) y Railway 2026-10-05 11:44:23 +02:00 (SUCCESS). Worker sin reiniciar.
+
+### 2026-10-05 (tarde) — Interfaz: el logo animado ya no desborda al empezar
+
+- **Causa:** en el Lottie oficial, «DIGITAL» entra deslizándose (fotogramas 29-38, `Digital Null` x 53,5 → 58,1)
+  y sale igual al final del bucle (234-243). Mientras se desliza, asoma unos 4 px a la izquierda del borde de la
+  F, por fuera del logo. El resto de fotogramas cabe en el lienzo de 117 × 47.
+- **Arreglo:** `.brand-anim svg { clip-path: inset(0 0 0 7.6%) }`, que recorta lo que queda a la izquierda de la
+  F (x = 9 de 117). «DIGITAL» parece salir de detrás de esa línea. El JSON oficial no se toca.
+- **Verificación (local, 375 px, oscuro):** fotogramas 26, 30, 32, 36, 60, 236 y 240. «DIGITAL» ya no asoma y la
+  F y la D del logo completo salen enteras. `npm test` 156/158 en este contenedor: los 2 fallos (logo de Prozis
+  en `brandCard.test.js` y E2BIG en `qualityCheck.test.js`) también fallan sin el cambio, son del entorno.

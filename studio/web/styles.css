@@ -1866,6 +1866,10 @@ html.deep-link .hero, html.deep-link #view-form { display: none; }
 /* 1. Logo animado (Lottie oficial, 117 × 47) en el sitio de la imagen; en tema claro, oscurecido como la imagen. */
 .brand-anim { display: block; width: 99px; height: 40px; }
 .brand-anim svg { display: block; }
+/* «DIGITAL» entra (y sale) deslizándose desde ~4 px a la izquierda de la F y asomaba por fuera del logo
+   (2026-10-05): se recorta todo lo que quede a la izquierda del borde de la F (x = 9 de 117 en el Lottie),
+   así parece salir de detrás de esa línea. */
+.brand-anim svg { clip-path: inset(0 0 0 7.6%); }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .brand-anim { filter: brightness(0) opacity(0.88); } }
 :root[data-theme="light"] .brand-anim { filter: brightness(0) opacity(0.88); }
 
