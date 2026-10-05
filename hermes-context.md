@@ -1543,3 +1543,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Verificación (local):** a 375 px en oscuro y a 1280 px en claro, imagen fija y animación en el mismo sitio
   (99 × 40) y pixel a pixel iguales; cabecera de 68 px en los dos casos. La reproducción real en Chromium,
   fotogramas 0-58 y 215-3, mantiene FEEBBO y DIGITAL alineados. `npm test` 156/158 (los mismos 2 fallos del entorno).
+- **Desplegado (con permiso del usuario):** `8586ad3` → Railway (push a `Javifeebbo/hermes-studio`; estado de GitHub
+  «striking-luck - hermes-studio» SUCCESS). **Vercel pendiente:** `vercel --prod` desde `studio/web` en el Mac
+  (cambian styles.css, index.html y el nuevo feebbo-logo-anim.svg). Worker sin reiniciar.
