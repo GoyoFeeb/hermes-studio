@@ -183,40 +183,16 @@ desactivado (se coló sin avisar el 2026-09-24). Antes de enviar, `studio/web/fo
 calibrado con las instrucciones reales) avisa si la instrucción no dice de qué va o para qué/para quién,
 o si un "Prompt completo" es demasiado corto; "Enviar igualmente" la manda tal cual.
 
-La página principal muestra el historial (hasta 200 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El campo de marca (uno solo desde el 2026-09-28) sugiere
+La página principal muestra el historial (hasta 2.000 trabajos, con buscador, filtros por marca y estado, y "Reutilizar" para rellenar el formulario con un trabajo anterior). El campo de marca (uno solo desde el 2026-09-28) sugiere
 las del volumen de Railway y las del Mac del worker y dice debajo si lo escrito es una marca del
 sistema (usa su carpeta de `brands/`) o una nueva. En "Instrucción rápida" hay ejemplos pulsables. Si el prompt no menciona la marca elegida, Studio pide
 confirmación antes de encolarlo.
 
-El pipeline de 9 fases descrito abajo sigue en el código (`runner.ts`) pero ya no se ofrece en
-la interfaz y la API lo rechaza salvo con `PIPELINE_ENABLED=true`. Sin él, Railway ya no necesita
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` ni las variables `LLM_*`.
-
-## Cómo funciona (resumen)
-
-El backend es dueño de la orquestación y del filesystem. Cada fase de IA se llama como una
-función de generación de contenido sin estado (una llamada a la API de Anthropic con el prompt
-del agente correspondiente `agents/0N-*.md` como *system prompt*, pidiendo la salida en un
-formato de bloques de archivo) — el modelo nunca tiene una herramienta de escritura directa
-sobre el repo. El backend parsea la respuesta y escribe los archivos él mismo, siempre dentro
-de la campaña o del brand pack correspondiente (`campaignFs.writeGeneratedFiles` rechaza
-cualquier ruta fuera de esos límites).
-
-- Proveedor del modelo configurable (`server/llmClient.ts`): Anthropic por defecto, u OpenAI (o
-  cualquier API compatible) con `LLM_PROVIDER=openai` — ver `studio/.env.example`. Los prompts de
-  los agentes se escribieron con Claude: con otro modelo, QA y el production gate pueden rechazar
-  más al principio.
-- Fases 01/03/04/05: llamada de texto puro.
-- Fase 02: Playwright captura la web real de la marca (screenshots + `getComputedStyle` de
-  selectores clave) y Claude interpreta esos datos — no conduce el navegador turno a turno.
-- Fase 06: ensambla `campaign-data.json`, lo valida contra el schema del motor (`ajv`), y
-  genera la imagen de hero por IA si el patrón la necesita.
-- Fase 07: determinista, invoca directamente `engine/build-newsletter.js`.
-- Fase 08: renderiza 4 tamaños (`scripts/render-preview.js`) y pide un veredicto a Claude.
-- Fase 09: corre `scripts/production-gate-motor.ts` y escribe `delivery-notes.md`.
-
-Solo se ofrece el HTML para descargar si QA = **Aprobado** y el production gate pasa. Si no,
-el compañero ve el motivo exacto en la interfaz.
+Antes Studio tenía además un pipeline propio de 9 fases (`runner.ts`, `phases/`, `llmClient.ts`), que llamaba a
+Anthropic u OpenAI con el prompt de cada agente. Ya no se ofrecía en la interfaz y se retiró el 2026-10-05: la API
+solo acepta trabajos con `mode: "standalone"` (los hace Hermes en el Mac). Por eso Railway ya no necesita
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` ni las variables `LLM_*`. Los agentes (`agents/`) y el motor (`engine/`) no
+cambian.
 
 ## Correr en local
 
@@ -224,7 +200,6 @@ el compañero ve el motivo exacto en la interfaz.
 # Desde la raíz del repo (sistema-final/):
 npm install
 npx playwright install chromium
-cp .env.example .env            # ANTHROPIC_API_KEY, OPENAI_API_KEY
 cp studio/.env.example studio/.env   # APP_ACCESS_PASSWORD, PORT, STUDIO_PUBLIC_BASE_URL
 npm run studio
 ```
@@ -259,7 +234,6 @@ la raíz del repo) — no hace falta tocar nada del Dockerfile para esto. Pasos:
    las campañas y brand packs generados).
 
 4. **Variables de entorno** (dashboard → Variables, o `railway variables --set CLAVE=valor`):
-   - `ANTHROPIC_API_KEY` (o `LLM_PROVIDER=openai` para usar solo OpenAI), `OPENAI_API_KEY`
    - `APP_ACCESS_PASSWORD` (contraseña compartida real para el equipo, no la dejes vacía aquí)
    - `STUDIO_PUBLIC_BASE_URL` — la URL pública que Railway te asigna (o tu dominio propio si
      conectas uno), siempre `https://...`

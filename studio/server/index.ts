@@ -18,7 +18,6 @@ import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
 import { appendEvent, createJob, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
 import type { Job } from './store';
-import { enqueue, recoverOnStartup } from './queue';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
 import {
@@ -84,9 +83,6 @@ loadEnv(STUDIO_DIR);
 const PORT = Number(process.env.PORT || 3000);
 const ACCESS_PASSWORD = process.env.APP_ACCESS_PASSWORD;
 const ALLOW_NO_AUTH = process.env.ALLOW_NO_AUTH === 'true';
-/** El pipeline de 9 fases ya no se ofrece en la interfaz, pero seguía aceptándose por API y
- *  gastando la clave de OpenAI de Railway (auditoría 2026-09-24). Solo con PIPELINE_ENABLED=true. */
-const PIPELINE_ENABLED = process.env.PIPELINE_ENABLED === 'true';
 
 if (!ACCESS_PASSWORD && !ALLOW_NO_AUTH) {
   console.error(
@@ -635,37 +631,8 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
     return;
   }
 
-  if (!PIPELINE_ENABLED) {
-    res.status(400).json({ error: 'El pipeline de 9 fases está desactivado (PIPELINE_ENABLED). Usa el modo standalone.' });
-    return;
-  }
-
-  if (!body.briefText || !body.clientName) {
-    res.status(400).json({ error: 'Faltan campos obligatorios: clientName, briefText.' });
-    return;
-  }
-
-  const brandMode: 'existing' | 'new' = body.brandMode === 'existing' ? 'existing' : 'new';
-  if (brandMode === 'new' && !body.brandUrl) {
-    res.status(400).json({ error: 'Falta la URL de la marca para poder analizarla.' });
-    return;
-  }
-  const clientSlug = brandMode === 'existing' && body.existingBrand ? body.existingBrand : slugify(body.clientName);
-
-  const job = createJob({
-    clientSlug,
-    clientName: body.clientName,
-    brandMode,
-    brandUrl: body.brandUrl || undefined,
-    briefText: body.briefText,
-    ctaLabel: body.ctaLabel || undefined,
-    ctaUrl: body.ctaUrl || undefined,
-    legalNotes: body.legalNotes || undefined,
-    requesterName: body.requesterName || undefined,
-  });
-
-  enqueue(job.id);
-  res.status(201).json({ id: job.id });
+  // El pipeline de 9 fases (runner.ts y phases/) se retiró el 2026-10-05: la web solo crea trabajos con Hermes.
+  res.status(400).json({ error: 'Solo se aceptan newsletters hechas con Hermes (mode: "standalone").' });
 });
 
 /** Estado de Hermes para la cabecera (2026-09-28): conectado o no, con qué newsletter está y cuántas esperan. */
@@ -1173,8 +1140,6 @@ app.get('/api/jobs/:id/result', (req: Request, res: Response) => {
   }
   res.sendFile(abs);
 });
-
-if (PIPELINE_ENABLED) recoverOnStartup();
 
 const server = app.listen(PORT, () => {
   console.log(`Hermes Studio escuchando en http://localhost:${PORT}`);

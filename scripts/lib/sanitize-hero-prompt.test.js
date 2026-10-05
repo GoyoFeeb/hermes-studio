@@ -6,8 +6,9 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const TSX_BIN = path.join(ROOT, 'node_modules', '.bin', 'tsx');
 
-// sanitize-hero-prompt.ts es TypeScript sin punto de entrada CLI propio (lo consumen
-// generate-hero-image.ts y studio/server/phases/dataPhase.ts) — se prueba vía un one-liner con
+// sanitize-hero-prompt.ts es TypeScript sin punto de entrada CLI propio (lo consume
+// generate-hero-image.ts; studio/server/phases/dataPhase.ts también, hasta que se retiró el
+// pipeline de 9 fases el 2026-10-05) — se prueba vía un one-liner con
 // tsx, igual que gates.smoke.test.js prueba los scripts CLI vía execFileSync, para no añadir un
 // registro/loader de TS nuevo a `node --test` (ver package.json: "test": "node --test").
 function sanitize(desc, brandName) {

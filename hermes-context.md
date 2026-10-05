@@ -1623,3 +1623,18 @@ El usuario pidió «vamos con todas».
   con el aviso de Nike, envío de prueba (dirección mala → 400; sin salida a Resend desde el contenedor → mensaje
   de error claro), página del cliente en móvil con el botón fijo, «otra marca» (Lacoste → Puma en el texto).
   `npm test` 162/164 (los 2 fallos de siempre del contenedor).
+
+### 2026-10-05 (tarde) — Studio: retirado el pipeline de 9 fases (punto 24)
+
+- **Por qué:** la web ya solo crea trabajos con Hermes (`mode: "standalone"`). El pipeline propio de Studio (fases
+  con Anthropic/OpenAI en Railway) solo se podía usar por API con `PIPELINE_ENABLED=true` y era código muerto.
+- **Borrado:** `studio/server/runner.ts`, `queue.ts`, `phases/` (6 archivos), `llmClient.ts` y
+  `util/fileBlocks.ts`. Se recortan `heroImage.ts` (queda `toPublicAssetUrl`, que usa standalone.ts) y
+  `campaignFs.ts` (queda `slugify`). `index.ts` ya no tiene `PIPELINE_ENABLED` ni la cola: un `POST /api/jobs` sin
+  `mode: "standalone"` da 400. README y `studio/.env.example` ya no piden `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` ni
+  `LLM_*`. Se actualizan los comentarios de `scripts/lib/sanitize-hero-prompt.*`.
+- **No cambia:** `agents/`, `engine/`, el worker ni los datos guardados (el estado «Bloqueada» sigue en `store.ts`
+  y en la web para los trabajos antiguos). La dependencia `@anthropic-ai/sdk` sigue en package.json: ya no la usa
+  Studio, pero quitarla toca el lockfile y queda para otro momento.
+- **Verificación:** tipos sin errores nuevos; el servidor arranca; `POST /api/jobs` sin modo → 400 y standalone →
+  201; las 16 vistas sin errores de consola ni desbordes; `npm test` 162/164 (los 2 de siempre del contenedor).

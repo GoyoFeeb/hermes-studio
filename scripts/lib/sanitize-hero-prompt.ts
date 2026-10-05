@@ -7,7 +7,7 @@
  * Hermes Studio— construía su prompt sin pasar por este saneado. studio/README.md ya lo
  * señalaba explícitamente como "mejora pendiente, no construida en v1". Se comparte desde aquí
  * en vez de duplicarlo, para que un futuro ajuste (nuevo patrón detectado) se aplique una sola
- * vez a los dos flujos.
+ * vez a los dos flujos. (2026-10-05: el flujo de Studio se retiró con el pipeline de 9 fases; queda el CLI.)
  *
  * Motivo original (incidente BMW, 2026-07-27, ver memory.md): la descripción visual de una
  * landing real, generada por visión de IA, puede incluir términos demasiado identificables
