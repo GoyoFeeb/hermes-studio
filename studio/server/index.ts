@@ -462,7 +462,9 @@ app.get('/api/brands', (_req: Request, res: Response) => {
     : [];
   // Las del Mac del worker primero: es donde Hermes busca brands/{marca}/.
   const brands = [...new Set([...readWorkerBrands(), ...local])].sort();
-  res.json({ brands });
+  // Qué marcas tienen logo en su ficha (2026-10-05): las sugerencias del campo «Marca» lo enseñan.
+  const logos = Object.fromEntries([...brandLogoIndex()].map(([slug, l]) => [slug, l.onDark ? 'dark' : 'light']));
+  res.json({ brands, logos });
 });
 
 // Ficha de marca (2026-10-01): la que envió el worker y las últimas newsletters de esa marca.

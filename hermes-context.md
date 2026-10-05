@@ -1369,3 +1369,22 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   con CSP sandbox. Del historial, tienen logo en la ficha El Corte Inglés, Adidas, Nike, Adeslas, Asics y Prozis
   (versión blanca → cuadrado azul noche); Puma, Inglesina, Talaria, Lacoste y Helly Hansen no tienen logo en su
   ficha y siguen con la inicial.
+
+### 2026-10-05 (continuación) — Interfaz: tableta, fases como pasos y campo de marca
+
+- **Revisión (solo diagnóstico):** tema claro y menú bien; 3 puntos, los 3 elegidos.
+- **1. Tableta y portátil pequeño (641-1199 px):** mismo orden que el móvil (vista previa primero, acciones debajo,
+  barra fija con "Más"); el escenario a sangre y sin marco sigue solo en ≤ 640. `narrowJob` pasa a 1199 px. A
+  1024 × 768 la vista previa empieza a 554 px (antes 1.106).
+- **2. Fases como pasos numerados** (`#progress-steps`, `renderProgressSteps`): brief (si se pidió con una frase y
+  no se reutiliza), las 4 fases del worker (o las de "Pedir cambios"/"Adaptar a móvil": leer la versión original,
+  buscar lo que pide el cambio, aplicar los cambios, revisar) y la revisión automática de Studio, que se marca
+  hecha al terminar. Hecho ✓, actual resaltada (`aria-current="step"`), pendiente en gris; si la fase no es
+  conocida, por el porcentaje con los tramos del worker (15/45/75 %). En móvil, en columna.
+- **3. Campo de marca:** combobox propio (`#brand-suggest`, role listbox, flechas/Intro/Escape, mousedown) en vez
+  de `<datalist>`, con el logo de la ficha (`/api/brands` devuelve `logos`) o las iniciales, y las marcas que solo
+  están en el historial ("sin carpeta · N en el historial"). El aviso ya no dice "Marca nueva" a medio escribir
+  ("¿Quieres decir Nike?", pulsable) y para una marca sin carpeta con newsletters hechas (Puma, Lacoste) dice "Sin
+  brand pack ni logos en el Mac, pero ya hay N newsletters de …".
+- **Verificación (copia aislada, lista real de 34 marcas y fichas de Nike/Adidas/Adeslas):** 1280, 1024 y 375 px;
+  Intro elige sin enviar el formulario; `npm test` 159/159.

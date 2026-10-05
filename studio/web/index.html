@@ -109,9 +109,13 @@
 
         <div class="brand-field">
           <label for="client-name-input"><span class="label">Marca</span></label>
-          <input type="text" name="clientName" id="client-name-input" list="brand-options" required autocomplete="off"
-            placeholder="Escribe o elige: Adeslas, Nike, El Corte Inglés…" aria-describedby="brand-match" />
-          <datalist id="brand-options"></datalist>
+          <!-- Sugerencias propias con el logo de cada marca (2026-10-05): antes, la lista del navegador (<datalist>). -->
+          <div class="brand-combo">
+            <input type="text" name="clientName" id="client-name-input" required autocomplete="off"
+              role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="brand-suggest"
+              placeholder="Escribe o elige: Adeslas, Nike, El Corte Inglés…" aria-describedby="brand-match" />
+            <ul id="brand-suggest" class="brand-suggest" role="listbox" aria-label="Marcas" hidden></ul>
+          </div>
           <input type="hidden" name="existingBrand" id="existing-brand-input" value="" />
           <p class="hint brand-match" id="brand-match" aria-live="polite"></p>
         </div>
@@ -272,6 +276,8 @@
           <div id="progress-bar"></div>
         </div>
         <p id="progress-detail" class="hint"></p>
+        <!-- Fases como pasos numerados (2026-10-05): durante los ~20 min solo había una barra y una frase. -->
+        <ol class="progress-steps" id="progress-steps" aria-label="Fases del trabajo"></ol>
       </div>
 
       <div class="cancel-row" id="cancel-row" hidden>

@@ -1737,16 +1737,20 @@ body::after {
    Ahora va primero, a todo el ancho de la pantalla y sin marco: al 100 %. Las acciones quedan debajo y la barra
    fija de abajo (Descargar, Copiar, Cambios, Más) las tiene a mano mientras no se ven. */
 #sticky-more { display: none; }
-@media (max-width: 640px) {
+/* Tableta y portátil pequeño (641-1199 px; a 1024 × 768 la vista previa empezaba a 1.106 px): mismo orden que en el
+   móvil, vista previa primero y acciones debajo con la barra fija. Desde 1200 px, dos columnas. */
+@media (max-width: 1199px) {
   #job-result:not([hidden]) { display: flex; flex-direction: column; }
   .job-main { order: 1; }
   .job-side { order: 2; margin-top: 24px; }
+  .sticky-actions #sticky-top { display: none; }
+  .sticky-actions #sticky-more { display: inline-flex; flex: 0 0 auto; }
+}
+@media (max-width: 640px) {
   /* 16 px de #app + 20 px de relleno y 1 px de borde de la tarjeta: el escenario llega a los bordes de la pantalla. */
   .job-main .preview-stage { margin: 0 -37px; padding: 0; border-left: 0; border-right: 0; border-radius: 0; }
   .preview-device.is-mobile { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
   .preview-device.is-mobile #preview-frame, .preview-device.is-mobile #preview-frame-before { border-radius: 0; }
-  .sticky-actions #sticky-top { display: none; }
-  .sticky-actions #sticky-more { display: inline-flex; flex: 0 0 auto; }
 }
 
 /* ---------------------------------------------------------------- Zonas táctiles de 24 px como mínimo (2026-10-05) */
@@ -1762,3 +1766,47 @@ body::after {
 .job-row .thumb-logo, .g-card .thumb-logo { display: flex; align-items: center; justify-content: center; }
 .thumb-logo.is-on-dark { background: #14183f; }
 .toggle { min-height: 28px; }
+
+/* Fases del trabajo como pasos numerados (2026-10-05): número en rosa como las listas de feebbodigital.com; lo hecho
+   con ✓, la fase actual resaltada y lo que falta en gris. En móvil, uno debajo de otro. */
+.progress-steps { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.progress-steps li { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); color: var(--muted); font-size: var(--fs-small); line-height: 1.35; }
+.progress-steps .step-num { font-size: var(--fs-body); font-weight: 600; color: var(--muted); }
+.progress-steps li.is-done .step-num { color: var(--accent-text); }
+.progress-steps li.is-done .step-num::after { content: ' ✓'; content: ' ✓' / ''; color: var(--success); }
+.progress-steps li.is-current { border-color: var(--pink); color: var(--text); background: rgba(251, 115, 255, 0.07); }
+.progress-steps li.is-current .step-num { color: var(--accent-text); }
+.progress-steps li.is-current .step-label { font-weight: 600; }
+@media (max-width: 640px) {
+  .progress-steps { grid-template-columns: 1fr; }
+  .progress-steps li { flex-direction: row; align-items: baseline; gap: 12px; padding: 10px 12px; }
+}
+
+/* Sugerencias del campo «Marca» (2026-10-05): logo de la ficha en un cuadrado blanco (azul noche si es la versión
+   blanca) o las iniciales; las marcas que solo están en el historial lo dicen. */
+.brand-combo { position: relative; }
+.brand-suggest {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: 0 12px 32px var(--shadow-strong);
+}
+.brand-suggest li { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+.brand-suggest li:hover, .brand-suggest li[aria-selected="true"] { background: var(--selected-bg); }
+.bs-logo { flex: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 32px; padding: 4px; border-radius: var(--radius-sm); background: #ffffff; box-shadow: -2px 4px 8px rgba(20, 24, 63, 0.2); }
+.bs-logo.is-on-dark { background: #14183f; }
+.bs-logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.bs-logo.is-initials { font-family: 'Barlow', sans-serif; font-size: var(--fs-caption); font-weight: 700; color: #14183f; }
+.bs-name { font-weight: 600; }
+.bs-note { margin-left: auto; font-size: var(--fs-caption); color: var(--muted); }
+.brand-match .link-btn { font-size: inherit; }

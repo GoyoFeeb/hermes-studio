@@ -77,10 +77,14 @@ function brandDisplayName(slug) {
   return brandNames.get(slug) || BRAND_DISPLAY[slug] || prettyBrand(slug);
 }
 
+// Antes rellenaba un <datalist>; las sugerencias se calculan al escribir (ver renderBrandSuggest).
 function renderBrandOptions() {
-  document.getElementById('brand-options').innerHTML = knownBrands
-    .map((b) => `<option value="${escapeHtml(brandDisplayName(b))}"></option>`)
-    .join('');
+  if (document.activeElement === clientNameInput) renderBrandSuggest();
+}
+
+/** Newsletters ya hechas de una marca (familias, no versiones), aunque no tenga carpeta en el Mac. */
+function historyCountFor(slug) {
+  return historyState.jobs.filter((j) => j.clientSlug === slug && !j.revisionOf && !j.mobileFixOf && !j.textEditOf && !j.retryOf).length;
 }
 
 function updateBrandMatch() {
@@ -90,13 +94,110 @@ function updateBrandMatch() {
   existingBrandInput.value = match;
   hint.classList.toggle('is-existing', !!match);
   hint.classList.toggle('is-new', !!name && !match);
-  hint.textContent = !name
-    ? ''
-    : match
-    ? 'Marca conocida.'
-    : 'Marca nueva: Hermes la investigará desde cero.';
+  // Mientras se escribe (2026-10-05): con «Nik» decía «Marca nueva» antes de terminar de escribir Nike. Si alguna
+  // marca empieza así, se propone; y si no tiene carpeta pero ya hay newsletters suyas, se dice.
+  const prefix = !match && name ? brandCandidates(name).find((c) => c.prefix) : null;
+  const done = !match && name ? historyCountFor(slugify(name)) : 0;
+  if (!name) hint.textContent = '';
+  else if (match) hint.textContent = 'Marca conocida.';
+  else if (prefix && normalize(prefix.name) !== normalize(name)) {
+    hint.innerHTML = `¿Quieres decir <button type="button" class="link-btn" data-brand-pick="${escapeHtml(prefix.name)}">${escapeHtml(prefix.name)}</button>?`;
+  } else if (done) {
+    hint.textContent = `Sin brand pack ni logos en el Mac, pero ya hay ${done} newsletter${done === 1 ? '' : 's'} de ${name}: Hermes la investigará otra vez.`;
+  } else hint.textContent = 'Marca nueva: Hermes la investigará desde cero.';
   if (match) describeKnownBrand(match);
 }
+document.getElementById('brand-match').addEventListener('click', (e) => {
+  const pick = e.target.closest('[data-brand-pick]');
+  if (pick) chooseBrand(pick.dataset.brandPick);
+});
+
+// ---------------------------------------------------------------- sugerencias de marca (2026-10-05)
+// Combobox propio en vez de <datalist>: enseña el logo de la ficha (si lo hay) y las marcas que solo están en el
+// historial (sin carpeta en el Mac). Flechas, Intro y Escape como en un desplegable.
+let brandLogos = {};
+const brandSuggest = document.getElementById('brand-suggest');
+let brandActive = -1;
+
+function brandCandidates(query) {
+  const q = normalize(query);
+  const seen = new Set();
+  const all = [];
+  for (const slug of knownBrands) {
+    seen.add(slug);
+    all.push({ slug, name: brandDisplayName(slug), folder: true });
+  }
+  for (const [slug, name] of brandNames) if (!seen.has(slug)) all.push({ slug, name, folder: false });
+  return all
+    .map((c) => ({ ...c, prefix: normalize(c.name).startsWith(q) || c.slug.startsWith(slugify(query)) }))
+    .filter((c) => !q || c.prefix || normalize(c.name).includes(q))
+    .sort((a, b) => Number(b.prefix) - Number(a.prefix) || a.name.localeCompare(b.name, 'es'))
+    .slice(0, 7);
+}
+
+function renderBrandSuggest() {
+  const name = clientNameInput.value.trim();
+  const items = name && !matchBrand(name) ? brandCandidates(name) : [];
+  brandActive = -1;
+  brandSuggest.hidden = !items.length;
+  clientNameInput.setAttribute('aria-expanded', String(items.length > 0));
+  clientNameInput.removeAttribute('aria-activedescendant');
+  brandSuggest.innerHTML = items
+    .map((c, i) => {
+      const initials = c.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+      const logo = brandLogos[c.slug]
+        ? `<span class="bs-logo${brandLogos[c.slug] === 'dark' ? ' is-on-dark' : ''}"><img src="/api/brands/${encodeURIComponent(c.slug)}/logo" alt="" loading="lazy"></span>`
+        : `<span class="bs-logo is-initials">${escapeHtml(initials)}</span>`;
+      const note = c.folder ? '' : `<span class="bs-note">sin carpeta · ${historyCountFor(c.slug)} en el historial</span>`;
+      return `<li role="option" id="bs-${i}" data-brand-pick="${escapeHtml(c.name)}" aria-selected="false">${logo}<span class="bs-name">${escapeHtml(c.name)}</span>${note}</li>`;
+    })
+    .join('');
+}
+
+function closeBrandSuggest() {
+  brandSuggest.hidden = true;
+  brandActive = -1;
+  clientNameInput.setAttribute('aria-expanded', 'false');
+  clientNameInput.removeAttribute('aria-activedescendant');
+}
+
+function chooseBrand(name) {
+  clientNameInput.value = name;
+  closeBrandSuggest();
+  updateBrandMatch();
+  clientNameInput.dispatchEvent(new Event('change', { bubbles: true }));
+  clientNameInput.focus({ preventScroll: true });
+}
+
+clientNameInput.addEventListener('input', renderBrandSuggest);
+clientNameInput.addEventListener('blur', () => setTimeout(closeBrandSuggest, 120));
+clientNameInput.addEventListener('keydown', (e) => {
+  const options = [...brandSuggest.querySelectorAll('[role="option"]')];
+  if (brandSuggest.hidden || !options.length) {
+    if (e.key === 'ArrowDown' && clientNameInput.value.trim()) renderBrandSuggest();
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    brandActive = (brandActive + (e.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
+    options.forEach((o, i) => o.setAttribute('aria-selected', String(i === brandActive)));
+    clientNameInput.setAttribute('aria-activedescendant', options[brandActive].id);
+    options[brandActive].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter' && brandActive >= 0) {
+    e.preventDefault();
+    chooseBrand(options[brandActive].dataset.brandPick);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeBrandSuggest();
+  }
+});
+// mousedown, no click: el clic llegaría después del blur, con la lista ya cerrada.
+brandSuggest.addEventListener('mousedown', (e) => {
+  const opt = e.target.closest('[data-brand-pick]');
+  if (!opt) return;
+  e.preventDefault();
+  chooseBrand(opt.dataset.brandPick);
+});
 
 // Qué sabe Hermes de una marca conocida (2026-10-01): antes el aviso decía siempre «usará sus colores,
 // tipografías y logos», pero 16 de 34 marcas no tienen brand pack medido (solo logos o nada).
@@ -134,6 +235,7 @@ async function loadBrands() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     knownBrands = data.brands || [];
+    brandLogos = data.logos || {};
     renderBrandOptions();
     updateBrandMatch();
   } catch (err) {
@@ -1772,9 +1874,9 @@ function updateSticky() {
   document.body.classList.toggle('has-sticky', show);
 }
 
-// Visible solo cuando la barra de resultado ha quedado por ENCIMA de la pantalla (se ha bajado). En móvil las
-// acciones van debajo de la vista previa (2026-10-05): ahí, también mientras quedan por DEBAJO.
-const narrowJob = window.matchMedia('(max-width: 640px)');
+// Visible solo cuando la barra de resultado ha quedado por ENCIMA de la pantalla (se ha bajado). Por debajo de
+// 1200 px las acciones van debajo de la vista previa (2026-10-05): ahí, también mientras quedan por DEBAJO.
+const narrowJob = window.matchMedia('(max-width: 1199px)');
 new IntersectionObserver(([entry]) => {
   resultBarHidden = !entry.isIntersecting && (entry.boundingClientRect.top < 0 || narrowJob.matches);
   updateSticky();
@@ -4346,8 +4448,37 @@ function setProgressBar(bar, pct) {
   bar.style.setProperty('--pct', `${Math.max(0, Math.min(100, pct))}%`);
 }
 
+// Fases como pasos numerados (2026-10-05): las mismas que deduce el worker (hermes-worker.ts, STAGES y EDIT_LABELS)
+// más el brief, si se pidió con una frase, y la revisión automática del final, que no tiene fase propia: se marca
+// hecha al terminar.
+const STEP_LABELS = { preparando: 'Preparar: skills y brand pack', investigando: 'Investigar la marca', escribiendo: 'Escribir la newsletter', revisando: 'Revisar y corregir' };
+const STEP_EDIT_LABELS = { preparando: 'Leer la versión original', investigando: 'Buscar lo que pide el cambio', escribiendo: 'Aplicar los cambios', revisando: 'Revisar y corregir' };
+function renderProgressSteps(job) {
+  const list = document.getElementById('progress-steps');
+  const edit = !!(job.input.revisionOf || job.input.mobileFixOf);
+  const labels = edit ? STEP_EDIT_LABELS : STEP_LABELS;
+  const steps = [
+    ...(job.input.instruction && !job.input.briefReused ? [['brief', 'Escribir el brief creativo']] : []),
+    ...Object.entries(labels),
+    ['calidad', 'Revisión automática de Studio'],
+  ];
+  const p = job.progress;
+  // Fase desconocida (o aún sin progreso): por el porcentaje, con los tramos del worker (15, 45 y 75 %).
+  const byPct = !p ? 'preparando' : p.pct < 15 ? 'preparando' : p.pct < 45 ? 'investigando' : p.pct < 75 ? 'escribiendo' : 'revisando';
+  const stage = steps.some(([id]) => id === p?.stage) ? p.stage : byPct;
+  let current = job.status === 'running' ? Math.max(0, steps.findIndex(([id]) => id === stage)) : -1;
+  if (job.status === 'completed') current = steps.length;
+  list.innerHTML = steps
+    .map(([, label], i) => {
+      const state = i < current ? 'is-done' : i === current ? 'is-current' : '';
+      return `<li class="${state}"${i === current ? ' aria-current="step"' : ''}><span class="step-num">${String(i + 1).padStart(2, '0')}</span><span class="step-label">${escapeHtml(label)}</span></li>`;
+    })
+    .join('');
+}
+
 function renderProgress(job, queue, hermesOnline) {
   const box = document.getElementById('job-progress');
+  renderProgressSteps(job);
   // Terminada, la barra al 100 % no aporta nada: lo que tardó ya está en la cabecera (2026-09-29).
   // Con el brief por revisar no hay nada en marcha: el panel de revisión ocupa su sitio.
   if (job.status === 'completed' || job.status === 'review') {
