@@ -318,10 +318,9 @@ a.status-pill[href]:hover { border-color: var(--pink); }
   font-size: clamp(30px, 5vw, 46px);
   font-weight: 600;
   line-height: 1.1;
-  letter-spacing: -0.5px;
 }
 .accent { color: var(--accent-text); }
-.lead { margin: 0; max-width: 620px; font-size: var(--fs-lead); color: var(--lilac); opacity: 0.85; }
+.lead { margin: 0; max-width: 620px; font-size: var(--fs-lead); color: var(--text); } /* blanco, como los párrafos de la web (antes lila al 85 %) */
 
 .eyebrow {
   margin: 0;
@@ -1551,7 +1550,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 .menu-btn { flex: none; display: inline-flex; flex-direction: column; justify-content: center; gap: 4px; width: 34px; height: 34px; padding: 0 8px; border: 1px solid var(--border); border-radius: var(--pill); background: none; cursor: pointer; }
 .menu-btn span { display: block; height: 2px; border-radius: 1px; background: var(--text); }
 .menu-btn:hover { border-color: var(--pink); }
-.menu-backdrop { position: fixed; inset: 0; z-index: 90; background: rgba(5, 12, 42, 0.55); }
+.menu-backdrop { position: fixed; inset: 0; z-index: 90; background: transparent; } /* la web no oscurece la página: el fondo solo recoge el clic para cerrar */
 .side-menu {
   position: fixed;
   top: 0;
@@ -1688,8 +1687,8 @@ body::after {
     grid-column: 2;
     grid-row: 1;
     position: sticky;
-    top: 16px;
-    max-height: calc(100vh - 32px);
+    top: 80px;
+    max-height: calc(100vh - 96px);
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
@@ -1862,3 +1861,56 @@ html.deep-link .hero, html.deep-link #view-form { display: none; }
 
 /* Error al cargar el historial (2026-10-05). */
 .history-error { margin-top: 56px; }
+
+/* ---------------------------------------------------------------- Movimiento y cabecera de feebbodigital.com (2026-10-05) */
+/* 1. Logo animado (Lottie oficial, 117 × 47) en el sitio de la imagen; en tema claro, oscurecido como la imagen. */
+.brand-anim { display: block; width: 99px; height: 40px; }
+.brand-anim svg { display: block; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .brand-anim { filter: brightness(0) opacity(0.88); } }
+:root[data-theme="light"] .brand-anim { filter: brightness(0) opacity(0.88); }
+
+/* 2. La × del menú es la hamburguesa animada de la web: se ve en cuanto carga; mientras, la × de texto. */
+.menu-close .menu-anim { display: block; width: 33px; height: 33px; }
+.menu-close.has-anim .menu-close-x { display: none; }
+.menu-close { display: flex; align-items: center; justify-content: center; }
+
+/* 3. Cabecera fija (la .navbar de la web): transparente arriba; al bajar, fondo translúcido de lado a lado. */
+body { overflow-x: clip; }
+html { scroll-padding-top: 80px; }
+.topbar { position: sticky; top: 0; z-index: 50; padding-top: 16px; padding-bottom: 12px; }
+.topbar::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  z-index: -1;
+  background: transparent;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.topbar.is-scrolled::before { background: var(--topbar-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 1px 0 var(--border); }
+:root { --topbar-bg: rgba(5, 12, 42, 0.86); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --topbar-bg: rgba(244, 245, 251, 0.9); } }
+:root[data-theme="light"] { --topbar-bg: rgba(244, 245, 251, 0.9); }
+
+/* 5. Menú: entra desde la derecha y sus enlaces aparecen uno tras otro, como en la web. */
+.side-menu:not([hidden]) { animation: menu-in 0.35s ease-out; }
+.side-menu:not([hidden]) .menu-links li,
+.side-menu:not([hidden]) .menu-contact { animation: menu-item-in 0.4s ease-out both; }
+.side-menu:not([hidden]) .menu-links li:nth-child(1) { animation-delay: 0.10s; }
+.side-menu:not([hidden]) .menu-links li:nth-child(2) { animation-delay: 0.16s; }
+.side-menu:not([hidden]) .menu-links li:nth-child(3) { animation-delay: 0.22s; }
+.side-menu:not([hidden]) .menu-links li:nth-child(4) { animation-delay: 0.28s; }
+.side-menu:not([hidden]) .menu-contact { animation-delay: 0.34s; }
+@keyframes menu-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes menu-item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* 6. Entradas al hacer scroll (solo portada: títulos, cifras, «Ahora mismo» y la foto). La clase la pone app.js. */
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.is-in { opacity: 1; transform: none; }
+.hero > .hero-photo.reveal:not(.is-in) { transform: translateY(18px) scale(0.96); }
+
+@media (prefers-reduced-motion: reduce) {
+  .side-menu:not([hidden]), .side-menu:not([hidden]) .menu-links li, .side-menu:not([hidden]) .menu-contact { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}

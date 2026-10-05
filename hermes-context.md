@@ -1469,3 +1469,26 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   ficha), pedir cambios (502 explicado; 400 "Describe qué quieres cambiar." tal cual). `npm test` 159/159.
 - **Desplegado (con permiso del usuario):** `703387f` → Vercel (app.js idéntico) y Railway
   2026-10-05 11:20:41 +02:00 (SUCCESS). Worker sin reiniciar.
+
+### 2026-10-05 (continuación) — Interfaz: movimiento y cabecera de feebbodigital.com
+
+- **Nueva revisión de la web (lo que la primera extracción no cubría):** 32 interacciones de Webflow. El logo es un
+  Lottie oficial (`documents/Feebbo-logo.json`, 30 KB, 8,6 s) en bucle con autoplay (no va con el scroll: lo dije
+  mal al proponerlo); la hamburguesa es otro Lottie (0,67 s) que se convierte en ×; `.navbar` fija; párrafos en
+  blanco a 18 px; menú sin oscurecer la página y enlaces que entran escalonados; imágenes que entran al hacer
+  scroll. No copiados: carrusel de logos, Lottie del algoritmo, tarjetas en horizontal, titular centrado, WhatsApp.
+- **1. Logo animado:** `studio/web/feebbo-logo.json` + `lottie_light.min.js` 5.12.2 de cdnjs (defer, SRI sha512,
+  46 KB comprimido). Sustituye a la imagen al cargar; sin reproductor o con menos movimiento, queda la imagen. En
+  tema claro, el mismo filtro que la imagen.
+- **2. Hamburguesa → ×:** `studio/web/menu-icon.json` en el botón de cerrar del panel (el panel tapa la hamburguesa
+  de la cabecera): al abrir se dibuja la × desde las rayas; con menos movimiento, la × directamente.
+- **3. Cabecera fija:** `.topbar` sticky con fondo translúcido de lado a lado (`::before`, `--topbar-bg`, blur) al
+  bajar (`is-scrolled`); `scroll-padding-top: 80px`; la columna de acciones pasa a `top: 80px`; `body` con
+  `overflow-x: clip`.
+- **4. Texto:** `.lead` en `--text` (antes lila al 85 %) y titular sin el -0,5 px de espaciado.
+- **5. Menú:** sin oscurecer (el fondo sigue recogiendo el clic), panel que entra desde la derecha y enlaces
+  escalonados (0,10-0,34 s).
+- **6. Entradas al hacer scroll** (`.reveal`, IntersectionObserver): solo títulos de sección, cifras, «Ahora mismo» y
+  la foto; nunca vista previa ni formularios; nada con menos movimiento.
+- **Verificación (copia aislada):** reproductor y los dos JSON 200; logo y × animados; cabecera fija sin solaparse
+  con la columna de acciones; 1280/1440/375 px, oscuro y claro, sin desbordes. `npm test` 159/159.

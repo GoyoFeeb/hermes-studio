@@ -25,6 +25,9 @@
   <header class="topbar">
     <a class="brand" href="/" aria-label="Hermes Studio — inicio">
       <img src="/feebbo-logo.svg" alt="Feebbo Digital" width="99" height="36" />
+      <!-- Logo animado oficial de feebbodigital.com (Lottie, 2026-10-05): en bucle, como en la web. Sustituye a la
+           imagen cuando carga el reproductor; con menos movimiento, se queda la imagen. -->
+      <span class="brand-anim" id="brand-anim" aria-hidden="true" hidden></span>
     </a>
     <div class="topbar-side">
       <a id="hermes-status" class="status-pill">Comprobando Hermes…</a>
@@ -42,7 +45,8 @@
   </aside>
   <div id="menu-backdrop" class="menu-backdrop" hidden></div>
   <nav id="side-menu" class="side-menu" role="dialog" aria-modal="true" aria-label="Menú" hidden>
-    <button type="button" id="menu-close" class="menu-close" aria-label="Cerrar el menú">×</button>
+    <!-- La × es la hamburguesa animada de la web (Lottie): al abrir, las rayas se convierten en la ×. -->
+    <button type="button" id="menu-close" class="menu-close" aria-label="Cerrar el menú"><span class="menu-close-x">×</span><span class="menu-anim" id="menu-anim" aria-hidden="true" hidden></span></button>
     <ol class="menu-links">
       <li><button type="button" data-menu="new"><span class="menu-num">01</span>Nueva newsletter</button></li>
       <li><button type="button" data-menu="history"><span class="menu-num">02</span>Historial</button></li>
@@ -794,5 +798,8 @@
   <script src="/textedit.js"></script>
   <script src="/export.js"></script>
   <script src="/app.js"></script>
+  <!-- Reproductor Lottie (versión ligera, solo SVG) para el logo y la hamburguesa de la web. defer: no retrasa nada. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js" defer
+    integrity="sha512-Pe5arL9TnWlLgXT1VY0d50tfo6J9bh0qM7irYJuACQcGz7mbIahBXZmNeav+46mTQBtPY170Vi89KDa4kd4QVg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </body>
 </html>

@@ -1377,8 +1377,14 @@ function setMenu(open) {
   behindMenu.forEach((el) => {
     el.inert = open;
   });
-  if (open) sideMenu.querySelector('[data-menu]').focus();
-  else menuBtn.focus({ preventScroll: true });
+  if (open) {
+    // La × se dibuja desde la hamburguesa, como en la web (con menos movimiento, directamente la ×).
+    if (menuAnim) {
+      if (reduceMotion.matches) menuAnim.goToAndStop(menuAnim.totalFrames - 1, true);
+      else menuAnim.goToAndPlay(0, true);
+    }
+    sideMenu.querySelector('[data-menu]').focus();
+  } else menuBtn.focus({ preventScroll: true });
 }
 menuBtn.addEventListener('click', () => setMenu(sideMenu.hidden));
 document.getElementById('menu-close').addEventListener('click', () => setMenu(false));
@@ -1414,6 +1420,58 @@ sideMenu.addEventListener('click', (e) => {
     form.querySelector('textarea, input[type="text"]')?.focus({ preventScroll: true });
   }
 });
+
+// ---------------------------------------------------------------- movimiento de feebbodigital.com (2026-10-05)
+// Logo animado y hamburguesa → × con las animaciones Lottie oficiales de la web (studio/web/feebbo-logo.json y
+// menu-icon.json); el reproductor llega con defer después de este script. Sin él (sin red, bloqueado), se queda
+// la imagen fija y la × de texto. Con menos movimiento, el logo no se anima.
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+let menuAnim = null;
+window.addEventListener('DOMContentLoaded', () => {
+  if (!window.lottie) return;
+  try {
+    if (!reduceMotion.matches) {
+      const box = document.getElementById('brand-anim');
+      const logo = window.lottie.loadAnimation({ container: box, renderer: 'svg', loop: true, autoplay: true, path: '/feebbo-logo.json' });
+      logo.addEventListener('DOMLoaded', () => {
+        box.hidden = false;
+        box.parentElement.querySelector('img').hidden = true;
+      });
+    }
+    const mbox = document.getElementById('menu-anim');
+    menuAnim = window.lottie.loadAnimation({ container: mbox, renderer: 'svg', loop: false, autoplay: false, path: '/menu-icon.json' });
+    menuAnim.addEventListener('DOMLoaded', () => {
+      mbox.hidden = false;
+      mbox.parentElement.classList.add('has-anim');
+    });
+  } catch (err) {
+    console.error('No se pudieron cargar las animaciones de la marca', err);
+  }
+});
+
+// Cabecera fija (como la .navbar de la web): siempre a la vista; al bajar, un fondo translúcido para que se lea.
+const topbar = document.querySelector('.topbar');
+const markScrolled = () => topbar.classList.toggle('is-scrolled', window.scrollY > 8);
+window.addEventListener('scroll', markScrolled, { passive: true });
+markScrolled();
+
+// Entradas al hacer scroll (como las de la web), solo en la portada: títulos de sección, cifras y «Ahora mismo».
+// Nunca en la vista previa ni en formularios; con menos movimiento o sin IntersectionObserver, todo quieto.
+if ('IntersectionObserver' in window && !reduceMotion.matches) {
+  const reveal = new IntersectionObserver(
+    (entries) =>
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('is-in');
+        reveal.unobserve(e.target);
+      }),
+    { rootMargin: '0px 0px -8% 0px' }
+  );
+  document.querySelectorAll('.section-title, #history-stats, #now-strip, .hero-photo').forEach((el) => {
+    el.classList.add('reveal');
+    reveal.observe(el);
+  });
+}
 
 // ---------------------------------------------------------------- trabajo sin guardar (2026-09-30)
 // Textos editados sin guardar o una petición de cambios escrita y sin enviar: salir de la página del
