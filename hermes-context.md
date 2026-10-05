@@ -1902,3 +1902,4 @@ El usuario pidió «vamos con todas».
   Puntúa también «fidelidad a la petición» y «texto e imagen»; si un texto contradice las fotos o se aparta de la
   petición, corrige el texto. Añade unos minutos a cada pieza nueva.
 - 199/199 tests.
+- **Desplegado (con permiso del usuario):** `7a3ab09` → Railway (Studio responde de nuevo tras el 502 del redespliegue) y `vercel --prod`; worker reiniciado en el Mac (sin trabajos en curso). Pendiente: probar con una petición real de ocasión (p. ej. reintentar Paredes pre-Black Friday).
