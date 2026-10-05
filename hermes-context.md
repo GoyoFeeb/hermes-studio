@@ -1423,3 +1423,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   decisión atendida), se apunta en el registro y se puede deshacer.
 - **Verificación (copia aislada):** franja → pestaña Cliente sin recarga; atender → sin aviso, fuera de la lista,
   en el registro; deshacer → vuelve. `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `12d7272` → Vercel (styles.css y app.js idénticos) y Railway SUCCESS
+  10:26. En producción, la de Helly Hansen abre la pestaña Cliente con el aviso "!" y el botón «Marcar como
+  atendido» (no se ha pulsado: lo decide el usuario). Worker sin reiniciar.
