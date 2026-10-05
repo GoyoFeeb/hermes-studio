@@ -1451,3 +1451,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   Sin sesión sigue saliendo solo el aviso de inicio de sesión.
 - **Verificación (copia aislada, 500 simulado en /api/jobs):** aviso con cuenta atrás y sin atajo; al reintentar
   con el servidor bien, vuelven historial, franja y atajo. `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `7c99b65` → Vercel (styles.css, index.html y app.js idénticos) y Railway
+  SUCCESS 11:14. Worker sin reiniciar.
