@@ -291,7 +291,15 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
     res.status(204).end();
     return;
   }
-  const job = updateJob(next.id, { status: 'running', currentPhase: 'hermes', startedAt: new Date().toISOString() });
+  // Tras aprobar el brief se recoge por segunda vez: se conserva el inicio (el brief) y se apunta la espera.
+  const now = new Date();
+  const waited = next.briefReadyAt && next.briefWaitSec == null ? Math.max(0, Math.round((now.getTime() - Date.parse(next.briefReadyAt)) / 1000)) : null;
+  const job = updateJob(next.id, {
+    status: 'running',
+    currentPhase: 'hermes',
+    startedAt: next.startedAt && waited != null ? next.startedAt : now.toISOString(),
+    ...(waited != null ? { briefWaitSec: waited } : {}),
+  });
   hermesLog(job.id, 'Hermes ha recogido el trabajo y está trabajando.');
   res.json({
     id: job.id,
@@ -331,6 +339,7 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
     updateJob(job.id, {
       status: 'review',
       currentPhase: null,
+      briefReadyAt: new Date().toISOString(),
       input: { ...job.input, briefText: brief.slice(0, 200000) },
     });
     hermesLog(job.id, 'Brief creativo listo: revísalo y apruébalo para que Hermes haga la newsletter.', 'success');
@@ -693,6 +702,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
           }
         : null,
       durationSec: durationSec(j),
+      briefWaitSec: j.briefWaitSec ?? null,
       hasThumb: !!j.thumbRelPath,
       // Logo de la ficha de marca para las miniaturas sin imagen (2026-10-05): 'light' o 'dark' (versión blanca).
       brandLogo: logos.has(j.input.clientSlug) ? (logos.get(j.input.clientSlug)!.onDark ? 'dark' : 'light') : null,

@@ -1848,3 +1848,35 @@ El usuario pidió «vamos con todas».
     más. Lo avisa en el registro del trabajo.
   - **Web:** la etiqueta del paso 02 ya no habla de «skills».
 - **Desplegado (con permiso del usuario):** `ceaac74` → Railway (estado SUCCESS). El trabajo de Paredes en curso lo canceló el usuario. Pendiente: `git pull` + reinicio del worker en el Mac, reintentar Paredes y `vercel --prod` (etiqueta del paso 02).
+
+### 2026-10-05 (noche) — Paredes, tercer intento: terminado (`muvklec9-bd5yhl`)
+
+- **Entregado a las 21:12, sin rondas de corrección:** brief 7 min (20:15-20:22) → espera de la aprobación del brief
+  13 min (20:22-20:35) → primera versión 37 min → comprobación de Studio 2 s, limpia. Total visto por el usuario,
+  «como una hora»: 57 min, de los que 13 eran la espera de su propia aprobación.
+- **Dónde se fueron los 37 min de la primera versión:** logo copiado a los 10 min, fotos descargadas a los 20 min,
+  HTML a los 34 min y, después, revisión propia (aire de 12→32 px en la tira de usos, recorte de fondo liso de dos
+  fotos, renders a 600/375/oscuro) y `notas.md`. Hermes no estaba colgado: la barra de 96 % «Revisar y corregir» era
+  su autorrevisión dentro de la primera versión, no una ronda de Studio.
+- **Abierto:** la barra pasa demasiado tiempo en 96 % durante la autorrevisión y da sensación de bloqueo; y la
+  espera de aprobación del brief cuenta en el tiempo total de la página.
+- **Arreglado (sin desplegar) — la espera de aprobación del brief va aparte:**
+  - servidor: `briefReadyAt` al pausar en revisión; al volver a recogerlo se conserva `startedAt` y se guarda `briefWaitSec`.
+    `durationSec` la descuenta (antes «tardó» solo medía la newsletter, porque se pisaba `startedAt`, y la barra contaba
+    brief + newsletter);
+  - web: «tardó X + N min esperando tu aprobación del brief» en la cabecera y en el historial; en la barra, «X min de
+    trabajo · aparte, N min esperando…» (antes «transcurridos»); también en «Tiempo por fase»; y en el panel del brief,
+    «Hermes está parado esperando tu aprobación desde las HH:MM». 192/192 tests.
+  - Pendiente: desplegar (Railway + `vercel --prod`), con permiso del usuario.
+- **Auditoría de la pieza (Paredes v3) — mala aunque pasó todos los checks:**
+  1. **Se perdió el encargo:** el usuario pidió *pre-Black Friday* para público joven; ni el brief ni la pieza lo mencionan
+     (sin oferta, sin fecha, sin urgencia). Origen: el brief (fase 01), no la maqueta.
+  2. **Concepto contra el producto:** todo gira en torno a «el negro» (#25282a) y la Eden «negro» es gris, marrón, negro y
+     con suela roja. El brief eligió el concepto por el nombre del producto, sin mirar la foto.
+  3. Bloque «#25282a no es un tono neutro»: un código hex como titular para consumidor final.
+  4. Tira «Oficina / Paseo / Plan» con tres fotos de bodegón del mismo zapato: las etiquetas no dicen nada. No hay
+     fotos lifestyle en la web y el brief las pedía igualmente.
+  5. Precio verificado (48,99 €) fuera de la pieza «porque el brief no lo pedía», en una campaña de compra.
+  6. Los 4 CTA van a la misma URL; fondo blanco plano, el rojo de marca casi no aparece.
+  Los checks miden lo técnico (aire, móvil, contraste, estructura) y no si la pieza cumple la petición ni si el concepto
+  casa con las fotos.

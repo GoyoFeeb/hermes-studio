@@ -86,6 +86,11 @@ export interface Job {
   /** Cuándo lo recogió Hermes y cuándo terminó (2026-09-28): la duración real, sin la espera en cola. */
   startedAt?: string;
   finishedAt?: string;
+  /** Brief a revisar (2026-10-05, Paredes: «lleva como una hora» con 13 min esperando la aprobación): cuándo quedó
+   *  listo y cuánto esperó hasta que Hermes volvió a recogerlo. Esa espera no es trabajo de Hermes: la página la
+   *  enseña aparte y no entra en «tardó». */
+  briefReadyAt?: string;
+  briefWaitSec?: number;
   /** "Aprobada para envío" (2026-09-28): la versión de su familia que se va a enviar (solo una), quién la
    *  aprobó y qué comprobó (la lista de la página). */
   approvedAt?: string;

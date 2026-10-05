@@ -479,9 +479,11 @@ export function jobKind(job: Job): JobKind | null {
 }
 
 /** Duración real de un trabajo terminado: de que Hermes lo recoge a que termina. Los anteriores al
- *  2026-09-28 no guardan esas horas: se usa el último tiempo que mandó el worker con el progreso. */
+ *  2026-09-28 no guardan esas horas: se usa el último tiempo que mandó el worker con el progreso.
+ *  Con brief a revisar, la espera de la aprobación (`briefWaitSec`) no cuenta (2026-10-05). */
 export function durationSec(job: Job): number | null {
-  if (job.startedAt && job.finishedAt) return Math.max(1, Math.round((Date.parse(job.finishedAt) - Date.parse(job.startedAt)) / 1000));
+  if (job.startedAt && job.finishedAt)
+    return Math.max(1, Math.round((Date.parse(job.finishedAt) - Date.parse(job.startedAt)) / 1000) - (job.briefWaitSec || 0));
   return job.status === 'completed' && job.progress?.elapsedSec ? job.progress.elapsedSec : null;
 }
 

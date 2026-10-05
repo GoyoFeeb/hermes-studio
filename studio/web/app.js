@@ -958,12 +958,14 @@ function clientLabel(j) {
   return j.client.open ? `Cliente: ${j.client.open} comentario${j.client.open === 1 ? '' : 's'}` : null;
 }
 
-/** "tardó 9 min" (de que Hermes lo recoge a que termina); los retoques de texto son al momento. */
+/** "tardó 9 min" (de que Hermes lo recoge a que termina); los retoques de texto son al momento. La espera de
+ *  la aprobación del brief no es trabajo de Hermes: va aparte (Paredes, 2026-10-05: 57 min de reloj, 13 de espera). */
 function durationLabel(j) {
   if (j.status !== 'completed') return null;
   if (j.textEditOf) return 'sin Hermes';
   const sec = j.durationSec ?? j.elapsedSec;
-  return sec ? `tardó ${formatMinutes(sec)}` : null;
+  if (!sec) return null;
+  return `tardó ${formatMinutes(sec)}${j.briefWaitSec >= 60 ? ` + ${formatMinutes(j.briefWaitSec)} esperando tu aprobación del brief` : ''}`;
 }
 
 /** Fallidos que ya tienen un reintento: no se ofrece reintentarlos otra vez desde el historial (2026-10-01). */
@@ -2441,6 +2443,13 @@ function renderBriefReview(job) {
     setBriefEditing(false);
   }
   document.getElementById('review-restore').hidden = reviewText.value === reviewText.dataset.src;
+  const waiting = document.getElementById('review-waiting');
+  waiting.hidden = !job.briefReadyAt;
+  if (job.briefReadyAt) {
+    const sec = (Date.now() - Date.parse(job.briefReadyAt)) / 1000;
+    const at = new Date(job.briefReadyAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    waiting.textContent = `Hermes está parado esperando tu aprobación desde las ${at}${sec >= 60 ? ` (${formatMinutes(sec)})` : ''}. Esta espera no cuenta en lo que tarda.`;
+  }
 }
 reviewText.addEventListener('input', () => {
   document.getElementById('review-restore').hidden = reviewText.value === reviewText.dataset.src;
@@ -3905,8 +3914,10 @@ async function poll(id) {
     durationLabel({
       status: job.status,
       textEditOf: job.input.textEditOf,
-      durationSec: job.startedAt && job.finishedAt ? (Date.parse(job.finishedAt) - Date.parse(job.startedAt)) / 1000 : null,
+      durationSec:
+        job.startedAt && job.finishedAt ? (Date.parse(job.finishedAt) - Date.parse(job.startedAt)) / 1000 - (job.briefWaitSec || 0) : null,
       elapsedSec: job.progress?.elapsedSec,
+      briefWaitSec: job.briefWaitSec,
     }),
   ]
     .filter(Boolean)
@@ -3949,7 +3960,7 @@ async function poll(id) {
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes, matrix);
-      renderTimings(job.timings);
+      renderTimings(job.timings, job.briefWaitSec);
       renderReportShare(job.reportShare);
       renderShare(job.share, versions || []);
       renderMeta(meta, job.input.clientName);
@@ -4371,7 +4382,7 @@ function mmss(sec) {
   return `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
 }
 
-function renderTimings(t) {
+function renderTimings(t, briefWaitSec) {
   const box = document.getElementById('timings-box');
   box.hidden = !t?.phases?.length;
   if (box.hidden) return;
@@ -4389,6 +4400,7 @@ function renderTimings(t) {
     `total ${mmss(t.totalSec)}`,
     t.rounds ? plural(t.rounds, 'corrección', 'correcciones') : 'sin correcciones',
     t.hangs?.count ? `${plural(t.hangs.count, 'espera cortada', 'esperas cortadas')} (${mmss(t.hangs.sec)})` : null,
+    briefWaitSec >= 60 ? `aparte, ${mmss(briefWaitSec)} esperando tu aprobación del brief` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -5209,8 +5221,16 @@ function renderProgress(job, queue, hermesOnline) {
   const idleShownAbove = job.status === 'running' && idle != null && idle >= 180;
   document.getElementById('progress-detail').textContent =
     job.status === 'completed'
-      ? `Hecha en ${formatMinutes(p.elapsedSec)} · ${p.actions} acciones de Hermes.`
-      : [p.detail, idle != null && !idleShownAbove ? `última acción hace ${formatAgo(idle)}` : null, `${p.actions} acciones`, `${formatMinutes(p.elapsedSec)} transcurridos`]
+      ? `Hecha en ${formatMinutes(p.elapsedSec)} · ${p.actions} acciones de Hermes${
+          job.briefWaitSec >= 60 ? ` · aparte, ${formatMinutes(job.briefWaitSec)} esperando tu aprobación del brief` : ''
+        }.`
+      : [
+          p.detail,
+          idle != null && !idleShownAbove ? `última acción hace ${formatAgo(idle)}` : null,
+          `${p.actions} acciones`,
+          `${formatMinutes(p.elapsedSec)} de trabajo`,
+          job.briefWaitSec >= 60 ? `aparte, ${formatMinutes(job.briefWaitSec)} esperando tu aprobación del brief` : null,
+        ]
           .filter(Boolean)
           .join(' · ');
 }
