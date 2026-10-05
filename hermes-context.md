@@ -1467,3 +1467,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   409…) tal cual.
 - **Verificación (copia aislada, 502 y 400 simulados):** formulario (texto conservado), ficha (Reintentar carga la
   ficha), pedir cambios (502 explicado; 400 "Describe qué quieres cambiar." tal cual). `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `703387f` → Vercel (app.js idéntico) y Railway
+  2026-10-05 11:20:41 +02:00 (SUCCESS). Worker sin reiniciar.
