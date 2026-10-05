@@ -1325,3 +1325,21 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `5036897` → Vercel (styles.css e index.html idénticos) y Railway SUCCESS
   09:38. Comprobado en producción: el enlace caducado `/p/` ya sale con fuentes, logo y pie; la CSP de `/r/`
   incluye las fuentes de Google. Worker sin reiniciar.
+
+### 2026-10-05 (continuación) — Interfaz: puntos 3-8 de la revisión
+
+- **3. Contador:** sin filtro, `#history-count` queda vacío (la cifra está en la fila de cifras); con filtro, "1 de 5
+  newsletters". El atajo de la portada pasa a "Ir al historial · N en curso ↓" (antes repetía el total).
+- **4. Menú lateral como diálogo:** `role="dialog"` y `aria-modal`; al abrirlo, cabecera, `#app`, pie y raíl pasan a
+  `inert` (el foco no sale del menú); al cerrarlo vuelve al botón.
+- **5. Tema en el menú:** entrada "04 Tema: Auto/Claro/Oscuro" (cambia sin cerrar el menú; usa el botón de la
+  cabecera); en ≤ 640 px el botón de la cabecera se oculta y la píldora de estado gana sitio.
+- **6. Placeholder:** `--placeholder` #5D6488 → #7D84A8 (3,2 → 5,1:1 sobre el campo); en claro #8A90AB → #6B7194
+  (3,2 → 4,8:1 sobre blanco).
+- **7. Siluetas de carga** (`.skeleton`, brillo que se para con prefers-reduced-motion): historial en la primera
+  carga (`#history-skeleton`, se quita con la respuesta o el error), página de la newsletter hasta el primer
+  sondeo (`#job-skeleton`, oculta cabecera, registro y botones finales mientras sale) y ficha de marca.
+- **8. Titular de portada en una línea:** el h1 ocupa las dos columnas y la foto (160 px) va a la derecha del texto
+  de debajo (necesitaba 779 px y tenía 592).
+- **Verificación (copia aislada):** 1280 oscuro y claro, 375 px sin desbordes; conexión lenta simulada (3-4 s)
+  para ver las siluetas; menú con Escape devuelve el foco; `npm test` 159/159.

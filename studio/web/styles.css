@@ -54,7 +54,7 @@
   --surface-sticky: rgba(14, 21, 69, 0.96);
   --shadow: rgba(0, 0, 0, 0.35);
   --shadow-strong: rgba(0, 0, 0, 0.45);
-  --placeholder: #5d6488;
+  --placeholder: #7d84a8; /* 5,1:1 sobre el campo (antes #5D6488, 3,2:1; 2026-10-05) */
   --btn-secondary-hover: #30367060;
   --diff-removed-fg: #ffb3bd;
   --diff-added-fg: #a8f0d6;
@@ -128,7 +128,7 @@
   --surface-sticky: rgba(255, 255, 255, 0.97);
   --shadow: rgba(14, 21, 69, 0.1);
   --shadow-strong: rgba(14, 21, 69, 0.18);
-  --placeholder: #8a90ab;
+  --placeholder: #6b7194; /* 4,8:1 sobre blanco (antes #8A90AB, 3,2:1) */
   --btn-secondary-hover: #dfe1f0;
   --diff-removed-fg: #a3263b;
   --diff-added-fg: #0b6b4d;
@@ -172,7 +172,7 @@
   --surface-sticky: rgba(255, 255, 255, 0.97);
   --shadow: rgba(14, 21, 69, 0.1);
   --shadow-strong: rgba(14, 21, 69, 0.18);
-  --placeholder: #8a90ab;
+  --placeholder: #6b7194; /* 4,8:1 sobre blanco (antes #8A90AB, 3,2:1) */
   --btn-secondary-hover: #dfe1f0;
   --diff-removed-fg: #a3263b;
   --diff-added-fg: #0b6b4d;
@@ -1652,9 +1652,12 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
    de trazo fino #CF95D0 de fondo, como el de la sección de consultoría de la web. */
 .hero-photo { display: none; }
 @media (min-width: 900px) {
-  .hero { display: grid; grid-template-columns: 1fr 200px; column-gap: 40px; align-items: start; }
+  /* El titular ocupa todo el ancho (2026-10-05: con la foto al lado partía en dos líneas, 779 px en 592) y la foto
+     va a la derecha del texto de debajo. */
+  .hero { display: grid; grid-template-columns: 1fr 160px; column-gap: 40px; align-items: start; }
   .hero > * { grid-column: 1; }
-  .hero > .hero-photo { display: block; grid-column: 2; grid-row: 1 / span 3; width: 200px; height: 200px; border-radius: 50%; align-self: center; }
+  .hero > h1 { grid-column: 1 / -1; grid-row: 1; }
+  .hero > .hero-photo { display: block; grid-column: 2; grid-row: 2 / span 2; width: 160px; height: 160px; border-radius: 50%; align-self: center; }
   .hero > .how-panel { grid-column: 1 / -1; }
 }
 body::after {
@@ -1700,3 +1703,31 @@ body::after {
   /* La página ocupa ya los laterales: el raíl se montaba sobre la tarjeta. */
   body:has(#view-job:not([hidden]) #job-result:not([hidden])) .side-rail { display: none; }
 }
+
+/* ---------------------------------------------------------------- Retoques de la revisión (2026-10-05) */
+/* 5. En móvil el tema pasa al menú lateral ("04 Tema"): con la hamburguesa, la píldora de estado se cortaba. */
+@media (max-width: 640px) { .topbar .theme-btn { display: none; } }
+
+/* 7. Siluetas de carga: bloques con la forma de lo que va a llegar y un brillo que pasa (quieto si se pide
+   menos movimiento). */
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--panel-2) 0%, var(--border) 50%, var(--panel-2) 100%) 0 0 / 200% 100%;
+  animation: skeleton-shine 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-shine { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+.skeleton-list { margin-top: 56px; display: grid; gap: 12px; }
+.skeleton-title { width: 220px; height: 28px; margin-bottom: 8px; }
+.skeleton-row { display: flex; gap: 16px; align-items: center; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); }
+.skeleton-thumb { flex: none; width: 48px; height: 64px; border-radius: var(--radius); }
+.skeleton-lines { flex: 1; display: grid; gap: 10px; }
+.skeleton-line { height: 14px; width: 70%; }
+.skeleton-line.is-short { width: 40%; }
+.skeleton-job { display: grid; gap: 12px; margin-bottom: 24px; }
+.skeleton-preview { height: 420px; border-radius: var(--radius); margin-top: 12px; }
+.skeleton-block { height: 160px; border-radius: var(--radius); margin-top: 8px; }
+/* Mientras sale la silueta, nada del trabajo anterior ni botones sin datos ("Copiar enlace", el registro). */
+#view-job:has(#job-skeleton:not([hidden])) .job-head,
+#view-job:has(#job-skeleton:not([hidden])) #log-box,
+#view-job:has(#job-skeleton:not([hidden])) .job-actions { display: none; }

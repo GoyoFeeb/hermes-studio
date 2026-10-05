@@ -622,9 +622,8 @@ function renderHistoryJump(jobs) {
   const newsletters = live.filter((j) => !j.revisionOf && !j.mobileFixOf && !j.textEditOf && !j.retryOf).length;
   const active = live.filter((j) => j.status === 'running' || j.status === 'queued' || j.status === 'review').length;
   link.hidden = !newsletters;
-  link.innerHTML = `Historial · ${newsletters} newsletter${newsletters === 1 ? '' : 's'}${
-    active ? ` <span class="is-busy">· ${active} en curso</span>` : ''
-  } <span aria-hidden="true">↓</span>`;
+  // La cifra total está en la fila de cifras del historial (2026-10-05): aquí, solo lo que está en curso.
+  link.innerHTML = `Ir al historial${active ? ` <span class="is-busy">· ${active} en curso</span>` : ''} <span aria-hidden="true">↓</span>`;
 }
 document.getElementById('how-btn').addEventListener('click', (e) => {
   const panel = document.getElementById('how-panel');
@@ -654,6 +653,7 @@ async function loadHistory() {
       }
     }
     if (named) renderBrandOptions();
+    document.getElementById('history-skeleton').hidden = true;
     document.getElementById('history').hidden = jobs.length === 0;
     renderHistoryJump(jobs);
 
@@ -677,6 +677,7 @@ async function loadHistory() {
     }
   } catch (err) {
     console.error('No se pudo cargar el historial', err);
+    document.getElementById('history-skeleton').hidden = true;
     // Sin sesión no se insiste (cada intento cuenta para el límite del servidor); si no, en 30 s.
     if (!authMissing) historyTimer = setTimeout(loadHistory, 30000);
   }
@@ -885,7 +886,8 @@ function renderHistory() {
   const scopedJobs = scoped.reduce((n, m) => n + m.length, 0);
   const newsletters = (n) => `${n} newsletter${n === 1 ? '' : 's'}${historyState.archived ? (n === 1 ? ' archivada' : ' archivadas') : ''}`;
   const count = scoped.length === scopedJobs ? newsletters(scopedJobs) : `${newsletters(scoped.length)} · ${scopedJobs} versiones`;
-  document.getElementById('history-count').textContent = groups.length === scoped.length ? count : `${groups.length} de ${newsletters(scoped.length)}`;
+  // Sin filtro, la cifra ya está en la fila de cifras (2026-10-05: salía tres veces); con filtro, "2 de 5".
+  document.getElementById('history-count').textContent = groups.length === scoped.length ? (scoped.length === scopedJobs ? '' : count) : `${groups.length} de ${newsletters(scoped.length)}`;
   renderHistoryStats(scoped);
   document.getElementById('history-empty').hidden = groups.length > 0;
   document.getElementById('history-more').hidden = groups.length <= visible.length;
@@ -1160,10 +1162,16 @@ document.getElementById('rail-years').textContent = `2010 – ${new Date().getFu
 const menuBtn = document.getElementById('menu-btn');
 const sideMenu = document.getElementById('side-menu');
 const menuBackdrop = document.getElementById('menu-backdrop');
+// Diálogo (2026-10-05): con el menú abierto, el resto de la página queda inerte (ni foco ni clics), así el
+// tabulador no se escapa a lo de detrás.
+const behindMenu = ['.topbar', '#app', '.foot', '.side-rail'].map((sel) => document.querySelector(sel)).filter(Boolean);
 function setMenu(open) {
   sideMenu.hidden = !open;
   menuBackdrop.hidden = !open;
   menuBtn.setAttribute('aria-expanded', String(open));
+  behindMenu.forEach((el) => {
+    el.inert = open;
+  });
   if (open) sideMenu.querySelector('[data-menu]').focus();
   else menuBtn.focus({ preventScroll: true });
 }
@@ -1177,6 +1185,11 @@ sideMenu.addEventListener('click', (e) => {
   const item = e.target.closest('[data-menu]');
   if (!item) return;
   const where = item.dataset.menu;
+  // El tema se cambia sin cerrar el menú (en móvil el botón de la cabecera no cabe y vive aquí).
+  if (where === 'theme') {
+    document.getElementById('theme-btn').click();
+    return;
+  }
   setMenu(false);
   if (viewForm.hidden) {
     if (where === 'history') scrollToHistory = true;
@@ -1536,7 +1549,7 @@ async function showBrandView(slug) {
   viewBrand.hidden = false;
   updateSticky();
   const body = document.getElementById('brand-body');
-  body.innerHTML = '<p class="hint">Cargando la ficha…</p>';
+  body.innerHTML = '<div class="skeleton-job" aria-busy="true"><span class="sr-only">Cargando la ficha…</span><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line is-short"></div><div class="skeleton skeleton-block"></div></div>';
   try {
     const res = await apiFetch(`/api/brands/${encodeURIComponent(slug)}`);
     const data = res.ok ? await res.json() : null;
@@ -3113,6 +3126,7 @@ function showJobView(id) {
   document.getElementById('brief-text').dataset.src = '';
   document.getElementById('job-title').textContent = '';
   document.getElementById('job-meta').textContent = '';
+  document.getElementById('job-skeleton').hidden = false;
   window.scrollTo({ top: 0 });
   // Cambia la "página": el foco va al título para que el lector de pantalla lo diga.
   document.getElementById('job-title').focus({ preventScroll: true });
@@ -3151,9 +3165,11 @@ async function poll(id) {
   pollFailures = 0;
   setReconnecting(false);
   if (!res.ok) {
+    document.getElementById('job-skeleton').hidden = true;
     document.getElementById('job-title').textContent = res.status === 401 ? 'Inicia sesión para ver este trabajo' : 'Trabajo no encontrado';
     return;
   }
+  document.getElementById('job-skeleton').hidden = true;
   const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy, familyTitle, clientMatrix: matrix } = await res.json();
   renderJobName(familyTitle, meta);
   renderVersions(job, versions || []);
@@ -4463,6 +4479,7 @@ function renderThemeBtn() {
   btn.setAttribute('aria-label', `Tema: ${THEME_LABEL[t]}. Pulsa para cambiar.`);
   const next = THEMES[(THEMES.indexOf(t) + 1) % THEMES.length];
   btn.title = `Tema: ${THEME_LABEL[t]} · pulsa para pasar a ${THEME_LABEL[next]}`;
+  document.getElementById('menu-theme-name').textContent = THEME_SHORT[t];
 }
 
 document.getElementById('theme-btn').addEventListener('click', () => {

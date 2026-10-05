@@ -38,12 +38,13 @@
     <a class="rail-icon" href="https://twitter.com/feebbodigital" target="_blank" rel="noopener" aria-label="Feebbo Digital en X">X</a>
   </aside>
   <div id="menu-backdrop" class="menu-backdrop" hidden></div>
-  <nav id="side-menu" class="side-menu" aria-label="Menú" hidden>
+  <nav id="side-menu" class="side-menu" role="dialog" aria-modal="true" aria-label="Menú" hidden>
     <button type="button" id="menu-close" class="menu-close" aria-label="Cerrar el menú">×</button>
     <ol class="menu-links">
       <li><button type="button" data-menu="new"><span class="menu-num">01</span>Nueva newsletter</button></li>
       <li><button type="button" data-menu="history"><span class="menu-num">02</span>Historial</button></li>
       <li><button type="button" data-menu="how"><span class="menu-num">03</span>Cómo funciona</button></li>
+      <li><button type="button" data-menu="theme" id="menu-theme"><span class="menu-num">04</span>Tema: <span id="menu-theme-name">Auto</span></button></li>
     </ol>
     <dl class="menu-contact">
       <div><dt>Correo</dt><dd><a href="mailto:info@feebbodigital.com">info@feebbodigital.com</a></dd></div>
@@ -170,6 +171,13 @@
         </div>
       </form>
 
+      <!-- Siluetas de carga (2026-10-05): antes el historial aparecía de golpe. Se quitan con la primera respuesta. -->
+      <div id="history-skeleton" class="skeleton-list" aria-hidden="true">
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div class="skeleton-lines"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line is-short"></div></div></div>
+        <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div class="skeleton-lines"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line is-short"></div></div></div>
+        <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div class="skeleton-lines"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line is-short"></div></div></div>
+      </div>
       <section id="history" hidden>
         <div class="section-head">
           <div class="section-title">
@@ -214,6 +222,12 @@
     <section id="view-job" class="card" hidden>
       <!-- Volver al historial desde un trabajo (2026-09-30): antes solo el logo o «Generar otra newsletter», abajo del todo. -->
       <a href="/" id="back-link" class="back-link">← Todas las newsletters</a>
+      <div id="job-skeleton" class="skeleton-job" aria-hidden="true" hidden>
+        <div class="skeleton skeleton-title"></div>
+        <div class="skeleton skeleton-line"></div>
+        <div class="skeleton skeleton-line is-short"></div>
+        <div class="skeleton skeleton-preview"></div>
+      </div>
       <div class="job-head">
         <div>
           <h2 id="job-title" tabindex="-1"></h2>
