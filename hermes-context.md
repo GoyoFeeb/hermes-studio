@@ -1343,3 +1343,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   de debajo (necesitaba 779 px y tenía 592).
 - **Verificación (copia aislada):** 1280 oscuro y claro, 375 px sin desbordes; conexión lenta simulada (3-4 s)
   para ver las siluetas; menú con Escape devuelve el foco; `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `aa32db9` → Vercel (styles.css, index.html y app.js idénticos) y
+  Railway SUCCESS 09:44. Worker sin reiniciar.
