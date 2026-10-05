@@ -1512,3 +1512,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Verificación (copia aislada):** 1280 y 375 px; desplegable dentro de la columna; píldora sin cortar; error en
   una línea; «Revisar el brief»; botón de Cliente copia el enlace; registro oculto/visible según líneas.
   `npm test` 160/160.
+- **Desplegado (con permiso del usuario):** `a7a293f` → Vercel (styles.css, index.html, app.js y failure.js
+  idénticos) y Railway 2026-10-05 11:44:23 +02:00 (SUCCESS). Worker sin reiniciar.
