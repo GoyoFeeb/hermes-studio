@@ -1828,3 +1828,9 @@ El usuario pidió «vamos con todas».
   - Vercel: formulario, tiempos y aviso de texto;
   - en el Mac: `git pull` y `studio/worker/service.sh restart`. No hay dependencias nuevas: playwright y sharp ya
     estaban.
+- **Desplegado (con permiso del usuario):** `5b8f869` → Railway (push a `Javifeebbo/hermes-studio`; estado de GitHub
+  «striking-luck - hermes-studio» SUCCESS a las 15:52). El brief propio, el encargo con la base técnica y la
+  recepción de tiempos ya están en Railway. El check «test» de GitHub falla igual que en los despliegues anteriores.
+  **Pendiente del usuario:** `vercel --prod` desde `studio/web` (formulario, tiempos por fase y aviso de «Editar
+  texto»), y en el Mac `git pull` + `studio/worker/service.sh restart`. Sin el pull, el encargo pediría
+  `npm run check-newsletter` y la base técnica, que aún no existirían en el Mac.
