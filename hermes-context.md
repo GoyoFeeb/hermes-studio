@@ -1453,3 +1453,17 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   con el servidor bien, vuelven historial, franja y atajo. `npm test` 159/159.
 - **Desplegado (con permiso del usuario):** `7c99b65` → Vercel (styles.css, index.html y app.js idénticos) y Railway
   SUCCESS 11:14. Worker sin reiniciar.
+
+### 2026-10-05 (continuación) — Interfaz: errores del servidor que se entienden
+
+- **Revisión (solo diagnóstico, fallos del servidor en el resto de pantallas):** la página de la newsletter ya lo
+  resolvía ("Sin conexión con Studio: reintentando…"). Dos puntos, los dos elegidos.
+- **1. Ficha de marca:** cualquier error que no fuera 401 decía "No se ha encontrado esa marca" (también un 502 de
+  despliegue). Ahora 404 → no existe; 5xx o sin red → "Studio no responde ahora…" con «Reintentar» (`brandRetry`).
+- **2. Mensaje común `actionError(res, data, fallback, keepsText)`** en las 13 acciones que decían solo "No se
+  pudo…": con 5xx o sin respuesta, "… Studio no responde ahora (puede estar actualizándose): lo que has escrito
+  sigue aquí, inténtalo en un minuto" (lo del texto solo donde queda en pantalla: formulario, pedir cambios,
+  aprobar el brief, guardar edición); 401 y 429 con su explicación; los errores con motivo del servidor (400,
+  409…) tal cual.
+- **Verificación (copia aislada, 502 y 400 simulados):** formulario (texto conservado), ficha (Reintentar carga la
+  ficha), pedir cambios (502 explicado; 400 "Describe qué quieres cambiar." tal cual). `npm test` 159/159.

@@ -17,6 +17,19 @@ let authMissing = false;
  *  el botón volvía a su estado y el error solo quedaba en la consola (2026-09-30). */
 const NETWORK_ERROR = 'No se pudo conectar con Studio. Revisa la conexión e inténtalo de nuevo.';
 
+/** Mensaje de una acción que falla (2026-10-05). Con un 5xx (p. ej. 1-2 min durante cada despliegue de Railway)
+ *  solo se decía «No se pudo guardar.»: ahora, que es pasajero y qué hacer; `keepsText` cuando lo escrito sigue en
+ *  pantalla. Los errores con motivo propio del servidor (409, 400…) se muestran tal cual. */
+function actionError(res, data, fallback, keepsText = false) {
+  if (!res || res.status >= 500) {
+    return `${fallback} Studio no responde ahora (puede estar actualizándose)${keepsText ? ': lo que has escrito sigue aquí,' : ':'} inténtalo en un minuto.`;
+  }
+  if (data?.error) return data.error;
+  if (res.status === 401) return `${fallback} Necesitas iniciar sesión (mira el aviso de arriba).`;
+  if (res.status === 429) return `${fallback} Demasiadas peticiones seguidas: espera un momento y vuelve a intentarlo.`;
+  return fallback;
+}
+
 async function apiFetch(url, options) {
   const res = await fetch(url, options);
   if (res.status === 401) {
@@ -505,7 +518,7 @@ async function submitJob(payload) {
     }
     if (!res.ok) {
       formError.textContent =
-        res.status === 401 ? 'No se ha enviado: necesitas iniciar sesión (mira el aviso de arriba). Tu texto se queda guardado como borrador.' : data.error || 'No se pudo enviar el brief.';
+        res.status === 401 ? 'No se ha enviado: necesitas iniciar sesión (mira el aviso de arriba). Tu texto se queda guardado como borrador.' : actionError(res, data, 'No se ha enviado la newsletter.', true);
       formError.hidden = false;
       return;
     }
@@ -1463,7 +1476,7 @@ document.getElementById('mobile-fix-btn').addEventListener('click', async (e) =>
       body: JSON.stringify({ requesterName: savedRequester() || undefined }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return showToast(data.error || 'No se pudo lanzar la adaptación a móvil.', 'error');
+    if (!res.ok) return showToast(actionError(res, data, 'No se pudo lanzar la adaptación a móvil.'), 'error');
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
   } catch {
@@ -1487,7 +1500,7 @@ async function retryJobById(id, btn) {
       body: JSON.stringify({ requesterName: savedRequester() || undefined }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return showToast(data.error || 'No se pudo reintentar.', 'error');
+    if (!res.ok) return showToast(actionError(res, data, 'No se pudo reintentar.'), 'error');
     if (data.briefReused) showToast('Reintentando con el brief que Hermes ya había escrito.');
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
@@ -1558,7 +1571,7 @@ async function shareRequest(method) {
       body: method === 'POST' ? JSON.stringify({ by: savedRequester() || undefined }) : undefined,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return showToast(data.error || 'No se pudo cambiar el enlace.', 'error');
+    if (!res.ok) return showToast(actionError(res, data, 'No se pudo cambiar el enlace.'), 'error');
     if (id !== currentJob) return;
     renderShare(method === 'POST' ? data.share : null);
     if (method === 'POST') {
@@ -1579,7 +1592,7 @@ document.getElementById('share-move').addEventListener('click', async (e) => {
   try {
     const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/share/move-here`, { method: 'POST' });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return showToast(data.error || 'No se pudo pasar el enlace.', 'error');
+    if (!res.ok) return showToast(actionError(res, data, 'No se pudo pasar el enlace.'), 'error');
     if (id !== currentJob) return;
     shareVersions = shareVersions.map((v) => ({ ...v, shared: v.id === id }));
     renderShare(data.share);
@@ -1752,16 +1765,30 @@ async function showBrandView(slug) {
     const res = await apiFetch(`/api/brands/${encodeURIComponent(slug)}`);
     const data = res.ok ? await res.json() : null;
     if (!res.ok) {
-      body.innerHTML = `<p class="brand-empty">${res.status === 401 ? 'Inicia sesión para ver la ficha.' : 'No se ha encontrado esa marca.'}</p>`;
+      // Antes, cualquier error decía «No se ha encontrado esa marca» (también un 502 durante un despliegue).
+      body.innerHTML =
+        res.status === 401
+          ? '<p class="brand-empty">Inicia sesión para ver la ficha.</p>'
+          : res.status === 404
+          ? '<p class="brand-empty">No se ha encontrado esa marca.</p>'
+          : brandRetry('Studio no responde ahora (puede estar actualizándose).');
       return;
     }
     renderBrandView(slug, data);
     document.getElementById('brand-title')?.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   } catch {
-    body.innerHTML = `<p class="brand-empty">${escapeHtml(NETWORK_ERROR)}</p>`;
+    body.innerHTML = brandRetry(NETWORK_ERROR);
   }
 }
+function brandRetry(text) {
+  return `<div class="form-warning brand-retry" role="status"><p>${escapeHtml(text)}</p><div class="warning-actions"><button type="button" class="btn btn-secondary btn-sm" data-brand-retry>Reintentar</button></div></div>`;
+}
+document.getElementById('brand-body').addEventListener('click', (e) => {
+  if (!e.target.closest('[data-brand-retry]')) return;
+  const slug = new URLSearchParams(location.search).get('brand');
+  if (slug) showBrandView(slug);
+});
 
 // ---------------------------------------------------------------- nombre de la newsletter (2026-10-01)
 
@@ -1804,7 +1831,7 @@ document.getElementById('rename-form').addEventListener('submit', async (e) => {
       body: JSON.stringify({ title }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return showToast(data.error || 'No se pudo renombrar.', 'error');
+    if (!res.ok) return showToast(actionError(res, data, 'No se pudo renombrar.'), 'error');
     closeRename();
     renderJobName(data.title, currentMeta);
     showToast(data.title ? 'Nombre guardado para todas sus versiones.' : 'Nombre quitado: se muestra el asunto.');
@@ -1940,7 +1967,7 @@ document.getElementById('client-decision').addEventListener('click', async (e) =
       body: JSON.stringify({ resolved, by: savedRequester() || undefined }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return showToast(data.error || 'No se pudo cambiar la decisión.', 'error');
+    if (!res.ok) return showToast(actionError(res, data, 'No se pudo cambiar la decisión.'), 'error');
     clientShare.decision = data.decision;
     renderClientReview(clientShare);
     showToast(resolved ? 'Marcada como atendida.' : 'Vuelve a estar pendiente.');
@@ -2074,7 +2101,7 @@ document.getElementById('review-approve').addEventListener('click', async (e) =>
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      reviewError.textContent = data.error || 'No se pudo aprobar el brief.';
+      reviewError.textContent = actionError(res, data, 'No se pudo aprobar el brief.', true);
       reviewError.hidden = false;
       return;
     }
@@ -2113,7 +2140,7 @@ document.getElementById('cancel-yes').addEventListener('click', async (e) => {
     const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      document.getElementById('progress-detail').textContent = data.error || 'No se pudo cancelar.';
+      document.getElementById('progress-detail').textContent = actionError(res, data, 'No se pudo cancelar.');
     }
   } catch {
     // Sin respuesta no se sabe si se canceló: el sondeo de después muestra el estado real.
@@ -2178,7 +2205,7 @@ reviseBox.addEventListener('submit', async (e) => {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      reviseError.textContent = data.error || 'No se pudieron enviar los cambios.';
+      reviseError.textContent = actionError(res, data, 'No se pudieron enviar los cambios.', true);
       reviseError.hidden = false;
       return;
     }
@@ -2752,7 +2779,7 @@ async function teSave() {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      errorEl.textContent = data.error || 'No se pudo guardar.';
+      errorEl.textContent = actionError(res, data, 'No se pudo guardar.', true);
       errorEl.hidden = false;
       return;
     }
@@ -3174,7 +3201,7 @@ async function setArchived(id, archived) {
   }).catch(() => null);
   const data = await res?.json().catch(() => ({}));
   if (!res?.ok) {
-    showToast(data?.error || 'No se pudo archivar.', 'error');
+    showToast(actionError(res, data, 'No se pudo archivar.'), 'error');
     return false;
   }
   showToast(archived ? 'Archivada con todas sus versiones. Está en «Archivadas» del historial.' : 'Recuperada: vuelve a salir en el historial.');
@@ -4011,7 +4038,7 @@ async function reportShareRequest(method) {
       body: method === 'POST' ? JSON.stringify({ by: savedRequester() || undefined }) : undefined,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return showToast(data.error || 'No se pudo cambiar el enlace del informe.', 'error');
+    if (!res.ok) return showToast(actionError(res, data, 'No se pudo cambiar el enlace del informe.'), 'error');
     if (id !== currentJob) return;
     renderReportShare(method === 'POST' ? data.reportShare : null);
     if (method === 'POST') copyText(document.getElementById('report-url').value, 'Enlace al informe creado y copiado.', 'Copia el enlace del recuadro.');
