@@ -1388,3 +1388,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   brand pack ni logos en el Mac, pero ya hay N newsletters de …".
 - **Verificación (copia aislada, lista real de 34 marcas y fichas de Nike/Adidas/Adeslas):** 1280, 1024 y 375 px;
   Intro elige sin enviar el formulario; `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `c246dac` → Vercel (styles.css, index.html y app.js idénticos) y Railway
+  SUCCESS 10:05. En producción: 37 marcas en la lista, 24 con logo en su ficha; "Nik" → "¿Quieres decir Nike?";
+  "Puma" → "Sin brand pack ni logos en el Mac, pero ya hay 1 newsletter de Puma". Worker sin reiniciar.
