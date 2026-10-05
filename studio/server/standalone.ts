@@ -55,6 +55,36 @@ const LOGO_RULE = [
   '  arriba y abajo. Studio lo comprueba y te devolverá la pieza si no coinciden.',
 ];
 
+/** Identidad, maquetación y mercado (2026-10-05). La de Siroko salió toda en Arial, con grises neutros, la misma
+ *  estructura «imagen + titular + texto» repetida y el texto pegado a las fotos: el encargo solo pedía requisitos
+ *  técnicos (Outlook, modo oscuro, móvil) y la regla de Outlook decía «tipografías con alternativa genérica (p. ej.
+ *  Arial)», que Hermes cumplía poniendo Arial sin más. Studio comprueba fuentes y espacios al recibir la pieza
+ *  (studio/worker/qualityCheck.ts y layoutProblems en hermes-worker.ts). */
+export const DESIGN_RULES = [
+  '- Identidad de marca OBLIGATORIA (la pieza tiene que reconocerse como de la marca sin ver el logo):',
+  '  · Tipografía: la de la marca. Mira qué fuente usa su web oficial (estilos calculados de titulares y texto) o',
+  '    su brand pack; cárgala con <link> o @import (Google Fonts u otra URL pública) y ponla primera en cada',
+  '    font-family, con Arial/Helvetica solo DETRÁS como respaldo para Outlook. Si la fuente de la marca no se puede',
+  '    cargar en un email, usa la alternativa web más parecida (dilo en notas.md). Nunca Arial como fuente principal',
+  '    salvo que la marca use de verdad Arial o Helvetica (y entonces cítalo con su fuente en notas.md).',
+  '  · Colores: los de la marca, medidos en su web oficial o en su brand pack (fondo, texto, acento, botones). Nada',
+  '    de grises neutros genéricos (#111/#555/#f7f7f7) ni del rojo, azul o negro «de plantilla» si no son los suyos.',
+  '    Anota en notas.md cada color con su origen.',
+  '  · Si existe brands/{marca}/tokens/brand-tokens.json, sus colores, tipografía, tono y tratamiento de foto mandan.',
+  '- Maquetación (Studio lo mide al recibir la pieza):',
+  '  · Aire: nunca un texto pegado a una imagen. Entre una foto y el texto que la sigue o la precede, al menos 32 px',
+  '    (padding de la celda, no solo margin del texto). Ritmo vertical coherente: mismos espacios entre bloques',
+  '    equivalentes.',
+  '  · Móvil: laterales de 20-24 px a 375 px (aplica de verdad la clase de la media query a cada celda con texto;',
+  '    una clase definida y sin usar no cuenta). Botones alineados con el texto y con el mismo margen lateral.',
+  '  · Estructura propia del concepto: al menos un módulo pensado para ESTA pieza (comparativa, rejilla, cita,',
+  '    bloque a dos columnas, texto sobre color, secuencia numerada…), no solo «imagen a todo el ancho + titular +',
+  '    texto» repetido. No copies la estructura de otras newsletters de newsletters/ ni de la raíz del repo: cada',
+  '    pieza parte del concepto de su brief.',
+  '- Mercado: la pieza es para España y en castellano. Precios en euros (€) y enlaces de la web española de la marca',
+  '  (p. ej. /es/). Si solo encuentras el precio en otra moneda o en otra web, no lo pongas: anótalo como pendiente.',
+];
+
 /** Encargo completo para Hermes: el prompt pegado, tal cual, más las reglas de entrega. */
 export function buildHermesPrompt(job: Job): string {
   const outDir = standaloneOutputDir(job);
@@ -90,10 +120,11 @@ export function buildHermesPrompt(job: Job): string {
     '- Outlook de escritorio OBLIGATORIO: tabla "fantasma" de 600 px en <!--[if mso]> alrededor del contenido,',
     '  ajuste de 96 ppp en <head> (<o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch>), atributo',
     '  width en cada <img>, maquetación con tablas (nada de flex/grid), fondos con imagen con alternativa VML y',
-    '  tipografías con alternativa genérica (p. ej. Arial, sans-serif).',
+    '  la tipografía de la marca con un respaldo genérico DETRÁS (p. ej. \'Fuente de marca\', Arial, sans-serif).',
     '- Footer: incluye SIEMPRE un enlace de baja con href="{{unsubscribe_url}}" (obligatorio en un',
     '  email comercial; el ESP sustituye la variable) y, si procede, el aviso legal de la marca.',
     ...LOGO_RULE,
+    ...DESIGN_RULES,
     `- Scripts y archivos auxiliares (conversiones, comprobaciones, capturas): en ${outDir}/_trabajo/`,
     '  o en /tmp. Nunca en scripts/, en la raíz del repo ni en brands/ (ahí solo logos e imágenes de marca).',
     '- Móvil OBLIGATORIO: renderiza la pieza también a 375 px de ancho (iPhone). Nada puede salirse del',
@@ -106,6 +137,7 @@ export function buildHermesPrompt(job: Job): string {
     '  2. Cada precio, cifra, nombre de modelo o dato técnico que aparezca en la pieza, con su fuente',
     '     (URL oficial). Lo que no tenga fuente no puede estar en la pieza: quítalo o reescríbelo.',
     '  3. Origen de cada imagen: URL oficial, brand pack o generada con IA.',
+    '  3b. Tipografía y colores usados, con su origen (web oficial o brand pack), y el módulo propio del concepto.',
     '  4. Resultado de la comprobación a 375 px (qué revisaste y qué corregiste).',
     '  5. Las preguntas de autoauditoría del prompt con su respuesta.',
     '- Respuesta final: breve — concepto y lo que quede pendiente.',
@@ -141,7 +173,17 @@ export function buildBriefPrompt(job: Job): string {
     '- Nadie va a responder preguntas: no uses clarify. Si falta el producto o la campaña concreta,',
     '  elige la opción más razonable para la marca ahora mismo (lanzamiento o campaña vigente en su web',
     '  oficial) y dilo explícitamente en el brief.',
-    '- Investigación ligera, como pide la skill (2-4 búsquedas o páginas de la web oficial).',
+    '- Investigación: ligera para el contenido, como pide la skill (2-4 búsquedas o páginas de la web oficial), pero',
+    '  la identidad visual se mide de verdad en la web oficial de la marca (estilos calculados de titulares, texto y',
+    '  botones; colores de fondo, texto y acento).',
+    '- Identidad de marca: aunque el destino sea standalone, NO dejes fuera la identidad (esto manda sobre la',
+    '  indicación de la skill de omitir la nota del brand pack en standalone). Añade al brief una sección',
+    '  «Identidad de marca» con: tipografía de titulares y de texto (nombre exacto y de dónde sale), paleta (hex de',
+    '  fondo, texto, acento y botón, con su origen), tono de voz y tratamiento de foto. Si existe',
+    `  brands/${job.input.clientSlug || '{marca}'}/tokens/brand-tokens.json, parte de él (cita su versión).`,
+    '- Estructura: en las escenas, al menos una con un módulo pensado para el concepto (comparativa, rejilla, cita,',
+    '  dos columnas, texto sobre color, secuencia…), no solo «imagen + titular + texto». Indica el aire entre bloques.',
+    '- Mercado: España y castellano. Precios en euros y páginas de la web española de la marca.',
     '',
     '## Entrega',
     `- Escribe el brief completo, con todas las {{VARIABLES}} resueltas, en ${outDir}/brief.md (write_file).`,

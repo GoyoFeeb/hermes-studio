@@ -15,6 +15,9 @@
  * si no hay ningún <!--[if mso]> (las 3 de Inglesina), si hay display:flex/grid en línea o imágenes sin
  * atributo width. Aviso: "light only" explícito (Gmail y Outlook móvil invierten igualmente), sin ajuste de
  * 96 ppp, background-image sin VML y tipografías sin alternativa genérica (Outlook pone Times New Roman).
+ * Identidad y espacios (2026-10-05, Siroko): error si toda la pieza va en fuentes genéricas (typographyCheck) y, medido
+ * al renderizar en el worker (layoutProblems), si un texto queda a menos de 16 px de una foto o si a 375 px los
+ * laterales del texto pasan de 32 px.
  * Avisos (no se devuelven): claims de riesgo — la regla da falsos positivos, p. ej. "potencia" en la
  * ficha técnica de una moto (Talaria) — y webs que bloquean a los robots (403/429: Prozis, Adeslas),
  * que en un navegador normal funcionan.
@@ -154,7 +157,7 @@ export function staticChecks(html: string, missingLocal: string[] = []): Quality
   });
   checks.push(item('claims', 'Claims de riesgo', [], claims));
 
-  checks.push(darkModeCheck(html), outlookCheck(html), logoMatchCheck(html));
+  checks.push(darkModeCheck(html), outlookCheck(html), logoMatchCheck(html), typographyCheck(html));
 
   if (missingLocal.length) {
     checks.push(item('local-images', 'Imágenes locales', missingLocal.map((r) => `La imagen ${r} no existe en el Mac.`)));
@@ -225,6 +228,65 @@ export function outlookCheck(html: string): QualityCheckItem {
   const result = item('outlook', 'Outlook', errors, warnings);
   if (!errors.length && !warnings.length) result.details.push('Bloque <!--[if mso]>, 96 ppp, tablas e imágenes con width.');
   return result;
+}
+
+/** Primeras fuentes que no son de ninguna marca: de sistema o genéricas. «Helvetica Neue» o «Roboto» no están:
+ *  hay marcas que las usan de verdad (Zara, Google). */
+const GENERIC_PRIMARY = new Set([
+  'arial', 'helvetica', 'sans-serif', 'serif', 'monospace', 'georgia', 'verdana', 'tahoma', 'trebuchet ms',
+  'times new roman', 'times', 'courier new', 'courier', 'system-ui', '-apple-system', 'blinkmacsystemfont', 'segoe ui',
+]);
+
+/** Tipografía de marca (2026-10-05): la de Siroko salió entera en «Arial, Helvetica, sans-serif». Error si en
+ *  ningún font-family la PRIMERA fuente es de marca. Lo de Outlook (<!--[if mso]>, VML) no cuenta: ahí Arial es
+ *  lo correcto. Devuelve qué fuentes principales usa la pieza. */
+export function typographyCheck(html: string): QualityCheckItem {
+  const css = html.replace(/<!--\[if[^\]]*mso[\s\S]*?<!\[endif\]-->/gi, '').replace(/@font-face\s*\{[^}]*\}/gi, '');
+  const primaries = [...css.matchAll(/font-family\s*:\s*([^;"}]+)/gi)]
+    .map((m) => decodeEntities(m[1]).split(',')[0].trim().replace(/^['"]|['"]$/g, '').trim())
+    .filter((f) => f && !/^(inherit|initial|unset)$/i.test(f));
+  const unique = [...new Set(primaries.map((f) => f.toLowerCase()))];
+  if (!unique.length) return item('typography', 'Tipografía de la marca', [], ['La pieza no declara ninguna tipografía.']);
+  const brand = unique.filter((f) => !GENERIC_PRIMARY.has(f));
+  const shown = [...new Set(primaries)].slice(0, 4).join(', ');
+  if (!brand.length) {
+    return item('typography', 'Tipografía de la marca', [
+      `Toda la pieza va en fuentes genéricas (${shown}): no se reconoce la marca. Usa la tipografía de su web oficial ` +
+        'o de su brand pack (cárgala con <link> o @import) como primera fuente de cada font-family y deja Arial/Helvetica ' +
+        'solo detrás, de respaldo. Si la marca usa de verdad Arial o Helvetica, cítalo con su fuente en notas.md.',
+    ]);
+  }
+  const result = item('typography', 'Tipografía de la marca', []);
+  result.details.push(`Fuente principal: ${shown}.`);
+  return result;
+}
+
+/** Medidas de maquetación que toma el worker al renderizar (layoutProblems en hermes-worker.ts). */
+export interface LayoutMetrics {
+  /** Textos a menos de LAYOUT_MIN_GAP de una imagen (encima o debajo, en la misma columna), a 600 px. */
+  touching: { text: string; gap: number }[];
+  /** Margen izquierdo de cada bloque de texto a 375 px (px desde el borde de la pantalla). */
+  mobileLeft: number[];
+}
+export const LAYOUT_MIN_GAP = 16;
+export const MOBILE_MAX_SIDE = 32;
+
+/** Convierte las medidas en errores para Hermes (2026-10-05, la de Siroko: titulares pegados a la foto de encima
+ *  y 48 px de laterales en móvil porque la clase .pad de la media query no se aplicaba a ninguna celda). */
+export function layoutFindings(m: LayoutMetrics): string[] {
+  const out: string[] = [];
+  for (const t of m.touching.slice(0, 4)) {
+    out.push(`Texto pegado a una imagen (${Math.max(0, Math.round(t.gap))} px): «${t.text}». Deja al menos 32 px entre la foto y el texto con el padding de la celda.`);
+  }
+  if (m.touching.length > 4) out.push(`… y ${m.touching.length - 4} texto(s) más pegados a una imagen.`);
+  const left = [...m.mobileLeft].sort((a, b) => a - b);
+  if (left.length >= 3) {
+    const median = left[Math.floor(left.length / 2)];
+    if (median > MOBILE_MAX_SIDE) {
+      out.push(`A 375 px el texto tiene ${Math.round(median)} px de margen lateral (columna estrecha): bájalo a 20-24 px aplicando la clase de la media query a cada celda con texto, y alinea los botones con ese margen.`);
+    }
+  }
+  return out;
 }
 
 interface LogoImg {
@@ -418,6 +480,8 @@ export interface QualityOptions {
   missingLocal?: string[];
   /** Resultado de mobileOverflow (null = cabe a 375 px; undefined = no se comprobó). */
   mobileProblem?: string | null;
+  /** Problemas de espacios medidos al renderizar (layoutFindings); sin definir = no se midió. */
+  layoutProblems?: string[];
   fetcher?: Fetcher;
 }
 
@@ -431,6 +495,9 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
   );
   if (opts.mobileProblem !== undefined) {
     checks.push(item('mobile', 'Móvil (375 px)', opts.mobileProblem ? [opts.mobileProblem] : []));
+  }
+  if (opts.layoutProblems !== undefined) {
+    checks.push(item('layout', 'Espacios y márgenes', opts.layoutProblems));
   }
   return {
     checkedAt: new Date().toISOString(),

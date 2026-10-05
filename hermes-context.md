@@ -1643,3 +1643,41 @@ El usuario pidió «vamos con todas».
   `studio/web` en el Mac (cambian app.js, styles.css, index.html y el nuevo metacheck.js). **Pendiente del
   usuario:** `RESEND_API_KEY` y `MAIL_FROM` en Railway para la prueba por correo; puede quitar `OPENAI_API_KEY` y
   `ANTHROPIC_API_KEY` de Railway, que Studio ya no usa. Worker sin reiniciar.
+
+### 2026-10-05 (tarde) — Newsletters genéricas (Siroko): identidad, espacios y mercado en el encargo y en el control
+
+- **Diagnóstico (HTML de Siroko `muv71xeq-q5pxw1`, renderizado a 700 y 375 px):** todo en `Arial, Helvetica,
+  sans-serif`; grises neutros (#111/#555/#8a8a8a/#f7f7f7) y un rojo #e4002b sin origen; la misma secuencia «imagen a
+  todo el ancho + titular + texto» tres veces; texto pegado a la foto (celdas con `padding:0 48px 40px`, 0–1 px
+  medidos); a 375 px, 48 px de laterales porque la clase `.pad` de la media query no se aplica a ninguna celda;
+  botón de móvil que se sale del margen; precios en USD y enlaces a siroko.land en una pieza en castellano.
+- **Causas en nuestro código:** (1) la regla de Outlook del encargo decía «tipografías con alternativa genérica
+  (p. ej. Arial, sans-serif)» y Hermes ponía Arial sin más; las piezas anteriores sí llevaban fuente de marca
+  (Montserrat, Work Sans, Toyota Type…). (2) El brief se pide en destino standalone y la skill
+  newsletter-creative-brief omite en standalone la nota del brand pack (colores, tipografía, voz, foto), con
+  «investigación ligera». (3) El encargo tenía unas 40 líneas técnicas y ninguna de diseño. (4) El control de
+  calidad no medía nada de esto.
+- **Cambios:**
+  - `buildHermesPrompt`: nuevas reglas `DESIGN_RULES`. Identidad obligatoria: fuente de la marca cargada con
+    <link>/@import y primera en cada font-family, Arial solo detrás; colores medidos en la web o el brand pack;
+    el brand pack manda si existe. Maquetación: al menos 32 px entre foto y texto, laterales de 20–24 px a 375 px
+    con la clase realmente aplicada, botones alineados, al menos un módulo propio del concepto y no copiar la
+    estructura de otras newsletters. Mercado: euros y web española. La regla de Outlook pasa a «fuente de la marca
+    con un respaldo genérico DETRÁS». `notas.md` pide tipografía, colores y su origen, y el módulo propio.
+  - `buildBriefPrompt`: la identidad se mide de verdad en la web oficial (la investigación ligera queda solo para
+    el contenido). Sección «Identidad de marca» obligatoria aunque el destino sea standalone; esto manda sobre la
+    skill. Pide al menos una escena con un módulo propio del concepto, y euros y web española.
+  - `qualityCheck.ts`: `typographyCheck` da error si en ningún font-family la primera fuente es de marca (lo que
+    va dentro de <!--[if mso]> no cuenta; Helvetica Neue y Roboto cuentan como de marca). `layoutFindings` y la
+    opción `layoutProblems` añaden el check «Espacios y márgenes».
+  - `hermes-worker.ts`: `layoutProblems()` renderiza a 700 y 375 px (texto a menos de 16 px de una foto de más de
+    60 px en la misma columna; mediana de laterales > 32 px). Los errores vuelven a Hermes en las rondas de calidad,
+    con pautas nuevas. En «Pedir cambios» y «Adaptar a móvil» no se fuerzan; la tipografía heredada de la original
+    tampoco.
+- **Verificación:** la medición sobre el HTML real de Siroko da los 3 textos pegados y 48 px de laterales; la misma
+  pieza con padding arriba y `.pad` aplicada no da ningún aviso. +4 tests (Arial de Siroko → error, Helvetica Neue y
+  @font-face → ok, hallazgos de espacios, check en el informe). `npm test` 166/168 (los 2 de siempre del
+  contenedor). El navegador del contenedor no coincide con la versión de Playwright del proyecto: la medición se
+  probó con el mismo código en el Chromium del contenedor.
+- **Pendiente:** brand pack de Siroko (`brands/siroko/` no existe; hay que hacerlo con Hermes en el Mac, que tiene
+  red). Desplegar: Railway (encargo) y reiniciar el worker del Mac (control de calidad).

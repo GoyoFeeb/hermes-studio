@@ -191,3 +191,47 @@ test('logoMatchCheck: si arriba cambia en modo oscuro, abajo tiene que cambiar i
   assert.ok(r.details[0].includes('en modo oscuro'));
   assert.equal(logoCheck(logoPiece(head, head)).status, 'ok');
 });
+
+// Tipografía y espacios (2026-10-05): la newsletter de Siroko salió entera en Arial, con el texto pegado a las
+// fotos y 48 px de laterales en móvil.
+const SIROKO_FONTS = `<html><head><style>.h1{font-size:30px}</style></head><body>
+<!--[if mso]><v:roundrect><center style="font-family:Arial, sans-serif;">Botón</center></v:roundrect><![endif]-->
+<p style="font-family:Arial, Helvetica, sans-serif;">Texto</p><h1 style="font-family:Arial, Helvetica, sans-serif;">Título</h1></body></html>`;
+
+test('typographyCheck: todo en Arial (Siroko) es error; Arial dentro de <!--[if mso]> no cuenta', () => {
+  const r = run(`process.stdout.write(JSON.stringify([
+    q.typographyCheck(${JSON.stringify(SIROKO_FONTS)}),
+    q.typographyCheck(${JSON.stringify(SIROKO_FONTS.replace('<p style="font-family:Arial', '<p style="font-family:\'Siroko Sans\', Arial'))}),
+  ]));`);
+  assert.equal(r[0].status, 'error');
+  assert.match(r[0].details[0], /fuentes genéricas \(Arial\)/);
+  assert.equal(r[1].status, 'ok');
+  assert.match(r[1].details[0], /Siroko Sans/);
+});
+
+test('typographyCheck: Helvetica Neue (Zara) o una fuente de @font-face cuentan como de marca', () => {
+  const r = run(`process.stdout.write(JSON.stringify([
+    q.typographyCheck('<p style="font-family:Helvetica Neue, Helvetica, Arial, sans-serif">x</p>'),
+    q.typographyCheck('<style>@font-face{font-family:\\'Toyota Type\\';src:url(x.woff2)} h1{font-family:\\'Toyota Type\\', Arial}</style>'),
+  ]));`);
+  assert.equal(r[0].status, 'ok');
+  assert.equal(r[1].status, 'ok');
+});
+
+test('layoutFindings: texto pegado a la foto y 48 px de laterales en móvil (Siroko) son errores', () => {
+  const r = run(`process.stdout.write(JSON.stringify([
+    q.layoutFindings({ touching: [{ text: 'Siroko ONE × MadKat', gap: 0 }, { text: 'Un pie blanco. Un pie azul.', gap: 2 }], mobileLeft: [48, 48, 48, 48, 20] }),
+    q.layoutFindings({ touching: [], mobileLeft: [24, 24, 24, 24] }),
+  ]));`);
+  assert.equal(r[0].length, 3);
+  assert.match(r[0][0], /pegado a una imagen \(0 px\): «Siroko ONE × MadKat»/);
+  assert.match(r[0][2], /48 px de margen lateral/);
+  assert.deepEqual(r[1], []);
+});
+
+test('runQualityCheck: los problemas de espacios entran como error «Espacios y márgenes»', () => {
+  const r = run(`process.stdout.write(JSON.stringify(await q.runQualityCheck(${JSON.stringify(GOOD)}, { fetcher: fakeFetcher({}), mobileProblem: null, layoutProblems: ['Texto pegado a una imagen (0 px): «x».'] })));`);
+  const layout = r.checks.find((c) => c.id === 'layout');
+  assert.equal(layout.status, 'error');
+  assert.equal(r.errors, 1);
+});

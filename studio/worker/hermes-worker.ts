@@ -22,7 +22,7 @@ import { spawn, execFile } from 'child_process';
 import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 import { chromium } from 'playwright';
-import { runQualityCheck, describeErrors, staticChecks, type QualityReport } from './qualityCheck';
+import { runQualityCheck, describeErrors, staticChecks, layoutFindings, LAYOUT_MIN_GAP, type QualityReport } from './qualityCheck';
 import { renderThumbnail } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
@@ -576,6 +576,71 @@ export async function mobileOverflow(htmlPath: string): Promise<string | null> {
   }
 }
 
+/** Se ejecuta dentro de Chromium (como texto, ver MEASURE_OVERFLOW_JS). Espacios (2026-10-05, Siroko):
+ *  - `touching`: bloques de texto (titulares, párrafos, celdas con texto propio) a menos de `gapMin` px de una foto
+ *    de más de 60 px de alto que está justo encima o debajo en la misma columna. El preheader oculto no cuenta.
+ *  - `left`: margen izquierdo de cada bloque de texto con más de 20 caracteres (para medirlo a 375 px). */
+const MEASURE_LAYOUT_JS = `function (gapMin) {
+  function vis(r) { return r.width > 0 && r.height > 0; }
+  function ownText(el) {
+    var t = '';
+    for (var i = 0; i < el.childNodes.length; i++) if (el.childNodes[i].nodeType === 3) t += el.childNodes[i].textContent;
+    return t.replace(/\\s+/g, ' ').trim();
+  }
+  var imgs = [], blocks = [];
+  document.querySelectorAll('img').forEach(function (img) { var r = img.getBoundingClientRect(); if (vis(r) && r.height > 60) imgs.push(r); });
+  document.body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,td,div,a').forEach(function (el) {
+    var text = ownText(el);
+    if (text.length < 2) return;
+    var cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.maxHeight) === 0) return;
+    var r = el.getBoundingClientRect();
+    if (!vis(r) || r.height < 4) return;
+    // Lo que se mide es la caja del texto, no la celda entera.
+    var range = document.createRange(); range.selectNodeContents(el);
+    var tr = range.getBoundingClientRect();
+    blocks.push({ el: el, text: (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 50), r: vis(tr) ? tr : r, len: text.length });
+  });
+  var touching = [], seen = {};
+  blocks.forEach(function (b) {
+    imgs.forEach(function (ir) {
+      var overlap = Math.min(b.r.right, ir.right) - Math.max(b.r.left, ir.left);
+      if (overlap < Math.min(40, b.r.width / 2)) return;
+      var below = b.r.top - ir.bottom, above = ir.top - b.r.bottom;
+      var gap = below >= -2 && below < gapMin ? below : above >= -2 && above < gapMin ? above : null;
+      if (gap === null || seen[b.text]) return;
+      seen[b.text] = true;
+      touching.push({ text: b.text, gap: Math.max(0, gap) });
+    });
+  });
+  var left = blocks.filter(function (b) { return b.len > 20; }).map(function (b) { return b.r.left; });
+  return { touching: touching, left: left };
+}`;
+
+/** Renderiza la pieza a 600 px (texto pegado a fotos) y a 375 px (laterales) y devuelve los errores para Hermes
+ *  (layoutFindings en qualityCheck.ts). Si Chromium no arranca, no bloquea: devuelve undefined. */
+export async function layoutProblems(htmlPath: string): Promise<string[] | undefined> {
+  let browser;
+  try {
+    browser = await chromium.launch();
+    const measure = async (width: number) => {
+      const page = await browser!.newPage({ viewport: { width, height: 900 } });
+      await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
+      const r = (await page.evaluate(`(${MEASURE_LAYOUT_JS})(${LAYOUT_MIN_GAP})`)) as { touching: { text: string; gap: number }[]; left: number[] };
+      await page.close();
+      return r;
+    };
+    const desktop = await measure(700);
+    const mobile = await measure(MOBILE_WIDTH);
+    return layoutFindings({ touching: desktop.touching, mobileLeft: mobile.left });
+  } catch (err) {
+    console.log(`[${stamp()}] No se pudieron medir los espacios: ${(err as Error).message.slice(0, 200)}`);
+    return undefined;
+  } finally {
+    await browser?.close().catch(() => undefined);
+  }
+}
+
 interface ClaimedJob {
   id: string;
   outputDir: string;
@@ -915,7 +980,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const p = htmlReady();
     if (!p) return null;
     const raw = fs.readFileSync(p, 'utf8');
-    return runQualityCheck(raw, { missingLocal: embedLocalImages(raw, path.dirname(p), ROOT).missing, mobileProblem });
+    // Espacios: en «Adaptar a móvil» y «Pedir cambios» no se fuerzan (cambiarían la pieza más allá de lo pedido).
+    const layout = isMobileFix || isRevision ? undefined : await layoutProblems(p);
+    return runQualityCheck(raw, { missingLocal: embedLocalImages(raw, path.dirname(p), ROOT).missing, mobileProblem, layoutProblems: layout });
   };
   if (cancelled) return finishCancelled();
   // En "Pedir cambios", modo oscuro y Outlook que ya faltaban en la original no se fuerzan: añadirlos
@@ -923,7 +990,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const inherited = new Set(
     isRevision && claimed.sourceHtml
       ? staticChecks(claimed.sourceHtml)
-          .filter((c) => c.status === 'error' && (c.id === 'dark-mode' || c.id === 'outlook'))
+          .filter((c) => c.status === 'error' && (c.id === 'dark-mode' || c.id === 'outlook' || c.id === 'typography'))
           .map((c) => c.id)
       : []
   );
@@ -947,7 +1014,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         '<img>, tablas en vez de flex/grid. Logo arriba y abajo → el del pie pasa a ser exactamente el de la cabecera ' +
         '(mismo archivo, misma versión de color, mismos width/height en atributo y estilo, mismas variantes de modo ' +
         'oscuro); si con ese logo no se lee sobre el fondo del pie, quita el logo del pie. ' +
-        'Renderiza también en oscuro para comprobarlo. No cambies el diseño en ' +
+        'Tipografía de la marca → mira la fuente de la web oficial o del brand pack, cárgala con <link> o @import y ' +
+        'ponla primera en cada font-family, con Arial/Helvetica solo detrás. Espacios y márgenes → al menos 32 px de ' +
+        'padding entre cada foto y su texto, y laterales de 20-24 px a 375 px aplicando la clase de la media query a ' +
+        'cada celda con texto (y a los botones). ' +
+        'Renderiza también en oscuro para comprobarlo. Fuera de lo que te pido aquí, no cambies el diseño en ' +
         'claro. Actualiza notas.md con lo que has corregido.',
       sessionId,
       () => undefined
