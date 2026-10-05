@@ -16,7 +16,7 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
-import { createJob, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
+import { appendEvent, createJob, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
 import type { Job } from './store';
 import { enqueue, recoverOnStartup } from './queue';
 import { slugify } from './campaignFs';
@@ -57,7 +57,8 @@ import {
 import { TextEditError, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { runQualityCheck } from '../worker/qualityCheck';
 import { clientMatrix } from './clientMatrix';
-import { brandLogoIndex, knownBrandHashes, readBrandCard, readBrandLogo, saveBrandCards } from './brandCards';
+import { MAX_TEST_RECIPIENTS, MailError, mailEnabled, parseRecipients, sendTestEmail } from './mail';
+import { brandLogoIndex, knownBrandHashes, listBrandCardSlugs, readBrandCard, readBrandLogo, saveBrandCards } from './brandCards';
 import { REPORT_DAYS, REPORT_HEADERS, createReportShare, findReportJob, isReportActive, renderReportGone, renderReportPage, revokeReportShare } from './report';
 import {
   SHARE_DAYS,
@@ -468,6 +469,57 @@ app.get('/api/brands', (_req: Request, res: Response) => {
   res.json({ brands, logos });
 });
 
+// Página «Marcas» (2026-10-05): todas las marcas de un vistazo, con lo que Hermes tiene de cada una y lo que falta
+// (logo, archivos rotos). Las que salen de las fichas, de las carpetas del Mac y de las newsletters hechas.
+app.get('/api/brand-overview', (_req: Request, res: Response) => {
+  const workerBrands = readWorkerBrands();
+  const families = new Map<string, { name: string; roots: Set<string>; lastAt: string }>();
+  // Una sola lectura del disco (versionFamily relee todos los trabajos en cada llamada).
+  const all = listJobs().filter((j) => j.input.mode === 'standalone');
+  const byId = new Map(all.map((j) => [j.id, j]));
+  const rootOf = (j: Job): string => {
+    let cur = j;
+    for (let i = 0; i < 50; i++) {
+      const parent = cur.input.revisionOf || cur.input.mobileFixOf || cur.input.textEditOf || cur.input.retryOf;
+      const next = parent ? byId.get(parent) : undefined;
+      if (!next) return cur.id;
+      cur = next;
+    }
+    return cur.id;
+  };
+  for (const j of all) {
+    if (!j.input.clientSlug || j.archivedAt) continue;
+    const f = families.get(j.input.clientSlug) || { name: j.input.clientName, roots: new Set<string>(), lastAt: '' };
+    f.roots.add(rootOf(j));
+    if (j.createdAt > f.lastAt) {
+      f.lastAt = j.createdAt;
+      f.name = j.input.clientName;
+    }
+    families.set(j.input.clientSlug, f);
+  }
+  const slugs = [...new Set([...listBrandCardSlugs(), ...workerBrands, ...families.keys()])].filter((s) => SLUG_RE.test(s));
+  const brands = slugs
+    .map((slug) => {
+      const card = readBrandCard(slug)?.card || null;
+      const fam = families.get(slug);
+      return {
+        slug,
+        name: card?.name || fam?.name || slug,
+        hasCard: !!card,
+        hasPack: !!card?.hasPack,
+        logo: card?.logo ? (card.logoOnDark ? 'dark' : 'light') : null,
+        logos: card?.assets.logos.length || 0,
+        broken: card?.assets.broken.length || 0,
+        mismatched: card?.assets.mismatched.length || 0,
+        onWorker: workerBrands.includes(slug),
+        newsletters: fam?.roots.size || 0,
+        lastAt: fam?.lastAt || null,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  res.json({ brands, workerKnown: workerBrands.length > 0 });
+});
+
 // Ficha de marca (2026-10-01): la que envió el worker y las últimas newsletters de esa marca.
 // Logo de la ficha (2026-10-05) como imagen, para las miniaturas del historial. Viene de webs de terceros y puede
 // ser SVG: con CSP sandbox y nosniff, abierto directamente no ejecuta nada en el origen de Studio.
@@ -629,12 +681,13 @@ app.get('/api/status', (_req: Request, res: Response) => {
     // Lo que esperaría una newsletter enviada ahora antes de empezar (2026-09-30): el formulario lo suma a lo que suele tardar.
     wait: queueWait(),
     typical: typicalDurations(),
+    mailEnabled: mailEnabled(),
   });
 });
 
-/** Historial ligero para la página principal (sin el prompt completo de cada trabajo). */
 /** Trabajos (versiones incluidas) que manda el historial. */
 const HISTORY_LIMIT = 2000;
+/** Historial ligero para la página principal (sin el prompt completo de cada trabajo). */
 app.get('/api/jobs', (_req: Request, res: Response) => {
   sweepStaleHermesJobs();
   const logos = brandLogoIndex();
@@ -1065,6 +1118,43 @@ app.get('/api/jobs/:id/thumb', (req: Request, res: Response) => {
   }
   res.set('Cache-Control', 'private, max-age=86400');
   res.type('jpeg').sendFile(path.join(ROOT, job.thumbRelPath));
+});
+
+// Enviar una prueba por correo (2026-10-05, ver mail.ts). Para el equipo: pocas direcciones y un límite por hora.
+const testEmailLimit = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  keyPrefix: 'test-email',
+  message: 'Demasiadas pruebas enviadas en la última hora. Espera un poco.'
+});
+app.post('/api/jobs/:id/test-email', testEmailLimit.middleware, express.json({ limit: '16kb' }), async (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  const html = job ? readResultHtml(job) : null;
+  if (!job || job.input.mode !== 'standalone' || !html) {
+    res.status(404).json({ error: 'Esta newsletter aún no está terminada.' });
+    return;
+  }
+  if (!mailEnabled()) {
+    res.status(503).json({ error: 'El envío de pruebas no está configurado: faltan RESEND_API_KEY y MAIL_FROM en Railway.' });
+    return;
+  }
+  const { valid, invalid } = parseRecipients(req.body?.to);
+  if (invalid.length) {
+    res.status(400).json({ error: `No parece una dirección de correo: ${invalid.slice(0, 3).join(', ')}.` });
+    return;
+  }
+  if (!valid.length || valid.length > MAX_TEST_RECIPIENTS) {
+    res.status(400).json({ error: valid.length ? `Como mucho ${MAX_TEST_RECIPIENTS} direcciones por prueba.` : 'Escribe al menos una dirección.' });
+    return;
+  }
+  const subject = `[Prueba] ${resultMeta(job)?.subject || `Newsletter de ${job.input.clientName}`}`.slice(0, 200);
+  try {
+    await sendTestEmail({ to: valid, subject, html });
+    appendEvent(job.id, { phase: 'studio', level: 'info', message: `Prueba enviada por correo a ${valid.length} dirección${valid.length === 1 ? '' : 'es'}.` });
+    res.json({ sent: valid.length });
+  } catch (err) {
+    res.status(502).json({ error: err instanceof MailError ? err.message : 'No se pudo enviar la prueba.' });
+  }
 });
 
 app.get('/api/jobs/:id/result', (req: Request, res: Response) => {

@@ -1603,6 +1603,10 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 }
 .menu-links button:hover { color: #ffffff; }
 .menu-num { font-weight: 800; letter-spacing: 0; color: #fb73ff; }
+/* «Nueva newsletter» se partía en dos líneas con 5 px de espaciado en 240 px (2026-10-05). */
+.menu-links button { white-space: nowrap; letter-spacing: 3.5px; }
+/* El tema ya está en la cabecera en pantallas anchas: en el menú, solo en móvil. */
+@media (min-width: 641px) { .menu-theme-item { display: none; } }
 .menu-contact { margin: auto 0 0; display: grid; gap: 20px; }
 .menu-contact dt { font-size: var(--fs-lead); font-weight: 700; color: #fb73ff; }
 .menu-contact dd { margin: 4px 0 0; font-size: var(--fs-ui); }
@@ -1930,6 +1934,8 @@ html { scroll-padding-top: 80px; }
 .side-menu:not([hidden]) .menu-links li:nth-child(2) { animation-delay: 0.16s; }
 .side-menu:not([hidden]) .menu-links li:nth-child(3) { animation-delay: 0.22s; }
 .side-menu:not([hidden]) .menu-links li:nth-child(4) { animation-delay: 0.28s; }
+.side-menu:not([hidden]) .menu-links li:nth-child(5) { animation-delay: 0.34s; }
+.side-menu:not([hidden]) .menu-links li:nth-child(6) { animation-delay: 0.40s; }
 .side-menu:not([hidden]) .menu-contact { animation-delay: 0.34s; }
 @keyframes menu-in { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes menu-item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -1964,3 +1970,45 @@ html { scroll-padding-top: 80px; }
 .client-empty .btn { margin-top: 4px; }
 /* Error en una línea en la fila del historial; la explicación completa, en la ficha. */
 .job-row .err a { color: inherit; font-weight: 600; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- Página «Marcas» (2026-10-05) */
+.brands-head h2 { margin: 16px 0 4px; font-size: var(--fs-title); font-weight: 600; }
+.brands-head h2:focus { outline: none; }
+.brands-head .hint { margin: 0 0 16px; }
+.brands-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.brands-tools input[type="search"] { flex: 1 1 240px; }
+.brands-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.brand-row { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-row); color: var(--text); text-decoration: none; }
+.brand-row:hover { border-color: var(--border-strong); background: var(--surface-row-hover); }
+.brand-row .bs-logo { width: 64px; height: 44px; padding: 6px; }
+.brand-row-body { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.brand-row-body strong { font-size: var(--fs-ui); font-weight: 600; }
+.brand-row-body .meta { font-size: var(--fs-small); color: var(--muted); }
+.brand-warns { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.brand-chip-warn { padding: 2px 10px; border-radius: var(--pill); background: var(--warning-tint); color: var(--warning); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; }
+.brand-head { flex-wrap: wrap; }
+.brands-all-link { margin-left: auto; align-self: flex-start; font-size: var(--fs-small); color: var(--accent-text); }
+@media (max-width: 640px) {
+  .brand-row { flex-wrap: wrap; gap: 8px 12px; }
+  .brand-warns { justify-content: flex-start; width: 100%; padding-left: 76px; }
+}
+
+/* Menú «⋯» del pie de la ficha (2026-10-05): al final de la tarjeta, se abre hacia arriba. */
+.job-more { align-self: center; }
+.job-more > summary { display: flex; align-items: center; justify-content: center; min-width: 48px; letter-spacing: 1px; }
+.job-more .row-menu-pop { top: auto; bottom: calc(100% + 6px); left: 0; right: auto; min-width: 260px; }
+.job-more .menu-item small { margin-top: 2px; }
+
+/* Avisos de asunto y preheader (2026-10-05). */
+.meta-warnings { list-style: none; margin: 12px 0 16px; padding: 0; display: grid; gap: 6px; }
+.meta-warnings li { padding: 10px 14px; border-radius: var(--radius-sm); font-size: var(--fs-small); line-height: 1.45; }
+.meta-warnings li.is-warning { border: 1px solid var(--warning-line); background: var(--warning-subtle); color: var(--text); }
+.meta-warnings li.is-warning::before { content: '! '; font-weight: 800; color: var(--warning); }
+.meta-warnings li.is-info { border: 1px solid var(--border); color: var(--muted); }
+
+/* Enviar una prueba (2026-10-05): plegado para no alargar la columna de acciones. */
+.test-email > summary { cursor: pointer; list-style: none; }
+.test-email > summary::-webkit-details-marker { display: none; }
+.test-email > summary::before { content: '▸ '; color: var(--accent-text); }
+.test-email[open] > summary::before { content: '▾ '; }
+.test-email[open] > summary { margin-bottom: 8px; }

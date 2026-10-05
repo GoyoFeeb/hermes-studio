@@ -1587,3 +1587,39 @@ del cliente. El usuario aprobó la tanda recomendada.
   «striking-luck - hermes-studio» SUCCESS; reinicia el servidor por el tope del historial). **Vercel pendiente:**
   `vercel --prod` desde `studio/web` en el Mac (cambian app.js, styles.css, index.html y failure.js). Worker sin
   reiniciar.
+
+### 2026-10-05 (tarde) — Interfaz: resto de la revisión exhaustiva (15-23)
+
+El usuario pidió «vamos con todas».
+
+- **15. Menú lateral:** sin cortes de línea (`nowrap`, 3,5 px de espaciado). Se añaden «Marcas» y «Atajos de
+  teclado»; este solo aparece dentro de una newsletter y con teclado, y sustituye al enlace del pie de cada ficha.
+  «Tema» solo sale en móvil, porque en ordenador ya está en la cabecera. La numeración la rehace `renumberMenu()`.
+- **16. Página del cliente (`share.ts`):** en móvil, «Aprobar o comentar ↓» queda fijo abajo mientras se ve la pieza
+  y desaparece al llegar a la revisión (IntersectionObserver, script con nonce). Bajo el título sale el nombre que
+  el equipo puso a la newsletter (`title` de la versión original).
+- **17. Enviar una prueba por correo:** `studio/server/mail.ts` (Resend por HTTP, sin dependencias) y
+  `POST /api/jobs/:id/test-email`: hasta 5 direcciones, «[Prueba]» delante del asunto, 20 envíos por hora y una
+  línea en el registro. Se activa con `RESEND_API_KEY` y `MAIL_FROM` en Railway; `/api/status` devuelve
+  `mailEnabled` y, sin las variables, el bloque lo dice y no deja enviar. En la ficha va plegado bajo «Enseñarla al
+  cliente» y recuerda las direcciones en el navegador. **Pendiente del usuario:** cuenta en Resend, verificar el
+  dominio y poner las dos variables.
+- **18. Página «Marcas»** (`?brands=1`, desde el menú; ruta `GET /api/brand-overview`): todas las marcas (fichas,
+  carpetas del Mac y newsletters hechas) con su logo, si tienen brand pack, cuántas newsletters y la última. Tiene
+  avisos («Sin logo», «N archivos rotos», «N que no son lo que dice»), buscador y filtro «Con avisos». La ficha de
+  cada marca enlaza a «Todas las marcas». Las familias se cuentan con una sola lectura del disco (`versionFamily`
+  relee todos los trabajos en cada llamada).
+- **19. «Hacer una igual para otra marca»** (menú «⋯» del historial y de la ficha): la misma petición con Marca
+  vacía. Al elegir la marca nueva, el nombre de la anterior se cambia por el nuevo dentro del texto, palabra
+  entera, sin distinguir mayúsculas, con un aviso de cuántas veces.
+- **20. Avisos de asunto y preheader:** `studio/web/metacheck.js` (+5 tests). Avisa del preheader que repite o
+  contiene el asunto (el caso real de Nike), falta o es corto (< 35), y del asunto que se corta en móvil (dice
+  dónde). Salen en «Asunto y bandeja» y los avisos serios se cuentan en la pestaña.
+- **21. «Resaltar cambios»:** sin preferencia guardada, solo se activa con ≤ 12 cambios respecto a la versión de
+  la que sale. Si se toca a mano, se respeta lo elegido.
+- **22. «Archivar»** pasa del botón grande del pie al menú «⋯», junto a «Hacer una igual para otra marca».
+- **23. «Atajos de teclado»** pasa al menú lateral (ver 15). La tecla «?» sigue funcionando.
+- **Verificación (local):** menú (portada y ficha), Marcas a 1280 y 375 px, filtro de avisos, «Asunto y bandeja»
+  con el aviso de Nike, envío de prueba (dirección mala → 400; sin salida a Resend desde el contenedor → mensaje
+  de error claro), página del cliente en móvil con el botón fijo, «otra marca» (Lacoste → Puma en el texto).
+  `npm test` 162/164 (los 2 fallos de siempre del contenedor).

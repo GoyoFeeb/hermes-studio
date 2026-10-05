@@ -18,8 +18,8 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { listJobs, updateJob, type Job } from './store';
-import { readResultHtml, resultMeta } from './standalone';
+import { getJob, listJobs, updateJob, type Job } from './store';
+import { readResultHtml, resultMeta, versionFamily } from './standalone';
 import { STUDIO_DIR } from './paths';
 import { BRAND_BASE_STYLE, BRAND_FONTS, brandFooter, brandHeader } from './brandPage';
 
@@ -278,6 +278,13 @@ const PAGE_STYLE = BRAND_BASE_STYLE + `
   .error { color: var(--err); font-size: 13px; }
   .older summary { cursor: pointer; font-size: 13px; color: var(--muted); }
   .jump { display: none; }
+  .team-title { margin: -4px 0 12px; font-size: 18px; font-weight: 600; color: var(--text); }
+  /* Móvil (2026-10-05): «Aprobar o comentar» queda fijo abajo mientras se baja por la pieza; antes, revisión y
+     comentarios solo aparecían al final, tras miles de píxeles. Se esconde al llegar a la revisión. */
+  @media (max-width: 960px) {
+    .jump.is-floating { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 20; background: var(--pink); color: var(--on-pink); border-color: var(--pink); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); }
+    body.has-floating-jump { padding-bottom: 72px; }
+  }
   .gone { max-width: 560px; margin: 15vh auto; padding: 0 16px; text-align: center; }
   .gone .meta { margin-left: auto; margin-right: auto; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -316,6 +323,10 @@ export function renderSharePage(job: Job, nonce: string): string | null {
   if (!html || !job.share) return null;
   const meta = resultMeta(job);
   const name = esc(job.input.clientName);
+  // Nombre que el equipo puso a la newsletter (vive en la versión original): el cliente veía solo «Newsletter de
+  // Nike» y no sabía cuál de ellas era (2026-10-05).
+  const rootId = versionFamily(job)[0]?.id;
+  const teamTitle = (rootId && rootId !== job.id ? getJob(rootId)?.title : job.title) || null;
   const subject = meta?.subject
     ? `<p class="subject"><b>${esc(meta.subject)}</b>${meta.preheader ? `<span>${esc(meta.preheader)}</span>` : ''}</p>`
     : '';
@@ -333,6 +344,7 @@ ${BRAND_FONTS}
 ${brandHeader('Vista previa')}
 <header>
   <h1>Newsletter de <span class="accent">${name}</span></h1>
+  ${teamTitle ? `<p class="team-title">${esc(teamTitle)}</p>` : ''}
   <p class="meta">Vista previa para revisar. No es un envío: los enlaces de baja y personalización se activan en la plataforma de envío.</p>
   ${subject}
   <div class="bar">
@@ -395,6 +407,24 @@ ${brandFooter(`Enlace válido hasta el ${esc(fmtDate(job.share.expiresAt))}.`)}
 <p class="sr-only" id="sr" role="status" aria-live="polite"></p>
 <script type="application/json" id="state">${jsonForScript(publicState(job))}</script>
 <script nonce="${nonce}">${pickScript()}</script>
+<script nonce="${nonce}">
+(function () {
+  'use strict';
+  var jump = document.querySelector('.jump');
+  var review = document.getElementById('review');
+  var stage = document.getElementById('stage');
+  if (!jump || !review || !stage || !('IntersectionObserver' in window)) return;
+  var reviewSeen = false;
+  var stageSeen = false;
+  function sync() {
+    var on = stageSeen && !reviewSeen;
+    jump.classList.toggle('is-floating', on);
+    document.body.classList.toggle('has-floating-jump', on);
+  }
+  new IntersectionObserver(function (e) { reviewSeen = e[0].isIntersecting; sync(); }).observe(review);
+  new IntersectionObserver(function (e) { stageSeen = e[0].isIntersecting || e[0].boundingClientRect.top < 0; sync(); }).observe(stage);
+})();
+</script>
 <script nonce="${nonce}">
 (function () {
   'use strict';

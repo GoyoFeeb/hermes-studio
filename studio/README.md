@@ -267,6 +267,10 @@ la raíz del repo) — no hace falta tocar nada del Dockerfile para esto. Pasos:
      servicio ya lo lee de `process.env.PORT`, no hace falta fijarlo a mano.
    - `TRUST_PROXY_HOPS` — solo si pones el frontend en Vercel delante (ver sección siguiente):
      fíjala a `2`. Sin Vercel delante, no la definas (por defecto `1`).
+   - `RESEND_API_KEY` y `MAIL_FROM` (opcionales, 2026-10-05) — activan «Enviar una prueba por correo» en
+     la página de cada newsletter (`studio/server/mail.ts`). La clave sale de [resend.com](https://resend.com)
+     y `MAIL_FROM` tiene que ser de un dominio verificado allí, p. ej.
+     `Hermes Studio <pruebas@feebbodigital.com>`. Sin ellas, la web dice que no está activado.
 
 5. **Desplegar**:
    ```bash

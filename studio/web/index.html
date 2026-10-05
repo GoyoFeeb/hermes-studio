@@ -51,10 +51,14 @@
     <!-- La × es la hamburguesa animada de la web (Lottie): al abrir, las rayas se convierten en la ×. -->
     <button type="button" id="menu-close" class="menu-close" aria-label="Cerrar el menú"><span class="menu-close-x">×</span><span class="menu-anim" id="menu-anim" aria-hidden="true" hidden></span></button>
     <ol class="menu-links">
-      <li><button type="button" data-menu="new"><span class="menu-num">01</span>Nueva newsletter</button></li>
-      <li><button type="button" data-menu="history"><span class="menu-num">02</span>Historial</button></li>
-      <li><button type="button" data-menu="how"><span class="menu-num">03</span>Cómo funciona</button></li>
-      <li><button type="button" data-menu="theme" id="menu-theme"><span class="menu-num">04</span>Tema: <span id="menu-theme-name">Auto</span></button></li>
+      <!-- 2026-10-05: «Marcas» (página nueva) y «Atajos de teclado» (antes al pie de cada ficha) entran aquí; «Tema»
+           solo en móvil, donde el botón de la cabecera no cabe. Los números los pone renumberMenu() (app.js). -->
+      <li><button type="button" data-menu="new"><span class="menu-num"></span>Nueva newsletter</button></li>
+      <li><button type="button" data-menu="history"><span class="menu-num"></span>Historial</button></li>
+      <li><button type="button" data-menu="brands"><span class="menu-num"></span>Marcas</button></li>
+      <li><button type="button" data-menu="how"><span class="menu-num"></span>Cómo funciona</button></li>
+      <li id="menu-shortcuts-item" hidden><button type="button" data-menu="shortcuts" aria-haspopup="dialog"><span class="menu-num"></span>Atajos de teclado</button></li>
+      <li class="menu-theme-item"><button type="button" data-menu="theme" id="menu-theme"><span class="menu-num"></span>Tema: <span id="menu-theme-name">Auto</span></button></li>
     </ol>
     <dl class="menu-contact">
       <div><dt>Correo</dt><dd><a href="mailto:info@feebbodigital.com">info@feebbodigital.com</a></dd></div>
@@ -414,6 +418,18 @@
                   <p class="hint"><span id="share-info"></span> · <button type="button" id="share-revoke" class="link-btn">Desactivar</button></p>
                 </div>
               </div>
+              <!-- Enviar una prueba por correo (2026-10-05, studio/server/mail.ts): para verla en el correo de verdad. -->
+              <details class="share-block test-email" id="test-email">
+                <summary class="share-title">Enviar una prueba por correo</summary>
+                <form id="test-email-form" novalidate>
+                <label class="sr-only" for="test-email-to">Direcciones de correo</label>
+                <div class="share-url-row">
+                  <input type="text" id="test-email-to" inputmode="email" autocomplete="email" placeholder="tu@correo.com, otra@correo.com" />
+                  <button type="submit" id="test-email-send" class="btn btn-secondary btn-sm">Enviar</button>
+                </div>
+                <p class="hint" id="test-email-hint">Hasta 5 direcciones. Llega con «[Prueba]» delante del asunto.</p>
+                </form>
+              </details>
             </section>
             <section class="action-group" aria-labelledby="ag-change">
               <h3 class="action-title" id="ag-change">Cambiar la pieza</h3>
@@ -508,7 +524,7 @@
           <button type="button" role="tab" class="job-tab" id="tab-preview" data-tab="preview" aria-controls="panel-preview" aria-selected="true"><span class="lbl-long">Vista previa</span><span class="lbl-short">Vista</span></button>
           <button type="button" role="tab" class="job-tab" id="tab-review" data-tab="review" aria-controls="panel-review" aria-selected="false" tabindex="-1">Revisión <span class="tab-badge" id="tab-review-badge"></span></button>
           <button type="button" role="tab" class="job-tab" id="tab-compare" data-tab="compare" aria-controls="panel-compare" aria-selected="false" tabindex="-1" hidden><span class="lbl-long">Qué ha cambiado</span><span class="lbl-short">Cambios</span></button>
-          <button type="button" role="tab" class="job-tab" id="tab-meta" data-tab="meta" aria-controls="panel-meta" aria-selected="false" tabindex="-1" hidden><span class="lbl-long">Asunto y bandeja</span><span class="lbl-short">Asunto</span></button>
+          <button type="button" role="tab" class="job-tab" id="tab-meta" data-tab="meta" aria-controls="panel-meta" aria-selected="false" tabindex="-1" hidden><span class="lbl-long">Asunto y bandeja</span><span class="lbl-short">Asunto</span> <span class="tab-badge" id="tab-meta-badge"></span></button>
           <button type="button" role="tab" class="job-tab" id="tab-client" data-tab="client" aria-controls="panel-client" aria-selected="false" tabindex="-1" hidden>Cliente <span class="tab-badge" id="tab-client-badge"></span></button>
         </div>
         <div class="job-panel" role="tabpanel" id="panel-preview" aria-labelledby="tab-preview">
@@ -632,6 +648,8 @@
               <button type="button" class="btn btn-ghost btn-sm" data-copy="preheader">Copiar</button>
             </div>
           </dl>
+          <!-- Avisos de asunto y preheader (2026-10-05, metacheck.js): repetición, falta, corte en móvil. -->
+          <ul class="meta-warnings" id="meta-warnings" hidden></ul>
           <details class="inbox" id="inbox" open hidden>
             <summary>Cómo se ve en la bandeja de entrada</summary>
             <div class="inbox-body">
@@ -722,8 +740,15 @@
       <div class="actions job-actions">
         <button id="reuse-btn" type="button" class="btn btn-secondary">Reutilizar este prompt</button>
         <button id="new-job-btn" type="button" class="btn btn-ghost">Generar otra newsletter</button>
-        <button id="archive-btn" type="button" class="btn btn-ghost" title="La saca del historial con todas sus versiones. No se borra nada: se recupera desde «Archivadas».">Archivar</button>
-        <button id="shortcuts-btn" type="button" class="link-btn shortcuts-link" aria-haspopup="dialog">Atajos de teclado <kbd>?</kbd></button>
+        <!-- «⋯» (2026-10-05): «Archivar» era un botón grande junto a «Generar otra newsletter», fácil de pulsar sin
+             querer. Aquí, con «Hacer una igual para otra marca». -->
+        <details class="row-menu job-more" id="job-more">
+          <summary class="btn btn-ghost row-menu-btn" aria-label="Más acciones" title="Más acciones">⋯</summary>
+          <div class="row-menu-pop">
+            <button id="reuse-other-btn" type="button" class="menu-item">Hacer una igual para otra marca</button>
+            <button id="archive-btn" type="button" class="menu-item">Archivar<small>La saca del historial con sus versiones; se recupera desde «Archivadas».</small></button>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -805,6 +830,7 @@
   <script src="/locate.js"></script>
   <script src="/formcheck.js"></script>
   <script src="/failure.js"></script>
+  <script src="/metacheck.js"></script>
   <script src="/textedit.js"></script>
   <script src="/export.js"></script>
   <script src="/app.js"></script>

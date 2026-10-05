@@ -315,7 +315,8 @@ async function loadHermesStatus() {
   try {
     const res = await apiFetch('/api/status');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const { hermesOnline, current, queued = 0, typical, wait } = await res.json();
+    const { hermesOnline, current, queued = 0, typical, wait, mailEnabled } = await res.json();
+    syncTestEmail(mailEnabled);
     queueWaitNow = wait || null; // sin `wait` (servidor anterior): el aviso de siempre
     hermesOnlineNow = !!hermesOnline;
     if (typical) typicalDurations = typical;
@@ -950,6 +951,7 @@ function rowMenu(j, archiveBtn) {
     // En móvil «Descargar» sale de la fila (un HTML en el teléfono rara vez sirve) y queda aquí (2026-10-05).
     j.status === 'completed' ? `<a class="menu-item menu-download" href="/api/jobs/${encodeURIComponent(j.id)}/result?download=1">Descargar HTML</a>` : '',
     `<button type="button" class="menu-item" data-reuse="${id}">Reutilizar la petición</button>`,
+    `<button type="button" class="menu-item" data-reuse-other="${id}">Hacer una igual para otra marca</button>`,
     archiveBtn,
   ].join('');
   return `<details class="row-menu" data-menu="${id}"${openRowMenu === j.id ? ' open' : ''}>
@@ -1325,13 +1327,37 @@ document.getElementById('history-list').addEventListener('click', (e) => {
   }
   const btn = e.target.closest('[data-reuse]');
   if (btn) reuseJob(btn.dataset.reuse);
+  const other = e.target.closest('[data-reuse-other]');
+  if (other) reuseJob(other.dataset.reuseOther, { otherBrand: true });
   const retry = e.target.closest('[data-retry]');
   if (retry) retryJobById(retry.dataset.retry, retry);
 });
 
 // "Reutilizar": rellena el formulario con la marca, el prompt y el modo de imágenes de un trabajo
 // anterior (para relanzar uno fallido o hacer una variante). No se envía hasta pulsar Generar.
-async function reuseJob(id, { useBrief = false } = {}) {
+/** «Hacer una igual para otra marca» (2026-10-05): la misma petición con el campo Marca vacío. Al elegir la marca
+ *  nueva, el nombre de la anterior se cambia por el nuevo dentro del texto («…de Lacoste para…» → «…de Puma…»). */
+let reuseSwap = null;
+clientNameInput.addEventListener('change', () => {
+  const to = clientNameInput.value.trim();
+  if (!reuseSwap || !to) return;
+  const from = reuseSwap;
+  reuseSwap = null;
+  if (normalize(from) === normalize(to)) return;
+  const prompt = document.getElementById('prompt-input');
+  const re = new RegExp(`(^|[^\\p{L}\\p{N}])${from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[^\\p{L}\\p{N}])`, 'giu');
+  let n = 0;
+  prompt.value = prompt.value.replace(re, (_m, pre) => {
+    n++;
+    return pre + to;
+  });
+  if (n) {
+    saveDraft();
+    showToast(`Cambiado «${from}» por «${to}» en el texto (${n} ${n === 1 ? 'vez' : 'veces'}). Revísalo antes de enviar.`);
+  }
+});
+
+async function reuseJob(id, { useBrief = false, otherBrand = false } = {}) {
   let job;
   try {
     const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}`);
@@ -1355,13 +1381,19 @@ async function reuseJob(id, { useBrief = false } = {}) {
     setKind('brief');
     document.getElementById('prompt-input').value = job.input.briefText;
   }
+  reuseSwap = null;
+  if (otherBrand) {
+    reuseSwap = clientNameInput.value.trim() || job.input.clientName || null;
+    clientNameInput.value = '';
+    updateBrandMatch();
+  }
   const radio = form.querySelector(`input[name="imageMode"][value="${job.input.imageMode}"]`);
   if (radio) radio.checked = true;
   // Lo reutilizado pasa a ser el borrador: si se recarga la página antes de enviarlo, no se pierde.
   document.getElementById('draft-note').hidden = true;
   saveDraft();
   form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  document.getElementById('prompt-input').focus({ preventScroll: true });
+  (otherBrand ? clientNameInput : document.getElementById('prompt-input')).focus({ preventScroll: true });
 }
 
 // ---------------------------------------------------------------- vistas
@@ -1393,6 +1425,7 @@ function setMenu(open) {
     el.inert = open;
   });
   if (open) {
+    renumberMenu();
     // La × se dibuja desde la hamburguesa, como en la web (con menos movimiento, directamente la ×).
     if (menuAnim) {
       if (reduceMotion.matches) menuAnim.goToAndStop(menuAnim.totalFrames - 1, true);
@@ -1401,6 +1434,18 @@ function setMenu(open) {
     sideMenu.querySelector('[data-menu]').focus();
   } else menuBtn.focus({ preventScroll: true });
 }
+/** Los atajos solo funcionan en la página de una newsletter y con teclado: el elemento del menú, solo ahí. La
+ *  numeración (01, 02…) se rehace con lo que se ve. */
+const touchOnly = window.matchMedia('(hover: none)');
+function renumberMenu() {
+  document.getElementById('menu-shortcuts-item').hidden = viewJob.hidden || touchOnly.matches;
+  let n = 0;
+  sideMenu.querySelectorAll('.menu-links li').forEach((li) => {
+    if (li.hidden || getComputedStyle(li).display === 'none') return;
+    li.querySelector('.menu-num').textContent = String(++n).padStart(2, '0');
+  });
+}
+renumberMenu();
 menuBtn.addEventListener('click', () => setMenu(sideMenu.hidden));
 document.getElementById('menu-close').addEventListener('click', () => setMenu(false));
 menuBackdrop.addEventListener('click', () => setMenu(false));
@@ -1417,6 +1462,17 @@ sideMenu.addEventListener('click', (e) => {
     return;
   }
   setMenu(false);
+  if (where === 'shortcuts') {
+    toggleShortcuts(true);
+    return;
+  }
+  if (where === 'brands') {
+    if (confirmLeaveJob()) {
+      history.pushState({}, '', '?brands=1');
+      route();
+    }
+    return;
+  }
   if (viewForm.hidden) {
     if (where === 'history') scrollToHistory = true;
     if (showFormView() === false) {
@@ -1612,6 +1668,59 @@ document.getElementById('copy-link-btn').addEventListener('click', () => {
   }
 });
 
+// ---------------------------------------------------------------- enviar una prueba (2026-10-05)
+// Por correo de verdad (studio/server/mail.ts, Resend). Sin RESEND_API_KEY y MAIL_FROM en Railway, el bloque lo
+// dice y no deja enviar. Las direcciones se recuerdan en este navegador.
+const testEmailTo = document.getElementById('test-email-to');
+const TEST_EMAIL_HINT = 'Hasta 5 direcciones. Llega con «[Prueba]» delante del asunto.';
+let testEmailEnabled = null;
+function syncTestEmail(enabled) {
+  if (enabled === undefined) return; // servidor anterior: sin el dato, se deja como está
+  testEmailEnabled = !!enabled;
+  testEmailTo.disabled = !testEmailEnabled;
+  document.getElementById('test-email-send').disabled = !testEmailEnabled;
+  document.getElementById('test-email-hint').textContent = testEmailEnabled
+    ? TEST_EMAIL_HINT
+    : 'Aún no está activado: hay que poner RESEND_API_KEY y MAIL_FROM en las variables de Railway.';
+}
+try {
+  testEmailTo.value = localStorage.getItem('testEmailTo') || '';
+} catch {
+  // sin almacenamiento
+}
+document.getElementById('test-email-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentJob || !testEmailEnabled) return;
+  const to = testEmailTo.value.trim();
+  if (!to) {
+    testEmailTo.focus();
+    return showToast('Escribe al menos una dirección.', 'error');
+  }
+  const btn = document.getElementById('test-email-send');
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/test-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(actionError(res, data, 'No se pudo enviar la prueba.'), 'error');
+    try {
+      localStorage.setItem('testEmailTo', to);
+    } catch {
+      // sin almacenamiento
+    }
+    showToast(`Prueba enviada a ${data.sent} dirección${data.sent === 1 ? '' : 'es'}. Tarda un minuto en llegar.`);
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
+  } finally {
+    btn.disabled = !testEmailEnabled;
+    btn.textContent = 'Enviar';
+  }
+});
+
 // ---------------------------------------------------------------- enseñarla al cliente (2026-10-01)
 
 /** Enlace público de solo lectura de esta versión (studio/server/share.ts). Se arma con el origen de esta
@@ -1723,6 +1832,7 @@ function renderBrandView(slug, data) {
             : 'Sin brand pack medido'
         }</p>
       </div>
+      <a class="brands-all-link" href="?brands=1" data-nav>Todas las marcas</a>
     </div>`;
   let content = '';
   if (!card) {
@@ -1861,13 +1971,119 @@ async function showBrandView(slug) {
     body.innerHTML = brandRetry(NETWORK_ERROR);
   }
 }
+// ---------------------------------------------------------------- página «Marcas» (2026-10-05)
+// Todas las marcas de un vistazo: qué tiene Hermes de cada una (brand pack, logos) y qué falta. Antes los avisos
+// (marcas sin logo, archivos rotos) solo se veían abriendo cada ficha. Va en la misma tarjeta que la ficha.
+const brandsState = { brands: [], query: '', warnings: false };
+function brandWarnings(b) {
+  if (!b.hasCard) return []; // sin ficha no hay nada que arreglar: Hermes la investiga como nueva
+  return [
+    !b.logo ? 'Sin logo' : null,
+    b.broken ? `${b.broken} archivo${b.broken === 1 ? '' : 's'} roto${b.broken === 1 ? '' : 's'}` : null,
+    b.mismatched ? `${b.mismatched} que no ${b.mismatched === 1 ? 'es' : 'son'} lo que dice` : null,
+  ].filter(Boolean);
+}
+async function showBrandsView() {
+  if (!confirmLeaveJob()) return;
+  clearTimeout(pollTimer);
+  clearTimeout(historyTimer);
+  currentJob = null;
+  setFaviconStatus(null);
+  viewForm.hidden = true;
+  hero.hidden = true;
+  viewJob.hidden = true;
+  viewBrand.hidden = false;
+  updateSticky();
+  document.title = `Marcas · ${BASE_TITLE}`;
+  const body = document.getElementById('brand-body');
+  body.innerHTML = '<div class="skeleton-job" aria-busy="true"><span class="sr-only">Cargando las marcas…</span><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-block"></div></div>';
+  try {
+    const res = await apiFetch('/api/brand-overview');
+    if (!res.ok) {
+      body.innerHTML = res.status === 401 ? '<p class="brand-empty">Inicia sesión para ver las marcas.</p>' : brandRetry('Studio no responde ahora (puede estar actualizándose).');
+      return;
+    }
+    brandsState.brands = (await res.json()).brands || [];
+    body.innerHTML = `<div class="brands-head">
+        <h2 id="brand-title" tabindex="-1">Marcas</h2>
+        <p class="hint">Lo que Hermes tiene de cada marca. Los avisos se arreglan en el Mac, en <code>brands/{marca}/</code>.</p>
+      </div>
+      <div class="brands-tools">
+        <label for="brands-search" class="sr-only">Buscar marca</label>
+        <input type="search" id="brands-search" placeholder="Buscar marca…" autocomplete="off" value="${escapeHtml(brandsState.query)}" />
+        <div class="chips" role="group" aria-label="Filtrar marcas">
+          <button type="button" class="chip" data-brands-filter="all"></button>
+          <button type="button" class="chip" data-brands-filter="warnings"></button>
+        </div>
+      </div>
+      <ul class="brands-list" id="brands-list"></ul>`;
+    renderBrandsList();
+    document.getElementById('brand-title').focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  } catch {
+    body.innerHTML = brandRetry(NETWORK_ERROR);
+  }
+}
+function renderBrandsList() {
+  const list = document.getElementById('brands-list');
+  if (!list) return;
+  const q = normalize(brandsState.query);
+  const withWarnings = brandsState.brands.filter((b) => brandWarnings(b).length).length;
+  document.querySelectorAll('[data-brands-filter]').forEach((c) => {
+    const on = (c.dataset.brandsFilter === 'warnings') === brandsState.warnings;
+    c.classList.toggle('is-active', on);
+    c.setAttribute('aria-pressed', String(on));
+    c.textContent = c.dataset.brandsFilter === 'warnings' ? `Con avisos (${withWarnings})` : `Todas (${brandsState.brands.length})`;
+  });
+  const shown = brandsState.brands.filter((b) => (!brandsState.warnings || brandWarnings(b).length) && (!q || normalize(`${b.name} ${b.slug}`).includes(q)));
+  const when = (iso) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  list.innerHTML = shown.length
+    ? shown
+        .map((b) => {
+          const initials = b.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+          const logo = b.logo
+            ? `<span class="bs-logo${b.logo === 'dark' ? ' is-on-dark' : ''}"><img src="/api/brands/${encodeURIComponent(b.slug)}/logo" alt="" loading="lazy"></span>`
+            : `<span class="bs-logo is-initials">${escapeHtml(initials)}</span>`;
+          const what = b.hasPack ? 'Brand pack medido' : b.logos ? `Solo logos (${b.logos})` : b.hasCard ? 'Sin brand pack ni logos' : b.onWorker ? 'Ficha pendiente de llegar' : 'No está en el Mac';
+          const meta = [what, b.newsletters ? `${b.newsletters} newsletter${b.newsletters === 1 ? '' : 's'}` : 'ninguna newsletter', b.lastAt ? `última el ${when(b.lastAt)}` : null].filter(Boolean);
+          const warns = brandWarnings(b);
+          return `<li><a class="brand-row" href="?brand=${encodeURIComponent(b.slug)}" data-nav>
+              ${logo}
+              <span class="brand-row-body"><strong>${escapeHtml(b.name)}</strong><span class="meta">${escapeHtml(meta.join(' · '))}</span></span>
+              ${warns.length ? `<span class="brand-warns">${warns.map((w) => `<span class="brand-chip-warn">${escapeHtml(w)}</span>`).join('')}</span>` : ''}
+            </a></li>`;
+        })
+        .join('')
+    : `<li class="brand-empty">${brandsState.brands.length ? 'Ninguna marca coincide.' : 'Aún no hay marcas: salen al hacer la primera newsletter o cuando el Mac de Hermes envía sus fichas.'}</li>`;
+}
+document.getElementById('brand-body').addEventListener('input', (e) => {
+  if (e.target.id !== 'brands-search') return;
+  brandsState.query = e.target.value;
+  renderBrandsList();
+});
+document.getElementById('brand-body').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-brands-filter]');
+  if (chip) {
+    brandsState.warnings = chip.dataset.brandsFilter === 'warnings';
+    renderBrandsList();
+    return;
+  }
+  // Enlaces internos (ficha de una marca, «Todas las marcas») sin recargar la página.
+  const a = e.target.closest('a[data-nav]');
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  history.pushState({}, '', a.getAttribute('href'));
+  route();
+});
+
 function brandRetry(text) {
   return `<div class="form-warning brand-retry" role="status"><p>${escapeHtml(text)}</p><div class="warning-actions"><button type="button" class="btn btn-secondary btn-sm" data-brand-retry>Reintentar</button></div></div>`;
 }
 document.getElementById('brand-body').addEventListener('click', (e) => {
   if (!e.target.closest('[data-brand-retry]')) return;
-  const slug = new URLSearchParams(location.search).get('brand');
-  if (slug) showBrandView(slug);
+  const params = new URLSearchParams(location.search);
+  if (params.get('brand')) showBrandView(params.get('brand'));
+  else if (params.has('brands')) showBrandsView();
 });
 
 // ---------------------------------------------------------------- nombre de la newsletter (2026-10-01)
@@ -3320,7 +3536,24 @@ function renderArchived(job) {
 }
 
 document.getElementById('archive-btn').addEventListener('click', async () => {
+  document.getElementById('job-more').open = false;
   if (currentJob && (await setArchived(currentJob, true))) poll(currentJob);
+});
+document.getElementById('reuse-other-btn').addEventListener('click', () => {
+  document.getElementById('job-more').open = false;
+  if (currentJob) reuseJob(currentJob, { otherBrand: true });
+});
+// El menú «⋯» del pie de la ficha se cierra al pulsar fuera o con Escape, como los del historial.
+document.addEventListener('click', (e) => {
+  const more = document.getElementById('job-more');
+  if (more.open && !e.target.closest('#job-more')) more.open = false;
+});
+document.addEventListener('keydown', (e) => {
+  const more = document.getElementById('job-more');
+  if (e.key === 'Escape' && more.open) {
+    more.open = false;
+    more.querySelector('summary').focus();
+  }
 });
 document.getElementById('unarchive-btn').addEventListener('click', async () => {
   if (currentJob && (await setArchived(currentJob, false))) poll(currentJob);
@@ -3329,12 +3562,16 @@ document.getElementById('unarchive-btn').addEventListener('click', async () => {
 // ---------------------------------------------------------------- atajos de teclado (2026-09-28)
 const shortcuts = document.getElementById('shortcuts');
 
+// Se abren con «?» o desde el menú lateral (2026-10-05: antes, un enlace al pie de cada ficha). Al cerrar, el foco
+// vuelve a donde estaba.
+let shortcutsReturn = null;
 function toggleShortcuts(open) {
   shortcuts.hidden = !open;
-  if (open) document.getElementById('shortcuts-close').focus();
-  else document.getElementById('shortcuts-btn').focus({ preventScroll: true });
+  if (open) {
+    shortcutsReturn = document.activeElement !== document.body ? document.activeElement : null;
+    document.getElementById('shortcuts-close').focus();
+  } else (shortcutsReturn?.isConnected ? shortcutsReturn : menuBtn).focus({ preventScroll: true });
 }
-document.getElementById('shortcuts-btn').addEventListener('click', () => toggleShortcuts(true));
 document.getElementById('shortcuts-close').addEventListener('click', () => toggleShortcuts(false));
 shortcuts.addEventListener('click', (e) => {
   if (e.target === shortcuts) toggleShortcuts(false);
@@ -3804,7 +4041,10 @@ function cut(text, n) {
 function renderInbox(meta, sender) {
   const box = document.getElementById('inbox');
   box.hidden = !meta || (!meta.subject && !meta.preheader);
-  if (box.hidden) return;
+  if (box.hidden) {
+    renderMetaWarnings(meta, null);
+    return;
+  }
   const from = sender || 'Remitente';
   const subject = meta.subject || '(sin asunto)';
   const pre = meta.preheader || '';
@@ -3832,6 +4072,19 @@ function renderInbox(meta, sender) {
     `Asunto: ${reads(mSub, subject.length)}` + (pre ? ` · Preheader: ${reads(mPre, pre.length)}` : '');
   document.getElementById('inbox-desk-count').textContent =
     `Asunto: ${reads(dSub, subject.length)}` + (pre ? ` · Preheader: ${dPre ? reads(dPre, pre.length) : 'no se ve'}` : '');
+  renderMetaWarnings(meta, mSub);
+}
+
+/** Avisos de asunto y preheader (2026-10-05) y su número en la pestaña. */
+function renderMetaWarnings(meta, mobileSubjectChars) {
+  const list = document.getElementById('meta-warnings');
+  const badge = document.getElementById('tab-meta-badge');
+  const warnings = meta && window.HermesMetaCheck ? window.HermesMetaCheck.checkMeta(meta.subject, meta.preheader, { mobileSubjectChars }) : [];
+  list.hidden = !warnings.length;
+  list.innerHTML = warnings.map((w) => `<li class="is-${escapeHtml(w.level)}">${escapeHtml(w.text)}</li>`).join('');
+  const serious = warnings.filter((w) => w.level === 'warning').length;
+  badge.textContent = serious ? String(serious) : '';
+  badge.className = `tab-badge${serious ? ' is-warning' : ''}`;
 }
 
 /** Método clásico (textarea + execCommand): funciona donde la API del portapapeles está bloqueada. */
@@ -4433,6 +4686,9 @@ async function setupCompare(job, versions, baseId) {
   document.getElementById('compare').hidden = false;
   document.getElementById('compare-toggle-wrap').hidden = false;
   document.getElementById('highlight-toggle-wrap').hidden = diff.unchanged;
+  // Sin preferencia guardada, se resalta solo cuando ayuda: pocos cambios respecto a la versión de la que sale
+  // (2026-10-05). Con decenas, la vista previa se llenaba de recuadros verdes y no se veía la pieza.
+  if (storedHighlight() === null) document.getElementById('highlight-toggle').checked = isParent && changes <= HIGHLIGHT_MAX;
   markChanges('after');
   annotateLocations();
   document.getElementById('preview-label-before').textContent = isParent ? `Antes · versión ${base.number}` : `Versión ${base.number}`;
@@ -4444,12 +4700,18 @@ async function setupCompare(job, versions, baseId) {
 
 /** Resaltar cambios (2026-09-28): verde lo añadido en esta versión y, en "Antes y después", rojo lo que
  *  se quitó en la anterior. Se vuelve a pintar en cada carga del marco (tema, comparación). */
-function readHighlight() {
+const HIGHLIGHT_MAX = 12;
+/** true/false si quien usa la página lo eligió a mano; null si nunca lo tocó. */
+function storedHighlight() {
   try {
-    return localStorage.getItem('highlightChanges') !== '0';
+    const v = localStorage.getItem('highlightChanges');
+    return v === '1' ? true : v === '0' ? false : null;
   } catch {
-    return true;
+    return null;
   }
+}
+function readHighlight() {
+  return storedHighlight() ?? false;
 }
 
 function markChanges(side) {
@@ -5015,12 +5277,15 @@ function route() {
   const params = new URLSearchParams(location.search);
   const id = params.get('job');
   const brand = params.get('brand');
+  const brands = params.has('brands');
   if (id) {
     // ?tab=client (2026-10-05, desde «Te esperan»): se abre esa pestaña en cuanto llegan los datos del trabajo.
     pendingJobTab = JOB_TABS.includes(params.get('tab')) ? params.get('tab') : null;
     showJobView(id);
   } else if (brand) {
     showBrandView(brand);
+  } else if (brands) {
+    showBrandsView();
   } else {
     if (!confirmLeaveJob()) {
       history.pushState({}, '', `?job=${encodeURIComponent(currentJob)}`);

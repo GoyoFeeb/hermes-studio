@@ -67,6 +67,16 @@ export function readBrandCard(slug: string): StoredBrandCard | null {
   }
 }
 
+/** Marcas con ficha guardada (2026-10-05, página «Marcas»). */
+export function listBrandCardSlugs(): string[] {
+  if (!fs.existsSync(DIR)) return [];
+  return fs
+    .readdirSync(DIR)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => f.slice(0, -5))
+    .filter((slug) => SLUG_RE.test(slug));
+}
+
 /** Marcas con logo en su ficha y si es la versión blanca (2026-10-05): el historial lo pone en las miniaturas
  *  sin imagen en vez de la inicial. Se recalcula como mucho cada minuto (cada /api/jobs lo consulta). */
 let logoIndex: { at: number; map: Map<string, { onDark: boolean; hash: string }> } | null = null;
