@@ -1345,3 +1345,22 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   para ver las siluetas; menú con Escape devuelve el foco; `npm test` 159/159.
 - **Desplegado (con permiso del usuario):** `aa32db9` → Vercel (styles.css, index.html y app.js idénticos) y
   Railway SUCCESS 09:44. Worker sin reiniciar.
+
+### 2026-10-05 (continuación) — Interfaz: móvil de la newsletter, logos en miniaturas y accesibilidad
+
+- **Revisión (solo diagnóstico):** cola y fallo bien resueltos; 3 puntos, los 3 elegidos.
+- **1. Newsletter en el móvil (≤ 640 px):** la vista previa empezaba a 1.439 px y al 67 %. Ahora `.job-main` va antes
+  que `.job-side` (orden flex), el escenario llega a los bordes de la pantalla (margen -37 px: 16 de `#app` + 20 de
+  relleno + 1 de borde de la tarjeta) y el marco de teléfono desaparece: al 100 % y a 745 px. La escala usa el
+  relleno real del escenario (antes 32 fijo). La barra fija sale también mientras las acciones están por debajo y
+  cambia "↑" por "Más" (lleva a las acciones).
+- **2. Logo de la marca en las miniaturas sin imagen:** `/api/jobs` añade `brandLogo` ('light' | 'dark' | null,
+  `brandLogoIndex` en brandCards.ts, caché de 1 min) y `GET /api/brands/:slug/logo` sirve el logo de la ficha
+  (CSP sandbox + nosniff: puede ser SVG de terceros; ETag con la huella de la ficha). Lista y galería lo ponen
+  en el cuadrado blanco (azul noche #14183F si es la versión blanca; la ficha también pasa de #111 a #14183F);
+  sin ficha o si no carga, las iniciales.
+- **3. Accesibilidad:** id `review-title` repetido (la "Revisión automática" se anunciaba con el título del brief)
+  → `auto-review-title`. Zonas táctiles ≥ 24 px: "¿Cómo funciona?" (32), enlaces del pie (+8), radios de imágenes
+  (18) y `.toggle` (28). Auditoría tras el cambio: sin id repetidos ni objetivos < 24 px en la portada.
+- **Verificación (copia aislada, fichas reales de Nike, Adidas y Adeslas generadas con buildBrandCard):** 375,
+  900 y 1440 px; `npm test` 159/159.

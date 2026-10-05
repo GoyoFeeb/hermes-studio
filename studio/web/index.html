@@ -522,9 +522,9 @@
           </div>
         </div>
         <div class="job-panel" role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
-          <section class="review" id="review" aria-labelledby="review-title">
+          <section class="review" id="review" aria-labelledby="auto-review-title">
             <div class="review-head">
-              <h3 id="review-title">Revisión automática</h3>
+              <h3 id="auto-review-title">Revisión automática</h3>
               <span id="review-summary" class="review-summary"></span>
             </div>
             <p id="review-empty" class="hint" hidden>Sin revisión automática: esta newsletter es anterior al control de calidad.</p>
@@ -739,6 +739,8 @@
     <button id="sticky-copy" type="button" class="btn btn-secondary btn-sm" aria-label="Copiar HTML"><span class="lbl-long">Copiar HTML</span><span class="lbl-short" aria-hidden="true">Copiar</span></button>
     <button id="sticky-revise" type="button" class="btn btn-secondary btn-sm" aria-label="Pedir cambios"><span class="lbl-long">Pedir cambios</span><span class="lbl-short" aria-hidden="true">Cambios</span></button>
     <button id="sticky-top" type="button" class="btn btn-ghost btn-sm" aria-label="Volver arriba">↑</button>
+    <!-- En móvil las acciones van debajo de la vista previa (2026-10-05): «Más» lleva a ellas. -->
+    <button id="sticky-more" type="button" class="btn btn-ghost btn-sm" aria-label="Más acciones">Más</button>
   </div>
 
   <script src="/markdown.js"></script>

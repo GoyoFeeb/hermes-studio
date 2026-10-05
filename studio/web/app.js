@@ -854,6 +854,17 @@ document.getElementById('history-stats').addEventListener('click', (e) => {
   document.querySelector(`#history-status .chip[data-status="${stat.dataset.stat}"]`)?.click();
 });
 
+// Miniatura sin imagen (2026-10-05): el logo de la ficha de marca en el cuadrado (blanco, o azul noche si el logo es
+// la versión blanca), como los logos de clientes de feebbodigital.com; sin ficha, las iniciales.
+function emptyThumbClass(j) {
+  return j.brandLogo ? `thumb-empty thumb-logo${j.brandLogo === 'dark' ? ' is-on-dark' : ''}` : 'thumb-empty';
+}
+function emptyThumbInner(j, initials) {
+  return j.brandLogo
+    ? `<img src="/api/brands/${encodeURIComponent(j.clientSlug)}/logo" alt="" loading="lazy" data-initials="${escapeHtml(initials)}">`
+    : escapeHtml(initials);
+}
+
 function renderHistory() {
   renderMineChip();
   const info = familyInfo(historyState.jobs);
@@ -930,7 +941,7 @@ function renderHistory() {
       const withThumb = [j, ...others].find((x) => x.hasThumb);
       const thumb = withThumb
         ? `<a class="thumb" href="?job=${id}" tabindex="-1" aria-hidden="true"><img src="/api/jobs/${encodeURIComponent(withThumb.id)}/thumb" alt="" loading="lazy" width="48" height="64" data-initials="${escapeHtml(initials)}"></a>`
-        : `<a class="thumb thumb-empty" href="?job=${id}" tabindex="-1" aria-hidden="true">${escapeHtml(initials)}</a>`;
+        : `<a class="thumb ${emptyThumbClass(j)}" href="?job=${id}" tabindex="-1" aria-hidden="true">${emptyThumbInner(j, initials)}</a>`;
       const open = openFamilies.has(root);
       const listId = `fam-${escapeHtml(root)}`;
       const older = others.length
@@ -983,7 +994,7 @@ function renderGallery(groups, info) {
         .join('');
       const thumb = withThumb
         ? `<span class="thumb"><img src="/api/jobs/${encodeURIComponent(withThumb.id)}/thumb" alt="" loading="lazy" width="150" height="200" data-initials="${escapeHtml(initials)}"></span>`
-        : `<span class="thumb thumb-empty">${escapeHtml(initials)}</span>`;
+        : `<span class="thumb ${emptyThumbClass(j)}">${emptyThumbInner(j, initials)}</span>`;
       const approved = [j, ...others].find((x) => x.approvedAt);
       const when = new Date(j.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
       const bits = [
@@ -1082,6 +1093,7 @@ document.getElementById('history-list').addEventListener(
     const img = e.target;
     if (img.tagName !== 'IMG' || !img.closest('.thumb')) return;
     const link = img.parentElement;
+    link.classList.remove('thumb-logo', 'is-on-dark');
     link.classList.add('thumb-empty');
     link.textContent = img.dataset.initials || '';
   },
@@ -1760,11 +1772,16 @@ function updateSticky() {
   document.body.classList.toggle('has-sticky', show);
 }
 
-// Visible solo cuando la barra de resultado ha quedado por ENCIMA de la pantalla (se ha bajado).
+// Visible solo cuando la barra de resultado ha quedado por ENCIMA de la pantalla (se ha bajado). En móvil las
+// acciones van debajo de la vista previa (2026-10-05): ahí, también mientras quedan por DEBAJO.
+const narrowJob = window.matchMedia('(max-width: 640px)');
 new IntersectionObserver(([entry]) => {
-  resultBarHidden = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+  resultBarHidden = !entry.isIntersecting && (entry.boundingClientRect.top < 0 || narrowJob.matches);
   updateSticky();
 }).observe(document.querySelector('.result-bar'));
+document.getElementById('sticky-more').addEventListener('click', () => {
+  document.querySelector('.job-side').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 document.getElementById('sticky-copy').addEventListener('click', () => document.getElementById('copy-html-btn').click());
 document.getElementById('sticky-revise').addEventListener('click', () => {
@@ -3851,7 +3868,10 @@ function applyPreviewView(view) {
   // Si el ancho real no cabe (pantallas pequeñas, o dos versiones lado a lado), se escala todo el
   // dispositivo en vez de estrecharlo: así el email se ve exactamente como a ese ancho.
   const gap = 16;
-  const available = (stage.clientWidth - 32 - (compare ? gap : 0)) / (compare ? 2 : 1);
+  // El relleno real del escenario (antes 32 fijo): en móvil va sin relleno para verse al 100 % (2026-10-05).
+  const stageStyle = getComputedStyle(stage);
+  const pad = parseFloat(stageStyle.paddingLeft) + parseFloat(stageStyle.paddingRight);
+  const available = (stage.clientWidth - pad - (compare ? gap : 0)) / (compare ? 2 : 1);
   const needed = document.getElementById('preview-device').offsetWidth;
   const scale = needed > available && available > 0 ? available / needed : 1;
   if (scale < 1) {

@@ -57,7 +57,7 @@ import {
 import { TextEditError, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { runQualityCheck } from '../worker/qualityCheck';
 import { clientMatrix } from './clientMatrix';
-import { knownBrandHashes, readBrandCard, saveBrandCards } from './brandCards';
+import { brandLogoIndex, knownBrandHashes, readBrandCard, readBrandLogo, saveBrandCards } from './brandCards';
 import { REPORT_DAYS, REPORT_HEADERS, createReportShare, findReportJob, isReportActive, renderReportGone, renderReportPage, revokeReportShare } from './report';
 import {
   SHARE_DAYS,
@@ -466,6 +466,24 @@ app.get('/api/brands', (_req: Request, res: Response) => {
 });
 
 // Ficha de marca (2026-10-01): la que envió el worker y las últimas newsletters de esa marca.
+// Logo de la ficha (2026-10-05) como imagen, para las miniaturas del historial. Viene de webs de terceros y puede
+// ser SVG: con CSP sandbox y nosniff, abierto directamente no ejecuta nada en el origen de Studio.
+app.get('/api/brands/:slug/logo', (req: Request, res: Response) => {
+  const slug = String(req.params.slug);
+  const logo = SLUG_RE.test(slug) ? readBrandLogo(slug) : null;
+  if (!logo) {
+    res.status(404).end();
+    return;
+  }
+  const etag = `"${logo.hash}"`;
+  res.set({ 'Content-Security-Policy': 'sandbox', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=3600', ETag: etag });
+  if (req.headers['if-none-match'] === etag) {
+    res.status(304).end();
+    return;
+  }
+  res.type(logo.type).send(logo.body);
+});
+
 app.get('/api/brands/:slug', (req: Request, res: Response) => {
   const slug = String(req.params.slug);
   if (!SLUG_RE.test(slug)) {
@@ -614,6 +632,7 @@ app.get('/api/status', (_req: Request, res: Response) => {
 /** Historial ligero para la página principal (sin el prompt completo de cada trabajo). */
 app.get('/api/jobs', (_req: Request, res: Response) => {
   sweepStaleHermesJobs();
+  const logos = brandLogoIndex();
   const jobs = listJobs()
     .filter((j) => j.input.mode === 'standalone')
     .slice(0, 200)
@@ -641,6 +660,8 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
         : null,
       durationSec: durationSec(j),
       hasThumb: !!j.thumbRelPath,
+      // Logo de la ficha de marca para las miniaturas sin imagen (2026-10-05): 'light' o 'dark' (versión blanca).
+      brandLogo: logos.has(j.input.clientSlug) ? (logos.get(j.input.clientSlug)!.onDark ? 'dark' : 'light') : null,
       pct: j.progress?.pct ?? null,
       elapsedSec: j.progress?.elapsedSec ?? null,
       error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,

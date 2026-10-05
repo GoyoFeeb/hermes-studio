@@ -66,3 +66,28 @@ export function readBrandCard(slug: string): StoredBrandCard | null {
     return null;
   }
 }
+
+/** Marcas con logo en su ficha y si es la versión blanca (2026-10-05): el historial lo pone en las miniaturas
+ *  sin imagen en vez de la inicial. Se recalcula como mucho cada minuto (cada /api/jobs lo consulta). */
+let logoIndex: { at: number; map: Map<string, { onDark: boolean; hash: string }> } | null = null;
+export function brandLogoIndex(): Map<string, { onDark: boolean; hash: string }> {
+  if (logoIndex && Date.now() - logoIndex.at < 60 * 1000) return logoIndex.map;
+  const map = new Map<string, { onDark: boolean; hash: string }>();
+  if (fs.existsSync(DIR)) {
+    for (const f of fs.readdirSync(DIR)) {
+      if (!f.endsWith('.json')) continue;
+      const stored = readBrandCard(f.slice(0, -5));
+      if (stored?.card.logo && LOGO_RE.test(stored.card.logo)) map.set(stored.card.slug, { onDark: !!stored.card.logoOnDark, hash: stored.hash });
+    }
+  }
+  logoIndex = { at: Date.now(), map };
+  return map;
+}
+
+/** El logo de la ficha como imagen (lo que hay detrás del data URI). */
+export function readBrandLogo(slug: string): { type: string; body: Buffer; hash: string } | null {
+  const stored = readBrandCard(slug);
+  const m = stored?.card.logo?.match(LOGO_RE);
+  if (!stored || !m) return null;
+  return { type: `image/${m[1]}`, body: Buffer.from(stored.card.logo!.slice(stored.card.logo!.indexOf(',') + 1), 'base64'), hash: stored.hash };
+}

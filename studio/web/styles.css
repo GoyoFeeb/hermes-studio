@@ -1436,7 +1436,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
   .brand-dl dd { margin-bottom: 6px; }
 }
 .brand-warn { margin: 8px 0 0; padding: 8px 12px; border-left: 3px solid var(--warning); background: var(--warning-tint); font-size: var(--fs-small); color: var(--text); overflow-wrap: anywhere; }
-.brand-logo.is-dark { background: #111111; }
+.brand-logo.is-dark { background: #14183f; }
 .client-card .client-ok { margin: 6px 0 0 20px; }
 .review-views .seg-btn { white-space: nowrap; }
 
@@ -1731,3 +1731,34 @@ body::after {
 #view-job:has(#job-skeleton:not([hidden])) .job-head,
 #view-job:has(#job-skeleton:not([hidden])) #log-box,
 #view-job:has(#job-skeleton:not([hidden])) .job-actions { display: none; }
+
+/* ---------------------------------------------------------------- Newsletter en el móvil (2026-10-05) */
+/* En un iPhone la vista previa empezaba a 1.439 px y se veía al 67 % (márgenes de la tarjeta y marco de teléfono).
+   Ahora va primero, a todo el ancho de la pantalla y sin marco: al 100 %. Las acciones quedan debajo y la barra
+   fija de abajo (Descargar, Copiar, Cambios, Más) las tiene a mano mientras no se ven. */
+#sticky-more { display: none; }
+@media (max-width: 640px) {
+  #job-result:not([hidden]) { display: flex; flex-direction: column; }
+  .job-main { order: 1; }
+  .job-side { order: 2; margin-top: 24px; }
+  /* 16 px de #app + 20 px de relleno y 1 px de borde de la tarjeta: el escenario llega a los bordes de la pantalla. */
+  .job-main .preview-stage { margin: 0 -37px; padding: 0; border-left: 0; border-right: 0; border-radius: 0; }
+  .preview-device.is-mobile { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+  .preview-device.is-mobile #preview-frame, .preview-device.is-mobile #preview-frame-before { border-radius: 0; }
+  .sticky-actions #sticky-top { display: none; }
+  .sticky-actions #sticky-more { display: inline-flex; flex: 0 0 auto; }
+}
+
+/* ---------------------------------------------------------------- Zonas táctiles de 24 px como mínimo (2026-10-05) */
+.how-btn { display: inline-flex; align-items: center; min-height: 32px; }
+.foot a { display: inline-block; padding: 4px 0; }
+.choice input { width: 18px; height: 18px; flex: none; }
+
+/* Logo de la marca en las miniaturas sin imagen (2026-10-05): dentro del cuadrado blanco, con aire; si el logo es la
+   versión blanca, el cuadrado pasa a azul noche (#14183F, como los iconos redondos del raíl). */
+.thumb-logo { padding: 8px; }
+.g-card .thumb-logo { padding: 24px; }
+.job-row .thumb-logo img, .g-card .thumb-logo img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+.job-row .thumb-logo, .g-card .thumb-logo { display: flex; align-items: center; justify-content: center; }
+.thumb-logo.is-on-dark { background: #14183f; }
+.toggle { min-height: 28px; }
