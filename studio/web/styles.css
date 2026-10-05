@@ -1671,3 +1671,32 @@ body::after {
 }
 /* En móvil el círculo cruzaba el texto de la portada: solo a partir de tableta. */
 @media (max-width: 640px) { body::after { display: none; } }
+
+/* ---------------------------------------------------------------- Página de la newsletter en dos columnas (2026-10-05) */
+/* En 1280 × 900 la vista previa empezaba a 1.106 px, debajo de la cabecera y de todas las acciones, y la página
+   medía casi 4.000 px en una columna de 880. En pantallas anchas: la vista previa (y sus pestañas) a la izquierda y
+   las acciones a la derecha, fijas al bajar, con su propio scroll si no caben. La página se ensancha solo ahí. */
+@media (min-width: 1200px) {
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) #app,
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) .topbar { max-width: 1440px; }
+  #job-result:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start; }
+  .job-main { grid-column: 1; grid-row: 1; min-width: 0; }
+  .job-side {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  .job-side .action-cols { grid-template-columns: minmax(0, 1fr); }
+  .job-side .action-group + .action-group { border-left: none; border-top: 1px solid var(--border); }
+  .job-side .action-panel { margin-bottom: 16px; }
+  /* Con las acciones siempre a la vista sobra la barra fija de abajo. */
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) .sticky-actions { display: none !important; }
+  body.has-sticky:has(#view-job:not([hidden]) #job-result:not([hidden])) .foot { padding-bottom: 48px; }
+  /* La página ocupa ya los laterales: el raíl se montaba sobre la tarjeta. */
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) .side-rail { display: none; }
+}

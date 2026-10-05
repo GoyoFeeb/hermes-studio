@@ -21,6 +21,7 @@ import * as path from 'path';
 import { listJobs, updateJob, type Job } from './store';
 import { readResultHtml, resultMeta } from './standalone';
 import { STUDIO_DIR } from './paths';
+import { BRAND_BASE_STYLE, BRAND_FONTS, brandFooter, brandHeader } from './brandPage';
 
 export const SHARE_DAYS = 14;
 export const SHARE_TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
@@ -213,60 +214,62 @@ function pickScript(): string {
   return pickSource;
 }
 
-const PAGE_STYLE = `
-  :root { color-scheme: light; --bg: #eef0f5; --card: #fff; --text: #0e1545; --muted: #5b6285; --line: #d7dae6; --accent: #050c2a;
-    --ok: #0f7a52; --ok-bg: #e3f6ee; --warn: #8a5d00; --warn-bg: #fff4d6; --pick: #e6007e; --err: #b42318; }
-  * { box-sizing: border-box; }
-  [hidden] { display: none !important; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+// Identidad de Feebbo (2026-10-05, ver brandPage.ts): antes, fondo gris claro y fuente del sistema.
+const PAGE_STYLE = BRAND_BASE_STYLE + `
+  :root { --pick: #fb73ff; }
   button, input, textarea { font: inherit; color: inherit; }
-  header { max-width: 1180px; margin: 0 auto; padding: 24px 16px 8px; }
-  h1 { margin: 0; font-size: 20px; font-weight: 650; }
-  h2 { margin: 0 0 8px; font-size: 16px; }
-  .meta { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-  .subject { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 14px; }
-  .subject b { display: block; font-size: 15px; }
-  .subject span { color: var(--muted); }
-  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 16px 0 0; }
-  .views { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
-  .views button { border: 0; border-radius: 999px; padding: 6px 14px; background: transparent; font-size: 14px; cursor: pointer; }
-  .views button[aria-pressed="true"] { background: var(--accent); color: #fff; }
-  .btn { border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; background: var(--card); font-size: 14px; font-weight: 600; cursor: pointer; }
-  .btn:hover { border-color: var(--accent); }
-  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btn[aria-pressed="true"] { background: var(--pick); border-color: var(--pick); color: #fff; }
+  header { width: 100%; max-width: 1180px; margin: 0 auto; padding: 24px 16px 8px; }
+  h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); font-weight: 600; line-height: 1.15; }
+  h1 .accent { color: var(--pink); }
+  h2 { margin: 0 0 8px; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 5px; text-transform: uppercase; color: var(--pink); }
+  .meta { margin: 8px 0 0; max-width: 720px; color: var(--lilac); font-size: 15px; }
+  .subject { margin: 16px 0 0; padding: 14px 18px; border-radius: 16px; background: var(--card-grad), var(--card-base); font-size: 14px; max-width: 800px; }
+  .subject b { display: block; font-size: 16px; font-weight: 600; }
+  .subject span { color: var(--lilac); }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 20px 0 0; }
+  .views { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 45px; }
+  .views button { border: 0; border-radius: 45px; padding: 6px 16px; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .views button[aria-pressed="true"] { background: #313a82; color: var(--text); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 45px; padding: 10px 22px;
+    background: var(--button); color: var(--text); font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background .15s, color .15s; }
+  .btn:hover { background: var(--btn-hover); color: #fff; }
+  .btn-primary { border-color: var(--pink); }
+  .btn-primary:hover { background: var(--pink); color: var(--on-pink); }
+  .btn[aria-pressed="true"] { background: var(--pink); border-color: var(--pink); color: var(--on-pink); }
   .btn:disabled { opacity: .5; cursor: default; }
-  .layout { max-width: 1180px; margin: 0 auto; padding: 16px 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+  .layout { width: 100%; max-width: 1180px; margin: 0 auto; padding: 16px 16px 48px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; align-items: start; }
   .stage { margin: 0 auto; width: 100%; max-width: 800px; transition: max-width .2s ease; }
   .stage.is-mobile { max-width: 375px; }
-  .stage.is-picking iframe { outline: 3px solid var(--pick); outline-offset: 2px; }
-  iframe { display: block; width: 100%; height: 900px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .stage.is-picking iframe { outline: 3px solid var(--pick); outline-offset: 3px; }
+  iframe { display: block; width: 100%; height: 900px; border: 0; border-radius: 12px; background: #fff; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35); }
   aside { position: sticky; top: 16px; display: grid; gap: 16px; }
-  .panel { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+  .panel { padding: 20px; border-radius: 22px; background: var(--card-grad), var(--card-base); }
   .panel p { margin: 0 0 8px; }
   .hint { color: var(--muted); font-size: 13px; }
-  label { display: block; margin: 8px 0 4px; font-size: 13px; font-weight: 600; }
-  input[type=text], textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
-  textarea { min-height: 84px; resize: vertical; }
-  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  .ref { display: block; margin: 0 0 6px; padding: 6px 8px; border-left: 3px solid var(--pick); background: #fdf0f7; font-size: 13px; }
-  .comments { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-  .comments li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+  label { display: block; margin: 12px 0 6px; font-size: 13px; font-weight: 600; }
+  input[type=text], textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); font-size: 16px; }
+  input[type=text]:focus, textarea:focus { outline: none; border-color: var(--pink); box-shadow: 0 0 0 3px rgba(251, 115, 255, 0.18); }
+  textarea { min-height: 96px; resize: vertical; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .ref { display: block; margin: 0 0 6px; padding: 6px 10px; border-left: 3px solid var(--pick); background: rgba(251, 115, 255, 0.08); font-size: 13px; }
+  .comments { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+  .comments li { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(5, 12, 42, 0.35); }
   .comments li.is-resolved { opacity: .6; }
   .c-head { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
   .c-head b { color: var(--text); }
   .c-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .linkbtn { border: 0; padding: 0; background: none; color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: underline; cursor: pointer; }
-  .decision { padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+  .linkbtn { border: 0; padding: 0; background: none; color: var(--pink); font-size: 13px; font-weight: 600; text-decoration: underline; cursor: pointer; }
+  .decision { padding: 12px 14px; border-radius: 12px; font-size: 14px; }
   .decision.approved { background: var(--ok-bg); color: var(--ok); }
   .decision.changes { background: var(--warn-bg); color: var(--warn); }
   .error { color: var(--err); font-size: 13px; }
   .older summary { cursor: pointer; font-size: 13px; color: var(--muted); }
-  .jump { display: none; text-decoration: none; color: inherit; }
-  footer { max-width: 1180px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: 13px; }
-  .gone { max-width: 520px; margin: 15vh auto; padding: 0 16px; text-align: center; }
+  .jump { display: none; }
+  .gone { max-width: 560px; margin: 15vh auto; padding: 0 16px; text-align: center; }
+  .gone .meta { margin-left: auto; margin-right: auto; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  @media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } aside { position: static; } .jump { display: inline-block; } }
+  :focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+  @media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } aside { position: static; } .jump { display: inline-flex; } }
   @media (prefers-reduced-motion: reduce) { .stage { transition: none; } }
 `;
 
@@ -310,11 +313,13 @@ export function renderSharePage(job: Job, nonce: string): string | null {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>${name} · vista previa de la newsletter</title>
+${BRAND_FONTS}
 <style>${PAGE_STYLE}</style>
 </head>
 <body>
+${brandHeader('Vista previa')}
 <header>
-  <h1>Newsletter de ${name}</h1>
+  <h1>Newsletter de <span class="accent">${name}</span></h1>
   <p class="meta">Vista previa para revisar. No es un envío: los enlaces de baja y personalización se activan en la plataforma de envío.</p>
   ${subject}
   <div class="bar">
@@ -373,7 +378,7 @@ export function renderSharePage(job: Job, nonce: string): string | null {
     </section>
   </aside>
 </div>
-<footer>Enlace válido hasta el ${esc(fmtDate(job.share.expiresAt))}.</footer>
+${brandFooter(`Enlace válido hasta el ${esc(fmtDate(job.share.expiresAt))}.`)}
 <p class="sr-only" id="sr" role="status" aria-live="polite"></p>
 <script type="application/json" id="state">${jsonForScript(publicState(job))}</script>
 <script nonce="${nonce}">${pickScript()}</script>
@@ -605,7 +610,7 @@ export function renderSharePage(job: Job, nonce: string): string | null {
 export function renderShareGone(): string {
   return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow"><title>Enlace no disponible</title><style>${PAGE_STYLE}</style></head>
-<body><div class="gone"><h1>Este enlace ya no está disponible</h1>
-<p class="meta">Ha caducado o se ha desactivado. Pide un enlace nuevo a quien te lo envió.</p></div></body></html>`;
+<meta name="robots" content="noindex, nofollow"><title>Enlace no disponible</title>${BRAND_FONTS}<style>${PAGE_STYLE}</style></head>
+<body>${brandHeader('Vista previa')}<div class="gone"><h1>Este enlace ya no está disponible</h1>
+<p class="meta">Ha caducado o se ha desactivado. Pide un enlace nuevo a quien te lo envió.</p></div>${brandFooter('Hermes Studio')}</body></html>`;
 }

@@ -12,6 +12,7 @@ import * as crypto from 'crypto';
 import { listJobs, updateJob, type Job } from './store';
 import { resultMeta } from './standalone';
 import { clientMatrix, type ClientRow } from './clientMatrix';
+import { BRAND_BASE_STYLE, BRAND_FONTS, brandFooter, brandHeader } from './brandPage';
 
 export const REPORT_DAYS = 14;
 const TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
@@ -56,9 +57,11 @@ export function findReportJob(token: string): Job | null {
   return null;
 }
 
-/** Página sin scripts: CSP que no deja ejecutar ni cargar nada de fuera. */
+/** Página sin scripts: CSP que no deja ejecutar nada ni cargar de fuera más que las fuentes de la marca
+ *  (Google Fonts, 2026-10-05; el logo va en línea, ver brandPage.ts). */
 export const REPORT_HEADERS: Record<string, string> = {
-  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  'Content-Security-Policy':
+    "default-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
   'X-Robots-Tag': 'noindex, nofollow',
   'Referrer-Policy': 'no-referrer',
   'Cache-Control': 'private, no-store',
@@ -70,36 +73,33 @@ const esc = (s: string): string =>
 
 const STATUS_TEXT: Record<ClientRow['status'], string> = { ok: 'Correcto', warning: 'Revisar', error: 'Error', unknown: 'Sin medir' };
 
-const STYLE = `
-  :root { color-scheme: light; --bg: #eef0f5; --card: #fff; --text: #0e1545; --muted: #5b6285; --line: #d7dae6;
-    --ok: #0f7a52; --ok-bg: #e3f6ee; --warn: #8a5d00; --warn-bg: #fff4d6; --err: #b42318; --err-bg: #fde8e7; }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 40px; }
-  h1 { margin: 0; font-size: 21px; }
-  h2 { margin: 0; font-size: 16px; }
-  .meta { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-  .subject { margin: 16px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 14px; }
-  .subject b { display: block; font-size: 15px; }
-  .subject span { color: var(--muted); }
-  .note { margin: 16px 0; padding: 10px 14px; border-radius: 10px; background: #e8ebf5; font-size: 13px; color: var(--muted); }
+// Identidad de Feebbo (2026-10-05, ver brandPage.ts): antes, fondo gris claro y fuente del sistema.
+const STYLE = BRAND_BASE_STYLE + `
+  main { width: 100%; max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0; font-size: clamp(26px, 4vw, 34px); font-weight: 600; line-height: 1.15; }
+  h1 .accent { color: var(--pink); }
+  h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .meta { margin: 8px 0 0; color: var(--lilac); font-size: 15px; }
+  .subject { margin: 20px 0 0; padding: 14px 18px; border-radius: 16px; background: var(--card-grad), var(--card-base); font-size: 14px; }
+  .subject b { display: block; font-size: 16px; font-weight: 600; }
+  .subject span { color: var(--lilac); }
+  .note { margin: 20px 0; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
   .rows { display: grid; gap: 12px; }
-  .row { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+  .row { padding: 18px 20px; border-radius: 22px; background: var(--card-grad), var(--card-base); }
   .row-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
-  .scope { color: var(--muted); font-size: 13px; }
-  .pill { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+  .scope { display: block; color: var(--muted); font-size: 13px; }
+  .pill { padding: 3px 12px; border-radius: 45px; font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
   .pill.ok { background: var(--ok-bg); color: var(--ok); }
   .pill.warning { background: var(--warn-bg); color: var(--warn); }
   .pill.error { background: var(--err-bg); color: var(--err); }
-  .pill.unknown { background: #eceef4; color: var(--muted); }
-  ul { margin: 10px 0 0; padding: 0 0 0 18px; font-size: 14px; }
+  .pill.unknown { background: rgba(198, 187, 255, 0.12); color: var(--lilac); }
+  ul { margin: 12px 0 0; padding: 0 0 0 18px; font-size: 14px; }
   li { margin: 4px 0; overflow-wrap: anywhere; }
   li.error { color: var(--err); }
   li.warning { color: var(--warn); }
   li .label { color: var(--muted); }
   .tip { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
-  footer { margin-top: 24px; color: var(--muted); font-size: 13px; }
-  .gone { max-width: 520px; margin: 15vh auto; padding: 0 16px; text-align: center; }
+  .gone { max-width: 560px; margin: 15vh auto; padding: 0 16px; text-align: center; }
 `;
 
 const fmt = (iso: string): string =>
@@ -131,19 +131,18 @@ export function renderReportPage(job: Job): string | null {
     .join('');
   return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow"><title>${name} · revisión técnica de la newsletter</title><style>${STYLE}</style></head>
-<body><main>
-  <h1>Revisión técnica · newsletter de ${name}</h1>
+<meta name="robots" content="noindex, nofollow"><title>${name} · revisión técnica de la newsletter</title>${BRAND_FONTS}<style>${STYLE}</style></head>
+<body>${brandHeader('Revisión técnica')}<main>
+  <h1>Newsletter de <span class="accent">${name}</span></h1>
   <p class="meta">Revisada el ${esc(fmt(q.checkedAt))} · ${esc(summary)}</p>
   ${meta?.subject ? `<p class="subject"><b>${esc(meta.subject)}</b>${meta.preheader ? `<span>${esc(meta.preheader)}</span>` : ''}</p>` : ''}
   <p class="note">Comprobaciones automáticas del código de la pieza, agrupadas por programa de correo. No son capturas de cada programa.</p>
   <div class="rows">${rowHtml}</div>
-  <footer>Informe generado con Hermes Studio. Enlace válido hasta el ${esc(fmt(job.reportShare.expiresAt))}.</footer>
-</main></body></html>`;
+</main>${brandFooter(`Informe generado con Hermes Studio. Enlace válido hasta el ${esc(fmt(job.reportShare.expiresAt))}.`)}</body></html>`;
 }
 
 export function renderReportGone(): string {
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow"><title>Informe no disponible</title><style>${STYLE}</style></head>
-<body><div class="gone"><h1>Este informe ya no está disponible</h1><p class="meta">Ha caducado o se ha desactivado. Pide un enlace nuevo a quien te lo envió.</p></div></body></html>`;
+<meta name="robots" content="noindex, nofollow"><title>Informe no disponible</title>${BRAND_FONTS}<style>${STYLE}</style></head>
+<body>${brandHeader('Revisión técnica')}<div class="gone"><h1>Este informe ya no está disponible</h1><p class="meta">Ha caducado o se ha desactivado. Pide un enlace nuevo a quien te lo envió.</p></div>${brandFooter('Hermes Studio')}</body></html>`;
 }

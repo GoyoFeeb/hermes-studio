@@ -294,6 +294,9 @@
       </div>
 
       <div id="job-result" hidden>
+        <!-- Dos columnas en pantallas anchas (2026-10-05): la vista previa a la izquierda y las acciones a la derecha,
+             fijas al bajar. En el DOM van primero las acciones: en pantallas estrechas siguen arriba como antes. -->
+        <div class="job-side">
         <!-- Acciones del resultado (rediseño 2026-09-29): antes, siete botones iguales en dos filas. Ahora, el
              estado y la aprobación arriba; "Llevarla a tu plataforma" (descargar, copiar y su formato) y
              "Cambiar la pieza" (editar texto, pedir cambios, adaptar a móvil) como dos bloques. -->
@@ -431,7 +434,9 @@
             <button type="button" id="te-cancel" class="btn btn-ghost">Cancelar</button>
           </div>
         </form>
+        </div>
 
+        <div class="job-main">
         <!-- Pestañas del resultado (2026-09-30): antes, asunto, bandeja, revisión y comparación iban apilados encima
              de la vista previa y esta empezaba casi dos pantallas más abajo. Ahora es lo primero que se ve. -->
         <div class="job-tabs" role="tablist" aria-label="Detalle de la newsletter">
@@ -603,6 +608,7 @@
             <summary id="client-older-summary"></summary>
             <ol class="client-comments" id="client-older-list"></ol>
           </details>
+        </div>
         </div>
       </div>
 

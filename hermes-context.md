@@ -1302,3 +1302,23 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   de cada una. Las 10 terminadas con "Logo arriba y abajo" correcto (Adidas pasa al logo negro de la cabecera).
   Puma queda con 1 error de modo oscuro heredado de la original (24-09, anterior a esa regla; en "Pedir cambios"
   no se fuerza). Inglesina emtss3 y rtit5s tardaron 21 y 32 min; el resto, 1-7 min.
+
+### 2026-10-05 — Interfaz: página de la newsletter en dos columnas e identidad Feebbo para el cliente
+
+- **Revisión de la interfaz (solo diagnóstico):** 8 puntos. Elegidos 1 y 2. Pendientes: 3 contador repetido tres
+  veces en la portada, 4 menú lateral sin comportamiento de diálogo (foco), 5 cabecera móvil justa (tema al menú),
+  6 placeholder a 3,2:1 (→ #7D84A8, 5,1:1), 7 sin estados de carga, 8 titular de portada en dos líneas.
+- **1. Dos columnas (≥ 1200 px):** `#job-result` dividido en `.job-side` (acciones y paneles de aprobar, pedir
+  cambios y editar texto; primero en el DOM, así en estrecho sigue arriba) y `.job-main` (pestañas y vista
+  previa). En ancho: rejilla `1fr 380px`, la página se ensancha a 1440 px solo en esa vista (`body:has(...)`),
+  la columna de acciones es `sticky` con scroll propio, sin barra fija de abajo y sin raíl lateral (se montaba).
+  En 1440 × 900 la vista previa empieza a 526 px (antes 1.106) y al 100 %; en 1280, al 92 %.
+- **2. Página del cliente (`/p/`) e informe (`/r/`) con la identidad de Feebbo:** `server/brandPage.ts` (variables
+  de la web, Work Sans y Barlow de Google Fonts, logo en línea leído de `studio/web/feebbo-logo.svg` con los id
+  renombrados, cabecera con etiqueta rosa y pie negro con copyright, caducidad y correo). Tema oscuro azul noche,
+  tarjetas con el degradado de la web, botones como Studio. Mismas clases (el script del cliente no cambia).
+  CSP del informe: añade `style-src https://fonts.googleapis.com` y `font-src https://fonts.gstatic.com`; la del
+  cliente ya los permitía. También las páginas de enlace caducado.
+- **Verificación (copia aislada):** 1440/1280/1100/375 px; "Pedir cambios" y "Editar texto" en la columna
+  derecha; enlace del cliente (comentario enviado), informe y enlace caducado sin errores de consola, fuentes
+  cargadas y 375 px sin desbordes. `npm test` 159/159.
