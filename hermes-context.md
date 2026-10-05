@@ -1322,3 +1322,6 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Verificación (copia aislada):** 1440/1280/1100/375 px; "Pedir cambios" y "Editar texto" en la columna
   derecha; enlace del cliente (comentario enviado), informe y enlace caducado sin errores de consola, fuentes
   cargadas y 375 px sin desbordes. `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `5036897` → Vercel (styles.css e index.html idénticos) y Railway SUCCESS
+  09:38. Comprobado en producción: el enlace caducado `/p/` ya sale con fuentes, logo y pie; la CSP de `/r/`
+  incluye las fuentes de Google. Worker sin reiniciar.
