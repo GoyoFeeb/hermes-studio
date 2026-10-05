@@ -24,7 +24,10 @@
 <body>
   <header class="topbar">
     <a class="brand" href="/" aria-label="Hermes Studio — inicio">
-      <img src="/feebbo-logo.svg" alt="Feebbo Digital" width="99" height="36" />
+      <!-- Imagen fija = último fotograma del Lottie (2026-10-05), del mismo tamaño que la animación: el logo oficial
+           (feebbo-logo.svg) tiene «DIGITAL» sangrado y, mientras cargaba el reproductor, FEEBBO quedaba muy a la
+           izquierda y luego saltaba. -->
+      <img src="/feebbo-logo-anim.svg" alt="Feebbo Digital" width="99" height="40" />
       <!-- Logo animado oficial de feebbodigital.com (Lottie, 2026-10-05): en bucle, como en la web. Sustituye a la
            imagen cuando carga el reproductor; con menos movimiento, se queda la imagen. -->
       <span class="brand-anim" id="brand-anim" aria-hidden="true" hidden></span>

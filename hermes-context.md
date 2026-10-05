@@ -1529,3 +1529,17 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   «striking-luck - hermes-studio» SUCCESS). **Vercel pendiente:** no tiene integración con GitHub y desde la nube no
   hay CLI con sesión ni red hacia vercel.app; falta `vercel --prod` desde `studio/web` (solo cambia styles.css).
   Worker sin reiniciar.
+
+### 2026-10-05 (tarde) — Interfaz: el logo de la cabecera ya no salta al cargar
+
+- **Lo que veía el usuario (en Railway, tras `30fbfa0`):** «al principio, FEEBBO se va mucho a la izquierda del
+  DIGITAL». No era la animación: era la imagen fija que se ve hasta que carga el reproductor. `feebbo-logo.svg` (el
+  logo oficial) tiene «DIGITAL» sangrado unos 22 px bajo FEEBBO, y la animación termina con los dos alineados a la
+  izquierda. Además, la imagen medía 77 × 28 (32 px de alto; 28 en móvil) y la animación 99 × 40, así que el logo
+  cambiaba de tamaño y la cabecera crecía 6 px al sustituirla.
+- **Arreglo:** `studio/web/feebbo-logo-anim.svg`, que es el fotograma 100 del Lottie exportado como SVG (13 KB). La
+  cabecera lo usa a 99 × 40, el mismo tamaño que la animación, también en móvil (se quita el `height: 28px`). El
+  pie y `brandPage.ts` siguen con `feebbo-logo.svg`.
+- **Verificación (local):** a 375 px en oscuro y a 1280 px en claro, imagen fija y animación en el mismo sitio
+  (99 × 40) y pixel a pixel iguales; cabecera de 68 px en los dos casos. La reproducción real en Chromium,
+  fotogramas 0-58 y 215-3, mantiene FEEBBO y DIGITAL alineados. `npm test` 156/158 (los mismos 2 fallos del entorno).

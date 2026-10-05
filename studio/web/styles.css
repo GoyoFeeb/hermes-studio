@@ -246,7 +246,7 @@ a { color: var(--accent-text); }
   justify-content: space-between;
   gap: 16px;
 }
-.brand img { display: block; height: 32px; width: auto; }
+.brand img { display: block; width: 99px; height: 40px; }
 /* El logo oficial es blanco: en el tema claro se oscurece. */
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .brand img { filter: brightness(0) opacity(0.88); } }
 :root[data-theme="light"] .brand img { filter: brightness(0) opacity(0.88); }
@@ -917,7 +917,6 @@ body.has-sticky .foot { padding-bottom: 88px; }
   .status-pill { padding: 6px 12px; }
   .status-pill::before { margin-right: 6px; }
   .theme-btn { padding: 0 10px; gap: 5px; }
-  .brand img { height: 28px; }
   .hero { padding: 36px 0 24px; }
   .card { padding: 20px; }
   .row, .choices, .history-tools { grid-template-columns: 1fr; gap: 0 12px; }
