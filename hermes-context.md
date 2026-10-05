@@ -1438,3 +1438,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Verificación (copia aislada):** copia de la página sin sus scripts para ver el primer pintado: con `?job=`,
   silueta y sin portada; sin parámetros, portada normal. Con scripts, newsletter y ficha sin restos de la
   silueta. `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `6174f9d` → Vercel (styles.css, index.html y app.js idénticos) y Railway
+  SUCCESS 11:09. Worker sin reiniciar.
