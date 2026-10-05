@@ -1426,3 +1426,15 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `12d7272` → Vercel (styles.css y app.js idénticos) y Railway SUCCESS
   10:26. En producción, la de Helly Hansen abre la pestaña Cliente con el aviso "!" y el botón «Marcar como
   atendido» (no se ha pulsado: lo decide el usuario). Worker sin reiniciar.
+
+### 2026-10-05 (continuación) — Interfaz: sin parpadeo de la portada en los enlaces directos
+
+- **Revisión (solo diagnóstico):** ficha de marca real en producción y en móvil, paneles en dos columnas (la columna
+  baja sola al panel que se abre) y carga de enlaces directos. Un punto: en `?job=`/`?brand=` el navegador pintaba
+  la portada (FCP 448 ms en producción) antes de que app.js cambiara de vista (~511 ms); en móvil, más.
+- **Arreglo:** el script del tema en `<head>` añade `html.deep-link` si la URL lleva `job` o `brand`; con esa clase
+  se ocultan `.hero` y `#view-form` y sale `#boot-skeleton` (silueta como la del trabajo). `route()` quita la
+  clase al decidir la vista.
+- **Verificación (copia aislada):** copia de la página sin sus scripts para ver el primer pintado: con `?job=`,
+  silueta y sin portada; sin parámetros, portada normal. Con scripts, newsletter y ficha sin restos de la
+  silueta. `npm test` 159/159.

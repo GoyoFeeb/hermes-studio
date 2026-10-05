@@ -10,6 +10,9 @@
       var t = localStorage.getItem('studioTheme');
       if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
     } catch (e) {}
+    // Enlace directo a una newsletter o a una ficha (2026-10-05): la portada se pintaba ~70 ms (o más en móvil)
+    // antes de que app.js cambiara de vista. Con esta clase no se pinta; route() la quita al decidir la vista.
+    if (/[?&](job|brand)=/.test(location.search)) document.documentElement.classList.add('deep-link');
   </script>
   <title>Hermes Studio · Feebbo</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
@@ -53,6 +56,13 @@
   </nav>
 
   <main id="app">
+    <!-- Silueta mientras carga un enlace directo (ver la clase deep-link en <head>). -->
+    <div id="boot-skeleton" class="card skeleton-job boot-skeleton" aria-hidden="true">
+      <div class="skeleton skeleton-title"></div>
+      <div class="skeleton skeleton-line"></div>
+      <div class="skeleton skeleton-line is-short"></div>
+      <div class="skeleton skeleton-preview"></div>
+    </div>
     <!-- Sin contraseña la API responde 401: antes la página se quedaba a medias sin decir por qué (2026-09-30). -->
     <div id="auth-banner" class="form-warning auth-banner" role="alert" hidden>
       <p><strong>Necesitas iniciar sesión.</strong> Studio no ha podido cargar tus datos porque falta la contraseña del equipo. Recarga la página e introdúcela cuando el navegador te la pida.</p>

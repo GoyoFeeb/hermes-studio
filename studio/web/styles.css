@@ -1854,3 +1854,8 @@ body::after {
 .client-decision .decision-resolve { display: flex; width: fit-content; margin-top: 10px; }
 .client-decision .decision-resolved { display: block; margin-top: 8px; font-size: var(--fs-small); color: var(--muted); }
 .client-decision.is-resolved { opacity: 0.75; }
+
+/* Enlace directo (2026-10-05): sin portada hasta que app.js decide la vista; mientras, la silueta. */
+.boot-skeleton { display: none; margin-top: 40px; }
+html.deep-link .boot-skeleton { display: grid; }
+html.deep-link .hero, html.deep-link #view-form { display: none; }

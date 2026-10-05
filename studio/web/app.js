@@ -4814,6 +4814,8 @@ function escapeHtml(str) {
 }
 
 function route() {
+  // Studio ya decide la vista: fuera la silueta del enlace directo (ver <head> de index.html).
+  document.documentElement.classList.remove('deep-link');
   const params = new URLSearchParams(location.search);
   const id = params.get('job');
   const brand = params.get('brand');
