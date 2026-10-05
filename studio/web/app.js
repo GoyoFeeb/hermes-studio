@@ -5100,7 +5100,7 @@ function setProgressBar(bar, pct) {
 // Fases como pasos numerados (2026-10-05): las mismas que deduce el worker (hermes-worker.ts, STAGES y EDIT_LABELS)
 // más el brief, si se pidió con una frase, y la revisión automática del final, que no tiene fase propia: se marca
 // hecha al terminar.
-const STEP_LABELS = { preparando: 'Preparar: skills y brand pack', investigando: 'Investigar la marca', escribiendo: 'Escribir la newsletter', revisando: 'Revisar y corregir' };
+const STEP_LABELS = { preparando: 'Preparar: brand pack e identidad', investigando: 'Investigar la marca', escribiendo: 'Escribir la newsletter', revisando: 'Revisar y corregir' };
 const STEP_EDIT_LABELS = { preparando: 'Leer la versión original', investigando: 'Buscar lo que pide el cambio', escribiendo: 'Aplicar los cambios', revisando: 'Revisar y corregir' };
 function renderProgressSteps(job) {
   const list = document.getElementById('progress-steps');

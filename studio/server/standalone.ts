@@ -174,7 +174,7 @@ export function buildBriefPrompt(job: Job): string {
   const images =
     job.input.imageMode === 'ai'
       ? 'Las imágenes de la pieza se generarán con IA (el logo, siempre el oficial): describe en la sección 6 qué debe mostrar cada una.'
-      : 'Solo fotografía oficial de la marca, de su web oficial (nada generado con IA): en la sección 6, la URL concreta de cada imagen.';
+      : 'Solo fotografía oficial de la marca, de su web oficial (nada generado con IA): en la sección 6, la página oficial donde está cada imagen (no hace falta la URL del archivo).';
   return [
     `Escribe el brief de dirección creativa de una newsletter de ${job.input.clientName}. NO cargues skills: el método está aquí.`,
     '',
@@ -186,6 +186,9 @@ export function buildBriefPrompt(job: Job): string {
     '  razonable para la marca ahora mismo (lanzamiento o campaña vigente en su web oficial española) y dilo en el brief.',
     '- Mercado: España y castellano. Precios en euros y páginas de la web española de la marca.',
     `- Imágenes: ${images}`,
+    '- Presupuesto: el brief se escribe en unos 5 minutos y unas 25 acciones EN TOTAL (búsquedas, páginas y navegador',
+    '  cuentan igual). No busques la URL de cada imagen: basta con la página oficial donde están; las imágenes se',
+    '  descargan al hacer la newsletter. Si no te da tiempo a verificar algo, márcalo como pendiente y escribe.',
     '- Investigación: como mucho 5 búsquedas o páginas, solo para el CONTENIDO (producto, campaña, datos con fuente). La',
     '  identidad visual: si más abajo hay una sección «Identidad de la marca ya medida» o existe',
     `  brands/${slug}/tokens/brand-tokens.json, úsala tal cual y no la vuelvas a medir; si no, mídela en la web oficial`,
@@ -210,7 +213,7 @@ export function buildBriefPrompt(job: Job): string {
     '## 4. Asunto y preheader — asunto (≤ 50 caracteres) y preheader (≤ 90) que lo complemente.',
     '## 5. Escenas — una por escena: función narrativa, titular, texto (≤ 40 palabras), imagen, módulo/composición,',
     '   CTA (si lleva; cada CTA con un texto distinto) y el aire con la anterior.',
-    '## 6. Imágenes — lista: para qué escena, URL oficial concreta (o descripción si son de IA) y encuadre.',
+    '## 6. Imágenes — lista: para qué escena, qué debe mostrar, página oficial donde está (o descripción si son de IA) y encuadre.',
     '## 7. Prohibido en esta pieza — siempre: ficha de datos sueltos sin verbo; rejilla de 3 columnas icono + título +',
     '   párrafo; la misma composición imagen/texto repetida; el mismo texto de CTA dos veces; texto duplicado; marcadores',
     '   sin rellenar; el nombre de la marca en texto con CSS en lugar del logo oficial; Arial como fuente principal;',

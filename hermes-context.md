@@ -1834,3 +1834,16 @@ El usuario pidió «vamos con todas».
   **Pendiente del usuario:** `vercel --prod` desde `studio/web` (formulario, tiempos por fase y aviso de «Editar
   texto»), y en el Mac `git pull` + `studio/worker/service.sh restart`. Sin el pull, el encargo pediría
   `npm run check-newsletter` y la base técnica, que aún no existirían en el Mac.
+
+### 2026-10-05 (tarde) — Paredes: el brief se quedaba investigando (presupuesto del brief)
+
+- **Primera prueba real del circuito nuevo** (Paredes, `muvfrjhm-w9rkz2`, 18:00). La identidad se midió en 5 s
+  (https://www.paredes.es/es/: Barlow, #ba0c2f #eed3c2 #1c5399, logo descargado). El brief, en cambio, llevaba 62
+  acciones y 17 min navegando: no estaba colgado (última acción hacía 5 s). La causa fue mía: la sección 6 del brief
+  nuevo pedía «la URL concreta de cada imagen», y el límite de «5 búsquedas» no contaba las acciones del navegador.
+- **Cambios:**
+  - **Brief:** presupuesto explícito de unos 5 min y unas 25 acciones en total. En imágenes basta la página oficial
+    donde está cada una: se descargan al hacer la newsletter.
+  - **Worker:** con 35 acciones u 8 min sin `brief.md`, corta el turno una vez y le pide escribirlo ya, sin navegar
+    más. Lo avisa en el registro del trabajo.
+  - **Web:** la etiqueta del paso 02 ya no habla de «skills».

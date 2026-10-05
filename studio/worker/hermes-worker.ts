@@ -619,6 +619,9 @@ const REVISION_EXPECTED_SEC = 8 * 60;
 /** Parte de la barra que ocupa el paso del brief cuando el trabajo llega como instrucción básica. */
 const BRIEF_SHARE = 12;
 const BRIEF_EXPECTED_SEC = 6 * 60;
+/** Tope del brief: pasadas estas acciones o estos minutos sin brief.md, se le pide que lo escriba con lo que tiene. */
+const BRIEF_ACTION_BUDGET = 35;
+const BRIEF_TIME_BUDGET_SEC = 8 * 60;
 
 /** Lo que Hermes necesita del repo para el brief, ya resuelto: el 2026-09-24 (Adidas) hizo 21
  *  search_files (varios con patrón "*" sobre todo el repo) buscando el brand pack y no llegó a
@@ -680,6 +683,7 @@ async function runBriefStep(
   let busy = false;
   let lastCount = -1;
   let lastChange = Date.now();
+  let budgetHit = false;
   const loops = newLoopState();
   const heartbeat = setInterval(async () => {
     if (busy) return;
@@ -697,6 +701,16 @@ async function runBriefStep(
       lastChange = Date.now();
     }
     watchForLoop(loops, tools, job.id, 'brief');
+    // Presupuesto del brief (Paredes, 2026-10-05: 62 acciones y 17 min navegando la web en busca de la URL de cada
+    // imagen; un brief tarda 1-4 min). Pasado el tope se corta el turno UNA vez y el siguiente le pide escribirlo ya.
+    if (!budgetHit && currentChild && !ready() && (tools.length >= BRIEF_ACTION_BUDGET || elapsed >= BRIEF_TIME_BUDGET_SEC)) {
+      budgetHit = true;
+      console.log(`[${stamp()}] Brief de ${job.id}: presupuesto agotado (${tools.length} acciones, ${Math.round(elapsed / 60)} min) — se corta y se le pide que lo escriba`);
+      void api(`/api/worker/jobs/${job.id}/progress`, {
+        message: `El brief lleva ${tools.length} acciones y ${Math.round(elapsed / 60)} min investigando: se le pide a Hermes que lo escriba ya con lo que tiene.`,
+      }).catch(() => undefined);
+      currentChild.kill('SIGTERM');
+    }
     if ((Date.now() - lastChange) / 1000 >= STALL_KILL_SEC && currentChild) {
       console.log(`[${stamp()}] Brief de ${job.id}: Hermes sin actividad ${Math.round(STALL_KILL_SEC / 60)} min — se corta el turno y se retoma`);
       timeline.hang((Date.now() - lastChange) / 1000);
@@ -728,8 +742,9 @@ async function runBriefStep(
   for (let i = 1; i <= 3 && !ready() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     const message = loops.nudge
       ? loopNudge(loops.nudge, `${job.outputDir}/brief.md`)
-      : `Todavía no existe ${job.outputDir}/brief.md. Escríbelo AHORA con write_file, con lo que ya tengas ` +
-        '(marca como pendiente lo que no hayas podido verificar). Sin texto previo: llama a la herramienta.';
+      : `Todavía no existe ${job.outputDir}/brief.md. ${budgetHit ? 'Se acabó el tiempo de investigación: NO navegues ni busques más. ' : ''}` +
+        'Escríbelo AHORA con write_file, con lo que ya tengas (marca como pendiente lo que no hayas podido verificar; ' +
+        'las imágenes que no tengas localizadas, descríbelas: se buscarán al hacer la newsletter). Sin texto previo: llama a la herramienta.';
     loops.nudge = null;
     turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief);
   }
