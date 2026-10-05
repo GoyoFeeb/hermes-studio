@@ -457,7 +457,9 @@ form.addEventListener('reset', () =>
     }
     try {
       document.getElementById('review-brief-input').checked = localStorage.getItem('reviewBrief') === '1';
-      document.getElementById('art-review-input').checked = localStorage.getItem('artReview') === '1';
+      // Activada por defecto desde el 2026-10-05 (Paredes: concepto «el negro» con una zapatilla gris, marrón y roja,
+      // y sin el Black Friday pedido). Solo se recuerda si alguien la quita; la clave antigua se ignora.
+      document.getElementById('art-review-input').checked = localStorage.getItem('artReviewOff') !== '1';
     } catch {
       // sin almacenamiento
     }
@@ -567,7 +569,7 @@ async function submitJob(payload) {
       localStorage.setItem('requesterName', payload.requesterName || '');
       localStorage.setItem('imageMode', payload.imageMode || '');
       if (payload.inputKind === 'instruction') localStorage.setItem('reviewBrief', payload.reviewBrief ? '1' : '0');
-      localStorage.setItem('artReview', payload.artReview ? '1' : '0');
+      localStorage.setItem('artReviewOff', payload.artReview ? '0' : '1');
     } catch {
       // sin almacenamiento: no se recuerda
     }
@@ -2443,6 +2445,13 @@ function renderBriefReview(job) {
     setBriefEditing(false);
   }
   document.getElementById('review-restore').hidden = reviewText.value === reviewText.dataset.src;
+  const missing = document.getElementById('review-missing');
+  const gaps = job.briefMissing || [];
+  missing.hidden = !gaps.length;
+  if (gaps.length) {
+    const list = gaps.length === 1 ? gaps[0] : `${gaps.slice(0, -1).join(', ')} y ${gaps[gaps.length - 1]}`;
+    missing.innerHTML = `<strong>Ojo:</strong> tu petición pide <strong>${escapeHtml(list)}</strong> y el brief de Hermes no lo recoge. Añádelo con «Corregir el brief» antes de aprobarlo.`;
+  }
   const waiting = document.getElementById('review-waiting');
   waiting.hidden = !job.briefReadyAt;
   if (job.briefReadyAt) {

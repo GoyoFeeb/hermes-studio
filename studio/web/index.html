@@ -173,8 +173,8 @@
           <p class="hint">Hermes se para tras escribir el brief (unos minutos) para que lo apruebes o lo corrijas. Se recuerda.</p>
         </div>
         <div class="review-brief-field">
-          <label class="toggle"><input type="checkbox" name="artReview" value="true" id="art-review-input" /><span>Revisión de dirección de arte al final</span></label>
-          <p class="hint">Hermes mira las capturas, puntúa identidad, concepto, jerarquía, aire y originalidad, y retoca lo que baje de 4. Unos minutos más. Se recuerda.</p>
+          <label class="toggle"><input type="checkbox" name="artReview" value="true" id="art-review-input" checked /><span>Revisión de dirección de arte al final</span></label>
+          <p class="hint">Activada por defecto. Hermes mira las capturas, comprueba que la pieza cumple tu petición y que los textos casan con las fotos, puntúa identidad, concepto, jerarquía, aire y originalidad, y retoca lo que baje de 4. Unos minutos más. Si la quitas, se recuerda.</p>
         </div>
 
         <fieldset>
@@ -354,6 +354,8 @@
           (<span data-eta="brief">unos 20 minutos</span>) sin volver a escribir el brief.</p>
         <!-- La espera no es trabajo de Hermes (2026-10-05): se dice desde cuándo, y luego sale aparte en el tiempo. -->
         <p id="review-waiting" class="hint" hidden></p>
+        <!-- Lo que la petición pedía y el brief no recoge (2026-10-05, Paredes: el Black Friday desapareció). -->
+        <p id="review-missing" class="review-missing" role="status" hidden></p>
         <!-- El brief con formato, como documento (2026-10-05): antes, en bruto dentro del cuadro de edición, con las
              almohadillas a la vista. El cuadro sale solo al pulsar «Corregir el brief». -->
         <div id="review-brief-view" class="md surface-light review-brief-view"></div>

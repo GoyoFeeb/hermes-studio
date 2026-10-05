@@ -24,6 +24,7 @@ import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
 import { findPreheader, staticChecks } from '../worker/qualityCheck';
 import { applyTextEdits, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { createJob } from './store';
+import { joinLabels, requestTerms } from './requestCoverage';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
 const GMAIL_CLIP_BYTES = 102 * 1024;
@@ -102,6 +103,7 @@ export function buildHermesPrompt(job: Job): string {
     '## Instrucciones de entrega (Hermes Studio — ejecución automatizada)',
     '',
     `- Marca: ${job.input.clientName}${job.input.clientSlug ? ` (carpeta brands/${job.input.clientSlug}/ si existe)` : ''}.`,
+    ...requestLines(job),
     `- ${images}`,
     '- Nadie va a responder preguntas durante esta ejecución: no uses clarify ni esperes confirmación.',
     '  Si falta un dato, no lo inventes: déjalo fuera de la pieza y anótalo como pendiente.',
@@ -155,6 +157,20 @@ export function buildHermesPrompt(job: Job): string {
   ].join('\n');
 }
 
+/** La petición del equipo en el encargo (Paredes, 2026-10-05: pedía pre-Black Friday y la pieza no lo nombraba).
+ *  Studio comprueba en la pieza la ocasión y la oferta (requestCoverage.ts). */
+function requestLines(job: Job): string[] {
+  const request = job.input.instruction?.trim();
+  if (!request) return [];
+  const terms = requestTerms(request).filter((t) => t.kind !== 'audience');
+  return [
+    `- Petición original del equipo: «${request}». La pieza la cumple; si el brief se apartó de ella, manda la petición.`,
+    ...(terms.length
+      ? [`  OBLIGATORIO en el texto visible de la pieza (Studio lo comprueba): ${joinLabels(terms)}, nombrado tal cual (asunto, titular o una escena).`]
+      : []),
+  ];
+}
+
 /** El brief está pendiente: el trabajo llegó como instrucción básica y Hermes aún no lo ha escrito. */
 export function needsBrief(job: Job): boolean {
   return !!job.input.instruction && !job.input.briefText.trim();
@@ -175,12 +191,36 @@ export function buildBriefPrompt(job: Job): string {
     job.input.imageMode === 'ai'
       ? 'Las imágenes de la pieza se generarán con IA (el logo, siempre el oficial): describe en la sección 6 qué debe mostrar cada una.'
       : 'Solo fotografía oficial de la marca, de su web oficial (nada generado con IA): en la sección 6, la página oficial donde está cada imagen (no hace falta la URL del archivo).';
+  const mustCover = requestTerms(job.input.instruction || '');
   return [
     `Escribe el brief de dirección creativa de una newsletter de ${job.input.clientName}. NO cargues skills: el método está aquí.`,
     '',
     `Petición del equipo: «${job.input.instruction!.trim()}»`,
     `Marca: ${job.input.clientName} (carpeta brands/${slug}/ si existe).`,
+    ...(mustCover.length
+      ? [`Lo que la petición pide y el brief tiene que recoger (Studio lo comprueba): ${joinLabels(mustCover)}.`]
+      : []),
     '',
+    '## La petición manda',
+    '- Cada cosa que pide (ocasión de compra como Black Friday o Navidad, oferta, público, producto) llega al brief.',
+    '  Corrige las erratas obvias de la petición (p. ej. «black frisay» es Black Friday).',
+    '- Si nombra una ocasión, es el eje de la pieza: el concepto, el asunto y al menos una escena la nombran tal cual.',
+    '- Si nombra un público, el concepto, el tono y las escenas se escriben para él (dilo en la sección 1).',
+    '',
+    // Paredes (2026-10-05): concepto «el negro» para una zapatilla gris, marrón y roja, y escenas con personas que
+    // la web no tenía. Con imágenes de IA no aplica: se describen las que harán falta.
+    ...(job.input.imageMode === 'ai'
+      ? []
+      : [
+          '## Primero mira las fotos, después el concepto',
+          '- Antes de elegir el concepto, abre la página oficial del producto con el navegador y MIRA sus fotos (captura +',
+          '  visión): qué colores tiene de verdad, si hay personas o ambiente o solo producto sobre fondo liso.',
+          '- El concepto y las escenas se construyen con lo que muestran esas fotos. Nunca un concepto sobre un atributo que',
+          '  las fotos no enseñan: el nombre comercial del color (p. ej. «Negro») puede no ser lo que se ve.',
+          '- No pidas fotos que no has visto en la web oficial (personas, calle, ambiente): si solo hay producto, diseña escenas',
+          '  que funcionen con producto.',
+          '',
+        ]),
     '## Decisiones ya tomadas (no preguntes)',
     '- Nadie va a responder preguntas: no uses clarify. Si falta el producto o la campaña concreta, elige la opción más',
     '  razonable para la marca ahora mismo (lanzamiento o campaña vigente en su web oficial española) y dilo en el brief.',
@@ -201,10 +241,13 @@ export function buildBriefPrompt(job: Job): string {
     '- Al menos una escena con un módulo propio del concepto (comparativa, rejilla, cita, dos columnas, dato sobre color de',
     '  marca, secuencia…), no solo «foto a todo el ancho + titular + texto».',
     '- Copy: máximo 40 palabras por bloque; cada dato técnico dentro de una frase con verbo, contado como experiencia.',
+    '- Los titulares hablan al cliente: nada de códigos de color (#25282a), referencias internas ni jerga de diseño.',
+    '- Si verificas el precio y la pieza es para vender (ocasión de compra, oferta, lanzamiento), el precio sale en una escena.',
     '',
     `## Entregable: ${outDir}/brief.md (write_file), con EXACTAMENTE estas secciones y como mucho ${BRIEF_MAX_WORDS} palabras`,
     `# Brief — ${job.input.clientName} — <producto o campaña>`,
-    '## 1. Concepto — la frase rectora y por qué encaja con la marca y el producto (2-3 líneas).',
+    '## 1. Concepto — la frase rectora, por qué encaja con la marca y el producto, y cómo recoge cada punto de la',
+    '   petición (ocasión, oferta, público) (3-4 líneas).',
     '## 2. Identidad de marca — tipografía de titulares y de texto (nombre exacto, de dónde sale y cómo cargarla en un',
     '   email: Google Fonts o la alternativa web más parecida), paleta (hex de fondo, texto, acento y botón, con su',
     '   origen), estilo de botón, tono de voz y tratamiento de foto. Logo: ruta del PNG si ya existe o URL oficial.',
@@ -213,7 +256,10 @@ export function buildBriefPrompt(job: Job): string {
     '## 4. Asunto y preheader — asunto (≤ 50 caracteres) y preheader (≤ 90) que lo complemente.',
     '## 5. Escenas — una por escena: función narrativa, titular, texto (≤ 40 palabras), imagen, módulo/composición,',
     '   CTA (si lleva; cada CTA con un texto distinto) y el aire con la anterior.',
-    '## 6. Imágenes — lista: para qué escena, qué debe mostrar, página oficial donde está (o descripción si son de IA) y encuadre.',
+    job.input.imageMode === 'ai'
+      ? '## 6. Imágenes — lista: para qué escena, qué debe mostrar (descripción para generarla) y encuadre.'
+      : '## 6. Imágenes — solo las que has VISTO: para qué escena, qué muestran de verdad (colores, fondo, personas sí/no),\n' +
+        '   página oficial donde están y encuadre.',
     '## 7. Prohibido en esta pieza — siempre: ficha de datos sueltos sin verbo; rejilla de 3 columnas icono + título +',
     '   párrafo; la misma composición imagen/texto repetida; el mismo texto de CTA dos veces; texto duplicado; marcadores',
     '   sin rellenar; el nombre de la marca en texto con CSS en lugar del logo oficial; Arial como fuente principal;',
@@ -221,6 +267,7 @@ export function buildBriefPrompt(job: Job): string {
     '## 8. Autoauditoría — las preguntas que la pieza debe responder con «no» antes de entregarse: ¿dos frases compiten',
     '   por ser el titular? ¿algún bloque de números sin verbo? ¿CTA repetido? ¿texto duplicado? ¿marcadores? ¿más de 5',
     '   escenas o la misma composición 3 veces? ¿logo reconstruido con texto? ¿fuente o colores que no son de la marca?',
+    '   ¿falta algo de la petición? ¿algún texto describe algo que las fotos no muestran?',
     '',
     '- NO generes la newsletter ni ningún HTML: solo el brief. La newsletter se hace en otro paso.',
     '- Respuesta final: una línea con el concepto elegido.',

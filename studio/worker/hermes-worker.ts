@@ -22,13 +22,14 @@ import { spawn, execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 import { describeErrors, staticChecks, type QualityReport } from './qualityCheck';
-import { inspectNewsletter } from './inspect';
+import { REQUEST_FILE, inspectNewsletter } from './inspect';
 import { MOBILE_WIDTH, launchBrowser } from './renderChecks';
 import { measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote } from './measureBrand';
 import { Timeline, summarize, type JobTimings } from './timeline';
 import { renderThumbnail } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
+import { joinLabels, missingInBrief } from '../server/requestCoverage';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -607,8 +608,10 @@ interface ClaimedJob {
   sourceNotes?: string;
   /** Marca (2026-10-05): para medir su identidad en la web si no tiene brand pack (measureBrand.ts). */
   brand?: { slug: string; name: string; url?: string };
-  /** Revisión de dirección de arte al final (2026-10-05, opcional desde el formulario). */
+  /** Revisión de dirección de arte al final (2026-10-05; activada por defecto en el formulario desde la noche). */
   artReview?: boolean;
+  /** Petición del equipo (instrucción básica): lo que pide tiene que llegar al brief y a la pieza (requestCoverage.ts). */
+  request?: string;
 }
 
 /** Una adaptación a móvil es un retoque, no una newsletter: la barra estima con esto. */
@@ -748,6 +751,23 @@ async function runBriefStep(
     loops.nudge = null;
     turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief);
   }
+  // Lo que pide la petición y el brief no recoge (Paredes, 2026-10-05: «pre-black friday» y «público joven»
+  // desaparecieron). Una vuelta en la misma sesión, sin investigar; si aún falta, Studio lo avisa al revisar el brief.
+  const gaps = ready() && job.request && sessionId && !cancelled ? missingInBrief(job.request, fs.readFileSync(briefFile, 'utf8')) : [];
+  if (gaps.length) {
+    console.log(`[${stamp()}] Brief de ${job.id}: no recoge ${joinLabels(gaps)} — se le pide que lo rehaga`);
+    void api(`/api/worker/jobs/${job.id}/progress`, { message: `El brief no recoge ${joinLabels(gaps)} de la petición: se le pide a Hermes que lo añada.` }).catch(() => undefined);
+    await runHermesTurn(
+      `Tu brief no recoge lo que pide la petición del equipo: ${joinLabels(gaps)}. Petición: «${job.request}».\n` +
+        `Reescribe ${job.outputDir}/brief.md con write_file para que lo recoja: ${gaps.some((g) => g.kind === 'occasion') ? 'la ocasión es el eje — el concepto, el asunto y al menos una escena la nombran tal cual; ' : ''}` +
+        `${gaps.some((g) => g.kind === 'audience') ? 'el público va en el concepto (sección 1), en el tono y en las escenas; ' : ''}` +
+        `${gaps.some((g) => g.kind === 'offer') ? 'la oferta (o el precio verificado) sale en una escena; ' : ''}` +
+        'mantén lo que ya está bien. NO navegues ni busques: lo que no tengas verificado va a Pendiente. Sin texto previo: llama a la herramienta.',
+      sessionId,
+      () => undefined,
+      MODELS.brief
+    );
+  }
   clearInterval(heartbeat);
   clearTimeout(killer);
   if (!ready()) {
@@ -886,6 +906,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // El encargo, a mano para las sesiones cortas de corrección y de revisión visual (no lo tienen en su historial).
   fs.mkdirSync(path.join(outAbs, '_trabajo'), { recursive: true });
   fs.writeFileSync(path.join(outAbs, '_trabajo', 'encargo.md'), prompt);
+  // La petición del equipo: check-newsletter (inspect.ts) comprueba con ella que la pieza nombra la ocasión o la
+  // oferta que se pidió, igual cuando la lanza Hermes que cuando la lanza el worker (2026-10-05).
+  if (claimed.request && !editKind) fs.writeFileSync(path.join(outAbs, '_trabajo', REQUEST_FILE), claimed.request);
   const job = { id: claimed.id, outputDir: claimed.outputDir, prompt };
   const kind: 'new' | 'revision' | 'mobile-fix' = isMobileFix ? 'mobile-fix' : isRevision ? 'revision' : 'new';
   const scale = (p: Progress): Progress =>
@@ -1089,11 +1112,17 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
           `Capturas ya hechas: ${rel}/revision-600.png (escritorio) y ${rel}/revision-375.png (móvil). Encargo: ${rel}/encargo.md.`,
           '',
+          ...(claimed.request ? [`Petición original del equipo: «${claimed.request}».`, ''] : []),
           '1. Mira las dos capturas con vision_analyze.',
-          '2. Puntúa de 1 a 5, con una frase cada una: identidad de marca (¿se reconoce sin ver el logo?), concepto (¿todo deriva de él?), ' +
-            'jerarquía y lectura, aire y ritmo, originalidad (¿parece una plantilla de email marketing?).',
+          '2. Puntúa de 1 a 5, con una frase cada una: fidelidad a la petición (¿la ocasión, la oferta y el público que pide se ' +
+            'notan a primera vista?), texto e imagen (¿lo que dicen los titulares —colores, uso, personas— es lo que se ve en las ' +
+            'fotos?), identidad de marca (¿se reconoce sin ver el logo?), concepto (¿todo deriva de él?), jerarquía y lectura ' +
+            '(¿algún titular que el cliente no entienda, como un código de color?), aire y ritmo, originalidad (¿parece una ' +
+            'plantilla de email marketing?).',
           '3. Si alguna nota es menor que 4, corrige lo mínimo necesario en newsletter.html para subirla: sin rehacer la pieza, sin ' +
-            `investigar de nuevo y sin cambiar datos ni enlaces. Después ejecuta \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` y deja la pieza sin errores.`,
+            'investigar de nuevo y sin cambiar datos ni enlaces. Si un texto contradice las fotos o se aparta de la petición, el ' +
+            'texto es lo que se corrige (las fotos son las oficiales). ' +
+            `Después ejecuta \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` y deja la pieza sin errores.`,
           `4. Escribe ${rel}/revision-visual.md con las notas antes y después y lo que cambiaste, y añade un resumen de dos líneas al final de notas.md.`,
           SECRETS_NOTE,
           '',

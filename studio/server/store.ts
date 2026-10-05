@@ -91,6 +91,8 @@ export interface Job {
    *  enseña aparte y no entra en «tardó». */
   briefReadyAt?: string;
   briefWaitSec?: number;
+  /** Lo que la petición pedía y el brief no recogía al llegar (requestCoverage.ts): aviso en el panel del brief. */
+  briefMissing?: string[];
   /** "Aprobada para envío" (2026-09-28): la versión de su familia que se va a enviar (solo una), quién la
    *  aprobó y qué comprobó (la lista de la página). */
   approvedAt?: string;

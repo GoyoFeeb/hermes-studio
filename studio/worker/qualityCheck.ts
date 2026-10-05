@@ -540,6 +540,8 @@ export interface QualityOptions {
   design?: { errors: string[]; warnings: string[] };
   /** Peso y encuadre de las imágenes (renderChecks.ts, imageFindings). */
   imageFindings?: { errors: string[]; warnings: string[] };
+  /** Lo que pidió el equipo y la pieza no nombra (requestCoverage.ts); sin definir = no se comprobó. */
+  requestMissing?: string[];
   fetcher?: Fetcher;
 }
 
@@ -565,6 +567,15 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
   if (opts.imageFindings) {
     const d = item('image-quality', 'Peso y encuadre de las imágenes', opts.imageFindings.errors, opts.imageFindings.warnings);
     if (d.status === 'ok') d.details.push('Sin fotos con exceso de fondo vacío ni imágenes pesadas.');
+    checks.push(d);
+  }
+  if (opts.requestMissing !== undefined) {
+    const d = item(
+      'request',
+      'Lo que pidió el equipo',
+      opts.requestMissing.map((label) => `La petición pide ${label} y la pieza no lo nombra: tiene que salir tal cual en el asunto, un titular o una escena.`)
+    );
+    if (d.status === 'ok') d.details.push('La pieza nombra la ocasión y la oferta que pedía el equipo.');
     checks.push(d);
   }
   return {

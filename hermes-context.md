@@ -1880,3 +1880,25 @@ El usuario pidió «vamos con todas».
   6. Los 4 CTA van a la misma URL; fondo blanco plano, el rojo de marca casi no aparece.
   Los checks miden lo técnico (aire, móvil, contraste, estructura) y no si la pieza cumple la petición ni si el concepto
   casa con las fotos.
+
+### 2026-10-05 (noche) — Lo que pide la petición llega a la pieza; fotos antes del concepto; revisión visual por defecto
+
+- **Desplegado antes:** `1ed13f9` (espera del brief aparte) → Railway y `vercel --prod` (hermes-studio-beta.vercel.app).
+- **1. La petición manda** (`studio/server/requestCoverage.ts`, +7 tests): detecta en la petición la ocasión (Black
+  Friday, Cyber Monday, Navidad, Reyes, rebajas, San Valentín, Día de la Madre/Padre, vuelta al cole, Halloween,
+  Singles Day, Prime Day), la oferta y el público joven, con erratas («npre-black frisay» → Black Friday).
+  - Prompt del brief: «La petición manda» (la ocasión es el eje: concepto, asunto y una escena) y la lista de lo
+    que tiene que recoger; la sección 1 explica cómo lo recoge.
+  - Worker: si `brief.md` no recoge algo, una vuelta más en la misma sesión, sin investigar.
+  - Studio: `briefMissing` en el trabajo → aviso en el panel de revisión del brief y en el registro.
+  - Encargo: lleva la petición original y «OBLIGATORIO en el texto visible: …».
+  - Pieza: el worker deja `_trabajo/peticion.txt`; `inspect.ts` añade el check «Lo que pidió el equipo» (error si la
+    ocasión u oferta no aparece en el asunto o el texto visible). Lo ve también `check-newsletter`. Contra la pieza
+    de Paredes: error «Black Friday».
+- **2. Fotos antes del concepto** (solo con fotos oficiales): mirar las fotos del producto antes de elegir el concepto,
+  nunca un concepto sobre un atributo que no se ve, no pedir fotos que no existen; sección 6 = «solo las que has
+  visto». Método: titulares sin códigos de color; el precio verificado sale si la pieza es para vender.
+- **3. Revisión de dirección de arte por defecto:** casilla marcada (solo se recuerda si se quita, `artReviewOff`).
+  Puntúa también «fidelidad a la petición» y «texto e imagen»; si un texto contradice las fotos o se aparta de la
+  petición, corrige el texto. Añade unos minutos a cada pieza nueva.
+- 199/199 tests.

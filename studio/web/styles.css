@@ -671,6 +671,8 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .review-summary { font-size: var(--fs-ui); font-weight: 600; }
 .review-summary.is-ok { color: var(--success); }
 .review-summary.is-warning { color: var(--warning); }
+.review-missing { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--warning-line); border-radius: 10px; background: var(--warning-subtle); color: var(--text); }
+.review-missing strong { color: var(--warning); }
 .review-summary.is-error { color: var(--error); }
 .review .hint { margin: 0; }
 .review-list { list-style: none; margin: 0; padding: 0; }

@@ -20,6 +20,7 @@ import { appendEvent, createJob, getJob, listJobs, readEvents, updateJob, isVali
 import type { Job } from './store';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
+import { joinLabels, missingInBrief } from './requestCoverage';
 import {
   buildHermesPrompt,
   buildBriefPrompt,
@@ -310,6 +311,8 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
     // Para medir la identidad en la web si la marca no tiene brand pack, y la revisión visual (2026-10-05).
     brand: { slug: job.input.clientSlug, name: job.input.clientName, ...(job.input.brandUrl ? { url: job.input.brandUrl } : {}) },
     artReview: !!job.input.artReview,
+    // La petición del equipo (2026-10-05): el worker comprueba que el brief y la pieza recogen lo que pide.
+    ...(job.input.instruction ? { request: job.input.instruction } : {}),
     // Instrucción básica: el worker ejecuta primero briefPrompt y luego pide el encargo final
     // a /brief. Con prompt pegado, el encargo va directamente.
     ...(job.input.revisionOf
@@ -335,8 +338,14 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
   }
   // Revisar el brief (2026-10-01): el trabajo se aparta hasta que alguien lo apruebe. Solo si el worker sabe
   // pararse aquí (`canPause`); uno anterior a este cambio esperaría el encargo y sigue como siempre.
+  // Lo que la petición pedía y el brief no recoge (Paredes, 2026-10-05): el worker ya le pidió una vez que lo
+  // añadiera; si sigue faltando, se avisa en el panel de revisión y en el registro.
+  const missingTerms = job.input.instruction ? missingInBrief(job.input.instruction, brief) : [];
+  const briefMissing = missingTerms.map((t) => t.label);
+  if (missingTerms.length) hermesLog(job.id, `Ojo: la petición pide ${joinLabels(missingTerms)} y el brief no lo recoge.`, 'error');
   if (job.input.reviewBrief && req.body?.canPause === true) {
     updateJob(job.id, {
+      briefMissing,
       status: 'review',
       currentPhase: null,
       briefReadyAt: new Date().toISOString(),
@@ -346,7 +355,7 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
     res.json({ pause: true });
     return;
   }
-  const updated = updateJob(job.id, { input: { ...job.input, briefText: brief.slice(0, 200000) } });
+  const updated = updateJob(job.id, { briefMissing, input: { ...job.input, briefText: brief.slice(0, 200000) } });
   hermesLog(job.id, 'Brief creativo listo: Hermes empieza la newsletter.', 'success');
   res.json({ prompt: buildHermesPrompt(updated) });
 });
