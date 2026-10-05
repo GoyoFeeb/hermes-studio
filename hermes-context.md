@@ -1583,3 +1583,7 @@ del cliente. El usuario aprobó la tanda recomendada.
 - **Verificación (local):** las 16 vistas a 375 y 1280 px sin errores de consola ni desborde horizontal; pestañas
   por enlace y al pulsar; barra fija visible en móvil a mitad de la pieza; columna sin scroll a 1280 × 800.
   `npm test` 157/159 (los 2 fallos de siempre del contenedor).
+- **Desplegado (con permiso del usuario):** `10cbf76` → Railway (push a `Javifeebbo/hermes-studio`; estado de GitHub
+  «striking-luck - hermes-studio» SUCCESS; reinicia el servidor por el tope del historial). **Vercel pendiente:**
+  `vercel --prod` desde `studio/web` en el Mac (cambian app.js, styles.css, index.html y failure.js). Worker sin
+  reiniciar.
