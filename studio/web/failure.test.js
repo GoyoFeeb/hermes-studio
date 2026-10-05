@@ -35,8 +35,17 @@ test('los cortes del Mac no dependen de lo pedido; la falta de la newsletter ori
 });
 
 test('un error desconocido o vacío da el mensaje genérico', () => {
-  assert.equal(explainFailure('').summary, 'Hermes no pudo terminar la newsletter.');
+  assert.equal(explainFailure('').summary, 'Hermes se paró sin decir por qué.');
   assert.equal(explainFailure(undefined).detail, '');
+});
+
+test('un error desconocido cita su primera línea en vez de esconderla (y no repite el título de la caja)', () => {
+  const { summary, short, retry } = explainFailure('  La API devolvió 529 (sobrecargada).\n    at callModel (llm.ts:40)');
+  assert.equal(summary, 'Hermes se paró con este mensaje: «La API devolvió 529 (sobrecargada).»');
+  assert.equal(short, 'Hermes no pudo terminar.');
+  assert.equal(retry, true);
+  assert.doesNotMatch(explainFailure('').summary, /no pudo terminar la newsletter/i);
+  assert.ok(explainFailure('x'.repeat(400)).summary.length < 200);
 });
 
 test('cada fallo tiene una versión corta, de una línea, para el historial', () => {

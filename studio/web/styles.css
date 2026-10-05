@@ -209,7 +209,9 @@ summary:focus-visible,
   outline: 2px solid var(--pink);
   outline-offset: 2px;
 }
-#job-title:focus { outline: none; }
+/* Títulos que reciben el foco por programa al cambiar de vista (lector de pantalla): sin recuadro. El de la ficha
+   de marca salía con un marco blanco al entrar (2026-10-05). */
+#job-title:focus, #brand-title:focus { outline: none; }
 
 body {
   margin: 0;
@@ -874,6 +876,10 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .menu-item { display: block; width: 100%; padding: 8px 12px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; font-size: var(--fs-small); text-align: left; cursor: pointer; }
 .menu-item small { display: block; color: var(--muted); font-size: var(--fs-caption); }
 .menu-item:hover, .menu-item:focus-visible { background: var(--surface-row-hover); }
+a.menu-item { text-decoration: none; box-sizing: border-box; }
+/* «Descargar HTML» en el menú solo en móvil: en ordenador ya está a la vista en la fila. */
+.menu-download { display: none; }
+@media (max-width: 640px) { .menu-download { display: block; } }
 .job-row:has(.row-menu[open]) { position: relative; z-index: 5; }
 .job-row:has(.row-menu[open]) .row-actions { z-index: 5; }
 .job-row .mini-track { grid-column: 2 / -1; height: 4px; border-radius: var(--pill); background: var(--field); overflow: hidden; }
@@ -934,6 +940,12 @@ body.has-sticky .foot { padding-bottom: 88px; }
   .job-row .meta { grid-column: 2 / -1; grid-row: 2; }
   .job-row .row-actions { grid-column: 1 / -1; grid-row: 3; justify-content: flex-start; flex-wrap: wrap; margin-top: 6px; }
   .job-row > .row-actions .row-view { display: none; }
+  /* «Descargar» pasa al menú «⋯» (2026-10-05). Si en la fila no queda más botón que el menú, este va a la derecha,
+     bajo el estado, en vez de solo en una tercera fila. */
+  .job-row > .row-actions .row-download { display: none; }
+  /* Salvo en las que están trabajando: «TRABAJANDO · 45 %» ensancha esa columna y la fecha quedaba en 4 líneas. */
+  .job-row:not(:has(> .mini-track)) > .row-actions:is(:has(> .row-view + .row-menu), :has(> .row-view + .row-download + .row-menu)) { grid-column: 3; grid-row: 2; justify-self: end; align-self: start; margin-top: 0; }
+  .job-row:not(:has(> .mini-track)):is(:has(> .row-actions > .row-view + .row-menu), :has(> .row-actions > .row-view + .row-download + .row-menu)) > .meta { grid-column: 2; }
   /* En móvil los botones van a la izquierda: el menú "⋯" se abre hacia la derecha para no salirse. */
   .row-menu-pop { right: auto; left: 0; }
   .job-row .row-actions .btn { min-height: 40px; padding: 8px 16px; }
@@ -1160,7 +1172,9 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .g-card .thumb-empty { display: flex; align-items: center; justify-content: center; font-family: 'Barlow', sans-serif; font-weight: 700; font-size: 26px; letter-spacing: 1px; color: var(--lilac); background: linear-gradient(160deg, var(--thumb-a), var(--thumb-b)); }
 .g-meta { font-size: var(--fs-caption); color: var(--muted); }
 .g-card .approved-tag { font-size: var(--fs-caption); }
-.g-card .status-badge { align-self: flex-start; font-size: var(--fs-caption); }
+/* En la tarjeta (unos 136 px de ancho) «TRABAJANDO · 45 %» y «BRIEF POR REVISAR» se salían por la derecha
+   (2026-10-05): menos espaciado y, si aun así no cabe, en dos líneas. */
+.g-card .status-badge { align-self: flex-start; max-width: 100%; padding: 4px 8px; font-size: var(--fs-caption); letter-spacing: 0.5px; white-space: normal; line-height: 1.3; }
 
 /* ---------------------------------------------------------------- Atajos de teclado (2026-09-28) */
 kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: var(--radius-sm); background: var(--field); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-caption); text-align: center; color: var(--text); }
@@ -1359,6 +1373,8 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 .g-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-caption); color: var(--muted); }
 .job-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 4px 0 0; font-size: var(--fs-body); color: var(--text); }
 .job-name #job-name-text { overflow-wrap: anywhere; }
+/* Sin asunto ni nombre, el hueco vacío más el espacio entre ambos desplazaba «Ponerle nombre» 12 px (2026-10-05). */
+.job-name #job-name-text:empty { display: none; }
 .rename-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 0; }
 .rename-form input { flex: 1 1 260px; min-width: 0; }
 @media (max-width: 640px) {
@@ -1678,8 +1694,10 @@ body::after {
    medía casi 4.000 px en una columna de 880. En pantallas anchas: la vista previa (y sus pestañas) a la izquierda y
    las acciones a la derecha, fijas al bajar, con su propio scroll si no caben. La página se ensancha solo ahí. */
 @media (min-width: 1200px) {
-  body:has(#view-job:not([hidden]) #job-result:not([hidden])) #app,
-  body:has(#view-job:not([hidden]) #job-result:not([hidden])) .topbar { max-width: 1440px; }
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) #app { max-width: 1440px; }
+  /* La cabecera, igual de ancha en todas las páginas (2026-10-05): solo se ensanchaba aquí y el logo saltaba
+     unos 200 px al entrar o salir de una newsletter terminada. Como en la web, logo arriba a la izquierda. */
+  .topbar { max-width: 1440px; }
   #job-result:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start; }
   .job-main { grid-column: 1; grid-row: 1; min-width: 0; }
   .job-side {
@@ -1695,6 +1713,14 @@ body::after {
   .job-side .action-cols { grid-template-columns: minmax(0, 1fr); }
   .job-side .action-group + .action-group { border-left: none; border-top: 1px solid var(--border); }
   .job-side .action-panel { margin-bottom: 16px; }
+  /* Las tres formas de cambiar la pieza, en fila como en móvil (2026-10-05): en una columna, con su descripción,
+     la columna medía 980 px y «Pedir cambios» y «Adaptar a móvil» quedaban ocultas bajo su propio scroll. */
+  .job-side .action-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .job-side .action-item { padding: 12px 6px; text-align: center; align-content: center; }
+  .job-side .action-item strong { font-size: var(--fs-small); line-height: 1.2; }
+  .job-side .action-item > span:not(.action-top) { display: none; }
+  .job-side .action-top { justify-content: center; margin-bottom: 4px; }
+  .job-side .action-num { display: none; }
   /* Con las acciones siempre a la vista sobra la barra fija de abajo. */
   body:has(#view-job:not([hidden]) #job-result:not([hidden])) .sticky-actions { display: none !important; }
   body.has-sticky:has(#view-job:not([hidden]) #job-result:not([hidden])) .foot { padding-bottom: 48px; }

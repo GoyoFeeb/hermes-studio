@@ -64,12 +64,20 @@
     },
   ];
 
+  /** Sin patrón conocido (2026-10-05): la caja decía «No se pudo terminar la newsletter» y debajo «Hermes no pudo
+   *  terminar la newsletter.», y el motivo real quedaba plegado en «Detalle técnico». Ahora se cita su primera línea. */
   var FALLBACK = {
-    summary: 'Hermes no pudo terminar la newsletter.',
-      short: 'Hermes no pudo terminar.',
+    summary: 'Hermes se paró sin decir por qué.',
+    short: 'Hermes no pudo terminar.',
     advice: 'Reinténtalo. Si se repite, mira el detalle técnico o el registro de Hermes.',
     retry: true,
   };
+
+  /** Primera línea del error, sin espacios de más y cortada a `max` caracteres. */
+  function firstLine(text, max) {
+    var line = text.split('\n').map(function (l) { return l.trim(); }).filter(Boolean)[0] || '';
+    return line.length > max ? line.slice(0, max - 1).trimEnd() + '…' : line;
+  }
 
   /** Resumen de un fallo: { summary, short, advice, retry, detail }. `detail` es el error original, sin tocar. */
   function explainFailure(error) {
@@ -79,7 +87,14 @@
         return { summary: RULES[i].summary, short: RULES[i].short, advice: RULES[i].advice, retry: RULES[i].retry, detail: text };
       }
     }
-    return { summary: FALLBACK.summary, short: FALLBACK.short, advice: FALLBACK.advice, retry: FALLBACK.retry, detail: text };
+    var line = firstLine(text, 160);
+    return {
+      summary: line ? 'Hermes se paró con este mensaje: «' + line + '»' : FALLBACK.summary,
+      short: FALLBACK.short,
+      advice: FALLBACK.advice,
+      retry: FALLBACK.retry,
+      detail: text,
+    };
   }
 
   var api = { explainFailure: explainFailure };

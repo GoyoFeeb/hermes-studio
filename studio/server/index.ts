@@ -633,12 +633,16 @@ app.get('/api/status', (_req: Request, res: Response) => {
 });
 
 /** Historial ligero para la página principal (sin el prompt completo de cada trabajo). */
+/** Trabajos (versiones incluidas) que manda el historial. */
+const HISTORY_LIMIT = 2000;
 app.get('/api/jobs', (_req: Request, res: Response) => {
   sweepStaleHermesJobs();
   const logos = brandLogoIndex();
-  const jobs = listJobs()
-    .filter((j) => j.input.mode === 'standalone')
-    .slice(0, 200)
+  // Antes, .slice(0, 200): con cada versión contando como un trabajo, las newsletters antiguas desaparecían del
+  // historial sin aviso (2026-10-05). Ahora el tope es mucho más alto y, si se alcanza, la web lo dice.
+  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
+  const jobs = standalone
+    .slice(0, HISTORY_LIMIT)
     .map((j) => ({
       id: j.id,
       createdAt: j.createdAt,
@@ -674,7 +678,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       approvedBy: j.approvedBy || null,
       archivedAt: j.archivedAt || null,
     }));
-  res.json({ jobs });
+  res.json({ jobs, truncated: standalone.length > HISTORY_LIMIT, limit: HISTORY_LIMIT });
 });
 
 app.get('/api/jobs/:id', (req: Request, res: Response) => {

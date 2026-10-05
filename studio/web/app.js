@@ -758,9 +758,10 @@ async function loadHistory() {
   try {
     const res = await apiFetch('/api/jobs');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const { jobs } = await res.json();
+    const { jobs, truncated, limit } = await res.json();
     assignFamilyTitles(jobs);
     historyState.jobs = jobs;
+    historyState.truncated = truncated ? limit : 0;
     // Nombres de marca tal como los escribe el equipo ("El Corte Inglés", no "El Corte Ingles"), solo
     // si llevan a su carpeta: si no, la sugerencia no reconocería la marca.
     let named = false;
@@ -839,6 +840,7 @@ function filteredJobs() {
     if (historyState.brand && (j.clientSlug || j.clientName) !== historyState.brand) return false;
     if (historyState.status === 'active' && j.status !== 'running' && j.status !== 'queued' && j.status !== 'review') return false;
     if (historyState.status === 'completed' && j.status !== 'completed') return false;
+    if (historyState.status === 'review' && j.status !== 'review') return false;
     if (historyState.status === 'failed' && j.status !== 'failed' && j.status !== 'blocked') return false;
     if (historyState.status === 'approved' && !j.approvedAt) return false;
     // Archivadas (2026-09-28): fuera del historial salvo con el chip "Archivadas".
@@ -930,7 +932,7 @@ function jobActions(j, { compact = false } = {}) {
     j.status === 'review'
       ? `<a class="btn btn-secondary" href="?job=${id}">Revisar el brief</a>`
       : `<a class="btn btn-ghost row-view" href="?job=${id}">Ver</a>`,
-    j.status === 'completed' ? `<a class="btn btn-ghost" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
+    j.status === 'completed' ? `<a class="btn btn-ghost row-download" href="/api/jobs/${id}/result?download=1">Descargar</a>` : '',
     (j.status === 'failed' || j.status === 'cancelled' || j.status === 'blocked') &&
     !retriedIds.has(j.id) &&
     (!j.error || window.HermesFailure.explainFailure(j.error).retry) // sin la versión de partida, reintentar no sirve
@@ -945,6 +947,8 @@ let openRowMenu = null;
 function rowMenu(j, archiveBtn) {
   const id = escapeHtml(j.id);
   const items = [
+    // En móvil «Descargar» sale de la fila (un HTML en el teléfono rara vez sirve) y queda aquí (2026-10-05).
+    j.status === 'completed' ? `<a class="menu-item menu-download" href="/api/jobs/${encodeURIComponent(j.id)}/result?download=1">Descargar HTML</a>` : '',
     `<button type="button" class="menu-item" data-reuse="${id}">Reutilizar la petición</button>`,
     archiveBtn,
   ].join('');
@@ -1098,6 +1102,11 @@ function renderHistory() {
   const count = scoped.length === scopedJobs ? newsletters(scopedJobs) : `${newsletters(scoped.length)} · ${scopedJobs} versiones`;
   // Sin filtro, la cifra ya está en la fila de cifras (2026-10-05: salía tres veces); con filtro, "2 de 5".
   document.getElementById('history-count').textContent = groups.length === scoped.length ? (scoped.length === scopedJobs ? '' : count) : `${groups.length} de ${newsletters(scoped.length)}`;
+  // El servidor manda los últimos N trabajos: si hay más, se dice en vez de perderlos en silencio (2026-10-05).
+  if (historyState.truncated) {
+    const el = document.getElementById('history-count');
+    el.textContent = `${el.textContent ? `${el.textContent} · ` : ''}solo los ${historyState.truncated.toLocaleString('es-ES')} trabajos más recientes`;
+  }
   renderHistoryStats(scoped);
   document.getElementById('history-empty').hidden = groups.length > 0;
   document.getElementById('history-more').hidden = groups.length <= visible.length;
@@ -1615,11 +1624,7 @@ function renderShare(share, versions = shareVersions) {
   document.getElementById('share-empty').hidden = active;
   document.getElementById('share-active').hidden = !active;
   renderClientReview(share);
-  if (pendingJobTab && !document.getElementById(`tab-${pendingJobTab}`).hidden) {
-    showJobTab(pendingJobTab);
-    document.querySelector('.job-tabs').scrollIntoView({ block: 'start' });
-    pendingJobTab = null;
-  }
+  applyPendingJobTab();
   // El cliente ya tiene un enlace de otra versión de esta newsletter: se le puede pasar a esta (misma URL).
   const elsewhere = !active && versions.some((v) => v.shared && v.id !== currentJob);
   document.getElementById('share-move').hidden = !elsewhere;
@@ -1868,15 +1873,26 @@ document.getElementById('brand-body').addEventListener('click', (e) => {
 // ---------------------------------------------------------------- nombre de la newsletter (2026-10-01)
 
 let jobFamilyTitle = null;
+let jobKindTitle = ''; // «Nike», «Nike · cambios»…
+let jobSubject = '';
+/** Con nombre del equipo, el nombre es el título y la marca va debajo; sin él, la marca es el título y debajo el
+ *  asunto (2026-10-05: antes salía «Nike · cambios» de título y el nombre, más pequeño, debajo). */
+function paintJobTitle() {
+  document.getElementById('job-title').textContent = jobFamilyTitle || jobKindTitle;
+  const sticky = document.getElementById('sticky-title');
+  if (sticky) sticky.textContent = jobFamilyTitle || jobKindTitle;
+}
 function renderJobName(familyTitle, meta) {
   jobFamilyTitle = familyTitle || null;
+  jobSubject = meta?.subject || '';
+  paintJobTitle();
   if (!document.getElementById('rename-form').hidden) return; // no pisar lo que se está escribiendo
-  const shown = jobFamilyTitle || meta?.subject || '';
+  const shown = jobFamilyTitle ? jobKindTitle : jobSubject;
   document.getElementById('job-name-row').hidden = false;
   const text = document.getElementById('job-name-text');
   text.textContent = shown;
-  text.title = jobFamilyTitle ? 'Nombre puesto por el equipo' : shown ? 'Asunto del correo (aún sin nombre propio)' : '';
-  document.getElementById('rename-btn').textContent = shown ? 'Renombrar' : 'Ponerle nombre';
+  text.title = jobFamilyTitle ? '' : shown ? 'Asunto del correo (aún sin nombre propio)' : '';
+  document.getElementById('rename-btn').textContent = jobFamilyTitle ? 'Renombrar' : 'Ponerle nombre';
 }
 function closeRename() {
   document.getElementById('rename-form').hidden = true;
@@ -1887,7 +1903,7 @@ document.getElementById('rename-btn').addEventListener('click', () => {
   const form = document.getElementById('rename-form');
   form.hidden = false;
   const input = document.getElementById('rename-input');
-  input.value = jobFamilyTitle || document.getElementById('job-name-text').textContent;
+  input.value = jobFamilyTitle || jobSubject;
   input.focus();
   input.select();
 });
@@ -3406,6 +3422,20 @@ function showJobTab(name, { focus = false } = {}) {
   }
   // La vista previa se mide al mostrarse: oculta, el iframe no tiene alto.
   if (name === 'preview') requestAnimationFrame(() => fitFrames());
+  // La pestaña va en la dirección (2026-10-05): así se puede compartir «mira el asunto» o recargar sin perderla.
+  if (currentJob && !viewJob.hidden) {
+    const url = `?job=${encodeURIComponent(currentJob)}${name === 'preview' ? '' : `&tab=${name}`}`;
+    if (location.search !== url) history.replaceState(history.state, '', url);
+  }
+}
+
+/** ?tab=… (enlace directo): se abre esa pestaña en cuanto aparece. «Qué ha cambiado» y «Asunto y bandeja» salen
+ *  después de los datos del enlace del cliente, y antes solo se miraba entonces: abrían la vista previa (2026-10-05). */
+function applyPendingJobTab() {
+  if (!pendingJobTab || document.getElementById(`tab-${pendingJobTab}`).hidden) return;
+  showJobTab(pendingJobTab);
+  document.querySelector('.job-tabs').scrollIntoView({ block: 'start' });
+  pendingJobTab = null;
 }
 
 function syncJobTabs() {
@@ -3414,6 +3444,7 @@ function syncJobTabs() {
   document.getElementById('tab-compare').hidden = !hasCompare;
   document.getElementById('tab-meta').hidden = !hasMeta;
   if ((activeJobTab === 'compare' && !hasCompare) || (activeJobTab === 'meta' && !hasMeta)) showJobTab('preview');
+  applyPendingJobTab();
 }
 const jobTabsObserver = new MutationObserver(syncJobTabs);
 ['compare', 'email-meta', 'inbox'].forEach((id) =>
@@ -3422,7 +3453,9 @@ const jobTabsObserver = new MutationObserver(syncJobTabs);
 
 document.querySelector('.job-tabs').addEventListener('click', (e) => {
   const tab = e.target.closest('[data-tab]');
-  if (tab) showJobTab(tab.dataset.tab);
+  if (!tab) return;
+  pendingJobTab = null; // lo elegido a mano manda sobre el enlace con el que se llegó
+  showJobTab(tab.dataset.tab);
 });
 document.querySelector('.job-tabs').addEventListener('keydown', (e) => {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
@@ -3431,6 +3464,7 @@ document.querySelector('.job-tabs').addEventListener('keydown', (e) => {
   const next =
     e.key === 'Home' ? 0 : e.key === 'End' ? visible.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + visible.length) % visible.length;
   e.preventDefault();
+  pendingJobTab = null;
   showJobTab(visible[next], { focus: true });
 });
 
@@ -3496,6 +3530,9 @@ function showJobView(id) {
   document.getElementById('brief-text').innerHTML = '';
   document.getElementById('brief-text').dataset.src = '';
   document.getElementById('job-title').textContent = '';
+  jobFamilyTitle = null;
+  jobKindTitle = '';
+  jobSubject = '';
   document.getElementById('job-meta').textContent = '';
   document.getElementById('job-skeleton').hidden = false;
   window.scrollTo({ top: 0 });
@@ -3551,13 +3588,14 @@ async function poll(id) {
   updateTabTitle(job);
   maybeNotify(job);
 
-  document.getElementById('job-title').textContent = job.input.revisionOf
+  jobKindTitle = job.input.revisionOf
     ? `${job.input.clientName} · cambios`
     : job.input.mobileFixOf
     ? `${job.input.clientName} · adaptación a móvil`
     : job.input.textEditOf
     ? `${job.input.clientName} · texto editado`
     : job.input.clientName;
+  paintJobTitle();
   const brandLink = document.getElementById('job-brand-link');
   brandLink.hidden = !job.input.clientSlug;
   brandLink.href = `?brand=${encodeURIComponent(job.input.clientSlug || '')}`;
@@ -3608,9 +3646,15 @@ async function poll(id) {
     const resultBox = document.getElementById('job-result');
     if (resultBox.hidden) {
       resultBox.hidden = false;
+      // La barra fija solo se recalculaba cuando la zona de acciones entraba o salía de la pantalla: en móvil, al
+      // abrir una newsletter terminada (acciones debajo de la vista previa) no llegaba a salir (2026-10-05).
+      requestAnimationFrame(() => {
+        const r = document.querySelector('.result-bar').getBoundingClientRect();
+        resultBarHidden = r.bottom < 0 || (narrowJob.matches && r.top > window.innerHeight);
+        updateSticky();
+      });
       document.getElementById('download-link').href = `/api/jobs/${id}/result?download=1`;
       document.getElementById('sticky-download').href = `/api/jobs/${id}/result?download=1`;
-      document.getElementById('sticky-title').textContent = document.getElementById('job-title').textContent;
       document.getElementById('open-link').href = `/api/jobs/${id}/result`;
       applyPreviewView(job.input.mobileFixOf ? 'mobile' : readPreviewView());
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
@@ -4808,10 +4852,12 @@ function renderProgress(job, queue, hermesOnline) {
     eta.classList.toggle('is-idle', quiet >= 600);
   }
   const idle = idleSeconds(p);
+  // A partir de 3 min sin acciones ya lo dice la línea de arriba: no se repite aquí (2026-10-05).
+  const idleShownAbove = job.status === 'running' && idle != null && idle >= 180;
   document.getElementById('progress-detail').textContent =
     job.status === 'completed'
       ? `Hecha en ${formatMinutes(p.elapsedSec)} · ${p.actions} acciones de Hermes.`
-      : [p.detail, idle != null ? `última acción hace ${formatAgo(idle)}` : null, `${p.actions} acciones`, `${formatMinutes(p.elapsedSec)} transcurridos`]
+      : [p.detail, idle != null && !idleShownAbove ? `última acción hace ${formatAgo(idle)}` : null, `${p.actions} acciones`, `${formatMinutes(p.elapsedSec)} transcurridos`]
           .filter(Boolean)
           .join(' · ');
 }

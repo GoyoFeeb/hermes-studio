@@ -1547,3 +1547,39 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   «striking-luck - hermes-studio» SUCCESS). **Vercel pendiente:** `vercel --prod` desde `studio/web` en el Mac
   (cambian styles.css, index.html y el nuevo feebbo-logo-anim.svg). Worker sin reiniciar.
 - **Confirmado por el usuario:** en Railway el logo ya sale bien al cargar (FEEBBO y DIGITAL alineados, sin salto).
+
+### 2026-10-05 (tarde) — Interfaz: tanda de la revisión exhaustiva (fallos 1-9 y mejoras 10-13)
+
+Diagnóstico en local con 12 trabajos de prueba en todos los estados, a 375 y 1280 px, oscuro y claro, más la página
+del cliente. El usuario aprobó la tanda recomendada.
+
+- **1. Galería:** «TRABAJANDO · 45 %» y «BRIEF POR REVISAR» se salían de la tarjeta. Ahora tienen menos espaciado y,
+  si no caben, pasan a dos líneas.
+- **2. Pestañas:** `?tab=compare` y `?tab=meta` abrían la vista previa (solo se miraba el enlace al llegar los datos
+  del cliente, antes de que esas pestañas aparezcan). `applyPendingJobTab()` se llama también en `syncJobTabs`, y la
+  pestaña elegida se guarda en la dirección (`replaceState`). Elegirla a mano anula la del enlace.
+- **3. Cabecera:** solo se ensanchaba (1440 px) en la newsletter terminada, así que el logo saltaba unos 200 px.
+  Ahora tiene el mismo ancho en todas las páginas a partir de 1200 px.
+- **4.** Sin recuadro de foco en el título de la ficha de marca (`#brand-title:focus`).
+- **5.** «Ponerle nombre» ya no se desplaza 12 px (`#job-name-text:empty`).
+- **6. Historial:** el servidor mandaba solo los 200 trabajos más recientes, versiones incluidas, sin avisar. Ahora
+  el tope es `HISTORY_LIMIT = 2000` y, si se alcanza, el contador lo dice (`truncated`, `limit`).
+- **7. Fallos sin patrón conocido:** antes decían «No se pudo terminar la newsletter» y debajo «Hermes no pudo
+  terminar la newsletter.», con el motivo plegado. Ahora citan la primera línea del error (máx. 160 caracteres);
+  sin error, «Hermes se paró sin decir por qué.». Test nuevo en `failure.test.js`.
+- **8. No era un fallo:** «~25 min» (instrucción rápida, incluye escribir el brief) y «~14 min» (brief ya hecho)
+  son medianas reales de cada tipo.
+- **9. Progreso:** a partir de 3 min sin acciones ya no se repite «última acción hace…» debajo.
+- **10. Móvil, barra fija** (Descargar · Copiar · Cambios · Más): existía, pero no salía al abrir una newsletter
+  terminada. Solo se recalculaba cuando la zona de acciones entraba o salía de la pantalla, y al cargar con el
+  resultado oculto eso no pasaba. Ahora se calcula al mostrar el resultado.
+- **11. Ordenador:** «Cambiar la pieza» va en una fila de tres botones, como en móvil. La columna de acciones pasa
+  de 980 px con scroll propio a 687 px, sin scroll.
+- **12. Historial en móvil:** «Descargar» pasa al menú «⋯» («Descargar HTML», solo en móvil). Si la fila no tiene
+  otro botón, el «⋯» va a la derecha bajo el estado, salvo en las filas en curso.
+- **13. Filtro «Por revisar»** (briefs que esperan al equipo). Las tarjetas de cifras se quedan: ya filtraban.
+- **14 (de la lista B).** Con nombre del equipo, el nombre es el título y la marca («Nike · cambios») va debajo.
+  También en la barra fija.
+- **Verificación (local):** las 16 vistas a 375 y 1280 px sin errores de consola ni desborde horizontal; pestañas
+  por enlace y al pulsar; barra fija visible en móvil a mitad de la pieza; columna sin scroll a 1280 × 800.
+  `npm test` 157/159 (los 2 fallos de siempre del contenedor).
