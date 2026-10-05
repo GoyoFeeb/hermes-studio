@@ -756,6 +756,7 @@ async function loadHistory() {
     }
     if (named) renderBrandOptions();
     document.getElementById('history-skeleton').hidden = true;
+    hideHistoryError();
     document.getElementById('history').hidden = jobs.length === 0;
     renderHistoryJump(jobs);
     renderNowStrip(jobs);
@@ -782,9 +783,39 @@ async function loadHistory() {
     console.error('No se pudo cargar el historial', err);
     document.getElementById('history-skeleton').hidden = true;
     // Sin sesión no se insiste (cada intento cuenta para el límite del servidor); si no, en 30 s.
-    if (!authMissing) historyTimer = setTimeout(loadHistory, 30000);
+    if (!authMissing) {
+      historyTimer = setTimeout(loadHistory, 30000);
+      showHistoryError(30);
+    }
   }
 }
+
+// Aviso de error del historial (2026-10-05): antes desaparecía sin decir nada y el atajo apuntaba a la nada.
+let historyErrorTick = null;
+function showHistoryError(seconds) {
+  const box = document.getElementById('history-error');
+  const sec = document.getElementById('history-error-sec');
+  clearInterval(historyErrorTick);
+  let left = seconds;
+  sec.textContent = String(left);
+  box.hidden = false;
+  if (document.getElementById('history').hidden) document.getElementById('history-jump').hidden = true;
+  historyErrorTick = setInterval(() => {
+    left = Math.max(0, left - 1);
+    sec.textContent = String(left);
+  }, 1000);
+}
+function hideHistoryError() {
+  clearInterval(historyErrorTick);
+  document.getElementById('history-error').hidden = true;
+}
+document.getElementById('history-retry').addEventListener('click', (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  loadHistory().finally(() => {
+    btn.disabled = false;
+  });
+});
 
 function filteredJobs() {
   const q = normalize(historyState.query);

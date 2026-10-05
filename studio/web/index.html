@@ -207,6 +207,13 @@
         <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div class="skeleton-lines"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line is-short"></div></div></div>
         <div class="skeleton-row"><div class="skeleton skeleton-thumb"></div><div class="skeleton-lines"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line is-short"></div></div></div>
       </div>
+      <!-- Error al cargar el historial (2026-10-05): antes desaparecía sin decir nada (p. ej. durante un despliegue). -->
+      <div id="history-error" class="form-warning history-error" role="status" hidden>
+        <p>No se ha podido cargar el historial. Reintentando en <span id="history-error-sec">30</span> s.</p>
+        <div class="warning-actions">
+          <button type="button" id="history-retry" class="btn btn-secondary btn-sm">Reintentar ahora</button>
+        </div>
+      </div>
       <section id="history" hidden>
         <div class="section-head">
           <div class="section-title">

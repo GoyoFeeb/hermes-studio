@@ -1440,3 +1440,14 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   silueta. `npm test` 159/159.
 - **Desplegado (con permiso del usuario):** `6174f9d` → Vercel (styles.css, index.html y app.js idénticos) y Railway
   SUCCESS 11:09. Worker sin reiniciar.
+
+### 2026-10-05 (continuación) — Interfaz: aviso cuando el historial no carga
+
+- **Revisión (solo diagnóstico):** teclado (foco visible y orden lógico en franja, cifras, menú y raíl) y menos
+  movimiento bien. Un punto: con un 5xx o sin red (p. ej. durante un despliegue de Railway) el historial y la
+  franja desaparecían sin mensaje, el reintento a los 30 s no se anunciaba y "Ir al historial" apuntaba a la nada.
+- **Arreglo:** `#history-error` (role status) con cuenta atrás y «Reintentar ahora» (`showHistoryError` /
+  `hideHistoryError`); se quita con la primera carga buena; el atajo se oculta si el historial no está a la vista.
+  Sin sesión sigue saliendo solo el aviso de inicio de sesión.
+- **Verificación (copia aislada, 500 simulado en /api/jobs):** aviso con cuenta atrás y sin atajo; al reintentar
+  con el servidor bien, vuelven historial, franja y atajo. `npm test` 159/159.

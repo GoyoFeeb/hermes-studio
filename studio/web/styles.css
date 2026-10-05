@@ -1859,3 +1859,6 @@ body::after {
 .boot-skeleton { display: none; margin-top: 40px; }
 html.deep-link .boot-skeleton { display: grid; }
 html.deep-link .hero, html.deep-link #view-form { display: none; }
+
+/* Error al cargar el historial (2026-10-05). */
+.history-error { margin-top: 56px; }
