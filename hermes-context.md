@@ -1364,3 +1364,8 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   (18) y `.toggle` (28). Auditoría tras el cambio: sin id repetidos ni objetivos < 24 px en la portada.
 - **Verificación (copia aislada, fichas reales de Nike, Adidas y Adeslas generadas con buildBrandCard):** 375,
   900 y 1440 px; `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `6aa874e` → Vercel (styles.css, index.html y app.js idénticos) y Railway
+  SUCCESS 09:57. En producción: `/api/brands/:slug/logo` pide contraseña sin sesión (401) y con sesión responde
+  con CSP sandbox. Del historial, tienen logo en la ficha El Corte Inglés, Adidas, Nike, Adeslas, Asics y Prozis
+  (versión blanca → cuadrado azul noche); Puma, Inglesina, Talaria, Lacoste y Helly Hansen no tienen logo en su
+  ficha y siguen con la inicial.
