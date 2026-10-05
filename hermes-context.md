@@ -1492,3 +1492,5 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
   la foto; nunca vista previa ni formularios; nada con menos movimiento.
 - **Verificación (copia aislada):** reproductor y los dos JSON 200; logo y × animados; cabecera fija sin solaparse
   con la columna de acciones; 1280/1440/375 px, oscuro y claro, sin desbordes. `npm test` 159/159.
+- **Desplegado (con permiso del usuario):** `474c5fa` → Vercel (styles.css, index.html, app.js, feebbo-logo.json y
+  menu-icon.json idénticos) y Railway 2026-10-05 11:31:01 +02:00 (SUCCESS). Worker sin reiniciar.
