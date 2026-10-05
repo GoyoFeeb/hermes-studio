@@ -1847,3 +1847,4 @@ El usuario pidió «vamos con todas».
   - **Worker:** con 35 acciones u 8 min sin `brief.md`, corta el turno una vez y le pide escribirlo ya, sin navegar
     más. Lo avisa en el registro del trabajo.
   - **Web:** la etiqueta del paso 02 ya no habla de «skills».
+- **Desplegado (con permiso del usuario):** `ceaac74` → Railway (estado SUCCESS). El trabajo de Paredes en curso lo canceló el usuario. Pendiente: `git pull` + reinicio del worker en el Mac, reintentar Paredes y `vercel --prod` (etiqueta del paso 02).
