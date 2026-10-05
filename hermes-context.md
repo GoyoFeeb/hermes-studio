@@ -1546,3 +1546,4 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `8586ad3` → Railway (push a `Javifeebbo/hermes-studio`; estado de GitHub
   «striking-luck - hermes-studio» SUCCESS). **Vercel pendiente:** `vercel --prod` desde `studio/web` en el Mac
   (cambian styles.css, index.html y el nuevo feebbo-logo-anim.svg). Worker sin reiniciar.
+- **Confirmado por el usuario:** en Railway el logo ya sale bien al cargar (FEEBBO y DIGITAL alineados, sin salto).
