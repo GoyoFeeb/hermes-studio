@@ -1716,3 +1716,7 @@ El usuario pidió «vamos con todas».
 - **Verificación:** sobre el HTML real de Calvin Klein, «Imágenes que se ven en el correo» da error (SVG + 3 imágenes
   enlazadas). Aviso de marca: «Nkie»/«Toyta» → Nike/Toyota; «Calvin Kleins Jeans» → «Se guardará como
   calvin-kleins-jeans». +3 tests; `npm test` 169/171 (los 2 de siempre del contenedor).
+- **Desplegado (con permiso del usuario):** `118dba0` → Railway (push a `Javifeebbo/hermes-studio`; estado de GitHub
+  SUCCESS): el encargo y el brief ya piden imágenes locales y logo PNG. **Pendiente del usuario:** `git pull` en el
+  Mac (seguía en `43544ac`) + `studio/worker/service.sh restart` (control de calidad y rondas acotadas) y
+  `vercel --prod` desde `studio/web` (aviso de marca del formulario).
