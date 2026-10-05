@@ -1849,3 +1849,8 @@ body::after {
   .now-cols { grid-template-columns: 1fr; }
   .now-action { display: none; }
 }
+
+/* Decisión del cliente atendida (2026-10-05): botón debajo de la nota; atendida, en gris con «Deshacer». */
+.client-decision .decision-resolve { display: flex; width: fit-content; margin-top: 10px; }
+.client-decision .decision-resolved { display: block; margin-top: 8px; font-size: var(--fs-small); color: var(--muted); }
+.client-decision.is-resolved { opacity: 0.75; }

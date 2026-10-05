@@ -48,6 +48,10 @@ export interface ShareDecision {
   author: string;
   note?: string;
   at: string;
+  /** Atendida por el equipo (2026-10-05): deja de salir en «Te esperan» y en el aviso de la pestaña Cliente.
+   *  Antes solo se borraba al pasar el enlace a una versión nueva. */
+  resolvedAt?: string;
+  resolvedBy?: string;
 }
 
 export interface JobShare {
@@ -114,6 +118,15 @@ export function resolveShareComment(job: Job, commentId: string, resolved: boole
   );
   updateJob(job.id, { share: { ...share, comments } });
   return true;
+}
+
+export function resolveShareDecision(job: Job, resolved: boolean, by?: string): ShareDecision | null {
+  const share = job.share;
+  const d = share?.decision;
+  if (!share || !d || d.jobId !== job.id) return null;
+  const decision: ShareDecision = resolved ? { ...d, resolvedAt: new Date().toISOString(), resolvedBy: by || undefined } : { ...d, resolvedAt: undefined, resolvedBy: undefined };
+  updateJob(job.id, { share: { ...share, decision } });
+  return decision;
 }
 
 /** Pasa el enlace del cliente de `from` a `to` (otra versión de la misma newsletter): misma URL, misma

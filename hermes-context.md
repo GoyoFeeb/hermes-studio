@@ -1408,3 +1408,18 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `39ef9a3` → Vercel (styles.css, index.html y app.js idénticos) y Railway
   SUCCESS 10:20. En producción la franja muestra en "Te esperan" la de Helly Hansen ("El cliente pide cambios");
   nada en curso. Worker sin reiniciar.
+
+### 2026-10-05 (continuación) — Interfaz: atender lo que pide el cliente
+
+- **Revisión (solo diagnóstico, siguiendo en producción el caso de Helly Hansen):** "Ver qué pide" abría la pestaña
+  Vista previa (la decisión está en Cliente), la pestaña Cliente no avisaba de "pide cambios" (el contador solo
+  cuenta comentarios), los enlaces de la franja recargaban la página y la decisión no se podía dar por atendida (solo
+  se borraba al pasar el enlace a otra versión: la de Helly Hansen, "prueba test" del 1 oct, se quedaría siempre).
+- **1. Enlaces que llevan a lo que hay que mirar:** "Ver comentarios" y "Ver qué pide" llevan a `?job=…&tab=client`
+  (`pendingJobTab` en `route`, se aplica en `renderShare` al llegar los datos); navegación sin recarga (pushState +
+  `route`, respeta Cmd/Ctrl/Mayús). Aviso "!" en la pestaña Cliente con "pide cambios" sin atender.
+- **2. «Marcar como atendido»** (`resolveShareDecision` en share.ts, `POST /api/jobs/:id/share/decision/resolve`,
+  con `resolvedAt`/`resolvedBy` en `ShareDecision`): sale de «Te esperan» y del aviso (`/api/jobs` no devuelve la
+  decisión atendida), se apunta en el registro y se puede deshacer.
+- **Verificación (copia aislada):** franja → pestaña Cliente sin recarga; atender → sin aviso, fuera de la lista,
+  en el registro; deshacer → vuelve. `npm test` 159/159.

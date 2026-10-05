@@ -71,6 +71,7 @@ import {
   renderShareGone,
   renderSharePage,
   resolveShareComment,
+  resolveShareDecision,
   revokeShare,
   setShareDecision,
   shareHeaders,
@@ -657,7 +658,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       client: isShareActive(j.share)
         ? {
             open: (j.share.comments || []).filter((c) => c.jobId === j.id && !c.resolvedAt).length,
-            decision: j.share.decision?.jobId === j.id ? j.share.decision.kind : null,
+            decision: j.share.decision?.jobId === j.id && !j.share.decision.resolvedAt ? j.share.decision.kind : null,
           }
         : null,
       durationSec: durationSec(j),
@@ -950,6 +951,19 @@ app.post('/api/jobs/:id/rename', (req: Request, res: Response) => {
 });
 
 // Marcar un comentario del cliente como resuelto (o reabrirlo).
+// Decisión del cliente atendida (2026-10-05): sale de «Te esperan» y del aviso; queda en el registro.
+app.post('/api/jobs/:id/share/decision/resolve', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  const by = typeof req.body?.by === 'string' ? req.body.by.slice(0, 80) : undefined;
+  const d = job ? resolveShareDecision(job, req.body?.resolved !== false, by) : null;
+  if (!job || !d) {
+    res.status(404).json({ error: 'No hay decisión del cliente en esta versión.' });
+    return;
+  }
+  hermesLog(job.id, d.resolvedAt ? `Decisión del cliente marcada como atendida${by ? ` por ${by}` : ''}.` : 'Decisión del cliente marcada otra vez como pendiente.');
+  res.json({ ok: true, decision: d });
+});
+
 app.post('/api/jobs/:id/share/comments/:cid/resolve', (req: Request, res: Response) => {
   const job = getJob(req.params.id);
   const cid = String(req.params.cid);

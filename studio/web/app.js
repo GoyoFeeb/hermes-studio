@@ -961,23 +961,32 @@ document.getElementById('history-stats').addEventListener('click', (e) => {
 // Arriba de la portada: lo que espera al equipo (brief por revisar, comentarios del cliente sin resolver o cambios
 // pedidos por él) y lo que está en marcha (fase y barra). Antes había que bajar hasta el historial (1.738 px).
 const NOW_MAX = 4;
-function nowItem(j, line, action, extra = '') {
+function nowItem(j, line, action, extra = '', tab = '') {
   const initials = String(j.clientName || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
   const title = j.familyTitle || j.title || j.subject || '';
-  return `<li class="now-item"><a class="now-link" href="?job=${encodeURIComponent(j.id)}">
+  return `<li class="now-item"><a class="now-link" href="?job=${encodeURIComponent(j.id)}${tab ? `&tab=${tab}` : ''}">
       <span class="thumb now-thumb ${emptyThumbClass(j)}" aria-hidden="true">${emptyThumbInner(j, initials)}</span>
       <span class="now-body"><strong>${escapeHtml(j.clientName || '')}</strong>${title ? `<span class="now-title">${escapeHtml(title)}</span>` : ''}
         <span class="now-line">${line}</span>${extra}</span>
       <span class="now-action">${escapeHtml(action)} <span aria-hidden="true">→</span></span>
     </a></li>`;
 }
+// Sin recargar la página, como el resto de Studio (antes, un enlace normal: recarga entera).
+document.getElementById('now-strip').addEventListener('click', (e) => {
+  const a = e.target.closest('a.now-link');
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  history.pushState({}, '', a.getAttribute('href'));
+  route();
+});
+
 function renderNowStrip(jobs) {
   const live = jobs.filter((j) => !j.archivedAt);
   const waiting = [];
   for (const j of live) {
     if (j.status === 'review') waiting.push(nowItem(j, 'Brief listo para revisar', 'Revisar el brief'));
-    else if (j.client?.open) waiting.push(nowItem(j, `${j.client.open} comentario${j.client.open === 1 ? '' : 's'} del cliente sin resolver`, 'Ver comentarios'));
-    else if (j.client?.decision === 'changes') waiting.push(nowItem(j, 'El cliente pide cambios', 'Ver qué pide'));
+    else if (j.client?.open) waiting.push(nowItem(j, `${j.client.open} comentario${j.client.open === 1 ? '' : 's'} del cliente sin resolver`, 'Ver comentarios', '', 'client'));
+    else if (j.client?.decision === 'changes') waiting.push(nowItem(j, 'El cliente pide cambios', 'Ver qué pide', '', 'client'));
   }
   const active = live
     .filter((j) => j.status === 'running' || j.status === 'queued')
@@ -1481,12 +1490,18 @@ document.getElementById('copy-link-btn').addEventListener('click', () => {
 /** Enlace público de solo lectura de esta versión (studio/server/share.ts). Se arma con el origen de esta
  *  página: en Vercel, /p/* se reescribe a Railway igual que /api y /assets. */
 let shareVersions = [];
+let pendingJobTab = null;
 function renderShare(share, versions = shareVersions) {
   shareVersions = versions;
   const active = !!share && Date.parse(share.expiresAt) > Date.now();
   document.getElementById('share-empty').hidden = active;
   document.getElementById('share-active').hidden = !active;
   renderClientReview(share);
+  if (pendingJobTab && !document.getElementById(`tab-${pendingJobTab}`).hidden) {
+    showJobTab(pendingJobTab);
+    document.querySelector('.job-tabs').scrollIntoView({ block: 'start' });
+    pendingJobTab = null;
+  }
   // El cliente ya tiene un enlace de otra versión de esta newsletter: se le puede pasar a esta (misma URL).
   const elsewhere = !active && versions.some((v) => v.shared && v.id !== currentJob);
   document.getElementById('share-move').hidden = !elsewhere;
@@ -1791,24 +1806,33 @@ function renderClientReview(share) {
   const current = comments.filter((c) => c.jobId === currentJob);
   const older = comments.filter((c) => c.jobId !== currentJob);
   const decision = clientShare?.decision?.jobId === currentJob ? clientShare.decision : null;
+  // «Pide cambios» sin atender (2026-10-05): antes la pestaña no avisaba (el contador solo cuenta comentarios).
+  const pendingChanges = decision?.kind === 'changes' && !decision.resolvedAt;
   const open = current.filter((c) => !c.resolvedAt).length;
   document.getElementById('tab-client').hidden = !clientShare;
   if (!clientShare && activeJobTab === 'client') showJobTab('preview');
   const badge = document.getElementById('tab-client-badge');
-  badge.textContent = decision?.kind === 'approved' ? '✓' : open ? String(open) : '';
-  badge.className = `tab-badge${decision?.kind === 'approved' ? ' is-ok' : open || decision?.kind === 'changes' ? ' is-warning' : ''}`;
+  badge.textContent = decision?.kind === 'approved' ? '✓' : open ? String(open) : pendingChanges ? '!' : '';
+  badge.className = `tab-badge${decision?.kind === 'approved' ? ' is-ok' : open || pendingChanges ? ' is-warning' : ''}`;
+  badge.title = pendingChanges ? 'El cliente pide cambios' : '';
   const decEl = document.getElementById('client-decision');
   decEl.hidden = !decision;
   if (decision) {
     const when = new Date(decision.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    decEl.className = `client-decision is-${decision.kind}`;
+    decEl.className = `client-decision is-${decision.kind}${decision.resolvedAt ? ' is-resolved' : ''}`;
+    const resolvedWhen = decision.resolvedAt ? new Date(decision.resolvedAt).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    const control = decision.kind !== 'changes'
+      ? ''
+      : decision.resolvedAt
+      ? `<span class="decision-resolved">Atendida${decision.resolvedBy ? ` por ${escapeHtml(decision.resolvedBy)}` : ''} · ${escapeHtml(resolvedWhen)} · <button type="button" class="link-btn" data-decision-resolve="0">Deshacer</button></span>`
+      : `<button type="button" class="btn btn-secondary btn-sm decision-resolve" data-decision-resolve="1">Marcar como atendido</button>`;
     decEl.innerHTML = `${decision.kind === 'approved' ? '✓ El cliente ha aprobado esta versión' : 'El cliente pide cambios'} · <strong>${escapeHtml(decision.author)}</strong>, ${escapeHtml(when)}${
       decision.note ? `<span class="c-text">${escapeHtml(decision.note)}</span>` : ''
-    }`;
+    }${control}`;
   }
   document.getElementById('client-empty').hidden = !!(current.length || decision);
   document.getElementById('client-comments').innerHTML = current.map((c) => clientCommentItem(c, true)).join('');
-  document.getElementById('client-actions').hidden = !(open || (decision?.kind === 'changes' && decision.note));
+  document.getElementById('client-actions').hidden = !(open || (pendingChanges && decision.note));
   document.getElementById('client-older').hidden = !older.length;
   document.getElementById('client-older-summary').textContent = `Comentarios sobre otras versiones (${older.length})`;
   document.getElementById('client-older-list').innerHTML = older.map((c) => clientCommentItem(c, false)).join('');
@@ -1865,6 +1889,30 @@ document.getElementById('panel-client').addEventListener('click', async (e) => {
     if (!res.ok) return showToast('No se pudo cambiar el comentario.', 'error');
     Object.assign(c, resolved ? { resolvedAt: new Date().toISOString(), resolvedBy: savedRequester() || undefined } : { resolvedAt: undefined, resolvedBy: undefined });
     renderClientReview(clientShare);
+  } catch {
+    showToast(NETWORK_ERROR, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// «Marcar como atendido» la decisión del cliente (2026-10-05): sale de «Te esperan» y del aviso; queda en el registro.
+document.getElementById('client-decision').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-decision-resolve]');
+  if (!btn || !clientShare?.decision) return;
+  const resolved = btn.dataset.decisionResolve === '1';
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(currentJob)}/share/decision/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolved, by: savedRequester() || undefined }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showToast(data.error || 'No se pudo cambiar la decisión.', 'error');
+    clientShare.decision = data.decision;
+    renderClientReview(clientShare);
+    showToast(resolved ? 'Marcada como atendida.' : 'Vuelve a estar pendiente.');
   } catch {
     showToast(NETWORK_ERROR, 'error');
   } finally {
@@ -4770,6 +4818,8 @@ function route() {
   const id = params.get('job');
   const brand = params.get('brand');
   if (id) {
+    // ?tab=client (2026-10-05, desde «Te esperan»): se abre esa pestaña en cuanto llegan los datos del trabajo.
+    pendingJobTab = JOB_TABS.includes(params.get('tab')) ? params.get('tab') : null;
     showJobView(id);
   } else if (brand) {
     showBrandView(brand);
