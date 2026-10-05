@@ -1810,3 +1810,42 @@ body::after {
 .bs-name { font-weight: 600; }
 .bs-note { margin-left: auto; font-size: var(--fs-caption); color: var(--muted); }
 .brand-match .link-btn { font-size: inherit; }
+
+/* Brief por revisar con formato (2026-10-05): documento en bloque claro, como las notas de Hermes. */
+.review-brief-view { margin: 12px 0; padding: 24px 28px; border-radius: var(--radius-md); max-height: 640px; overflow-y: auto; }
+@media (max-width: 640px) { .review-brief-view { padding: 16px; } }
+
+/* «Ahora mismo» (2026-10-05): tarjetas con el degradado de la web; logo de la marca en cuadrado blanco. */
+.now-strip { margin-top: 28px; }
+.hero > .now-strip { grid-column: 1 / -1; }
+.now-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px 24px; margin-top: 14px; }
+.now-subtitle { margin: 0 0 8px; font-size: var(--fs-ui); font-weight: 600; color: var(--lilac); }
+.now-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.now-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: linear-gradient(156deg, var(--card-grad-1) 11%, var(--card-grad-2) 76%), var(--card-base);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.now-link:hover { border-color: var(--pink); transform: translateY(-1px); }
+.now-thumb { flex: none; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 6px; border-radius: var(--radius-sm); background: #ffffff; color: #14183f; font-family: 'Barlow', sans-serif; font-weight: 700; box-shadow: -2px 6px 10px rgba(20, 24, 63, 0.2); }
+.now-thumb.is-on-dark { background: #14183f; }
+.now-thumb img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.now-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.now-body strong { font-size: var(--fs-ui); }
+.now-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); color: var(--lilac); }
+.now-line { font-size: var(--fs-small); color: var(--muted); }
+.now-track { display: block; height: 4px; margin-top: 4px; border-radius: var(--pill); background: var(--field); overflow: hidden; }
+.now-track span { display: block; height: 100%; background: linear-gradient(90deg, var(--purple), var(--pink)); }
+.now-action { flex: none; font-size: var(--fs-small); font-weight: 600; color: var(--accent-text); white-space: nowrap; }
+#now-waiting .now-link { border-color: var(--warning-line); }
+@media (max-width: 640px) {
+  .now-cols { grid-template-columns: 1fr; }
+  .now-action { display: none; }
+}

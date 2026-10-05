@@ -79,6 +79,21 @@
         <li><strong>La ajustas.</strong> «Editar texto» cambia textos al momento, sin Hermes. «Pedir cambios» y «Adaptar a móvil» se los encargan a Hermes y tardan unos minutos. Cada cambio es una versión nueva: ninguna se pierde.</li>
         <li><strong>La apruebas y la llevas a tu plataforma.</strong> Marca lo que has comprobado, y descarga o copia el HTML preparado para Mailchimp, Brevo, HubSpot, Klaviyo o Salesforce, con UTM si los necesitas.</li>
       </ol>
+      <!-- «Ahora mismo» (2026-10-05): lo que espera al equipo y lo que está en marcha, arriba. Antes, la primera
+           newsletter en marcha aparecía a 1.738 px, debajo de todo el formulario. Sin nada, no se muestra. -->
+      <section id="now-strip" class="now-strip" aria-labelledby="now-title" hidden>
+        <h2 class="eyebrow" id="now-title">Ahora mismo</h2>
+        <div class="now-cols">
+          <div class="now-group" id="now-waiting-group" hidden>
+            <h3 class="now-subtitle">Te esperan</h3>
+            <ul class="now-list" id="now-waiting"></ul>
+          </div>
+          <div class="now-group" id="now-active-group" hidden>
+            <h3 class="now-subtitle">En curso</h3>
+            <ul class="now-list" id="now-active"></ul>
+          </div>
+        </div>
+      </section>
     </section>
 
     <section id="view-form">
@@ -298,11 +313,15 @@
         <h3 id="review-title" class="review-title panel-title">El brief está listo: revísalo antes de que Hermes haga la newsletter</h3>
         <p class="hint">Apruébalo tal cual o corrígelo aquí mismo. Al aprobarlo vuelve a la cola y Hermes hace la newsletter
           (<span data-eta="brief">unos 20 minutos</span>) sin volver a escribir el brief.</p>
+        <!-- El brief con formato, como documento (2026-10-05): antes, en bruto dentro del cuadro de edición, con las
+             almohadillas a la vista. El cuadro sale solo al pulsar «Corregir el brief». -->
+        <div id="review-brief-view" class="md surface-light review-brief-view"></div>
         <label for="review-brief-text" class="sr-only">Brief creativo</label>
-        <textarea id="review-brief-text" rows="18" spellcheck="true"></textarea>
+        <textarea id="review-brief-text" rows="18" spellcheck="true" hidden></textarea>
         <p id="review-error" class="form-error" role="alert" hidden></p>
         <div class="actions">
           <button type="button" id="review-approve" class="btn btn-primary">Aprobar y hacer la newsletter</button>
+          <button type="button" id="review-edit" class="btn btn-secondary" aria-pressed="false">Corregir el brief</button>
           <button type="button" id="review-restore" class="btn btn-ghost" hidden>Deshacer mis cambios</button>
         </div>
       </section>

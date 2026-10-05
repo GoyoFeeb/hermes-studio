@@ -1391,3 +1391,17 @@ Además: no se registran duraciones < 3 min (las pruebas falseaban la ETA; limpi
 - **Desplegado (con permiso del usuario):** `c246dac` → Vercel (styles.css, index.html y app.js idénticos) y Railway
   SUCCESS 10:05. En producción: 37 marcas en la lista, 24 con logo en su ficha; "Nik" → "¿Quieres decir Nike?";
   "Puma" → "Sin brand pack ni logos en el Mac, pero ya hay 1 newsletter de Puma". Worker sin reiniciar.
+
+### 2026-10-05 (continuación) — Interfaz: «Ahora mismo» en la portada y brief con formato
+
+- **Revisión (solo diagnóstico):** pestaña Cliente (con "Ver"), atajos, avisos y peso (476 KB sin comprimir) bien;
+  2 puntos, los 2 elegidos.
+- **1. «Ahora mismo»** (`#now-strip`, `renderNowStrip`, dentro del hero, a todo el ancho): "Te esperan" (brief por
+  revisar, comentarios del cliente sin resolver, el cliente pide cambios) y "En curso" (en marcha con fase y barra;
+  en cola), hasta 4 de cada, con el logo de la marca y enlace al trabajo; sin nada, oculta. `/api/jobs` añade
+  `stageLabel` de los que están en marcha. Se refresca con el historial (cada 20 s si hay algo en curso). En
+  1440 × 900 empieza a 365 px (la primera en marcha estaba a 1.738).
+- **2. Brief por revisar con formato** (`#review-brief-view`, `.md surface-light`): el cuadro de edición sale con
+  «Corregir el brief» (`setBriefEditing`); al volver a «Ver con formato» se pinta lo corregido. Aprobar sigue
+  enviando el texto del cuadro.
+- **Verificación (copia aislada):** 1440 oscuro, 375 claro; corregir → ver → deshacer; `npm test` 159/159.

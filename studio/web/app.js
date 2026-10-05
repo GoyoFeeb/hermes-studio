@@ -758,6 +758,7 @@ async function loadHistory() {
     document.getElementById('history-skeleton').hidden = true;
     document.getElementById('history').hidden = jobs.length === 0;
     renderHistoryJump(jobs);
+    renderNowStrip(jobs);
 
     const brandSelect = document.getElementById('history-brand');
     const current = brandSelect.value;
@@ -955,6 +956,43 @@ document.getElementById('history-stats').addEventListener('click', (e) => {
   if (!stat) return;
   document.querySelector(`#history-status .chip[data-status="${stat.dataset.stat}"]`)?.click();
 });
+
+// ---------------------------------------------------------------- «Ahora mismo» (2026-10-05)
+// Arriba de la portada: lo que espera al equipo (brief por revisar, comentarios del cliente sin resolver o cambios
+// pedidos por él) y lo que está en marcha (fase y barra). Antes había que bajar hasta el historial (1.738 px).
+const NOW_MAX = 4;
+function nowItem(j, line, action, extra = '') {
+  const initials = String(j.clientName || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+  const title = j.familyTitle || j.title || j.subject || '';
+  return `<li class="now-item"><a class="now-link" href="?job=${encodeURIComponent(j.id)}">
+      <span class="thumb now-thumb ${emptyThumbClass(j)}" aria-hidden="true">${emptyThumbInner(j, initials)}</span>
+      <span class="now-body"><strong>${escapeHtml(j.clientName || '')}</strong>${title ? `<span class="now-title">${escapeHtml(title)}</span>` : ''}
+        <span class="now-line">${line}</span>${extra}</span>
+      <span class="now-action">${escapeHtml(action)} <span aria-hidden="true">→</span></span>
+    </a></li>`;
+}
+function renderNowStrip(jobs) {
+  const live = jobs.filter((j) => !j.archivedAt);
+  const waiting = [];
+  for (const j of live) {
+    if (j.status === 'review') waiting.push(nowItem(j, 'Brief listo para revisar', 'Revisar el brief'));
+    else if (j.client?.open) waiting.push(nowItem(j, `${j.client.open} comentario${j.client.open === 1 ? '' : 's'} del cliente sin resolver`, 'Ver comentarios'));
+    else if (j.client?.decision === 'changes') waiting.push(nowItem(j, 'El cliente pide cambios', 'Ver qué pide'));
+  }
+  const active = live
+    .filter((j) => j.status === 'running' || j.status === 'queued')
+    .sort((a, b) => (a.status === 'running' ? -1 : 1) - (b.status === 'running' ? -1 : 1) || a.createdAt.localeCompare(b.createdAt))
+    .map((j) => {
+      if (j.status === 'queued') return nowItem(j, 'En cola', 'Ver');
+      const pct = j.pct ?? 0;
+      return nowItem(j, `${escapeHtml(j.stageLabel || 'Trabajando')} · ${pct} %`, 'Ver', `<span class="now-track" aria-hidden="true"><span style="width:${Math.max(2, Math.min(100, pct))}%"></span></span>`);
+    });
+  document.getElementById('now-waiting').innerHTML = waiting.slice(0, NOW_MAX).join('');
+  document.getElementById('now-active').innerHTML = active.slice(0, NOW_MAX).join('');
+  document.getElementById('now-waiting-group').hidden = !waiting.length;
+  document.getElementById('now-active-group').hidden = !active.length;
+  document.getElementById('now-strip').hidden = !waiting.length && !active.length;
+}
 
 // Miniatura sin imagen (2026-10-05): el logo de la ficha de marca en el cuadrado (blanco, o azul noche si el logo es
 // la versión blanca), como los logos de clientes de feebbodigital.com; sin ficha, las iniciales.
@@ -1896,6 +1934,22 @@ document.getElementById('sticky-top').addEventListener('click', () => window.scr
 
 const reviewText = document.getElementById('review-brief-text');
 const reviewError = document.getElementById('review-error');
+const reviewView = document.getElementById('review-brief-view');
+const reviewEditBtn = document.getElementById('review-edit');
+
+/** Con formato (por defecto) o el cuadro para corregirlo. Al volver al formato se ve lo corregido. */
+function setBriefEditing(on) {
+  reviewText.hidden = !on;
+  reviewView.hidden = on;
+  reviewEditBtn.setAttribute('aria-pressed', String(on));
+  reviewEditBtn.textContent = on ? 'Ver con formato' : 'Corregir el brief';
+  if (!on) reviewView.innerHTML = window.HermesMarkdown ? window.HermesMarkdown.render(reviewText.value) : escapeHtml(reviewText.value);
+}
+reviewEditBtn.addEventListener('click', () => {
+  const on = reviewText.hidden;
+  setBriefEditing(on);
+  if (on) reviewText.focus();
+});
 
 /** El texto solo se rellena al entrar (o si cambia en el servidor sin haberlo tocado aquí): el sondeo
  *  cada 15 s no puede pisar lo que se está escribiendo. */
@@ -1913,6 +1967,7 @@ function renderBriefReview(job) {
     reviewText.dataset.src = src;
     reviewText.value = src;
     reviewError.hidden = true;
+    setBriefEditing(false);
   }
   document.getElementById('review-restore').hidden = reviewText.value === reviewText.dataset.src;
 }
@@ -1922,7 +1977,8 @@ reviewText.addEventListener('input', () => {
 document.getElementById('review-restore').addEventListener('click', () => {
   reviewText.value = reviewText.dataset.src || '';
   document.getElementById('review-restore').hidden = true;
-  reviewText.focus();
+  if (reviewText.hidden) setBriefEditing(false);
+  else reviewText.focus();
 });
 document.getElementById('review-approve').addEventListener('click', async (e) => {
   if (!currentJob) return;

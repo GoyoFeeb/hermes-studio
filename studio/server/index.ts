@@ -665,6 +665,8 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       // Logo de la ficha de marca para las miniaturas sin imagen (2026-10-05): 'light' o 'dark' (versión blanca).
       brandLogo: logos.has(j.input.clientSlug) ? (logos.get(j.input.clientSlug)!.onDark ? 'dark' : 'light') : null,
       pct: j.progress?.pct ?? null,
+      // Fase actual, para la franja «Ahora mismo» de la portada (2026-10-05).
+      stageLabel: j.status === 'running' ? j.progress?.stageLabel || null : null,
       elapsedSec: j.progress?.elapsedSec ?? null,
       error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,
       approvedAt: j.approvedAt || null,
