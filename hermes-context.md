@@ -1685,3 +1685,34 @@ El usuario pidió «vamos con todas».
   SUCCESS): el encargo y el brief ya llevan las reglas nuevas. **Pendiente del usuario:** `git pull` en el Mac y
   `studio/worker/service.sh restart` para el control de calidad nuevo; brand pack de Siroko con Hermes. Vercel no
   cambia (sin cambios en la web).
+
+### 2026-10-05 (tarde) — Calvin Klein: sin logo y 48 min. Imágenes locales, logo PNG, correcciones acotadas
+
+- **Diagnóstico (rama `revision-calvin`, trabajo `muvakote-6rubf7`):** se hizo con las reglas anteriores. El brief
+  no tiene «Identidad de marca» y la copia del Mac seguía en `43544ac`, sin `6cc97a2`, así que hay que repetir el
+  pull y reiniciar el worker.
+  - **Logo:** SVG enlazado desde `calvinklein.us/…/CK-logo-Dark.svg`. Gmail y Outlook no muestran SVG, y la web lo
+    bloquea fuera de ella. Hero y foto de Sadie, de `media1.calvinklein.com`, que da 403 (Akamai). En el render de
+    Hermes salen rotas; lo anotó como «artefacto de red» y entregó. El control solo daba aviso por los 403 y no
+    exigía logo.
+  - **Tiempo (log del worker):** brief 2 min, primera versión 24 min, ronda de móvil 23 min. El fallo era una celda
+    con `width:100%` + 28 px de padding (431 px a 375). En esa ronda Hermes cambió el logo, volvió a investigar las
+    imágenes con un navegador remoto, movió el punto de corte y renderizó 4 combinaciones.
+  - **Otros:** marca escrita «Calvin Kleins Jeans» (carpeta `calvin-kleins-jeans`) y web de EE. UU.
+- **Cambios:**
+  - **Encargo (`buildHermesPrompt`):** imágenes SIEMPRE descargadas en la carpeta del trabajo, nunca enlazadas a la
+    web o CDN de la marca. Logo obligatorio arriba, en PNG (un SVG se convierte al doble), con alt. «Si una
+    imagen no se ve en tu render, la pieza no está terminada». `box-sizing:border-box` en celdas con width:100% y
+    padding. El brief pide lo mismo para el logo y las imágenes.
+  - **`qualityCheck.ts`:** `logoPresenceCheck` (error sin logo en la cabecera). `emailImagesCheck` (error por
+    imagen SVG o enlazada desde fuera; las de Studio, `/assets/…/img-<hash>`, valen). En «Imágenes publicadas», un
+    403/429 pasa a error; en enlaces sigue siendo aviso.
+  - **Worker:** `SCOPED_FIX` al final de cada ronda de corrección (móvil y calidad): solo lo indicado, cambio
+    mínimo, sin volver a investigar ni verificar lo que no se menciona. Pautas para logo e imágenes. En «Pedir
+    cambios», logo e imágenes heredados de la original no se fuerzan.
+  - **Formulario (`app.js`):** `closeBrand` propone la marca conocida a una o dos letras («Nkie» → Nike, con
+    letras cambiadas de sitio) o contenida en lo escrito («Nike España»). Si la marca es nueva, enseña la carpeta
+    que se creará para que se vea la errata.
+- **Verificación:** sobre el HTML real de Calvin Klein, «Imágenes que se ven en el correo» da error (SVG + 3 imágenes
+  enlazadas). Aviso de marca: «Nkie»/«Toyta» → Nike/Toyota; «Calvin Kleins Jeans» → «Se guardará como
+  calvin-kleins-jeans». +3 tests; `npm test` 169/171 (los 2 de siempre del contenedor).

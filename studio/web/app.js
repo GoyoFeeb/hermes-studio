@@ -109,15 +109,18 @@ function updateBrandMatch() {
   hint.classList.toggle('is-new', !!name && !match);
   // Mientras se escribe (2026-10-05): con «Nik» decía «Marca nueva» antes de terminar de escribir Nike. Si alguna
   // marca empieza así, se propone; y si no tiene carpeta pero ya hay newsletters suyas, se dice.
-  const prefix = !match && name ? brandCandidates(name).find((c) => c.prefix) : null;
+  // Erratas (2026-10-05): «Calvin Kleins Jeans» creó la carpeta calvin-kleins-jeans y el brand pack de la marca no
+  // se habría encontrado. Se propone la marca conocida más parecida y, si es nueva, se enseña la carpeta.
+  const prefix = !match && name ? brandCandidates(name).find((c) => c.prefix) || closeBrand(name) : null;
   const done = !match && name ? historyCountFor(slugify(name)) : 0;
+  const folder = `<code>${escapeHtml(slugify(name))}</code>`;
   if (!name) hint.textContent = '';
   else if (match) hint.textContent = 'Marca conocida.';
   else if (prefix && normalize(prefix.name) !== normalize(name)) {
-    hint.innerHTML = `¿Quieres decir <button type="button" class="link-btn" data-brand-pick="${escapeHtml(prefix.name)}">${escapeHtml(prefix.name)}</button>?`;
+    hint.innerHTML = `¿Quieres decir <button type="button" class="link-btn" data-brand-pick="${escapeHtml(prefix.name)}">${escapeHtml(prefix.name)}</button>? Si no, será una marca nueva (carpeta ${folder}).`;
   } else if (done) {
     hint.textContent = `Sin brand pack ni logos en el Mac, pero ya hay ${done} newsletter${done === 1 ? '' : 's'} de ${name}: Hermes la investigará otra vez.`;
-  } else hint.textContent = 'Marca nueva: Hermes la investigará desde cero.';
+  } else hint.innerHTML = `Marca nueva: Hermes la investigará desde cero. Se guardará como ${folder}: revisa que el nombre esté bien escrito.`;
   if (match) describeKnownBrand(match);
 }
 document.getElementById('brand-match').addEventListener('click', (e) => {
@@ -131,6 +134,38 @@ document.getElementById('brand-match').addEventListener('click', (e) => {
 let brandLogos = {};
 const brandSuggest = document.getElementById('brand-suggest');
 let brandActive = -1;
+
+/** La marca conocida más parecida a lo escrito, con una o dos letras de diferencia en su nombre o en el de la
+ *  carpeta («Nkie» → Nike, «Adidass» → Adidas), o cuyo nombre entero está dentro de lo escrito («Puma España»). */
+function closeBrand(query) {
+  const q = slugify(query).replace(/-/g, '');
+  if (q.length < 4) return null;
+  let best = null;
+  const all = [...knownBrands.map((slug) => ({ slug, name: brandDisplayName(slug) })), ...[...brandNames].filter(([slug]) => !knownBrands.includes(slug)).map(([slug, name]) => ({ slug, name }))];
+  for (const c of all) {
+    const n = c.slug.replace(/-/g, '');
+    const d = n.length >= 4 && q.includes(n) ? 0 : editDistance(q, n);
+    const max = n.length >= 8 ? 2 : 1;
+    if (d <= max && (!best || d < best.d)) best = { ...c, d };
+  }
+  return best;
+}
+function editDistance(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 99;
+  let before = [];
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      // Dos letras cambiadas de sitio («Nkie») cuentan como una errata, no dos.
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) cur[j] = Math.min(cur[j], before[j - 2] + 1);
+    }
+    before = prev;
+    prev = cur;
+  }
+  return prev[b.length];
+}
 
 function brandCandidates(query) {
   const q = normalize(query);

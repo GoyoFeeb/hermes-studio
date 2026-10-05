@@ -528,6 +528,13 @@ const MOBILE_FIX_ATTEMPTS = 2;
 /** Rondas en las que se le devuelven a Hermes los errores del control de calidad (qualityCheck.ts). */
 const QUALITY_FIX_ATTEMPTS = 2;
 
+/** Las rondas de corrección rehacían la pieza entera: la de móvil de Calvin Klein (2026-10-05) duró 23 min para un
+ *  padding de 28 px, porque Hermes cambió el logo, volvió a investigar las imágenes y renderizó 4 combinaciones. */
+const SCOPED_FIX =
+  'ALCANCE: corrige SOLO lo que se indica aquí, con el cambio mínimo. No cambies textos, imágenes, enlaces, colores ni ' +
+  'estructura que no estén en esta lista; no vuelvas a investigar la marca ni a verificar enlaces o imágenes que no ' +
+  'se mencionan. Un render de comprobación basta. Esta ronda debería llevarte pocos minutos.';
+
 /** Errores que Hermes puede corregir en otra ronda: el móvil tiene su propio bucle, y `inherited` son los
  *  que ya traía la versión original en un "Pedir cambios" (ver runJob). */
 function fixableErrors(report: QualityReport, inherited: Set<string> = new Set()): QualityReport {
@@ -962,8 +969,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       `Comprobación automática: ${mobileProblem}.\n\nCorrige ${job.outputDir}/newsletter.html para que a ` +
         `${MOBILE_WIDTH} px nada se salga del ancho: en la media query de móvil, imágenes con width:100% ` +
         '!important y height:auto; tablas y celdas con width:100% (o max-width) en vez de anchos fijos; ' +
-        'botones y titulares que puedan partir línea. Mantén el aspecto de escritorio. Renderiza a ' +
-        `${MOBILE_WIDTH} px para comprobarlo y actualiza notas.md.`,
+        'botones y titulares que puedan partir línea. Si una celda tiene width:100% y padding, añádele ' +
+        'box-sizing:border-box (sin él mide el 100 % MÁS el padding). Mantén el aspecto de escritorio. Renderiza a ' +
+        `${MOBILE_WIDTH} px para comprobarlo y actualiza notas.md.\n\n${SCOPED_FIX}`,
       sessionId,
       () => undefined
     );
@@ -990,7 +998,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const inherited = new Set(
     isRevision && claimed.sourceHtml
       ? staticChecks(claimed.sourceHtml)
-          .filter((c) => c.status === 'error' && (c.id === 'dark-mode' || c.id === 'outlook' || c.id === 'typography'))
+          .filter((c) => c.status === 'error' && ['dark-mode', 'outlook', 'typography', 'logo-present', 'email-images'].includes(c.id))
           .map((c) => c.id)
       : []
   );
@@ -1018,8 +1026,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         'ponla primera en cada font-family, con Arial/Helvetica solo detrás. Espacios y márgenes → al menos 32 px de ' +
         'padding entre cada foto y su texto, y laterales de 20-24 px a 375 px aplicando la clase de la media query a ' +
         'cada celda con texto (y a los botones). ' +
+        'Logo de la marca → el logo oficial en PNG, descargado en la carpeta del trabajo, arriba del todo. Imágenes ' +
+        'que se ven en el correo / imagen bloqueada → descarga cada imagen (también el logo) a la carpeta del trabajo y ' +
+        'enlázala con ruta local; un SVG, conviértelo a PNG al doble de tamaño. ' +
         'Renderiza también en oscuro para comprobarlo. Fuera de lo que te pido aquí, no cambies el diseño en ' +
-        'claro. Actualiza notas.md con lo que has corregido.',
+        'claro. Actualiza notas.md con lo que has corregido.\n\n' + SCOPED_FIX,
       sessionId,
       () => undefined
     );

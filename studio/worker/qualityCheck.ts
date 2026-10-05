@@ -157,7 +157,7 @@ export function staticChecks(html: string, missingLocal: string[] = []): Quality
   });
   checks.push(item('claims', 'Claims de riesgo', [], claims));
 
-  checks.push(darkModeCheck(html), outlookCheck(html), logoMatchCheck(html), typographyCheck(html));
+  checks.push(darkModeCheck(html), outlookCheck(html), logoPresenceCheck(html), logoMatchCheck(html), typographyCheck(html), emailImagesCheck(html));
 
   if (missingLocal.length) {
     checks.push(item('local-images', 'Imágenes locales', missingLocal.map((r) => `La imagen ${r} no existe en el Mac.`)));
@@ -324,6 +324,50 @@ function srcLabel(src: string): string {
   return src.split(/[?#]/)[0].split('/').pop() || src;
 }
 
+/** Logo en la cabecera (2026-10-05, Calvin Klein): la pieza salió sin logo visible y el control no dijo nada. Se
+ *  busca como en logoMatchCheck: "logo" en el src, la clase o el id, o una primera imagen pequeña (≤ 320 px). */
+export function logoPresenceCheck(html: string): QualityCheckItem {
+  const imgs = [...bodyOf(html).matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
+  const marked = imgs.find((t) => /logo/i.test(`${(attr(t, 'src') || '').startsWith('data:') ? '' : attr(t, 'src')} ${attr(t, 'class') || ''} ${attr(t, 'id') || ''} ${attr(t, 'alt') || ''}`));
+  const first = imgs[0];
+  const firstSmall = !!first && (() => {
+    const w = parseFloat(imgSize(first).width);
+    return Number.isFinite(w) && w <= 320;
+  })();
+  if (!marked && !firstSmall) {
+    return item('logo-present', 'Logo de la marca', [
+      'No hay logo en la cabecera: pon el logo oficial de la marca como imagen (PNG descargado en la carpeta del trabajo, con alt con el nombre de la marca), arriba del todo.',
+    ]);
+  }
+  const result = item('logo-present', 'Logo de la marca', []);
+  result.details.push(`Logo: ${srcLabel(attr(marked || first!, 'src') || '')}.`);
+  return result;
+}
+
+/** Imágenes que un programa de correo puede mostrar (2026-10-05, Calvin Klein): el logo era un SVG enlazado desde
+ *  la web de la marca y las fotos, URLs de su CDN que bloquea a quien no viene de su web (Akamai: 403). Gmail y
+ *  Outlook no muestran SVG, y el proxy de imágenes de Gmail también recibe el 403. Las imágenes tienen que ir en
+ *  la carpeta del trabajo (Studio las publica en /assets) o ya publicadas por Studio (img-<hash> en /assets/). */
+const STUDIO_ASSET_RE = /\/assets\/.+\/img-[0-9a-f]{12}\.(png|jpe?g|gif|webp)(\?|$)/i;
+export function emailImagesCheck(html: string): QualityCheckItem {
+  const body = bodyOf(html);
+  const srcs = [
+    ...[...body.matchAll(/<img\b[^>]*>/gi)].map((m) => attr(m[0], 'src') || ''),
+    ...[...body.matchAll(/\bbackground\s*=\s*["']([^"']+)["']/gi)].map((m) => m[1]),
+  ].map((u) => decodeEntities(u.trim())).filter(Boolean);
+  const errors: string[] = [];
+  const svg = [...new Set(srcs.filter((u) => /^data:image\/svg\+xml/i.test(u) || /\.svg(\?|#|$)/i.test(u)))];
+  for (const u of svg.slice(0, 3)) errors.push(`Imagen SVG (${srcLabel(u)}): Gmail y Outlook no la muestran. Conviértela a PNG al doble de su tamaño y guárdala en la carpeta del trabajo.`);
+  const external = [...new Set(srcs.filter((u) => /^https?:\/\//i.test(u) && !STUDIO_ASSET_RE.test(u) && !svg.includes(u)))];
+  for (const u of external.slice(0, 4)) {
+    errors.push(`Imagen enlazada desde fuera (${u.length > 90 ? `${u.slice(0, 90)}…` : u}): descárgala a la carpeta del trabajo y enlázala con ruta local; Studio la publica. Las webs de las marcas suelen bloquear el enlace directo y en el correo no se vería.`);
+  }
+  if (external.length > 4) errors.push(`… y ${external.length - 4} imagen(es) más enlazadas desde fuera.`);
+  const result = item('email-images', 'Imágenes que se ven en el correo', errors);
+  if (!errors.length) result.details.push('Todas locales o publicadas por Studio, ninguna SVG.');
+  return result;
+}
+
 /** Logo arriba y abajo (norma del 2026-10-02): si el pie lleva logo, es exactamente el de la cabecera —
  *  mismo archivo, misma versión de color y mismo tamaño. En las 13 piezas de Hermes hasta entonces, 11
  *  lo encogían en el pie (Nike 120→96 px, Lacoste 190→120) y Adidas cambiaba de archivo (negro arriba,
@@ -467,9 +511,12 @@ export async function checkUrls(urls: string[], fetcher: Fetcher = fetch as unkn
   return out;
 }
 
-function urlItem(id: string, label: string, verdicts: UrlVerdict[], total: number): QualityCheckItem {
-  const broken = verdicts.filter((v) => v.kind === 'broken').map((v) => `${v.url} → ${v.reason}`);
-  const unverifiable = verdicts.filter((v) => v.kind === 'unverifiable').map((v) => `No verificable: ${v.url} → ${v.reason}`);
+function urlItem(id: string, label: string, verdicts: UrlVerdict[], total: number, blockedIsError = false): QualityCheckItem {
+  // En una imagen, un 403/429 no es «solo un robot»: el proxy de imágenes de Gmail también lo recibe y no la muestra
+  // (Calvin Klein, 2026-10-05). En un enlace sigue siendo aviso: quien pulsa usa un navegador normal.
+  const blocked = (v: UrlVerdict): boolean => blockedIsError && v.kind === 'unverifiable' && /^HTTP 4/.test(v.reason);
+  const broken = verdicts.filter((v) => v.kind === 'broken' || blocked(v)).map((v) => `${v.url} → ${blocked(v) ? `${v.reason.split(' (')[0]}: la web bloquea la imagen; descárgala a la carpeta del trabajo` : v.reason}`);
+  const unverifiable = verdicts.filter((v) => v.kind === 'unverifiable' && !blocked(v)).map((v) => `No verificable: ${v.url} → ${v.reason}`);
   const result = item(id, label, broken, unverifiable);
   if (!total) result.details.push('Ninguno que comprobar.');
   else if (!broken.length && !unverifiable.length) result.details.push(`${total} comprobado${total === 1 ? '' : 's'}.`);
@@ -491,7 +538,7 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
   const verdicts = await checkUrls([...links, ...images.filter((u) => !links.includes(u))], opts.fetcher);
   checks.unshift(
     urlItem('links', 'Enlaces', verdicts.filter((v) => links.includes(v.url)), links.length),
-    urlItem('images', 'Imágenes publicadas', verdicts.filter((v) => images.includes(v.url)), images.length)
+    urlItem('images', 'Imágenes publicadas', verdicts.filter((v) => images.includes(v.url)), images.length, true)
   );
   if (opts.mobileProblem !== undefined) {
     checks.push(item('mobile', 'Móvil (375 px)', opts.mobileProblem ? [opts.mobileProblem] : []));

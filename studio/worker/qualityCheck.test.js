@@ -30,7 +30,7 @@ const GOOD = `<!doctype html><html lang="es"><head><title>x</title>
 <!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
 <style>@media (max-width:620px){.a{width:100%}} @media (prefers-color-scheme: dark){body{background:#111}}</style></head><body>
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">El primer viaje también es un descanso para ti</div>
-<table><tr><td><img src="https://cdn.example.org/hero.jpg" alt="Hero" width="600">
+<table><tr><td><img src="logo-marca.png" alt="Marca" width="120"><img src="https://studio.example.org/assets/marca/design-input/hermes/x/img-0123456789ab.jpg" alt="Hero" width="600">
 <p>Texto de la pieza.</p><a href="https://www.marca.es/producto">Descubre</a>
 <a href="{{unsubscribe_url}}">Darse de baja</a></td></tr></table></body></html>`;
 
@@ -59,7 +59,7 @@ test('runQualityCheck: un 404 en el botón es error y un 429 solo aviso (Inglesi
 });
 
 test('runQualityCheck: dominio inexistente y 5xx persistente son errores', () => {
-  const html = GOOD.replace('https://cdn.example.org/hero.jpg', 'https://no-existe.invalid/a.jpg')
+  const html = GOOD.replace('https://studio.example.org/assets/marca/design-input/hermes/x/img-0123456789ab.jpg', 'https://no-existe.invalid/a.jpg')
     .replace('https://www.marca.es/producto', 'https://www.marca.es/caido');
   const r = run(`process.stdout.write(JSON.stringify(await q.runQualityCheck(${JSON.stringify(html)}, { fetcher: fakeFetcher({
     'https://no-existe.invalid/a.jpg': 'ENOTFOUND', 'https://www.marca.es/caido': 503 }) })));`);
@@ -82,7 +82,7 @@ test('staticChecks: sin preheader, sin baja, sin alt, enlace a "#" y claim de ri
 
 test('staticChecks: el peso se mide con las imágenes base64 ya sustituidas por URLs', () => {
   const big = 'A'.repeat(300 * 1024);
-  const html = GOOD.replace('https://cdn.example.org/hero.jpg', `data:image/png;base64,${big}`);
+  const html = GOOD.replace('https://studio.example.org/assets/marca/design-input/hermes/x/img-0123456789ab.jpg', `data:image/png;base64,${big}`);
   const r = run(`process.stdout.write(JSON.stringify(q.staticChecks(${JSON.stringify(html)})));`);
   assert.equal(r.find((c) => c.id === 'size').status, 'ok');
   const heavy = GOOD.replace('<p>Texto de la pieza.</p>', `<p>${'x'.repeat(110 * 1024)}</p>`);
@@ -234,4 +234,41 @@ test('runQualityCheck: los problemas de espacios entran como error «Espacios y 
   const layout = r.checks.find((c) => c.id === 'layout');
   assert.equal(layout.status, 'error');
   assert.equal(r.errors, 1);
+});
+
+// Logo e imágenes de correo (2026-10-05, Calvin Klein): logo SVG enlazado desde calvinklein.us y fotos de
+// media1.calvinklein.com que dan 403 (Akamai). La pieza salió sin logo ni fotos y el control no dijo nada.
+test('logoPresenceCheck: sin logo arriba es error; con «logo» en el src o una primera imagen pequeña, correcto', () => {
+  const r = run(`process.stdout.write(JSON.stringify([
+    q.logoPresenceCheck('<body><img src="hero.jpg" alt="Jung Kook" width="600"><p>Feel Iconic.</p></body>'),
+    q.logoPresenceCheck('<body><img src="ck-logo.png" alt="Calvin Klein" width="196"><img src="hero.jpg" width="600"></body>'),
+    q.logoPresenceCheck('<body><img src="img-0123456789ab.png" alt="Calvin Klein" width="160"><img src="hero.jpg" width="600"></body>'),
+  ]));`);
+  assert.equal(r[0].status, 'error');
+  assert.equal(r[1].status, 'ok');
+  assert.equal(r[2].status, 'ok');
+});
+
+test('emailImagesCheck: logo SVG y fotos enlazadas al CDN de la marca (Calvin Klein) son errores; locales y de Studio, no', () => {
+  const ck = '<body><img src="https://www.calvinklein.us/on/demandware.static/-/Sites-PVHCKUS-Library/default/dwa0e4bc21/logo/CK-logo-Dark.svg" alt="Calvin Klein" width="196">' +
+    '<img src="https://media1.calvinklein.com/images/20260929/HP/HP_JK_Mobile.jpg" alt="Jung Kook" width="600"></body>';
+  const r = run(`process.stdout.write(JSON.stringify([
+    q.emailImagesCheck(${JSON.stringify(ck)}),
+    q.emailImagesCheck('<body><img src="logo.png" width="196"><img src="https://hermes-studio.up.railway.app/assets/ck/design-input/hermes/x/img-8a93f6ec7aaa.jpg" width="600"></body>'),
+  ]));`);
+  assert.equal(r[0].status, 'error');
+  assert.equal(r[0].errorCount, 2);
+  assert.match(r[0].details[0], /SVG \(CK-logo-Dark\.svg\)/);
+  assert.match(r[0].details[1], /enlazada desde fuera \(https:\/\/media1\.calvinklein\.com/);
+  assert.equal(r[1].status, 'ok');
+});
+
+test('runQualityCheck: una imagen que da 403 es error (el proxy de Gmail tampoco la ve); un enlace con 403, aviso', () => {
+  const html = GOOD.replace('https://www.marca.es/producto', 'https://www.calvinklein.us/en/jeans');
+  const img = 'https://studio.example.org/assets/marca/design-input/hermes/x/img-0123456789ab.jpg';
+  const r = run(`process.stdout.write(JSON.stringify(await q.runQualityCheck(${JSON.stringify(html)}, { fetcher: fakeFetcher({
+    [${JSON.stringify(img)}]: 403, 'https://www.calvinklein.us/en/jeans': 403 }) })));`);
+  assert.equal(r.checks.find((c) => c.id === 'images').status, 'error');
+  assert.match(r.checks.find((c) => c.id === 'images').details[0], /la web bloquea la imagen/);
+  assert.equal(r.checks.find((c) => c.id === 'links').status, 'warning');
 });
