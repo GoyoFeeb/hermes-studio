@@ -2002,3 +2002,5 @@ El usuario pidió «vamos con todas».
   bgcolor → error; con el fondo oscurecido → limpio). `npm test` 207/207; check-engine limpio. El render en oscuro
   añade ~1 s al control.
 - **Para desplegar:** worker (reiniciar en el Mac) y Railway solo por `clientMatrix.ts`.
+- **Desplegado (con permiso del usuario):** `26dba53` → push a `Javifeebbo/hermes-studio` (Railway) y a `origin`.
+  Worker reiniciado (2026-10-06, sin trabajos en curso), conectado a Studio.
