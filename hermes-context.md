@@ -2348,3 +2348,7 @@ El usuario pidió «vamos con todas».
 - Registro en vivo (`renderLog`, `logShown`): solo las líneas nuevas de la misma pieza entran con un resalte rosa (`.is-fresh`); al abrir una pieza, sin animar.
 - Atajos que se pulsan (`toggleShortcuts`, `pressKey`): al abrir el diálogo las teclas se hunden en cascada; con él abierto, la tecla pulsada se hunde.
 - Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.
+
+### 2026-10-06 — Studio: pie con llamada final (pedido por el usuario)
+- El pie era un bloque negro (logo, ©, Correo/Web) que cortaba con el azul de Studio. Ahora va en el fondo de la página con una línea fina encima: «HERMES STUDIO · ¿Otra newsletter?», una frase y el botón «Nueva newsletter →» (`#foot-new`, hace lo mismo que el del menú, también desde la página de un trabajo); a la derecha, cifras del equipo (`renderFootStats`: newsletters hechas y calidad media del historial completo, sin filtros ni archivadas; ocultas sin historial). Debajo, una línea con logo pequeño (oscurecido en tema claro), © y contacto. Se mantiene el brillo del logo al llegar el hilo.
+- Archivos: `studio/web/index.html`, `styles.css`, `app.js`. Sin efecto en fases cerradas.

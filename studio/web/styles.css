@@ -892,29 +892,35 @@ a.menu-item { text-decoration: none; box-sizing: border-box; }
 /* ---------- pie ---------- */
 /* Como el de la web (.footer-feebbo): negro a todo el ancho, copyright en gris a 12 px y columnas con la
    etiqueta en blanco y negrita y el dato debajo. Negro también en el tema claro: es el cierre de marca. */
+/* Pie con llamada final (2026-10-06): sin bloque negro, en el fondo de la página y separado por una línea fina. */
 .foot {
-  margin-top: 48px;
-  padding: 56px 24px 48px;
-  background: var(--footer-bg);
-  color: var(--footer-text);
+  margin-top: 64px;
+  padding: 56px 24px 32px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
 }
-.foot-inner {
-  max-width: 880px;
-  margin: 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 32px 48px;
+.foot-inner { max-width: 880px; margin: 0 auto; }
+.foot-cta { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 32px 48px; padding-bottom: 40px; }
+.foot-cta-copy { max-width: 440px; }
+.foot-title { margin: 12px 0 8px; font-size: clamp(28px, 4vw, 40px); font-weight: 600; line-height: 1.1; color: var(--text); }
+.foot-lead { margin: 0 0 24px; font-size: var(--fs-body, 16px); line-height: 1.5; color: var(--muted); }
+.foot-stats { display: flex; gap: 40px; margin: 0; }
+.foot-stats div { margin: 0; }
+.foot-stats dt { font-size: 44px; font-weight: 600; line-height: 1; color: var(--text); }
+.foot-stats dd { margin: 6px 0 0; font-size: var(--fs-small); color: var(--muted); }
+.foot-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+.foot-logo { display: block; width: 78px; height: auto; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .foot-logo { filter: brightness(0) opacity(0.88); } }
+:root[data-theme="light"] .foot-logo { filter: brightness(0) opacity(0.88); }
+.foot-copy { margin: 0; font-size: var(--fs-caption); line-height: 20px; color: var(--muted); }
+.foot-links { margin: 0 0 0 auto; font-size: var(--fs-small); color: var(--muted); }
+.foot a:not(.btn) { color: var(--text); text-decoration: none; }
+.foot a:not(.btn):hover { color: var(--pink); }
+@media (max-width: 640px) {
+  .foot-stats { gap: 28px; }
+  .foot-stats dt { font-size: 36px; }
+  .foot-links { margin-left: 0; width: 100%; }
 }
-.foot-logo { display: block; width: 104px; height: auto; margin-bottom: 16px; }
-.foot-copy { margin: 0; font-size: var(--fs-caption); line-height: 20px; color: var(--footer-muted); }
-.foot-cols { display: flex; flex-wrap: wrap; gap: 24px 48px; }
-.foot-col { margin: 0; }
-.foot-col dt { font-size: var(--fs-ui); font-weight: 700; line-height: 20px; }
-.foot-col dd { margin: 0; font-size: var(--fs-small); line-height: 20px; }
-.foot a { color: var(--footer-text); text-decoration: none; }
-.foot a:hover { color: var(--pink); }
 
 /* ---------- móvil ---------- */
 @media (max-width: 640px) {
@@ -1775,7 +1781,7 @@ body::after {
 
 /* ---------------------------------------------------------------- Zonas táctiles de 24 px como mínimo (2026-10-05) */
 .how-btn { display: inline-flex; align-items: center; min-height: 32px; }
-.foot a { display: inline-block; padding: 4px 0; }
+.foot a:not(.btn) { display: inline-block; padding: 4px 0; }
 .choice input { width: 18px; height: 18px; flex: none; }
 
 /* Logo de la marca en las miniaturas sin imagen (2026-10-05): dentro del cuadrado blanco, con aire; si el logo es la
@@ -2597,7 +2603,7 @@ input.is-shake, textarea.is-shake, select.is-shake { border-color: var(--pink) !
 .foot-logo-wrap::after {
   content: '';
   position: absolute;
-  inset: 0 0 16px 0; /* sin el margen inferior del logo */
+  inset: 0;
   pointer-events: none;
   background: linear-gradient(100deg, transparent 35%, var(--pink) 50%, transparent 65%) no-repeat;
   background-size: 300% 100%;

@@ -1146,6 +1146,22 @@ function statusLabel(j) {
 // Fila de cifras (2026-10-02, como la de feebbodigital.com): newsletters, en curso y aprobadas de lo que está a
 // la vista. Cuenta newsletters (familias), no versiones; cada cifra pone su filtro de estado.
 const STAT_ACTIVE = new Set(['running', 'queued', 'review']);
+/** Cifras del pie (2026-10-06): del historial completo (sin filtros ni archivadas); ocultas sin historial. */
+function renderFootStats(families) {
+  const box = document.getElementById('foot-stats');
+  if (!box) return;
+  const scored = families.map((m) => [...m].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).find((j) => j.art)).filter(Boolean);
+  const avg = scored.length ? Math.round(scored.reduce((s, j) => s + j.art.pct, 0) / scored.length) : null;
+  box.hidden = !families.length;
+  box.innerHTML =
+    `<div><dt>${families.length}</dt><dd>newsletter${families.length === 1 ? '' : 's'} hecha${families.length === 1 ? '' : 's'}</dd></div>` +
+    (avg !== null ? `<div><dt>${avg} %</dt><dd>calidad media</dd></div>` : '');
+}
+document.getElementById('foot-new').addEventListener('click', (e) => {
+  e.preventDefault();
+  sideMenu.querySelector('[data-menu="new"]').click();
+});
+
 function renderHistoryStats(families) {
   const box = document.getElementById('history-stats');
   const stats = [
@@ -2120,6 +2136,7 @@ function renderHistory() {
     el.textContent = `${el.textContent ? `${el.textContent} · ` : ''}solo los ${historyState.truncated.toLocaleString('es-ES')} trabajos más recientes`;
   }
   renderHistoryStats(scoped);
+  renderFootStats([...families.values()].filter((m) => m.some((j) => !j.archivedAt)));
   document.getElementById('history-empty').hidden = groups.length > 0;
   document.getElementById('history-more').hidden = groups.length <= visible.length;
 
