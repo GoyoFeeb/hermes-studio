@@ -4689,6 +4689,7 @@ function renderArtReview(a) {
   document.getElementById('art-sum').textContent = [
     a.after ? (a.kept === false ? `${before} % (la mejora empeoraba: se quedó la versión anterior)` : `${before} % → ${pct} %`) : `${pct} %`,
     a.web ? 'comparada con la web de la marca' : null,
+    a.backfill ? 'puntuada después, sin pasada de mejora' : null,
   ]
     .filter(Boolean)
     .join(' · ');

@@ -2268,3 +2268,7 @@ El usuario pidió «vamos con todas».
 - Controles segmentados (formulario, Lista/Galería, vista previa, revisión): una píldora se desliza a la opción elegida (`placePill`).
 - Todo apagado con «reducir movimiento». Verificado en local; sin errores de consola.
 - Pasos de la cabecera sin nada en curso (pedido del usuario): en vez de encender cada paso entero, un degradado rosa se desliza de izquierda a derecha por los números y las líneas (`steps-sweep`, `background-clip: text`; cada elemento arranca con un retraso proporcional a su posición, `--pn`/`--pl` de `placeStepSweep`).
+
+### 2026-10-06 — Notas de calidad de piezas anteriores (pedido por el usuario)
+- De las piezas de hoy, solo Inglesina `mw39rq` tenía notas fiables en `revision-visual.md` (escala antigua de 9 criterios); Adeslas, Paredes y Polo decían `{"sin_imagen": true}` (fallo de visión de la mañana) y la de Siroko se reescribió en la corrección.
+- En vez de copiarlas: se vuelven a puntuar con la revisión actual (punto 5, sin corregir). Studio: `pendingArtReviews` (terminadas de los últimos 7 días sin notas), rutas `/api/worker/art/pending` y `/api/worker/jobs/:id/art-review` (guarda con `backfill: true` o marca `artReviewFailed`). Worker: `backfillArtReviews`, con el worker libre, UNA pieza por vuelta (HTML del Mac o el publicado, hoja, portada de la web y revisión en medium). Web: «puntuada después, sin pasada de mejora» en el panel. Tests 229/229.

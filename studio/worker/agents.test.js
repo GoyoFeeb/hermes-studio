@@ -461,6 +461,16 @@ test('Calidad: Studio guarda la revisión de arte limpia y calcula la nota final
   assert.equal(r.junk, null);
 });
 
+test('Notas de calidad puntuadas después: se marcan como backfill y se guardan limpias', () => {
+  const r = run(`
+    const s = require(${mod('../server/standalone.ts')});
+    process.stdout.write(JSON.stringify({ a: s.sanitizeArtReview({ before: { peticion: 4, copy: 3 }, backfill: true, web: false }), b: s.sanitizeArtReview({ before: { peticion: 4 }, backfill: 'sí' }) }));
+  `);
+  assert.equal(r.a.backfill, true);
+  assert.deepEqual(r.a.before, { peticion: 4, copy: 3 });
+  assert.equal(r.b.backfill, undefined);
+});
+
 test('Ficha de producto: URLs de ficha del brief, umbrales de envío y fotos del propio producto', () => {
   const r = run(`
     const p = require(${mod('productSheet.ts')});

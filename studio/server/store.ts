@@ -111,6 +111,8 @@ export interface Job {
   timings?: JobTimings;
   /** Revisión de dirección de arte (2026-10-06, punto 7): notas antes y después de la mejora. */
   artReview?: JobArtReview;
+  /** El worker no pudo puntuarla después (sin HTML o sin notas legibles): no se le vuelve a pedir. */
+  artReviewFailed?: boolean;
 }
 
 export interface JobArtReview {
@@ -124,6 +126,8 @@ export interface JobArtReview {
   web: boolean;
   problemas: string[];
   mejoras: string[];
+  /** Puntuada después de terminar (piezas anteriores al punto 7), sin pasada de mejora. */
+  backfill?: boolean;
 }
 
 /** Las notas que valen: las de después si la mejora se quedó; si no, las de antes. */

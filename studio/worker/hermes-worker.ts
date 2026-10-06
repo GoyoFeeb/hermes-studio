@@ -1576,6 +1576,51 @@ async function backfillThumbnails(): Promise<void> {
   console.log(`[${stamp()}] Miniaturas del historial: ${jobs.length} generada(s)`);
 }
 
+/** Notas de calidad de piezas anteriores (2026-10-06): con el worker libre, Studio da UNA pieza terminada sin notas y
+ *  aquí se puntúa con la revisión de dirección de arte (hoja, portada de la web, copy), sin corregir nada. Con el HTML
+ *  del Mac si está (sus imágenes locales) y, si no, el publicado. Sin pendientes, no se vuelve a preguntar en un rato. */
+let artIdleUntil = 0;
+
+async function backfillArtReviews(): Promise<void> {
+  if (Date.now() < artIdleUntil) return;
+  const res = await api('/api/worker/art/pending', {}, 1);
+  if (!res.ok) {
+    artIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS; // Studio sin la ruta todavía
+    return;
+  }
+  const { jobs } = (await res.json()) as { jobs: { id: string; outputDir: string; slug: string; request: string; prompt: string; html: string }[] };
+  if (!jobs.length) {
+    artIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS;
+    return;
+  }
+  for (const j of jobs) {
+    const local = path.join(ROOT, j.outputDir, 'newsletter.html');
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-nota-'));
+    let htmlPath = local;
+    if (!fs.existsSync(local)) {
+      htmlPath = path.join(workDir, 'newsletter.html');
+      fs.writeFileSync(htmlPath, j.html);
+    }
+    try {
+      const html = fs.readFileSync(htmlPath, 'utf8');
+      const sheet = await renderSheet(htmlPath, workDir);
+      const home = readMeasuredIdentity(ROOT, j.slug)?.url || brandHome(j.prompt.split('## Instrucciones de entrega')[0], j.slug);
+      const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
+      const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
+      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found), null, () => undefined, MODELS.draft);
+      const review = parseArtReview(look.output);
+      await api(
+        `/api/worker/jobs/${j.id}/art-review`,
+        review ? { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras } : { failed: true },
+        2
+      ).catch(() => undefined);
+      console.log(`[${stamp()}] Nota de calidad de ${j.id} (puntuada después): ${review ? `${scoreTotal(review)}/${Object.keys(review.notas).length * 5}` : 'sin notas legibles'}`);
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
+  }
+}
+
 /** Fichas de marca (2026-10-01, ver brandCard.ts): el brand pack vive en este Mac; con el worker libre se
  *  envían a Studio las que han cambiado (Studio dice qué huellas tiene). Como mucho cada 10 minutos. */
 const BRAND_SYNC_EVERY_MS = 10 * 60 * 1000;
@@ -1675,6 +1720,7 @@ async function main(): Promise<void> {
       }
       if (res.status === 204) {
         await backfillThumbnails().catch((err) => console.error(`[${stamp()}] Miniaturas: ${(err as Error).message}`));
+        await backfillArtReviews().catch((err) => console.error(`[${stamp()}] Notas de calidad: ${(err as Error).message}`));
         await syncBrandCards().catch((err) => console.error(`[${stamp()}] Fichas de marca: ${(err as Error).message}`));
       } else if (res.status === 401) {
         console.error('Studio rechaza el WORKER_TOKEN — revisa que coincide con el de Railway.');

@@ -555,7 +555,24 @@ export function sanitizeArtReview(raw: unknown): JobArtReview | undefined {
     web: r.web === true,
     problemas: list(r.problemas),
     mejoras: list(r.mejoras),
+    ...(r.backfill === true ? { backfill: true } : {}),
   };
+}
+
+/** Piezas terminadas de los últimos `days` días sin notas de calidad (2026-10-06): el worker, libre, las puntúa con la
+ *  revisión de dirección de arte (sin corregirlas) para que el historial y las fichas de marca arranquen con datos. */
+export function pendingArtReviews(limit: number, days = 7): { id: string; outputDir: string; slug: string; request: string; prompt: string; html: string }[] {
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  return listJobs()
+    .filter((j) => j.input.mode === 'standalone' && j.status === 'completed' && !j.artReview && !j.artReviewFailed && j.createdAt >= since)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit)
+    .flatMap((j) => {
+      const html = readResultHtml(j);
+      return html
+        ? [{ id: j.id, outputDir: standaloneOutputDir(j), slug: j.input.clientSlug || '', request: j.input.instruction || '', prompt: (j.input.briefText || '').slice(0, 8000), html }]
+        : [];
+    });
 }
 
 /** Asunto (el <title> del HTML: es donde Hermes lo deja) y preheader de una newsletter terminada,

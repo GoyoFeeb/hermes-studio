@@ -47,6 +47,7 @@ import {
   sanitizeQuality,
   sanitizeTimings,
   sanitizeArtReview,
+  pendingArtReviews,
   needsBrief,
   completeStandaloneJob,
   standaloneOutputDir,
@@ -423,6 +424,30 @@ app.post('/api/worker/brand-cards/known', requireWorker, express.json({ limit: '
 });
 app.post('/api/worker/brand-cards', requireWorker, express.json({ limit: '4mb' }), (req: Request, res: Response) => {
   res.json({ saved: saveBrandCards(req.body?.cards) });
+});
+
+// Notas de calidad de piezas anteriores (2026-10-06): el worker, libre, puntúa las que no tienen y las envía.
+app.post('/api/worker/art/pending', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
+  res.json({ jobs: pendingArtReviews(1) });
+});
+app.post('/api/worker/jobs/:id/art-review', requireWorker, express.json({ limit: '64kb' }), (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone' || job.status !== 'completed') {
+    res.status(404).json({ error: 'Trabajo no encontrado o no terminado.' });
+    return;
+  }
+  if (req.body?.failed) {
+    updateJob(job.id, { artReviewFailed: true });
+    res.json({ ok: true });
+    return;
+  }
+  const artReview = sanitizeArtReview({ ...req.body, backfill: true });
+  if (!artReview) {
+    res.status(400).json({ error: 'Notas no válidas.' });
+    return;
+  }
+  if (!job.artReview) updateJob(job.id, { artReview });
+  res.json({ ok: true });
 });
 
 app.post('/api/worker/thumbs/pending', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
