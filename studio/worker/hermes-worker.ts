@@ -33,6 +33,7 @@ import { buildProductSheet, productSheetNote, productUrls } from './productSheet
 import { renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import sharp from 'sharp';
+import { chosenModulesNote } from '../hermes/catalog';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -1167,7 +1168,13 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       ? ''
       : isRevision
       ? brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE
-      : identity + logoNote + productNote + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + selfContainedNote(job.outputDir)) +
+      : identity +
+        logoNote +
+        productNote +
+        brandAssetsNote(job.outputDir) +
+        WEB_ACCESS_NOTE +
+        selfContainedNote(job.outputDir) +
+        chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model);

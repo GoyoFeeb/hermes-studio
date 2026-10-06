@@ -2122,3 +2122,26 @@ El usuario pidió «vamos con todas».
     sharp) y pide reintentar una vez si hay error; `WEB_ACCESS_NOTE` lleva la misma pauta para el resto de usos.
   - Probado con Luna sobre la hoja real de Adeslas: 58 s, notas reales (oscuro 2, petición 3).
   - Antes, en la mañana, también hubo una espera de visión de 120 s y luego un timeout del modelo auxiliar.
+
+### 2026-10-06 (continuación) — Fase B: catálogo de módulos del motor y patrones en el brief (sin desplegar)
+
+- **`studio/hermes/build-catalog.ts`** (`npm run build-catalog`): renderiza con el propio motor (`renderTemplate` +
+  `MODULE_ADAPTERS` + `loadBrandTokens`) cada uno de los 29 componentes útiles.
+  - Fuera: `_shell`, el stub `header`, los parciales `cta-*` y `hero-marca-tarifalo`.
+  - Datos: los de una campaña real que lo usó y el brand pack de esa marca, descartando las campañas de prueba con
+    texto de relleno. Las variantes sin campaña usan los datos de su componente base (mismo adaptador). Las imágenes
+    pasan a un gris neutro.
+  - Salida: `studio/hermes/modulos/<id>.html` + `<id>.png` (1,3 MB en total) y `studio/hermes/catalogo.md`.
+  - Revisado a ojo en una hoja de los 29. `engine/` no se toca.
+- **`studio/hermes/catalog.ts`** (compartido por el servidor y el worker):
+  - `MODULES` (qué es y cuándo usarlo) y `catalogIndex()`;
+  - `PATTERNS_GUIDE`: los 3 patrones (oferta y precio, institucional, fotografía primero) condensados de los 60 KB
+    de `patterns/*.md`, con sus reglas de ritmo y antirrelleno;
+  - `chosenModules()`/`chosenModulesNote()`.
+- **Brief:** recibe la guía de patrones y el índice del catálogo; la sección 1 dice el patrón y la sección 5 el
+  módulo de cada escena (id entre comillas invertidas o «propio»).
+- **Encargo:** apunta al catálogo, y el worker pega el HTML de los módulos que nombra el brief (máx. 6).
+- **Tamaños:** prompt del brief ~11 K caracteres; 4 módulos pegados ~17 K (con GPT-6 Luna la caché cuesta 0,01 $
+  por millón).
+- **Verificación:** +3 tests; `npm test` 214/214. Pendiente: un trabajo real para ver que el brief elige módulos y
+  la pieza los usa.

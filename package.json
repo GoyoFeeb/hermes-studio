@@ -13,6 +13,7 @@
     "check-newsletter": "npx tsx studio/worker/check-newsletter.ts",
     "fetch-image": "npx tsx studio/worker/fetch-image.ts",
     "render-newsletter": "npx tsx studio/worker/render-newsletter.ts",
+    "build-catalog": "npx tsx studio/hermes/build-catalog.ts",
     "product-sheet": "npx tsx studio/worker/productSheet.ts",
     "measure-brand": "npx tsx studio/worker/measureBrand.ts",
     "production-gate": "npm run production-gate-motor --",

@@ -506,3 +506,41 @@ test('Encargo y brief llevan la regla de afirmaciones comerciales', () => {
   assert.match(r.brief, /Afirmaciones comerciales .*sección 3/);
   assert.match(h.hermes, /Afirmaciones comerciales \(Studio las comprueba contra lo verificado\)/);
 });
+
+// ------------------------------------------------ catálogo de módulos y patrones (2026-10-06, opción 3, fase B)
+
+test('Catálogo: cada módulo del índice tiene su HTML de email y su imagen, sin sintaxis del motor sin resolver', () => {
+  const ids = run(`process.stdout.write(JSON.stringify(Object.keys(require(${JSON.stringify(path.join(ROOT, 'studio', 'hermes', 'catalog.ts'))}).MODULES)));`);
+  assert.ok(ids.length >= 29);
+  for (const id of ids) {
+    const html = fs.readFileSync(path.join(ROOT, 'studio', 'hermes', 'modulos', `${id}.html`), 'utf8');
+    assert.match(html, /<table|<tr/i, id);
+    assert.doesNotMatch(html, /\{\{(data|token|include|#each|slot):/, id);
+    assert.ok(fs.statSync(path.join(ROOT, 'studio', 'hermes', 'modulos', `${id}.png`)).size > 1000, id);
+  }
+  const index = fs.readFileSync(path.join(ROOT, 'studio', 'hermes', 'catalogo.md'), 'utf8');
+  for (const id of ids) assert.ok(index.includes(`\`${id}\``), id);
+});
+
+test('Catálogo: los módulos que nombra el brief, en orden, sin confundir variantes ni palabras sueltas', () => {
+  const r = run(`
+    const c = require(${JSON.stringify(path.join(ROOT, 'studio', 'hermes', 'catalog.ts'))});
+    const brief = '1. Apertura — Módulo: \`hero-imagen\`\\n2. Detalle — editorial-foto-texto-inverso\\n3. Tres pasos para comprarla (propio)\\n4. Cierre — \`banda-cierre\`';
+    const note = c.chosenModulesNote(brief, ${JSON.stringify(ROOT)});
+    process.stdout.write(JSON.stringify({ ids: c.chosenModules(brief), note: note.length, hasHtml: /Módulo \`hero-imagen\`[\\s\\S]*<table/.test(note), none: c.chosenModulesNote('sin módulos', ${JSON.stringify(ROOT)}) }));
+  `);
+  assert.deepEqual(r.ids, ['hero-imagen', 'editorial-foto-texto-inverso', 'banda-cierre']);
+  assert.ok(r.hasHtml);
+  assert.equal(r.none, '');
+});
+
+test('Brief con patrones y catálogo; encargo que apunta al catálogo', () => {
+  const b = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '', instruction: 'Newsletter de la Eden', imageMode: 'official', mode: 'standalone' });
+  const h = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '# Brief', imageMode: 'official', mode: 'standalone' });
+  assert.match(b.brief, /Oferta y precio: .*`hero-asimetrico`/);
+  assert.match(b.brief, /Fotografía primero/);
+  assert.match(b.brief, /· `metric-strip-premium` \(datos\)/);
+  assert.match(b.brief, /patrón elegido/);
+  assert.match(b.brief, /módulo \(el id del catálogo/);
+  assert.match(h.hermes, /studio\/hermes\/catalogo\.md/);
+});

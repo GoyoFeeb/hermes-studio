@@ -26,6 +26,7 @@ import { applyTextEdits, type TextEdit, type AltEdit, type LinkEdit, type ImageE
 import { createJob } from './store';
 import { joinLabels, requestTerms } from './requestCoverage';
 import { CLAIMS_BRIEF_RULE, CLAIMS_PIECE_RULE } from '../worker/claims';
+import { PATTERNS_GUIDE, catalogIndex } from '../hermes/catalog';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
 const GMAIL_CLIP_BYTES = 102 * 1024;
@@ -122,6 +123,9 @@ export function buildHermesPrompt(job: Job): string {
     '  .fluid, enlace de baja). Módulos técnicos de ejemplo (foto + texto, dos columnas, botón VML) en',
     '  studio/hermes/email-modulos.md. La base NO decide el diseño: tipografía, colores, módulos y ritmo salen del brief',
     '  y de la marca. Rellena todos los [MARCADORES] y no quites lo técnico.',
+    '- Módulos: los del catálogo de Studio que nombra el brief van al final de este encargo (HTML probado en Outlook y',
+    '  modo oscuro); el resto, en studio/hermes/catalogo.md y studio/hermes/modulos/<id>.html. Reutiliza su estructura y',
+    '  adapta textos, colores, tipografía e imágenes a la marca. Un módulo propio del concepto también vale.',
     '- Imágenes en ese HTML: SIEMPRE descargadas en la carpeta del trabajo y enlazadas con ruta local (relativa al HTML).',
     `  Descárgalas con \`npm run fetch-image -- <url> ${outDir} [nombre]\`: funciona aunque la web bloquee el enlace`,
     '  directo (403), convierte un SVG a PNG al doble de tamaño y comprime a 1200 px. Nunca URLs de la web o del CDN de',
@@ -244,6 +248,11 @@ export function buildBriefPrompt(job: Job): string {
     `  brands/${slug}/tokens/brand-tokens.json, úsala tal cual y no la vuelvas a medir; si no, mídela en la web oficial`,
     '  (estilos calculados de titulares, texto y botones; colores de fondo, texto y acento).',
     '',
+    ...PATTERNS_GUIDE,
+    '- Catálogo de módulos de Studio (HTML de email probado en Outlook, Gmail y modo oscuro; la newsletter recibe el de',
+    '  los que nombres en la sección 5):',
+    ...catalogIndex(),
+    '',
     '## Método (no lo copies en el brief: aplícalo)',
     '- Un solo concepto rector, escrito como frase. Todo titular deriva de él; nada compite con él.',
     '- 3 a 5 escenas, cada una con una función narrativa distinta (apertura de impacto, revelación de una capacidad',
@@ -257,15 +266,16 @@ export function buildBriefPrompt(job: Job): string {
     '',
     `## Entregable: ${outDir}/brief.md (write_file), con EXACTAMENTE estas secciones y como mucho ${BRIEF_MAX_WORDS} palabras`,
     `# Brief — ${job.input.clientName} — <producto o campaña>`,
-    '## 1. Concepto — la frase rectora, por qué encaja con la marca y el producto, y cómo recoge cada punto de la',
-    '   petición (ocasión, oferta, público) (3-4 líneas).',
+    '## 1. Concepto — la frase rectora, por qué encaja con la marca y el producto, cómo recoge cada punto de la',
+    '   petición (ocasión, oferta, público) y el patrón elegido (oferta y precio, institucional o fotografía primero) (3-4 líneas).',
     '## 2. Identidad de marca — tipografía de titulares y de texto (nombre exacto, de dónde sale y cómo cargarla en un',
     '   email: Google Fonts o la alternativa web más parecida), paleta (hex de fondo, texto, acento y botón, con su',
     '   origen), estilo de botón, tono de voz y tratamiento de foto. Logo: ruta del PNG si ya existe o URL oficial.',
     '## 3. Datos verificados — cada precio, cifra, nombre de modelo o dato técnico con su URL oficial, y la URL exacta',
     '   de la ficha de cada producto. Lo no verificado va en «Fuera de la pieza»: NO entra y no se investigará después.',
     '## 4. Asunto y preheader — asunto (≤ 50 caracteres) y preheader (≤ 90) que lo complemente.',
-    '## 5. Escenas — una por escena: función narrativa, titular, texto (≤ 40 palabras), imagen, módulo/composición,',
+    '## 5. Escenas — una por escena: función narrativa, titular, texto (≤ 40 palabras), imagen, módulo (el id del catálogo',
+    '   entre comillas invertidas, p. ej. `editorial-foto-texto`, o «propio: …» si ninguno sirve),',
     '   CTA (si lleva; cada CTA con un texto distinto) y el aire con la anterior.',
     job.input.imageMode === 'ai'
       ? '## 6. Imágenes — lista: para qué escena, qué debe mostrar (descripción para generarla) y encuadre.'
