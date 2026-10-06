@@ -379,3 +379,60 @@ test('Ficha de producto: URLs de ficha del brief, umbrales de envío y fotos del
   assert.match(r.note, /_trabajo\/fotos-producto\.png/);
   assert.match(r.noPrice, /no pongas precio/);
 });
+
+// ------------------------------------------------ modo oscuro legible (2026-10-06, Paredes: blanco sobre blanco)
+
+test('Modo oscuro legible: blanco sobre blanco es error (también en el pie); lo que ya fallaba en claro, no se repite', () => {
+  const r = run(`
+    const { darkFindings } = require(${mod('renderChecks.ts')});
+    const c = (text, fg, bg, at = 0.3, size = 16) => ({ text, fg, bg, size, bold: false, at });
+    const light = [c('Titular', '#25282a', '#ffffff'), c('Ayuda', '#111111', '#ffffff', 0.95, 12), c('Gris', '#cccccc', '#ffffff')];
+    const dark = [c('Titular', '#ffffff', '#ffffff'), c('Ayuda', '#111111', '#111111', 0.95, 12), c('Gris', '#cccccc', '#ffffff'), c('CTA', '#ffffff', '#0e9b4f')];
+    const ok = darkFindings([c('Titular', '#f2f2f2', '#141414')], light);
+    process.stdout.write(JSON.stringify({ bad: darkFindings(dark, light), ok }));
+  `);
+  assert.equal(r.bad.errors.length, 1);
+  assert.match(r.bad.errors[0], /no se leen 2 texto\(s\)/);
+  assert.match(r.bad.errors[0], /«Titular» \(#ffffff sobre #ffffff, 1\.0:1\)/);
+  assert.match(r.bad.errors[0], /«Ayuda»/);
+  assert.doesNotMatch(r.bad.errors[0], /Gris/);
+  assert.match(r.bad.warnings[0], /CTA/);
+  assert.deepEqual(r.ok, { errors: [], warnings: [] });
+});
+
+test('Modo oscuro legible: entra en el control como «Modo oscuro legible»; sin estilos oscuros no aparece', () => {
+  const r = run(`
+    const q = require(${mod('qualityCheck.ts')});
+    const html = '<html><head><title>x</title></head><body><a href="{{unsubscribe_url}}">Darse de baja</a></body></html>';
+    const fetcher = async () => ({ status: 200 });
+    const withDark = await q.runQualityCheck(html, { fetcher, darkFindings: { errors: ['En modo oscuro no se leen 1 texto(s)'], warnings: [] } });
+    const none = await q.runQualityCheck(html, { fetcher, darkFindings: null });
+    process.stdout.write(JSON.stringify({ a: withDark.checks.find((c) => c.id === 'dark-legibility'), b: none.checks.some((c) => c.id === 'dark-legibility') }));
+  `);
+  assert.equal(r.a.status, 'error');
+  assert.equal(r.a.label, 'Modo oscuro legible');
+  assert.equal(r.b, false);
+});
+
+test('Modo oscuro legible renderizando: el @media que pasa el texto a blanco sin oscurecer el bgcolor da error', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dark-'));
+  const page = (darkCss) => `<!doctype html><html><head><meta name="color-scheme" content="light dark"><style>@media (prefers-color-scheme: dark){${darkCss}}</style></head>` +
+    '<body><table width="600"><tr><td bgcolor="#ffffff" class="bg"><p class="t" style="color:#25282a;font-size:16px">Un titular que tiene que leerse siempre</p></td></tr></table></body></html>';
+  fs.writeFileSync(path.join(dir, 'roto.html'), page('.t{color:#ffffff !important}'));
+  fs.writeFileSync(path.join(dir, 'bien.html'), page('.t{color:#ffffff !important}.bg{background:#141414 !important}'));
+  let out;
+  try {
+    out = run(`
+      const { renderChecks } = require(${mod('renderChecks.ts')});
+      const a = await renderChecks(${JSON.stringify(path.join(dir, 'roto.html'))}, ${JSON.stringify(dir)});
+      const b = await renderChecks(${JSON.stringify(path.join(dir, 'bien.html'))}, ${JSON.stringify(dir)});
+      process.stdout.write(JSON.stringify({ a: a && a.dark, b: b && b.dark }));
+    `);
+  } catch {
+    return t.skip('Chromium no arranca aquí');
+  }
+  if (!out.a) return t.skip('Chromium no arranca aquí');
+  assert.equal(out.a.errors.length, 1);
+  assert.match(out.a.errors[0], /#ffffff sobre #ffffff/);
+  assert.deepEqual(out.b.errors, []);
+});

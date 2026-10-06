@@ -87,6 +87,7 @@ export async function inspectNewsletter(htmlPath: string, root: string, opts: In
     mobileProblem: render ? render.mobile : undefined,
     layoutProblems: opts.design && render ? render.layout : undefined,
     design: opts.design && render ? render.design : undefined,
+    darkFindings: render ? render.dark : undefined,
     imageFindings: render ? render.images : undefined,
     fetcher: opts.fetcher,
   });

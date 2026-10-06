@@ -592,6 +592,8 @@ const FIX_GUIDE =
   'y la comprime) y enlázala con ruta local. Sin preheader → al principio del <body>, un bloque oculto (display:none; ' +
   'max-height:0; overflow:hidden; mso-hide:all) con una frase que complemente al asunto. Modo oscuro → @media ' +
   '(prefers-color-scheme: dark) con fondos, textos y CTA en oscuro coherentes con la marca (logo claro si hace falta). ' +
+  'Modo oscuro legible → en el @media (prefers-color-scheme: dark), cada celda con fondo claro (bgcolor/background) ' +
+  'lleva una clase con su fondo oscuro y !important, a la vez que su texto pasa a claro. ' +
   'Outlook → tabla fantasma de 600 px en <!--[if mso]>, tablas en vez de flex/grid. Logo arriba y abajo → el del pie ' +
   'pasa a ser exactamente el de la cabecera (mismo archivo, versión de color y tamaño) o se quita. Tipografía de la ' +
   'marca → la de su web o brand pack, cargada con <link> o @import y primera en cada font-family, Arial solo detrás. ' +
@@ -1187,7 +1189,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     isRevision && claimed.sourceHtml
       ? [
           ...staticChecks(claimed.sourceHtml)
-            .filter((c) => c.status === 'error' && ['dark-mode', 'outlook', 'typography', 'logo-present', 'email-images'].includes(c.id))
+            .filter((c) => c.status === 'error' && ['dark-mode', 'dark-legibility', 'outlook', 'typography', 'logo-present', 'email-images'].includes(c.id))
             .map((c) => c.id),
           'image-quality',
         ]

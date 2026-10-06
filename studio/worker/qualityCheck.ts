@@ -538,6 +538,8 @@ export interface QualityOptions {
   layoutProblems?: string[];
   /** Inspectores del 2026-10-05 (renderChecks.ts): contraste, letra en móvil, estructura y paleta. */
   design?: { errors: string[]; warnings: string[] };
+  /** Contraste con la pieza en modo oscuro (renderChecks.ts, darkFindings); null = sin estilos oscuros. */
+  darkFindings?: { errors: string[]; warnings: string[] } | null;
   /** Peso y encuadre de las imágenes (renderChecks.ts, imageFindings). */
   imageFindings?: { errors: string[]; warnings: string[] };
   /** Lo que pidió el equipo y la pieza no nombra (requestCoverage.ts); sin definir = no se comprobó. */
@@ -562,6 +564,11 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
   if (opts.design) {
     const d = item('design', 'Legibilidad y estructura', opts.design.errors, opts.design.warnings);
     if (d.status === 'ok') d.details.push('Contraste, tamaño de letra en móvil, módulos y paleta correctos.');
+    checks.push(d);
+  }
+  if (opts.darkFindings) {
+    const d = item('dark-legibility', 'Modo oscuro legible', opts.darkFindings.errors, opts.darkFindings.warnings);
+    if (d.status === 'ok') d.details.push('Renderizada en oscuro (como Apple Mail), todos los textos se leen.');
     checks.push(d);
   }
   if (opts.imageFindings) {

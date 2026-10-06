@@ -56,7 +56,7 @@ const CLIENTS: { id: ClientId; name: string; scope: string; checks: string[]; no
     id: 'apple',
     name: 'Apple Mail',
     scope: 'iPhone, iPad y Mac',
-    checks: ['dark-mode'],
+    checks: ['dark-mode', 'dark-legibility'],
     notes: [],
   },
   {

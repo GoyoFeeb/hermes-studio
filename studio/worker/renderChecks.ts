@@ -11,6 +11,9 @@
  *   pequeño en móvil, estructura «imagen + texto» repetida sin ningún módulo propio (Siroko), colores grandes
  *   fuera de la paleta de la marca, fotos con mucho blanco alrededor (la zapatilla de Nike, 2026-09-28) y peso
  *   de las imágenes.
+ * - Modo oscuro legible (2026-10-06): la pieza renderizada con prefers-color-scheme: dark, como la abre Apple Mail.
+ *   La de Paredes declaraba el oscuro y pasaba el control, pero su @media pasaba el texto a claro sin oscurecer los
+ *   fondos: texto blanco sobre blanco.
  * Sin JavaScript de la pieza: el HTML lo escribe un modelo que ha leído webs de terceros.
  */
 import * as fs from 'fs';
@@ -190,6 +193,8 @@ export interface RenderReport {
   images: Findings;
   /** Ancho pintado a 700 px de cada <img>, en orden (0 si no se ve). */
   imgWidths: number[];
+  /** Contraste en modo oscuro; null si la pieza no tiene estilos oscuros (eso ya lo marca el check «Modo oscuro»). */
+  dark: Findings | null;
 }
 
 export async function mobileOverflowWith(browser: Browser, htmlPath: string): Promise<string | null> {
@@ -220,8 +225,8 @@ export async function mobileOverflow(htmlPath: string): Promise<string | null> {
   }
 }
 
-async function measure(browser: Browser, htmlPath: string, width: number): Promise<PageMetrics> {
-  const page = await browser.newPage({ viewport: { width, height: 900 } });
+async function measure(browser: Browser, htmlPath: string, width: number, dark = false): Promise<PageMetrics> {
+  const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: dark ? 'dark' : 'light' });
   try {
     await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
     return (await page.evaluate(`(${MEASURE_LAYOUT_JS})(${LAYOUT_MIN_GAP})`)) as PageMetrics;
@@ -333,6 +338,35 @@ export function designFindings(desktop: Pick<PageMetrics, 'contrast' | 'columns'
   return { errors, warnings };
 }
 
+/** Texto que no se lee en modo oscuro: mismo umbral que en claro (3:1 en el cuerpo es error), pero aquí también el pie
+ *  legal y los pies de foto dan error si caen por debajo de 1,5:1, porque eso es texto invisible (blanco sobre blanco),
+ *  no un gris elegido a propósito. Solo lo que en claro sí se leía: lo que ya fallaba en claro lo marca «Legibilidad». */
+export function darkFindings(dark: PageMetrics['contrast'], light: PageMetrics['contrast'] = []): Findings {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const lightRatio = new Map(light.map((c) => [c.text, contrastRatio(c.fg, c.bg)]));
+  const bad: string[] = [];
+  const weak: string[] = [];
+  for (const c of dark) {
+    const ratio = contrastRatio(c.fg, c.bg);
+    if ((lightRatio.get(c.text) ?? 21) < 3) continue;
+    const secondary = c.size <= 12.5 || c.at > 0.8;
+    const line = `«${c.text}» (${c.fg} sobre ${c.bg}, ${ratio.toFixed(1)}:1)`;
+    if (ratio < 1.5 || (ratio < 3 && !secondary)) bad.push(line);
+    else if (ratio < 4.5 && !secondary) weak.push(line);
+  }
+  if (bad.length) {
+    errors.push(
+      `En modo oscuro (Apple Mail, iOS) no se leen ${bad.length} texto(s): ${bad.slice(0, 4).join('; ')}${bad.length > 4 ? '…' : ''}. ` +
+        'En el @media (prefers-color-scheme: dark): si el texto pasa a claro, su celda o tabla (bgcolor o background) tiene que ' +
+        'pasar a oscuro con una clase y !important; si el texto se queda oscuro sobre un fondo que ya es oscuro (enlaces del ' +
+        'pie, textos con color en línea), dale una clase con su color claro y !important.'
+    );
+  }
+  if (weak.length) warnings.push(`Contraste bajo en modo oscuro: ${weak.slice(0, 2).join('; ')}; lo recomendable es 4,5:1.`);
+  return { errors, warnings };
+}
+
 /** Archivo local de una imagen referenciada en la pieza (relativa al HTML o a la raíz), o null. */
 export function resolveLocal(ref: string, htmlDir: string, root: string): string | null {
   if (/^(https?:|data:|cid:|mailto:|#|\{\{)/i.test(ref)) return null;
@@ -396,7 +430,10 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
     const desktop = await measure(browser, htmlPath, DESKTOP_WIDTH);
     const small = await measure(browser, htmlPath, MOBILE_WIDTH);
     const html = fs.readFileSync(htmlPath, 'utf8');
+    const darkCss = /prefers-color-scheme\s*:\s*dark/i.test(html);
+    const dark = darkCss ? darkFindings((await measure(browser, htmlPath, DESKTOP_WIDTH, true)).contrast, desktop.contrast) : null;
     return {
+      dark,
       mobile,
       layout: layoutFindings({ touching: desktop.touching, mobileLeft: small.left }),
       design: designFindings(desktop, small.fonts, palette),

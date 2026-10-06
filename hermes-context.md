@@ -1977,3 +1977,28 @@ El usuario pidió «vamos con todas».
   Studio responde (401 de la contraseña, lo normal). No se pudo leer el estado del despliegue en GitHub: `gh` no está
   instalado en el Mac y el repo es privado. Worker reiniciado (`service.sh restart`, 2026-10-06), sin trabajos en
   curso, conectado a Studio. Vercel no cambia (sin cambios en la web).
+
+### 2026-10-06 (continuación) — Check medido «Modo oscuro legible» (sin desplegar)
+
+- **Por qué:** Paredes v3 pasó el control con el modo oscuro roto (texto blanco sobre fondo blanco). `dark-mode` solo
+  comprueba que el oscuro esté declarado (metas y @media), no que se lea.
+- **Qué hace:**
+  - `renderChecks.ts`: si la pieza tiene `prefers-color-scheme: dark`, la renderiza en Chromium con `colorScheme: 'dark'`
+    (como Apple Mail e iOS) y mide el contraste de cada texto sobre su fondo efectivo, con la misma medición que
+    «Legibilidad».
+  - `darkFindings()` da error por debajo de 1,5:1 en cualquier sitio (incluido el pie: es texto invisible) y por debajo
+    de 3:1 en el cuerpo. Entre 3 y 4,5 en el cuerpo es aviso. Lo que ya fallaba en claro no se repite.
+  - Nuevo check `dark-legibility` («Modo oscuro legible») en `qualityCheck.ts`/`inspect.ts`: lo ven el worker y
+    `check-newsletter`. Pauta añadida a `FIX_GUIDE`. En «Pedir cambios» no se fuerza si la original ya lo traía. Va
+    en la matriz de clientes, en Apple Mail.
+  - Gmail y Outlook invierten los colores por su cuenta: eso no se puede medir aquí.
+- **Contra las 28 piezas de Hermes del repo:**
+  - Error en Paredes v3 (14 textos).
+  - Error también en los enlaces del pie de las 3 de Nike («nike.com · Ayuda», #111 sobre #111, comprobado a ojo:
+    solo se ve el punto separador), en «Darse de baja» de las 2 de El Corte Inglés y en una frase de Talaria.
+  - Avisos de contraste 3,5-3,8 en CTA de Lacoste, Siroko y Helly Hansen.
+  - 11 sin estilos oscuros, no aplica.
+- **Verificación:** +3 tests (uno renderiza en Chromium de verdad: @media que pasa el texto a blanco sin oscurecer el
+  bgcolor → error; con el fondo oscurecido → limpio). `npm test` 207/207; check-engine limpio. El render en oscuro
+  añade ~1 s al control.
+- **Para desplegar:** worker (reiniciar en el Mac) y Railway solo por `clientMatrix.ts`.
