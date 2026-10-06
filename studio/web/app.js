@@ -560,6 +560,55 @@ document.getElementById('examples').addEventListener('click', (e) => {
 });
 promptInput.addEventListener('input', updateExamples);
 
+// Ejemplos que se escriben solos (2026-10-06): con la instrucción vacía y sin foco, el texto de ejemplo escribe y
+// borra los ejemplos de arriba. Solo toca el placeholder: ni el borrador ni lo que se envía. Al enfocar, escribir,
+// cambiar a prompt creativo u ocultar la pestaña, vuelve el ejemplo fijo.
+const typer = { timer: 0, ex: 0, n: 0, dir: 1 };
+function typerActive() {
+  return (
+    motionOk() &&
+    !document.hidden &&
+    document.activeElement !== promptInput &&
+    !promptInput.value &&
+    form.querySelector('input[name="inputKind"]:checked')?.value === 'instruction'
+  );
+}
+function typerStop() {
+  clearTimeout(typer.timer);
+  typer.timer = 0;
+  promptInput.placeholder = KIND_COPY[form.querySelector('input[name="inputKind"]:checked')?.value || 'instruction'].placeholder;
+}
+function typerTick() {
+  if (!typerActive()) return typerStop();
+  const text = `Ej: ${EXAMPLES[typer.ex].text}`;
+  typer.n += typer.dir;
+  let wait = typer.dir > 0 ? 38 + Math.random() * 40 : 14;
+  if (typer.n >= text.length) {
+    typer.n = text.length;
+    typer.dir = -1;
+    wait = 2600;
+  } else if (typer.n <= 0) {
+    typer.n = 0;
+    typer.dir = 1;
+    typer.ex = (typer.ex + 1) % EXAMPLES.length;
+    wait = 500;
+  }
+  promptInput.placeholder = text.slice(0, typer.n) + (typer.n < text.length ? '▍' : '');
+  typer.timer = setTimeout(typerTick, wait);
+}
+function typerStart() {
+  if (typer.timer || !typerActive()) return;
+  typer.n = 0;
+  typer.dir = 1;
+  typer.timer = setTimeout(typerTick, 1200);
+}
+promptInput.addEventListener('focus', typerStop);
+promptInput.addEventListener('input', typerStop);
+promptInput.addEventListener('blur', typerStart);
+form.querySelectorAll('input[name="inputKind"]').forEach((r) => r.addEventListener('change', () => (typerStop(), typerStart())));
+document.addEventListener('visibilitychange', () => (document.hidden ? typerStop() : typerStart()));
+setTimeout(typerStart, 1500);
+
 function setKind(kind) {
   form.querySelector(`input[name="inputKind"][value="${kind}"]`).checked = true;
   applyKind();
@@ -584,6 +633,7 @@ function clearFormNotices() {
 async function submitJob(payload) {
   const submitBtn = form.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
+  morphSendBtn(submitBtn, true);
   document.getElementById('brand-send-anyway').disabled = true;
   clearFormNotices();
   try {
@@ -625,6 +675,7 @@ async function submitJob(payload) {
     formError.textContent = NETWORK_ERROR;
     formError.hidden = false;
   } finally {
+    morphSendBtn(submitBtn, false);
     submitBtn.disabled = false;
     document.getElementById('brand-send-anyway').disabled = false;
   }
@@ -1181,6 +1232,23 @@ const motionOk = () => !window.matchMedia('(prefers-reduced-motion: reduce)').ma
 let lastStatus = new Map();
 
 /** Al enviar: una mini newsletter sale del botón y sube hacia donde aparece el trabajo. */
+/** Envío que se transforma (2026-10-06): el botón se encoge a una píldora «Enviando…» mientras sale la petición. */
+function morphSendBtn(btn, on) {
+  if (!btn) return;
+  if (on === btn.classList.contains('is-sending')) return;
+  const from = btn.offsetWidth;
+  if (on) {
+    btn.dataset.label = btn.textContent;
+    btn.innerHTML = '<span class="send-dot" aria-hidden="true"></span>Enviando…';
+  } else {
+    btn.textContent = btn.dataset.label || btn.textContent;
+  }
+  btn.classList.toggle('is-sending', on);
+  if (!motionOk() || !btn.animate) return;
+  const to = btn.offsetWidth;
+  if (from && to && from !== to) btn.animate([{ width: `${from}px` }, { width: `${to}px` }], { duration: 320, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)' });
+}
+
 async function flyToJob(btn) {
   if (!motionOk() || !btn?.animate) return;
   const r = btn.getBoundingClientRect();
@@ -1190,8 +1258,12 @@ async function flyToJob(btn) {
   card.style.left = `${r.left + r.width / 2 - 55}px`;
   card.style.top = `${r.top + r.height / 2 - 73}px`;
   document.body.appendChild(card);
-  const dx = window.innerWidth / 2 - (r.left + r.width / 2);
-  const dy = 90 - (r.top + r.height / 2);
+  // Aterriza en la píldora de Hermes de la cabecera si está a la vista; si no, arriba en el centro.
+  const pill = document.getElementById('hermes-status');
+  const pr = pill?.getBoundingClientRect();
+  const onPill = pr && pr.width && pr.bottom > 0 && pr.top < window.innerHeight;
+  const dx = (onPill ? pr.left + pr.width / 2 : window.innerWidth / 2) - (r.left + r.width / 2);
+  const dy = (onPill ? pr.top + pr.height / 2 + 20 : 90) - (r.top + r.height / 2);
   const anim = card.animate(
     [
       { transform: 'translate(0, 0) rotate(0deg) scale(0.4)', opacity: 0 },
@@ -1203,6 +1275,7 @@ async function flyToJob(btn) {
   );
   await anim.finished.catch(() => undefined);
   card.remove();
+  if (onPill) pill.animate?.([{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(0.97)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'ease-out' });
 }
 /** La página del trabajo «aterriza» tras el vuelo. */
 function landJobView() {
@@ -1707,6 +1780,34 @@ if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
     else if (!img && peekFor) hidePeek();
   });
   window.addEventListener('scroll', hidePeek, { passive: true });
+}
+
+// Foco de luz en tarjetas (2026-10-06): un brillo rosa suave sigue al cursor en las filas del historial y de marcas.
+// Un solo escuchador delegado, a un cambio por fotograma; fuera de las filas no hace nada.
+if (window.matchMedia('(hover: hover) and (pointer: fine)').matches && motionOk()) {
+  let litRow = null;
+  let litFrame = 0;
+  let litEvent = null;
+  const unlit = () => {
+    litRow?.classList.remove('is-lit');
+    litRow = null;
+  };
+  document.addEventListener('pointermove', (e) => {
+    litEvent = e;
+    if (litFrame) return;
+    litFrame = requestAnimationFrame(() => {
+      litFrame = 0;
+      const row = document.documentElement.classList.contains('in-job') ? null : litEvent.target.closest?.('.job-row, .brand-row');
+      if (row !== litRow) unlit();
+      if (!row) return;
+      const r = row.getBoundingClientRect();
+      row.style.setProperty('--mx', `${Math.round(litEvent.clientX - r.left)}px`);
+      row.style.setProperty('--my', `${Math.round(litEvent.clientY - r.top)}px`);
+      row.classList.add('is-lit');
+      litRow = row;
+    });
+  }, { passive: true });
+  document.addEventListener('pointerleave', unlit);
 }
 
 function renderNowStrip(jobs) {
@@ -5856,6 +5957,33 @@ function renderProgressSteps(job) {
     .join('');
 }
 
+/** Cifras que ruedan (2026-10-06): cada dígito es una columna 0-9 que gira hasta su valor; solo giran los que cambian.
+ *  El texto entero va aparte para lectores de pantalla. Si cambia la forma del texto, se rehace sin animar. */
+const ROLL_DIGITS = '0123456789'.split('').map((d) => `<span>${d}</span>`).join('');
+function rollText(el, text) {
+  if (!motionOk()) {
+    el.textContent = text;
+    delete el.dataset.roll;
+    return;
+  }
+  const skel = text.replace(/\d/g, '0');
+  if (el.dataset.roll !== skel) {
+    el.innerHTML = `<span class="sr-only">${escapeHtml(text)}</span><span aria-hidden="true">${[...text]
+      .map((ch) => (/\d/.test(ch) ? `<span class="roll"><span class="roll-col" style="--d:${ch}">${ROLL_DIGITS}</span></span>` : escapeHtml(ch)))
+      .join('')}</span>`;
+    el.dataset.roll = skel;
+    return;
+  }
+  el.querySelector('.sr-only').textContent = text;
+  const cols = el.querySelectorAll('.roll-col');
+  let i = 0;
+  for (const ch of text) if (/\d/.test(ch)) cols[i++].style.setProperty('--d', ch);
+}
+function plainText(el, text) {
+  delete el.dataset.roll;
+  el.textContent = text;
+}
+
 function renderProgress(job, queue, hermesOnline) {
   const box = document.getElementById('job-progress');
   renderProgressSteps(job);
@@ -5872,10 +6000,10 @@ function renderProgress(job, queue, hermesOnline) {
     box.hidden = false;
     setProgressBar(bar, 0);
     track.setAttribute('aria-valuenow', '0');
-    document.getElementById('progress-stage').textContent = queue?.ahead
+    plainText(document.getElementById('progress-stage'), queue?.ahead
       ? `En cola · ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante`
-      : 'En cola · eres el siguiente';
-    document.getElementById('progress-eta').textContent = queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)}, hacia las ${clockAt(queue.startsInSec)} (estimado)` : '';
+      : 'En cola · eres el siguiente');
+    plainText(document.getElementById('progress-eta'), queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)}, hacia las ${clockAt(queue.startsInSec)} (estimado)` : '');
     const kind = job.input.revisionOf
       ? 'Aplicará los cambios pedidos: unos minutos.'
       : job.input.mobileFixOf
@@ -5898,8 +6026,8 @@ function renderProgress(job, queue, hermesOnline) {
   if (!p || (job.status !== 'running' && job.status !== 'completed')) {
     box.hidden = job.status !== 'running';
     if (job.status === 'running') {
-      document.getElementById('progress-stage').textContent = 'Arrancando Hermes';
-      document.getElementById('progress-eta').textContent = '';
+      plainText(document.getElementById('progress-stage'), 'Arrancando Hermes');
+      plainText(document.getElementById('progress-eta'), '');
       document.getElementById('progress-detail').textContent = 'El progreso aparece en menos de un minuto.';
       setProgressBar(bar, 2);
     }
@@ -5910,29 +6038,29 @@ function renderProgress(job, queue, hermesOnline) {
   bar.classList.toggle('is-live', job.status === 'running');
   track.setAttribute('aria-valuenow', String(p.pct));
   track.setAttribute('aria-valuetext', `${p.pct} %, ${p.stageLabel}`);
-  document.getElementById('progress-stage').textContent = `${p.stageLabel} · ${p.pct}%`;
+  rollText(document.getElementById('progress-stage'), `${p.stageLabel} · ${p.pct}%`);
   const eta = document.getElementById('progress-eta');
   eta.classList.remove('is-idle');
   if (job.status === 'completed') {
-    eta.textContent = '';
+    plainText(eta, '');
   } else if (p.stage === 'brief') {
-    eta.textContent = 'después, la newsletter (~15-20 min)';
+    plainText(eta, 'después, la newsletter (~15-20 min)');
   } else if (p.etaSec) {
-    eta.textContent = `quedan ~${formatMinutes(p.etaSec)} · lista hacia las ${clockAt(p.etaSec)} (estimado)`;
+    rollText(eta, `quedan ~${formatMinutes(p.etaSec)} · lista hacia las ${clockAt(p.etaSec)} (estimado)`);
   } else if (p.stage === 'revisando') {
     // Recta final (Hermes revisa y corrige a su ritmo): en vez de un tiempo que no se cumple,
     // si sigue trabajando o si lleva rato parado.
-    eta.textContent = 'recta final: revisando a su ritmo';
+    plainText(eta, 'recta final: revisando a su ritmo');
   } else {
     // Sin estimación en una fase temprana: la fase se alarga más de lo habitual. Antes decía "recta
     // final" también aquí (Nike · cambios, 2026-09-28: "recta final" al 14 %).
-    eta.textContent = 'esta fase va más lenta de lo habitual';
+    plainText(eta, 'esta fase va más lenta de lo habitual');
   }
   // Sin acciones no es lo mismo que colgado: el modelo puede estar escribiendo una respuesta larga
   // (Talaria, 2026-09-25: 5 min generando). Gris a partir de 3 min, amarillo a partir de 10.
   const quiet = idleSeconds(p);
   if (job.status === 'running' && quiet != null && quiet >= 180) {
-    eta.textContent = quiet >= 600 ? `sin actividad desde hace ${formatAgo(quiet)}` : `generando respuesta · sin acciones desde hace ${formatAgo(quiet)}`;
+    plainText(eta, quiet >= 600 ? `sin actividad desde hace ${formatAgo(quiet)}` : `generando respuesta · sin acciones desde hace ${formatAgo(quiet)}`);
     eta.classList.toggle('is-idle', quiet >= 600);
   }
   const idle = idleSeconds(p);

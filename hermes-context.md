@@ -2310,3 +2310,10 @@ El usuario pidió «vamos con todas».
 - Síntoma: según el porcentaje, el borde de la píldora «Hermes · cliente · N %» mostraba un pico o escalón, como roto.
 - Causa: el aro era un `conic-gradient` en el borde; reparte por ángulo desde el centro, así que en una píldora ancha el corte del progreso y la costura de arriba caían en las curvas de los extremos (y el % no era proporcional al borde).
 - Arreglo (`studio/web/styles.css`, `app.js` → `drawPillRing`/`sizePillRing`): con anillo, la píldora quita el borde CSS y un SVG dibuja la pista gris y un rectángulo redondeado con `pathLength=100` y `stroke-dasharray` = %, medido al tamaño real (ResizeObserver). Comprobado a 8/45/63/97 %. Sin efecto en fases cerradas.
+
+### 2026-10-06 — Studio: 6.ª tanda de animaciones (pedido por el usuario)
+- Envío que se transforma (`morphSendBtn`): «Generar newsletter» se encoge a una píldora «Enviando…» con un punto que late mientras sale la petición; el vuelo de la mininewsletter (`flyToJob`) aterriza ahora en la píldora de Hermes de la cabecera (si está a la vista), que da un bote.
+- Cifras que ruedan (`rollText`): en la vista del trabajo, el «N %» de la fase y la hora/minutos estimados giran dígito a dígito (columnas 0-9, `inline-flex` para casar la línea base). Texto entero en `.sr-only`; si cambia la forma del texto se rehace sin animar.
+- Foco de luz en tarjetas: brillo rosa radial que sigue al cursor en `.job-row` y `.brand-row` (solo ratón, un escuchador delegado a un cambio por fotograma, apagado en la vista del trabajo).
+- Ejemplos que se escriben solos: con la instrucción vacía y sin foco, el placeholder escribe y borra los `EXAMPLES`; se para al enfocar/escribir, en «Prompt creativo» o con la pestaña oculta. No toca borrador ni envío.
+- Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.
