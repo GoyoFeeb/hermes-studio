@@ -2237,3 +2237,10 @@ El usuario pidió «vamos con todas».
 - `standalone.ts` (encargo, Maquetación): espacios en múltiplos de 8; exterior y lienzo distinguibles en claro y oscuro; sin filas separadoras de color propio; cada fondo con su versión oscura (también celdas de foto).
 - `renderChecks.ts`: `frameMetrics`/`frameFromPixels`/`frameFindings` — captura a 900 px en claro y oscuro, por píxeles: «Lienzo distinguible» (error si un tramo seguido de ≥100 px tiene el borde del lienzo del color del exterior) y «Sin franjas sueltas» (error por franja plana de 4-28 px entre dos bloques de otro color o pegada al borde de una foto; líneas de 1-3 px no cuentan). `qualityCheck.ts`/`inspect.ts`: dos controles nuevos, solo piezas nuevas con diseño.
 - Calibrado con las 13 últimas piezas: franjas solo en las dos de Inglesina (sin falsos positivos); lienzo en 11 de 13 — real: todas se fundían por la base. Tests 226/226; motor íntegro.
+
+### 2026-10-06 — Punto 7 de la auditoría aplicado (con permiso del usuario): medir la calidad
+- Antes: las notas de la revisión de arte se quedaban en `_trabajo/revision-visual.md` en el Mac; Studio no podía decir si las mejoras subían la calidad.
+- `hermes-worker.ts`: `artResult` (notas antes y después, si la mejora se quedó, si se comparó con la web, problemas y mejoras) va en `/complete` como `artReview`.
+- `store.ts`: `Job.artReview` (`JobArtReview`), `finalArtNotes` (después si la mejora se quedó) y `artPct` (porcentaje: los criterios pasan de 9 a 10 con el punto 4). `standalone.ts`: `sanitizeArtReview`. `index.ts`: se guarda al completar; el historial recibe `art {pct, notes}`; la ficha de marca recibe `quality {points, criteria}` (30 últimas, criterios de peor a mejor).
+- Web: panel «Revisión de dirección de arte» en cada trabajo (barra por criterio, antes → después, problemas y mejoras); «calidad N %» en cada fila del historial y «calidad media» en el resumen (respeta el filtro de marca; última versión de cada newsletter); sección «Calidad» en la ficha de marca (media, gráfico por fecha y los dos criterios más flojos).
+- Solo piezas nuevas (las anteriores no tienen notas en Studio). Tests 227/227.

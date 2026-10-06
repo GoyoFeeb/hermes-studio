@@ -16,7 +16,7 @@ import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
-import { appendEvent, createJob, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
+import { appendEvent, artPct, createJob, finalArtNotes, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
 import type { Job } from './store';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
@@ -46,6 +46,7 @@ import {
   pendingThumbnails,
   sanitizeQuality,
   sanitizeTimings,
+  sanitizeArtReview,
   needsBrief,
   completeStandaloneJob,
   standaloneOutputDir,
@@ -393,6 +394,9 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
   }
   try {
     completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality), req.body.thumbnail, sanitizeTimings(req.body.timings));
+    // Notas de la revisión de dirección de arte (2026-10-06, punto 7): para ver por marca y fecha si la calidad sube.
+    const artReview = sanitizeArtReview(req.body.artReview);
+    if (artReview) updateJob(job.id, { artReview });
     res.json({ ok: true });
   } catch (err) {
     updateJob(job.id, { status: 'failed', error: (err as Error).message });
@@ -588,11 +592,27 @@ app.get('/api/brands/:slug', (req: Request, res: Response) => {
       versions: count,
     }));
   const stored = readBrandCard(slug);
+  // Calidad (2026-10-06, punto 7): la nota de cada pieza con revisión de arte, por fecha, y los criterios más flojos.
+  const reviewed = listJobs()
+    .filter((j) => j.input.mode === 'standalone' && j.input.clientSlug === slug && !j.archivedAt && j.artReview)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .slice(-30);
+  const byCriterion = new Map<string, number[]>();
+  for (const j of reviewed) for (const [k, v] of Object.entries(finalArtNotes(j.artReview!))) byCriterion.set(k, [...(byCriterion.get(k) || []), v]);
+  const quality = reviewed.length
+    ? {
+        points: reviewed.map((j) => ({ id: j.id, createdAt: j.createdAt, pct: artPct(j.artReview!) })),
+        criteria: [...byCriterion.entries()]
+          .map(([k, v]) => ({ id: k, avg: Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 }))
+          .sort((a, b) => a.avg - b.avg),
+      }
+    : null;
   res.json({
     card: stored?.card || null,
     receivedAt: stored?.receivedAt || null,
     onWorker: readWorkerBrands().includes(slug),
     newsletters,
+    quality,
   });
 });
 
@@ -713,6 +733,8 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       durationSec: durationSec(j),
       briefWaitSec: j.briefWaitSec ?? null,
       hasThumb: !!j.thumbRelPath,
+      // Nota de la revisión de dirección de arte (2026-10-06, punto 7): porcentaje y notas finales por criterio.
+      art: j.artReview ? { pct: artPct(j.artReview), notes: finalArtNotes(j.artReview) } : null,
       // Logo de la ficha de marca para las miniaturas sin imagen (2026-10-05): 'light' o 'dark' (versión blanca).
       brandLogo: logos.has(j.input.clientSlug) ? (logos.get(j.input.clientSlug)!.onDark ? 'dark' : 'light') : null,
       pct: j.progress?.pct ?? null,

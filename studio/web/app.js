@@ -1047,13 +1047,19 @@ function renderHistoryStats(families) {
     { status: 'approved', n: families.filter((m) => m.some((j) => j.approvedAt)).length, one: 'aprobada', many: 'aprobadas' },
   ];
   box.hidden = !families.length;
+  // Calidad media de la última versión de cada newsletter con revisión de arte (2026-10-06, punto 7).
+  const scored = families.map((m) => [...m].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).find((j) => j.art)).filter(Boolean);
+  const avg = scored.length ? Math.round(scored.reduce((s, j) => s + j.art.pct, 0) / scored.length) : null;
   box.innerHTML = stats
     .map(
       (st) =>
         `<button type="button" class="stat${historyState.status === st.status ? ' is-active' : ''}" data-stat="${st.status}" aria-pressed="${historyState.status === st.status}">` +
         `<span class="stat-num">${st.n}</span><span class="stat-label">${st.n === 1 ? st.one : st.many}</span></button>`
     )
-    .join('');
+    .join('') +
+    (avg !== null
+      ? `<span class="stat stat-static" title="Media de la revisión de dirección de arte en ${scored.length} newsletter${scored.length === 1 ? '' : 's'}"><span class="stat-num">${avg} %</span><span class="stat-label">calidad media</span></span>`
+      : '');
 }
 document.getElementById('history-stats').addEventListener('click', (e) => {
   const stat = e.target.closest('[data-stat]');
@@ -1212,7 +1218,7 @@ function renderHistory() {
         : busy
         ? ''
         : `<button type="button" class="menu-item" data-archive="${escapeHtml(j.id)}">Archivar<small>Con todas sus versiones; no se borra</small></button>`;
-      const meta = approved + version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j), clientLabel(j)]
+      const meta = approved + version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j), j.art ? `calidad ${j.art.pct} %` : null, clientLabel(j)]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
@@ -2010,8 +2016,22 @@ function renderBrandView(slug, data) {
       return `<li><a href="?job=${encodeURIComponent(n.id)}">${escapeHtml(label)}</a> <span class="hint">· ${escapeHtml(new Date(n.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))} · ${escapeHtml(STATUS_LABELS[n.status] || n.status)}${versions}</span></li>`;
     })
     .join('');
+  const q = data?.quality;
+  const quality = q?.points?.length
+    ? (() => {
+        const avg = Math.round(q.points.reduce((s, p) => s + p.pct, 0) / q.points.length);
+        const last = q.points[q.points.length - 1];
+        const weak = q.criteria.slice(0, 2).map((c) => `${artLabel(c.id).toLowerCase()} (${String(c.avg).replace('.', ',')})`);
+        return brandSection(
+          'Calidad',
+          `<p>Nota media de la revisión de dirección de arte: <strong>${avg} %</strong> en ${plural(q.points.length, 'pieza', 'piezas')} · la última, ${last.pct} %.</p>` +
+            artSparkline(q.points) +
+            (weak.length ? `<p class="hint">Lo más flojo de esta marca: ${escapeHtml(weak.join(' y '))} (media sobre 5).</p>` : '')
+        );
+      })()
+    : brandSection('Calidad', '<p class="hint">Todavía sin notas: salen de la revisión de dirección de arte de cada newsletter nueva.</p>');
   const readonly = `<p class="brand-readonly">Solo lectura. El brand pack lo mide el agente de marca en la web real (cada valor con su procedencia). Si algo está mal, pide en una newsletter que Hermes lo vuelva a medir, o avisa a quien mantiene el sistema.</p>`;
-  body.innerHTML = head + readonly + content + assets + brandSection('Newsletters de esta marca', list ? `<ul class="brand-newsletters">${list}</ul>` : '<p class="hint">Todavía ninguna.</p>');
+  body.innerHTML = head + readonly + content + assets + quality + brandSection('Newsletters de esta marca', list ? `<ul class="brand-newsletters">${list}</ul>` : '<p class="hint">Todavía ninguna.</p>');
 }
 
 async function showBrandView(slug) {
@@ -3999,6 +4019,7 @@ async function poll(id) {
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes, matrix);
       renderTimings(job.timings, job.briefWaitSec);
+      renderArtReview(job.artReview);
       renderReportShare(job.reportShare);
       renderShare(job.share, versions || []);
       renderMeta(meta, job.input.clientName);
@@ -4418,6 +4439,64 @@ function renderReview(quality, notes, matrix = null) {
 // que cortar y las rondas de corrección, en el resumen.
 function mmss(sec) {
   return `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+}
+
+// ---------------------------------------------------------------- calidad (2026-10-06, punto 7)
+// Notas de la revisión de dirección de arte (studio/worker/hermes-worker.ts): por pieza, en el historial y por marca.
+const ART_LABELS = {
+  peticion: 'Petición', texto_imagen: 'Texto e imagen', identidad: 'Identidad', concepto: 'Concepto', jerarquia: 'Jerarquía',
+  aire: 'Aire', originalidad: 'Originalidad', movil: 'Móvil', oscuro: 'Oscuro', copy: 'Copy',
+};
+const artLabel = (k) => ART_LABELS[k] || k;
+const artFinal = (a) => (a.after && a.kept !== false ? a.after : a.before);
+const artPctOf = (notes) => {
+  const n = Object.values(notes || {});
+  return n.length ? Math.round((n.reduce((x, y) => x + y, 0) / (n.length * 5)) * 100) : null;
+};
+
+function renderArtReview(a) {
+  const box = document.getElementById('art-box');
+  box.hidden = !a?.before;
+  if (box.hidden) return;
+  const fin = artFinal(a);
+  const before = artPctOf(a.before);
+  const pct = artPctOf(fin);
+  document.getElementById('art-sum').textContent = [
+    a.after ? (a.kept === false ? `${before} % (la mejora empeoraba: se quedó la versión anterior)` : `${before} % → ${pct} %`) : `${pct} %`,
+    a.web ? 'comparada con la web de la marca' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  document.getElementById('art-list').innerHTML = Object.keys(a.before)
+    .map((k) => {
+      const b = a.before[k];
+      const f = fin[k] ?? b;
+      const change = f !== b ? ` <span class="hint">(${b} → ${f})</span>` : '';
+      return (
+        `<li><span class="timings-label">${escapeHtml(artLabel(k))}</span>` +
+        `<span class="timings-bar art-bar${f < 4 ? ' is-low' : ''}" aria-hidden="true"><span style="width:${f * 20}%"></span></span>` +
+        `<span class="timings-time">${f}/5${change}</span></li>`
+      );
+    })
+    .join('');
+  const list = (title, items) => (items?.length ? `<p class="art-notes-title">${title}</p><ul class="art-notes">${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : '');
+  document.getElementById('art-notes').innerHTML = list('Problemas que vio', a.problemas) + list('Mejoras que propuso', a.mejoras);
+}
+
+/** Gráfico pequeño de las notas por fecha (SVG, sin librerías). */
+function artSparkline(points) {
+  if (points.length < 2) return '';
+  const w = 280, h = 64, pad = 6;
+  const xs = points.map((_, i) => pad + (i * (w - 2 * pad)) / (points.length - 1));
+  // Escala ajustada a las notas (entre la peor y la mejor, con margen): con 0-100 fijo, 70→88 parecía una recta.
+  const lo = Math.max(0, Math.min(...points.map((p) => p.pct)) - 5);
+  const hi = Math.min(100, Math.max(...points.map((p) => p.pct)) + 5);
+  const ys = points.map((p) => h - pad - ((p.pct - lo) / Math.max(1, hi - lo)) * (h - 2 * pad));
+  const line = xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  return `<svg class="art-spark" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Nota de cada pieza por fecha">` +
+    `<path d="${line}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>` +
+    xs.map((x, i) => `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3"><title>${escapeHtml(new Date(points[i].createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))}: ${points[i].pct} %</title></circle>`).join('') +
+    `</svg>`;
 }
 
 function renderTimings(t, briefWaitSec) {

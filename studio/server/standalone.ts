@@ -18,7 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { ROOT, DATA_DIR } from './paths';
-import { getJob, updateJob, appendEvent, listJobs, type Job, type JobTimings } from './store';
+import { getJob, updateJob, appendEvent, listJobs, type Job, type JobArtReview, type JobTimings } from './store';
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
 import { findPreheader, staticChecks } from '../worker/qualityCheck';
@@ -528,6 +528,33 @@ export function sanitizeTimings(raw: unknown): JobTimings | undefined {
     hangs: { count: n(r.hangs?.count, 100), sec: n(r.hangs?.sec) },
     rounds: n(r.rounds, 20),
     totalSec: n(r.totalSec),
+  };
+}
+
+/** Revisión de dirección de arte que manda el worker: notas 1-5 por criterio y listas de texto cortas. */
+export function sanitizeArtReview(raw: unknown): JobArtReview | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const notes = (v: unknown): Record<string, number> | undefined => {
+    if (!v || typeof v !== 'object') return undefined;
+    const out: Record<string, number> = {};
+    for (const [k, n] of Object.entries(v as Record<string, unknown>).slice(0, 20)) {
+      const num = Number(n);
+      if (/^[a-z_]{2,20}$/.test(k) && num >= 1 && num <= 5) out[k] = Math.round(num);
+    }
+    return Object.keys(out).length ? out : undefined;
+  };
+  const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 10).map((x) => x.slice(0, 400)) : []);
+  const before = notes(r.before);
+  if (!before) return undefined;
+  const after = notes(r.after);
+  return {
+    before,
+    ...(after ? { after } : {}),
+    ...(typeof r.kept === 'boolean' ? { kept: r.kept } : {}),
+    web: r.web === true,
+    problemas: list(r.problemas),
+    mejoras: list(r.mejoras),
   };
 }
 

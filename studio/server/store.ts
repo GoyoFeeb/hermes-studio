@@ -109,6 +109,32 @@ export interface Job {
   reportShare?: JobReportShare;
   /** Tiempo de cada fase (2026-10-05, studio/worker/timeline.ts): lo envía el worker al terminar o fallar. */
   timings?: JobTimings;
+  /** Revisión de dirección de arte (2026-10-06, punto 7): notas antes y después de la mejora. */
+  artReview?: JobArtReview;
+}
+
+export interface JobArtReview {
+  /** Notas de 1 a 5 por criterio en la primera mirada. */
+  before: Record<string, number>;
+  /** Tras la pasada de mejora (si la hubo y se pudo puntuar). */
+  after?: Record<string, number>;
+  /** false = la mejora empeoraba y se recuperó la versión anterior. */
+  kept?: boolean;
+  /** Se comparó con la portada de la web de la marca. */
+  web: boolean;
+  problemas: string[];
+  mejoras: string[];
+}
+
+/** Las notas que valen: las de después si la mejora se quedó; si no, las de antes. */
+export function finalArtNotes(a: JobArtReview): Record<string, number> {
+  return a.after && a.kept !== false ? a.after : a.before;
+}
+
+/** Nota final en porcentaje (los criterios cambian con el tiempo: 9 hasta el punto 4, 10 después). */
+export function artPct(a: JobArtReview): number {
+  const n = Object.values(finalArtNotes(a));
+  return n.length ? Math.round((n.reduce((x, y) => x + y, 0) / (n.length * 5)) * 100) : 0;
 }
 
 export interface JobTimings {

@@ -1390,6 +1390,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // baja de 4, se corrige lo que la revisión sabe subir de 4 a 5 si es barato; antes de corregir se guarda la pieza y
   // una segunda nota decide si la mejora se queda.
   const finalPath = htmlReady();
+  // Lo que se envía a Studio con la pieza (punto 7): las notas de antes y después, para medir la calidad.
+  let artResult: { before: Record<string, number>; after?: Record<string, number>; kept?: boolean; web: boolean; problemas: string[]; mejoras: string[] } | undefined;
   if (claimed.artReview && !editKind && finalPath && !cancelled && Date.now() - started < TIMEOUT_MS) {
     timeline.start('art', 'Revisión visual');
     const workDir = path.join(outAbs, '_trabajo');
@@ -1417,6 +1419,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       const first = await reviewOnce(sheet.sheet);
       const review = first.review;
       const low = review ? lowScores(review) : [];
+      if (review) artResult = { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras };
       const reviewFile = path.join(workDir, 'revision-visual.md');
       fs.writeFileSync(reviewFile, artReviewMarkdown(review, first.output, !!web));
       console.log(
@@ -1463,6 +1466,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         const second = Date.now() - started < TIMEOUT_MS ? await reviewOnce().catch(() => ({ review: null, output: '' })) : { review: null, output: '' };
         const keep = keepImproved(review, second.review);
         if (!keep) fs.copyFileSync(backup, finalPath);
+        if (artResult) artResult = { ...artResult, ...(second.review ? { after: second.review.notas } : {}), kept: keep };
         const verdict = second.review
           ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}${keep ? '' : ': empeoraba, se recupera la versión anterior'}`
           : 'sin segunda nota legible: se queda la versión corregida';
@@ -1522,7 +1526,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
     // Miniatura para el historial: si no sale, la newsletter se entrega igual.
     const thumbnail = (await renderThumbnail({ path: htmlPath })) || undefined;
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail, timings }, 6);
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail, timings, artReview: artResult }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;

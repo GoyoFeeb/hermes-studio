@@ -2101,3 +2101,13 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
   .step-num { font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .show-card { transition: none; } }
+
+/* ---------- calidad (2026-10-06, punto 7) ---------- */
+.art-bar > span { background: linear-gradient(90deg, var(--purple), var(--pink)); }
+.art-bar.is-low > span { background: var(--error); }
+.art-notes-title { margin: 14px 0 4px; font-size: var(--fs-small); font-weight: 600; color: var(--text); }
+.art-notes { margin: 0; padding-left: 18px; font-size: var(--fs-small); color: var(--muted); display: grid; gap: 4px; }
+.art-spark { display: block; max-width: 100%; height: auto; margin: 8px 0; color: var(--pink); }
+.art-spark circle { fill: var(--bg); stroke: currentColor; stroke-width: 2; }
+.stat.stat-static { cursor: default; }
+.stat.stat-static:hover { transform: none; border-color: var(--border); }

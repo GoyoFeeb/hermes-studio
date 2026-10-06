@@ -443,6 +443,24 @@ test('Lienzo y franjas: secciones del color del exterior y franjas sueltas, medi
   assert.deepEqual(r.ok, { canvas: { errors: [], warnings: [] }, strips: { errors: [], warnings: [] } });
 });
 
+test('Calidad: Studio guarda la revisión de arte limpia y calcula la nota final (después si la mejora se quedó)', () => {
+  const r = run(`
+    const s = require(${mod('../server/standalone.ts')});
+    const st = require(${mod('../server/store.ts')});
+    const before = { peticion: 4, copy: 3, oscuro: 4, raro: 9, 'mal-id': 4 };
+    const clean = s.sanitizeArtReview({ before, after: { peticion: 5, copy: 4, oscuro: 5 }, kept: true, web: true, problemas: ['a', 3], mejoras: ['b'] });
+    const dropped = s.sanitizeArtReview({ before: { peticion: 4, copy: 3, oscuro: 4 }, after: { peticion: 3, copy: 3, oscuro: 3 }, kept: false });
+    process.stdout.write(JSON.stringify({ clean, pct: st.artPct(clean), droppedPct: st.artPct(dropped), none: s.sanitizeArtReview({ before: {} }) ?? null, junk: s.sanitizeArtReview('x') ?? null }));
+  `);
+  assert.deepEqual(r.clean.before, { peticion: 4, copy: 3, oscuro: 4 });
+  assert.deepEqual(r.clean.problemas, ['a']);
+  assert.equal(r.clean.web, true);
+  assert.equal(r.pct, 93); // 14/15
+  assert.equal(r.droppedPct, 73); // la mejora se descartó: valen las de antes, 11/15
+  assert.equal(r.none, null);
+  assert.equal(r.junk, null);
+});
+
 test('Ficha de producto: URLs de ficha del brief, umbrales de envío y fotos del propio producto', () => {
   const r = run(`
     const p = require(${mod('productSheet.ts')});
