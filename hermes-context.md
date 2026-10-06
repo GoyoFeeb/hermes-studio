@@ -2295,3 +2295,4 @@ El usuario pidió «vamos con todas».
 - Notas que se dibujan: barras del panel de la revisión de arte que se llenan una tras otra (al pintarse y al abrirlo) y gráfico de calidad de la ficha de marca que se traza con sus puntos apareciendo.
 - Vista previa que se transforma: el marco cambia de ancho/alto suavemente entre escritorio, móvil y libre (sin transición mientras se arrastra el deslizador de «Libre») y fundido al cambiar claro/oscuro/invertido.
 - Todo quieto con «reducir movimiento». Verificado en local; tests 229/229.
+- Fondo cambiado (pedido del usuario): las newsletters flotando se sustituyen por una aurora de marca — cuatro manchas de luz difuminadas (azul noche, violeta, rosa, índigo) que derivan en ciclos de 30-40 s con parallax al hacer scroll (`.bg-aurora`); más tenue en tema claro.

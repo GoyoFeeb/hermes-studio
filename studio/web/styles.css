@@ -2214,35 +2214,19 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
   .seg-pill { transition: none; }
 }
 
-/* ---------- fondo de newsletters flotando e interacciones (2026-10-06) ---------- */
-.bg-float { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; transform: translateY(var(--py, 0px)); }
-.bg-card {
-  position: absolute;
-  left: var(--x);
-  top: 100%;
-  width: calc(90px * var(--s));
-  height: calc(120px * var(--s));
-  padding: calc(8px * var(--s));
-  display: flex;
-  flex-direction: column;
-  gap: calc(6px * var(--s));
-  border: 1px solid rgba(198, 187, 255, 0.16);
-  border-radius: 8px;
-  background: rgba(198, 187, 255, 0.025);
-  opacity: 0.5;
-  animation: bg-rise var(--d) linear infinite;
-  animation-delay: var(--dl);
-}
-.bg-card i { display: block; height: 6%; width: 40%; border-radius: 2px; background: rgba(198, 187, 255, 0.14); }
-.bg-card b { display: block; flex: 0 0 40%; border-radius: 4px; background: linear-gradient(135deg, rgba(178, 85, 195, 0.12), rgba(251, 115, 255, 0.08)); }
-.bg-card em { display: block; height: 4%; border-radius: 2px; background: rgba(198, 187, 255, 0.1); }
-.bg-card em:last-child { width: 70%; }
-@keyframes bg-rise {
-  from { transform: translateY(0) rotate(var(--r)); }
-  to { transform: translateY(calc(-100vh - 160px)) rotate(calc(var(--r) * -1)); }
-}
-:root[data-theme="light"] .bg-card { border-color: rgba(70, 58, 140, 0.14); background: rgba(70, 58, 140, 0.03); }
-@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .bg-card { border-color: rgba(70, 58, 140, 0.14); background: rgba(70, 58, 140, 0.03); } }
+/* ---------- fondo: aurora de marca e interacciones (2026-10-06) ---------- */
+/* Sustituye a las newsletters flotando (pedido del usuario): manchas de luz difuminadas que derivan muy despacio. */
+.bg-aurora { position: fixed; inset: -10vh -10vw; z-index: -1; overflow: hidden; pointer-events: none; transform: translateY(var(--py, 0px)); }
+.aurora-blob { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(80px); opacity: 0.85; will-change: transform; }
+.a-blue { left: -15vmax; top: -10vmax; background: radial-gradient(circle, rgba(16, 40, 125, 0.95), transparent 65%); animation: aurora-a 34s ease-in-out infinite alternate; }
+.a-violet { right: -20vmax; top: 10vh; background: radial-gradient(circle, rgba(178, 85, 195, 0.75), transparent 65%); animation: aurora-b 40s ease-in-out infinite alternate; }
+.a-pink { left: 25vw; bottom: -25vmax; background: radial-gradient(circle, rgba(251, 115, 255, 0.5), transparent 65%); animation: aurora-c 30s ease-in-out infinite alternate; }
+.a-deep { right: 10vw; bottom: -15vmax; width: 45vmax; height: 45vmax; background: radial-gradient(circle, rgba(90, 72, 220, 0.75), transparent 65%); animation: aurora-a 37s ease-in-out infinite alternate-reverse; }
+@keyframes aurora-a { from { transform: translate(0, 0) scale(1); } to { transform: translate(18vw, 14vh) scale(1.25); } }
+@keyframes aurora-b { from { transform: translate(0, 0) scale(1.1); } to { transform: translate(-22vw, 18vh) scale(0.9); } }
+@keyframes aurora-c { from { transform: translate(0, 0) scale(0.95); } to { transform: translate(-16vw, -22vh) scale(1.2); } }
+:root[data-theme="light"] .aurora-blob { opacity: 0.22; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .aurora-blob { opacity: 0.22; } }
 
 /* Tarjetas que se inclinan hacia el ratón, con brillo. */
 #brief-form.card, .now-link, .g-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
@@ -2307,7 +2291,7 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 .section-title.reveal.is-in h2 { transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .bg-float { display: none; }
+  .aurora-blob { animation: none !important; }
   .is-tilting, .is-magnetic, .job-row:hover { transform: none !important; translate: none !important; }
   .job-row:hover .status-badge::after, .click-ripple { animation: none; display: none; }
   .section-num { transform: none; }
