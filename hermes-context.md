@@ -2303,3 +2303,4 @@ El usuario pidió «vamos con todas».
 - Copiar con confirmación: el botón pulsado muestra un ✓ rosa dibujado durante un segundo; los avisos entran como una carta desde abajo con una barra de tiempo (sin pisar su centrado).
 - Cargas con brillo de marca: siluetas de carga con brillo rosa y el logo late si una petición tarda más de 400 ms (`html.is-loading` desde `apiFetch`).
 - Verificado en local; tests 229/229.
+- Abanico (pedido del usuario): la carta señalada se endereza y crece un 40 % en su sitio (compensada hacia abajo para no tapar la cabecera) y las demás se apagan al 55 %. Arreglo de paso: la regla del abanico abierto (`.hero-showcase:hover .show-card`) pesaba más que la de la carta señalada, que se quedaba inclinada y sin crecer.

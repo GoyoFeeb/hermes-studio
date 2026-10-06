@@ -2065,7 +2065,12 @@ html { scroll-padding-top: 80px; }
 .hero-showcase:has(> .show-card:nth-child(3):last-child) .show-card:nth-child(2) { --i: 0; z-index: 3; }
 .hero-showcase:has(> .show-card:nth-child(3):last-child) .show-card:nth-child(3) { --i: 1; z-index: 2; }
 .hero-showcase:hover .show-card { transform: translateX(calc(var(--i, 0) * 58px)) translateY(calc(var(--i, 0) * var(--i, 0) * 8px - 6px)) rotate(calc(var(--i, 0) * 8deg)); }
-a.show-card:hover, a.show-card:focus-visible { z-index: 6; transform: translateX(calc(var(--i, 0) * 58px)) rotate(0deg) translateY(-18px) scale(1.04); box-shadow: 0 24px 50px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--pink); }
+/* La carta señalada se hace grande (2026-10-06, pedido del usuario: antes solo crecía un 4 %) y las demás se apagan.
+   Con .hero-showcase delante: la regla del abanico abierto (.hero-showcase:hover .show-card) pesaba más y la carta
+   señalada se quedaba inclinada y sin crecer. */
+.hero-showcase a.show-card:hover, .hero-showcase a.show-card:focus-visible { z-index: 6; transform: translateX(calc(var(--i, 0) * 58px)) translateY(64px) rotate(0deg) scale(1.4); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--pink); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1.1), box-shadow 0.4s ease; }
+.hero-showcase:has(a.show-card:hover) .show-card:not(:hover), .hero-showcase:has(a.show-card:focus-visible) .show-card:not(:focus-visible) { opacity: 0.55; }
+.show-card { transition: transform 0.35s ease, box-shadow 0.35s ease, opacity 0.3s ease; }
 .show-card .show-brand {
   position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px);
   padding: 3px 8px; border-radius: var(--pill);
