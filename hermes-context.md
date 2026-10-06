@@ -2304,3 +2304,4 @@ El usuario pidió «vamos con todas».
 - Cargas con brillo de marca: siluetas de carga con brillo rosa y el logo late si una petición tarda más de 400 ms (`html.is-loading` desde `apiFetch`).
 - Verificado en local; tests 229/229.
 - Abanico (pedido del usuario): la carta señalada se endereza y crece un 40 % en su sitio (compensada hacia abajo para no tapar la cabecera) y las demás se apagan al 55 %. Arreglo de paso: la regla del abanico abierto (`.hero-showcase:hover .show-card`) pesaba más que la de la carta señalada, que se quedaba inclinada y sin crecer.
+- Fondo: vuelta a las newsletters flotando (pedido del usuario; la aurora no le convenció). Se conserva la pausa en la página del trabajo (`html.in-job .bg-card`).

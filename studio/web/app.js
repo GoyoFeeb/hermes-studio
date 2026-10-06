@@ -1283,18 +1283,24 @@ document.querySelectorAll('.segmented').forEach((seg) => {
 });
 
 // ---------------------------------------------------------------- fondo e interacciones (2026-10-06)
-// Fondo: aurora de marca (manchas de luz que derivan despacio), con parallax al hacer scroll. Interacciones: tarjetas que se inclinan hacia el ratón, botones magnéticos con onda al
+// Fondo: siluetas muy tenues de newsletters (como las maquetas del abanico) que suben despacio a distintas velocidades,
+// con parallax al hacer scroll. (2026-10-06: se probó una aurora de marca y el usuario prefirió volver a esta.) Interacciones: tarjetas que se inclinan hacia el ratón, botones magnéticos con onda al
 // pulsar, filas que se levantan (CSS) y números de sección con parallax. Todo quieto con «reducir movimiento».
 (function backgroundAndInteractions() {
   if (!motionOk()) return;
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-  // Fondo: aurora de marca (2026-10-06, sustituye a las newsletters flotando): cuatro manchas de luz difuminadas en azul
-  // noche, violeta y rosa Feebbo que derivan muy despacio (ciclos de 30-40 s) y se desplazan con el scroll.
+  // Fondo de newsletters flotando: 12 siluetas en posiciones y ritmos fijos (sin azar: la misma página cada vez).
   const bg = document.createElement('div');
-  bg.className = 'bg-aurora';
+  bg.className = 'bg-float';
   bg.setAttribute('aria-hidden', 'true');
-  bg.innerHTML = ['a-blue', 'a-violet', 'a-pink', 'a-deep'].map((c) => `<span class="aurora-blob ${c}"></span>`).join('');
+  const spots = [
+    [4, 0.9, 44, 0], [14, 0.6, 58, -18], [27, 1.1, 50, -6], [38, 0.7, 64, -33], [52, 1, 47, -12], [63, 0.65, 60, -40],
+    [74, 1.2, 54, -22], [86, 0.75, 49, -3], [93, 0.95, 62, -28], [8, 0.8, 57, -45], [46, 0.55, 66, -50], [80, 0.85, 52, -15],
+  ];
+  bg.innerHTML = spots
+    .map(([x, scale, dur, delay], i) => `<span class="bg-card" style="--x:${x}vw;--s:${scale};--d:${dur}s;--dl:${delay}s;--r:${(i % 2 ? 1 : -1) * (4 + (i % 5))}deg"><i></i><b></b><em></em><em></em></span>`)
+    .join('');
   document.body.prepend(bg);
 
   // Parallax del fondo y de los números de sección.
@@ -1533,7 +1539,7 @@ function confirmCopy() {
   }, 1200);
 }
 
-/** En la página del trabajo, la aurora se para: lo importante es la vista previa (rendimiento, 2026-10-06). */
+/** En la página del trabajo, el fondo animado se para: lo importante es la vista previa (rendimiento, 2026-10-06). */
 new MutationObserver(() => document.documentElement.classList.toggle('in-job', !viewJob.hidden)).observe(viewJob, { attributes: true, attributeFilter: ['hidden'] });
 document.documentElement.classList.toggle('in-job', !viewJob.hidden);
 
