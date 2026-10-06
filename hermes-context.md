@@ -1973,3 +1973,7 @@ El usuario pidió «vamos con todas».
   durante esta sesión). Sin probar todavía un trabajo completo de Studio con el circuito nuevo.
 - **Para desplegar (con permiso):** Railway (encargo y brief) y, en el Mac, reiniciar el worker. No hay dependencias
   nuevas. Sin commit todavía.
+- **Desplegado (con permiso del usuario):** `6fc8475` → push a `Javifeebbo/hermes-studio` (Railway) y a `origin`.
+  Studio responde (401 de la contraseña, lo normal). No se pudo leer el estado del despliegue en GitHub: `gh` no está
+  instalado en el Mac y el repo es privado. Worker reiniciado (`service.sh restart`, 2026-10-06), sin trabajos en
+  curso, conectado a Studio. Vercel no cambia (sin cambios en la web).
