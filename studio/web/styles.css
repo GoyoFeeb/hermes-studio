@@ -2457,3 +2457,40 @@ html.is-loading .brand img, html.is-loading .brand-anim { animation: logo-wait 1
   .send-dot { animation: none; }
   .roll-col { transition: none; }
 }
+
+/* ---------- 7.ª tanda de animaciones (2026-10-06) ---------- */
+/* Menú: cierre animado, sale por la derecha y sus enlaces se van en cascada inversa. */
+.side-menu.is-closing { animation: menu-out 0.3s ease-in forwards; }
+.side-menu.is-closing .menu-links li, .side-menu.is-closing .menu-contact { animation: menu-item-out 0.2s ease-in both; }
+.side-menu.is-closing .menu-links li:nth-last-child(1) { animation-delay: 0s; }
+.side-menu.is-closing .menu-links li:nth-last-child(2) { animation-delay: 0.03s; }
+.side-menu.is-closing .menu-links li:nth-last-child(3) { animation-delay: 0.06s; }
+.side-menu.is-closing .menu-links li:nth-last-child(4) { animation-delay: 0.09s; }
+.side-menu.is-closing .menu-links li:nth-last-child(5) { animation-delay: 0.12s; }
+.side-menu.is-closing .menu-links li:nth-last-child(6) { animation-delay: 0.15s; }
+@keyframes menu-out { from { transform: none; } to { transform: translateX(100%); } }
+@keyframes menu-item-out { to { opacity: 0; transform: translateX(12px); } }
+
+/* Avisos con sacudida: corta y horizontal; el aviso entra deslizándose. */
+.is-shake { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+input.is-shake, textarea.is-shake, select.is-shake { border-color: var(--pink) !important; }
+@keyframes shake {
+  0% { translate: 0 -6px; opacity: 0.6; }
+  15% { translate: -6px 0; opacity: 1; }
+  30% { translate: 5px 0; }
+  45% { translate: -4px 0; }
+  60% { translate: 3px 0; }
+  75% { translate: -1px 0; }
+  100% { translate: 0 0; }
+}
+
+/* Salto con destello: un aro rosa que se abre y se apaga sobre el destino. */
+.is-flash { animation: jump-flash 0.9s ease-out; }
+@keyframes jump-flash {
+  0% { box-shadow: 0 0 0 0 rgba(251, 115, 255, 0.55); }
+  100% { box-shadow: 0 0 0 16px rgba(251, 115, 255, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-menu.is-closing, .side-menu.is-closing .menu-links li, .side-menu.is-closing .menu-contact, .is-shake, .is-flash { animation: none !important; }
+}

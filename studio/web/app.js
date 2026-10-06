@@ -897,7 +897,7 @@ document.getElementById('how-btn').addEventListener('click', (e) => {
 });
 document.getElementById('history-jump').addEventListener('click', (e) => {
   e.preventDefault();
-  document.getElementById('history').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  jumpTo(document.getElementById('history'), 'start');
 });
 
 async function loadHistory() {
@@ -1229,6 +1229,73 @@ function renderShowcase(jobs) {
 // En el lenguaje del abanico de la cabecera: tarjetas que vuelan, aterrizan y se reparten. Con «reducir movimiento»
 // no se anima nada (motionOk) y el CSS las apaga.
 const motionOk = () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------------------------------------------------------------- 7.ª tanda de animaciones (2026-10-06)
+/** Filtrado que se recoloca: anota dónde estaba cada fila (por su primer enlace), repinta y desliza las que siguen
+ *  desde su sitio anterior; las nuevas entran con un fundido. Solo al cambiar un filtro, no en los refrescos. */
+function flipRender(listId, render) {
+  const before = document.getElementById(listId);
+  const keyOf = (li) => li.querySelector('a[href]')?.getAttribute('href');
+  const old = new Map();
+  if (before && motionOk()) for (const li of before.children) {
+    const k = keyOf(li);
+    if (k) old.set(k, li.getBoundingClientRect());
+  }
+  render();
+  const list = document.getElementById(listId);
+  if (!list || !old.size || !list.animate) return;
+  for (const li of list.children) {
+    const k = keyOf(li);
+    const was = k && old.get(k);
+    if (!was) {
+      li.animate([{ opacity: 0, transform: 'scale(0.98)' }, { opacity: 1, transform: 'none' }], { duration: 260, easing: 'ease-out' });
+      continue;
+    }
+    const now = li.getBoundingClientRect();
+    const dy = was.top - now.top;
+    const dx = was.left - now.left;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue;
+    li.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 380, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)' });
+  }
+}
+
+/** Salto con destello: desplaza como siempre y, al llegar, el destino da un aro rosa que se abre y se apaga. */
+function jumpTo(el, block = 'start') {
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block });
+  if (!motionOk()) return;
+  let done = false;
+  const flash = () => {
+    if (done) return;
+    done = true;
+    el.classList.remove('is-flash');
+    void el.offsetWidth;
+    el.classList.add('is-flash');
+    setTimeout(() => el.classList.remove('is-flash'), 1000);
+  };
+  if ('onscrollend' in window) window.addEventListener('scrollend', flash, { once: true });
+  setTimeout(flash, 700); // sin desplazamiento (ya estaba a la vista) o sin `scrollend`
+}
+
+/** Avisos con sacudida: cualquier aviso (role="alert") que aparece o cambia de texto se sacude y entra deslizándose;
+ *  un campo obligatorio vacío que bloquea el envío también se sacude. */
+function shake(el) {
+  if (!motionOk() || !el) return;
+  el.classList.remove('is-shake');
+  void el.offsetWidth;
+  el.classList.add('is-shake');
+  setTimeout(() => el.classList.remove('is-shake'), 600);
+}
+new MutationObserver((records) => {
+  const hit = new Set();
+  for (const r of records) {
+    const node = r.target.nodeType === 1 ? r.target : r.target.parentElement;
+    const alert = node?.closest?.('[role="alert"]');
+    if (alert && !alert.hidden) hit.add(alert);
+  }
+  hit.forEach((el) => !el.hidden && el.offsetParent !== null && shake(el));
+}).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'], childList: true, characterData: true });
+document.addEventListener('invalid', (e) => shake(e.target), true);
 let lastStatus = new Map();
 
 /** Al enviar: una mini newsletter sale del botón y sube hacia donde aparece el trabajo. */
@@ -2015,12 +2082,12 @@ document.querySelectorAll('[data-history-view]').forEach((b) =>
 document.getElementById('history-search').addEventListener('input', (e) => {
   historyState.query = e.target.value;
   historyState.shown = HISTORY_PAGE;
-  renderHistory();
+  flipRender('history-list', renderHistory);
 });
 document.getElementById('history-brand').addEventListener('change', (e) => {
   historyState.brand = e.target.value;
   historyState.shown = HISTORY_PAGE;
-  renderHistory();
+  flipRender('history-list', renderHistory);
 });
 document.getElementById('history-status').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
@@ -2031,12 +2098,12 @@ document.getElementById('history-status').addEventListener('click', (e) => {
   });
   historyState.status = chip.dataset.status;
   historyState.shown = HISTORY_PAGE;
-  renderHistory();
+  flipRender('history-list', renderHistory);
 });
 document.getElementById('archived-chip').addEventListener('click', () => {
   historyState.archived = !historyState.archived;
   historyState.shown = HISTORY_PAGE;
-  renderHistory();
+  flipRender('history-list', renderHistory);
 });
 document.getElementById('mine-chip').addEventListener('click', () => {
   historyState.mine = !historyState.mine;
@@ -2047,7 +2114,7 @@ document.getElementById('mine-chip').addEventListener('click', () => {
   }
   historyState.shown = HISTORY_PAGE;
   renderMineChip();
-  renderHistory();
+  flipRender('history-list', renderHistory);
 });
 // "Quitar filtros" (2026-09-30): sin resultados, antes solo quedaba el aviso. Deja la vista (archivadas o no).
 document.getElementById('history-clear').addEventListener('click', () => {
@@ -2065,7 +2132,7 @@ document.getElementById('history-clear').addEventListener('click', () => {
     // sin almacenamiento
   }
   renderMineChip();
-  renderHistory();
+  flipRender('history-list', renderHistory);
 });
 document.getElementById('history-more').addEventListener('click', () => {
   historyState.shown += HISTORY_PAGE;
@@ -2167,7 +2234,7 @@ async function reuseJob(id, { useBrief = false, otherBrand = false } = {}) {
   // Lo reutilizado pasa a ser el borrador: si se recarga la página antes de enviarlo, no se pierde.
   document.getElementById('draft-note').hidden = true;
   saveDraft();
-  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  jumpTo(form, 'start');
   (otherBrand ? clientNameInput : document.getElementById('prompt-input')).focus({ preventScroll: true });
 }
 
@@ -2192,7 +2259,38 @@ const menuBackdrop = document.getElementById('menu-backdrop');
 // Diálogo (2026-10-05): con el menú abierto, el resto de la página queda inerte (ni foco ni clics), así el
 // tabulador no se escapa a lo de detrás.
 const behindMenu = ['.topbar', '#app', '.foot', '.side-rail'].map((sel) => document.querySelector(sel)).filter(Boolean);
-function setMenu(open) {
+let menuClosing = 0;
+function setMenu(open, instant = false) {
+  // Cierre animado (2026-10-06): sale por la derecha y la × vuelve a hamburguesa; al terminar, se oculta como antes.
+  if (!open && !instant && !sideMenu.hidden && motionOk() && !menuClosing) {
+    menuBtn.setAttribute('aria-expanded', 'false');
+    behindMenu.forEach((el) => {
+      el.inert = false;
+    });
+    menuBtn.focus({ preventScroll: true });
+    sideMenu.inert = true;
+    sideMenu.classList.add('is-closing');
+    menuBackdrop.hidden = true; // el fondo transparente ya no se traga clics mientras sale
+    if (menuAnim) {
+      menuAnim.setDirection(-1);
+      menuAnim.play();
+    }
+    menuClosing = setTimeout(() => {
+      menuClosing = 0;
+      sideMenu.classList.remove('is-closing');
+      sideMenu.inert = false;
+      menuAnim?.setDirection(1);
+      setMenu(false, true);
+    }, 300);
+    return;
+  }
+  if (open && menuClosing) {
+    clearTimeout(menuClosing);
+    menuClosing = 0;
+    sideMenu.classList.remove('is-closing');
+    sideMenu.inert = false;
+    menuAnim?.setDirection(1);
+  }
   sideMenu.hidden = !open;
   menuBackdrop.hidden = !open;
   menuBtn.setAttribute('aria-expanded', String(open));
@@ -2207,7 +2305,7 @@ function setMenu(open) {
       else menuAnim.goToAndPlay(0, true);
     }
     sideMenu.querySelector('[data-menu]').focus();
-  } else menuBtn.focus({ preventScroll: true });
+  } else if (!instant) menuBtn.focus({ preventScroll: true });
 }
 /** Los atajos solo funcionan en la página de una newsletter y con teclado: el elemento del menú, solo ahí. La
  *  numeración (01, 02…) se rehace con lo que se ve. */
@@ -2221,7 +2319,7 @@ function renumberMenu() {
   });
 }
 renumberMenu();
-menuBtn.addEventListener('click', () => setMenu(sideMenu.hidden));
+menuBtn.addEventListener('click', () => setMenu(menuBtn.getAttribute('aria-expanded') !== 'true'));
 document.getElementById('menu-close').addEventListener('click', () => setMenu(false));
 menuBackdrop.addEventListener('click', () => setMenu(false));
 document.addEventListener('keydown', (e) => {
@@ -2256,11 +2354,11 @@ sideMenu.addEventListener('click', (e) => {
     }
   }
   if (where === 'history') {
-    document.getElementById('history').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    jumpTo(document.getElementById('history'), 'start');
   } else if (where === 'how') {
     const how = document.getElementById('how-panel');
     if (how.hidden) document.getElementById('how-btn').click();
-    how.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    jumpTo(how, 'center');
   } else {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     form.querySelector('textarea, input[type="text"]')?.focus({ preventScroll: true });
@@ -2848,13 +2946,13 @@ function renderBrandsList() {
 document.getElementById('brand-body').addEventListener('input', (e) => {
   if (e.target.id !== 'brands-search') return;
   brandsState.query = e.target.value;
-  renderBrandsList();
+  flipRender('brands-list', renderBrandsList);
 });
 document.getElementById('brand-body').addEventListener('click', (e) => {
   const chip = e.target.closest('[data-brands-filter]');
   if (chip) {
     brandsState.warnings = chip.dataset.brandsFilter === 'warnings';
-    renderBrandsList();
+    flipRender('brands-list', renderBrandsList);
     return;
   }
   // Enlaces internos (ficha de una marca, «Todas las marcas») sin recargar la página.
@@ -3094,7 +3192,7 @@ document.getElementById('client-to-hermes').addEventListener('click', () => {
     byPath(doc, c.path)?.setAttribute('data-studio-picked', '');
   }
   if (doc) ensureStudioStyle(doc);
-  reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  jumpTo(reviseBox, 'center');
   input.focus({ preventScroll: true });
   showToast('Comentarios del cliente pasados a «Pedir cambios»: revísalos y envíalos a Hermes.');
 });
@@ -3137,13 +3235,13 @@ new IntersectionObserver(([entry]) => {
   updateSticky();
 }).observe(document.querySelector('.result-bar'));
 document.getElementById('sticky-more').addEventListener('click', () => {
-  document.querySelector('.job-side').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  jumpTo(document.querySelector('.job-side'), 'start');
 });
 
 document.getElementById('sticky-copy').addEventListener('click', () => document.getElementById('copy-html-btn').click());
 document.getElementById('sticky-revise').addEventListener('click', () => {
   toggleRevise(true);
-  reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  jumpTo(reviseBox, 'center');
 });
 document.getElementById('sticky-top').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
@@ -3496,7 +3594,7 @@ function armPreview() {
       pick.picked.push(pathOf(t.el));
       t.el.setAttribute('data-studio-picked', '');
       setPicking(false);
-      reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      jumpTo(reviseBox, 'center');
       input.focus({ preventScroll: true });
       input.setSelectionRange(next.caret, next.caret);
       announce('Añadido a la petición de cambios.');
@@ -3535,11 +3633,11 @@ document.getElementById('pick-btn').addEventListener('click', () => {
   if (document.getElementById('compare-toggle').checked) document.getElementById('compare-toggle').click();
   showJobTab('preview');
   setPicking(true);
-  document.getElementById('pick-banner').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  jumpTo(document.getElementById('pick-banner'), 'start');
 });
 document.getElementById('pick-cancel').addEventListener('click', () => {
   setPicking(false);
-  reviseBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  jumpTo(reviseBox, 'center');
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && pick.active) setPicking(false);
@@ -3822,7 +3920,7 @@ function teOpen() {
     teBtn.setAttribute('aria-expanded', 'true');
     setEditControls(true);
     teRenderStatus();
-    teBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    jumpTo(teBox, 'start');
   });
 }
 
@@ -4274,7 +4372,7 @@ function toggleApprove(open) {
   const q = document.getElementById('approve-quality');
   q.hidden = !errors;
   q.textContent = errors ? `La revisión automática tiene ${plural(errors, 'error', 'errores')} sin resolver. Revísalos antes de aprobar.` : '';
-  approveBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  jumpTo(approveBox, 'nearest');
 }
 
 approveBtn.addEventListener('click', () => toggleApprove(approveBox.hidden));
@@ -4283,7 +4381,7 @@ document.getElementById('approve-checklist').addEventListener('click', (e) => {
   if (!btn) return;
   const go = APPROVAL_GO[Number(btn.dataset.checkGo)];
   go.go();
-  document.querySelector(go.target || '#preview-stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  jumpTo(document.querySelector(go.target || '#preview-stage'), 'start');
 });
 document.getElementById('approve-close').addEventListener('click', () => toggleApprove(false));
 approveBox.addEventListener('change', () => {

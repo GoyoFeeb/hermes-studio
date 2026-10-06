@@ -2317,3 +2317,10 @@ El usuario pidió «vamos con todas».
 - Foco de luz en tarjetas: brillo rosa radial que sigue al cursor en `.job-row` y `.brand-row` (solo ratón, un escuchador delegado a un cambio por fotograma, apagado en la vista del trabajo).
 - Ejemplos que se escriben solos: con la instrucción vacía y sin foco, el placeholder escribe y borra los `EXAMPLES`; se para al enfocar/escribir, en «Prompt creativo» o con la pestaña oculta. No toca borrador ni envío.
 - Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.
+
+### 2026-10-06 — Studio: 7.ª tanda de animaciones (pedido por el usuario)
+- Filtrado que se recoloca (`flipRender`): al buscar o filtrar en el historial y en marcas, las filas que siguen se deslizan desde su sitio anterior (clave: su primer enlace) y las nuevas entran con fundido. Solo en los cambios de filtro, no en los refrescos.
+- Menú: cierre animado (sale por la derecha, enlaces en cascada inversa, la × Lottie vuelve a hamburguesa). La página queda libre (`inert` fuera, foco en la hamburguesa) desde que empieza el cierre; reabrir a mitad lo cancela. La apertura ya tenía cascada y × dibujada.
+- Avisos con sacudida: un `MutationObserver` sacude cualquier `role="alert"` que aparece o cambia de texto; el evento `invalid` sacude el campo obligatorio vacío (borde rosa).
+- Salto con destello (`jumpTo`): los saltos de la página (menú, historial, cajas de cambios/edición/aprobar, aviso de elegir, panel lateral, vista previa) dan un aro rosa al llegar. No en pestañas ni desplegables.
+- Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.
