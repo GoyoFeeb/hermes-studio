@@ -7,7 +7,7 @@
 > qué se diagnosticó, qué se decidió arreglar, y qué sigue abierto — para que una futura sesión de
 > esta skill no repita el mismo diagnóstico desde cero.
 
-**Última actualización:** 2026-10-01 (tercera lista de mejoras de interfaz de Studio, solo diagnóstico)
+**Última actualización:** 2026-10-06 (ronda de investigación de tiempos y calidad agente por agente, solo diagnóstico)
 
 ---
 
@@ -1903,3 +1903,73 @@ El usuario pidió «vamos con todas».
   petición, corrige el texto. Añade unos minutos a cada pieza nueva.
 - 199/199 tests.
 - **Desplegado (con permiso del usuario):** `7a3ab09` → Railway (Studio responde de nuevo tras el 502 del redespliegue) y `vercel --prod`; worker reiniciado en el Mac (sin trabajos en curso). Pendiente: probar con una petición real de ocasión (p. ej. reintentar Paredes pre-Black Friday).
+
+### 2026-10-06 — Ronda de investigación agente por agente: tiempos y calidad (solo diagnóstico, nada cambiado)
+
+- **Fuente:** `~/Library/Logs/hermes-worker.log` (30 trabajos, 24-sep → 5-oct) y `~/.hermes/state.db` (57 sesiones de
+  Hermes, tiempos por mensaje y caracteres de razonamiento). Modelo de todas: `deepseek/deepseek-v4-flash-0731` (Nous),
+  `reasoning_effort: medium`.
+- **Dato principal:** el 81 % del tiempo (531 de 656 min) es el modelo generando; las herramientas, el 19 %
+  (vision_analyze 47 min/159 llamadas, browser_navigate 27 min/210). Los turnos con más de 8.000 caracteres de
+  razonamiento son el 11 % de los turnos y el 30 % del tiempo del modelo (mediana 24-82 s cada uno).
+- **Paredes v3, primera versión (37 min):** el HTML se escribe en el minuto 34; escribir, renderizar, comprobar y
+  notas.md llevó 3 min. Los 34 anteriores: releer 3-5 veces los mismos archivos pequeños (email-modulos.md 5 veces,
+  encargo.md 3, que es el propio prompt; brief.md, encargo.md y el prompt son el mismo brief), con razonamientos de
+  15-39 K caracteres del tipo «I'm going in circles / let me re-check»; y 12 min re-investigando en paredes.es datos
+  que el brief dejó «pendientes» (precio, envío 29,99 € vs 25 €, URLs de imágenes).
+- **Contexto contradictorio en cada sesión:** el system prompt de Hermes (37,5 K caracteres) inyecta el `AGENTS.md`
+  del repo («Eres el Orchestrator del pipeline 00-09», production-gate, 4 archivos de control) y «Skills (mandatory):
+  carga cualquier skill aunque sea parcialmente relevante». `hermes chat` admite `--ignore-rules` y `-t <toolsets>`.
+- **Otras pérdidas medidas:** 10 «paró sin entregar: continuar» (Siroko falló tras 3); 2 cortes por 12 min sin
+  actividad; rondas de corrección de 2-23 min; brief con mediana 6 min (atípicos 13 y 45) y un último turno de
+  resumen inútil tras escribir brief.md (~1 min); espera humana del brief 13 min en Paredes; Hermes escribe sus
+  propios render.js/verify.js y comprueba enlaces con el navegador aunque check-newsletter ya lo hace.
+- **Propuestas entregadas en el chat (pendiente de que el usuario elija).** Ver la respuesta de esa sesión: modelo y
+  esfuerzo de razonamiento por fase, `--ignore-rules`, encargo autocontenido sin copias, extractor determinista de
+  ficha de producto (precio, envío, imágenes descargadas + hoja de contacto), «resolver o quitar» en el brief, render
+  único con hoja de contacto, cortar el turno al aparecer el entregable, revisión visual condicional.
+
+### 2026-10-06 (continuación) — Puntos 1, 2 y 4 de la ronda de tiempos aplicados (sin desplegar)
+
+- **1. Contexto limpio y encargo autocontenido:**
+  - `hermes-worker.ts`: todas las llamadas con `--ignore-rules` (`RULES_ARGS`; `HERMES_KEEP_RULES=1` lo desactiva). El
+    system prompt baja de 37,5 K a 22,8 K caracteres y desaparece el «eres el Orchestrator del pipeline 00-09».
+  - `selfContainedNote()`: el encargo de la primera versión lleva el contenido completo de `email-base.html` y
+    `email-modulos.md`, y la orden «brief.md es una copia, no lo leas; no releas ni listes el repo».
+  - El worker copia `logo-medido.png` a la carpeta del trabajo. `_trabajo/encargo.md` se escribe DESPUÉS de la
+    primera versión (antes, Hermes lo encontraba y lo releía).
+  - Se retiran `skillReadingNote()` (ya no se cargan skills) y `screenshots()`.
+  - `buildHermesPrompt`: fuera «compruébalo con el navegador» (enlaces) y las tres órdenes de renderizar por su cuenta.
+- **2. Ficha de producto (`studio/worker/productSheet.ts`, `npm run product-sheet`):**
+  - Cuándo: antes de la primera versión, sobre las URL de ficha que cita el brief (sin la home, como mucho 3).
+  - Precio: de JSON-LD, metadatos o el elemento de precio visible.
+  - Envío: frases literales, también las de acordeones cerrados. Si dan umbrales distintos, «NO cites el envío gratis».
+  - Fotos: solo las del propio producto, que se descargan con `fetchImage`, más una hoja de contacto numerada
+    (`_trabajo/fotos-producto.png`).
+  - Contra Paredes real: 6 s → 48,99 €, aviso 25 €/29,99 € y las 5 fotos de la Eden negro (sin los banners de
+    connectif.cloud ni los recomendados). Nike: 139,99 € (precio visible). Calvin Klein bloquea Chromium
+    (ERR_HTTP2_PROTOCOL_ERROR): sin ficha, Hermes sigue como antes.
+  - Brief: «resolver o quitar» (lo no verificado va a «Fuera de la pieza» y no se investiga después) y la URL exacta
+    de la ficha de cada producto.
+- **4. Captura única y revisión ligera:**
+  - `studio/worker/render-newsletter.ts` (`npm run render-newsletter`): `_trabajo/render-hoja.jpg` con 600 px,
+    375 px y oscuro en una sola imagen (2 s), en JPEG y 2000 px de alto. El modelo de visión auxiliar de Hermes no
+    pudo con la hoja en PNG de 1356×3000 (1,4 MB). El encargo pide mirar solo esa hoja.
+  - Revisión de dirección de arte: un solo turno en el que DeepSeek llama UNA vez a vision_analyze sobre la hoja,
+    con preguntas concretas (texto ilegible por columna, fotos, titulares, plantilla), y responde notas JSON de 9
+    criterios (incluye móvil y oscuro). Si no ve la imagen, `{"sin_imagen": true}`. Solo si alguna nota baja de 4 se
+    abre una sesión de corrección con los problemas concretos; si todo es 4 o más, las notas van a `notas.md`.
+  - Descartado `--image`: DeepSeek no ve imágenes y Hermes solo le pasa una descripción genérica. Con la hoja grande
+    falló y DeepSeek se inventó las notas; con la pequeña, la descripción no mencionaba el texto invisible en oscuro.
+  - Prueba real contra Paredes v3: 58 s; oscuro 2 («texto gris muy claro… casi no se lee»), jerarquía 3 («#25282a»
+    como titular), originalidad 3. Son los mismos fallos de la auditoría manual del 2026-10-05. Debilidad: «petición»
+    salió 4 aunque falta Black Friday (eso lo cubre el check determinista «Lo que pidió el equipo»).
+  - Brief: con las 8 secciones escritas y 60 s sin cambios, se cierra el turno (`briefDone`).
+- **Hallazgo nuevo:** la hoja de Paredes v3 muestra el modo oscuro roto (texto claro sobre fondo blanco). El
+  control `dark-mode` solo comprueba que esté declarado, no que se lea. La revisión visual nueva lo puntúa
+  (criterio «oscuro»), pero un check medido sería mejor. Pendiente.
+- **Verificación:** +5 tests; `npm test` 204/204; `check-engine` limpio; tipos sin errores nuevos; ficha de producto
+  contra Paredes y Nike reales; revisión visual con Hermes real (v0.20.1, que la app de escritorio actualizó a las 9:33
+  durante esta sesión). Sin probar todavía un trabajo completo de Studio con el circuito nuevo.
+- **Para desplegar (con permiso):** Railway (encargo y brief) y, en el Mac, reiniciar el worker. No hay dependencias
+  nuevas. Sin commit todavía.

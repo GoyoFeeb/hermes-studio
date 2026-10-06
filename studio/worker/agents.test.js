@@ -286,3 +286,96 @@ test('Encargo: base técnica, ayudante de imágenes y la comprobación de Studio
   assert.match(r.hermes, /npm run check-newsletter -- newsletters\/2026\/siroko\/hermes\/2026-10-05-abc123\/newsletter\.html/);
   assert.match(r.revision, /check-newsletter -- .*--retoque/);
 });
+
+// ------------------------------------------- ronda de tiempos (2026-10-06): encargo autocontenido, ficha, revisión
+
+test('Encargo: no comprueba enlaces con el navegador, revisa con render-newsletter y no investiga lo pendiente', () => {
+  const r = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '# Brief', imageMode: 'official', mode: 'standalone' });
+  assert.doesNotMatch(r.hermes, /compruébalo con el navegador/);
+  assert.match(r.hermes, /npm run render-newsletter -- newsletters\/2026\/paredes\/hermes\/2026-10-05-abc123\/newsletter\.html/);
+  assert.match(r.hermes, /NO se investiga aquí y NO entra en la pieza/);
+  assert.match(r.hermes, /no los leas del disco/);
+  const b = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '', instruction: 'Newsletter de la Eden', imageMode: 'official', mode: 'standalone' });
+  assert.match(b.brief, /URL EXACTA de la ficha/);
+  assert.match(b.brief, /Fuera de la pieza/);
+});
+
+test('Encargo autocontenido: la base técnica y los módulos van dentro, con la orden de no releer', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    process.stdout.write(JSON.stringify(w.selfContainedNote('newsletters/2026/paredes/hermes/x')));
+  `);
+  assert.match(r, /brief\.md es una copia del brief:\n  no lo leas/);
+  assert.match(r, /<!-- \[if mso\]>|<!--\[if mso\]>/);
+  assert.match(r, /email-modulos\.md \(contenido completo\)/);
+});
+
+test('Brief terminado: 8 secciones y 60 s sin cambios cierran el turno; incompleto o recién escrito, no', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brief-'));
+  const full = path.join(dir, 'full.md');
+  const half = path.join(dir, 'half.md');
+  fs.writeFileSync(full, [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `## ${n}. Sección\ntexto`).join('\n'));
+  fs.writeFileSync(half, [1, 2, 3].map((n) => `## ${n}. Sección`).join('\n'));
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    const now = Date.now();
+    process.stdout.write(JSON.stringify({
+      settled: w.briefDone(${JSON.stringify(full)}, now - 600000, now + 61000),
+      fresh: w.briefDone(${JSON.stringify(full)}, now - 600000, now + 5000),
+      half: w.briefDone(${JSON.stringify(half)}, now - 600000, now + 61000),
+      old: w.briefDone(${JSON.stringify(full)}, now + 1000, now + 61000),
+    }));
+  `);
+  assert.deepEqual(r, { settled: true, fresh: false, half: false, old: false });
+});
+
+test('Revisión de arte: notas en JSON, las de menos de 4 abren corrección; respuesta sin notas, nada', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    const notas = Object.fromEntries(Object.keys(w.ART_CRITERIA).map((k) => [k, 4]));
+    const ok = w.parseArtReview('Aquí va: ' + JSON.stringify({ notas, problemas: [] }) + ' fin');
+    const bad = w.parseArtReview(JSON.stringify({ notas: { ...notas, oscuro: 2, texto_imagen: 3 }, problemas: ['texto blanco sobre blanco en oscuro'] }));
+    const partial = w.parseArtReview(JSON.stringify({ notas: { peticion: 5 } }));
+    const q = w.artReviewQuery('pre-black friday', '# Brief X\\n\\n## Instrucciones de entrega\\nno', '<html><head><style>.a{}</style></head><body><h1>Hola&nbsp;mundo&#847;&zwnj;</h1></body></html>', '/tmp/hoja.jpg');
+    const blind = w.parseArtReview('{"sin_imagen": true}');
+    process.stdout.write(JSON.stringify({ okLow: w.lowScores(ok), badLow: w.lowScores(bad), problemas: bad.problemas, partial, q, blind }));
+  `);
+  assert.deepEqual(r.okLow, []);
+  assert.deepEqual(r.badLow.sort(), ['oscuro', 'texto_imagen']);
+  assert.deepEqual(r.problemas, ['texto blanco sobre blanco en oscuro']);
+  assert.equal(r.partial, null);
+  assert.match(r.q, /UNA sola vez a vision_analyze con image_url \/tmp\/hoja\.jpg/);
+  assert.match(r.q, /\{"sin_imagen": true\}: nunca puntúes sin haberla visto/);
+  assert.equal(r.blind, null);
+  assert.match(r.q, /«Hola mundo»/);
+  assert.match(r.q, /pre-black friday/);
+  assert.doesNotMatch(r.q, /Instrucciones de entrega/);
+});
+
+test('Ficha de producto: URLs de ficha del brief, umbrales de envío y fotos del propio producto', () => {
+  const r = run(`
+    const p = require(${mod('productSheet.ts')});
+    const brief = 'Home https://www.paredes.es/es/ y ficha https://www.paredes.es/es/1087-10558-zapatillas-ligeras-eden-negro-dc26164-ne.html, ' +
+      'fuentes https://fonts.googleapis.com/css2?family=Barlow, foto https://www.paredes.es/1-large/x.jpg y novedades https://www.paredes.es/es/1048-novedades.';
+    const urls = p.productUrls(brief);
+    const t = p.shippingThresholds(['Envio gratuito a partir de 29,99€', 'Coste del envío: Gratuito para pedidos superiores a 25€ sino el coste es de 6€', 'Envíos 48/72 horas']);
+    const gallery = p.ownGallery('https://www.paredes.es/es/1087-10558-zapatillas-ligeras-eden-negro-dc26164-ne.html', [
+      'https://www.paredes.es/15737-medium_default/zapatillas-ligeras-eden-negro.jpg',
+      'https://www.paredes.es/15191-home_default/zapatillas-tolox-kaki.jpg',
+      'https://www.paredes.es/16162-home_default/zapatillas-ligeras-eden-kaki.jpg',
+    ]);
+    const hashed = p.ownGallery('https://shop.example.com/products/gafas-k3', ['https://cdn.shopify.com/a1b2.jpg', 'https://cdn.shopify.com/c3d4.jpg']);
+    const note = p.productSheetNote({ pages: [{ url: 'https://x.es/p/1', title: 'Eden', price: { amount: 48.99, currency: 'EUR', source: 'JSON-LD' }, shipping: ['Envio gratuito a partir de 29,99€', 'Gratuito para pedidos superiores a 25€'], images: [] }], photos: [{ file: 'foto-1.jpg (800×800, 33 KB)', from: 'https://x.es/1.jpg' }], contactSheet: '/tmp/x.png' }, 'newsletters/2026/x/hermes/y');
+    const noPrice = p.productSheetNote({ pages: [{ url: 'https://x.es/p/1', title: 'Eden', price: null, shipping: [], images: [] }], photos: [], contactSheet: null }, 'd');
+    process.stdout.write(JSON.stringify({ urls, t, gallery, hashed, note, noPrice }));
+  `);
+  assert.deepEqual(r.urls, ['https://www.paredes.es/es/1087-10558-zapatillas-ligeras-eden-negro-dc26164-ne.html', 'https://www.paredes.es/es/1048-novedades']);
+  assert.deepEqual(r.t, [25, 29.99]);
+  assert.deepEqual(r.gallery, ['https://www.paredes.es/15737-medium_default/zapatillas-ligeras-eden-negro.jpg']);
+  assert.equal(r.hashed.length, 2);
+  assert.match(r.note, /Precio: 48,99 €/);
+  assert.match(r.note, /NO cites el envío gratis/);
+  assert.match(r.note, /foto-1\.jpg/);
+  assert.match(r.note, /_trabajo\/fotos-producto\.png/);
+  assert.match(r.noPrice, /no pongas precio/);
+});

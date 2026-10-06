@@ -293,7 +293,7 @@ export function identityNote(m: MeasuredIdentity): string {
     `- Fondo ${m.background}, texto ${m.text}.`,
     m.button ? `- Botón: fondo ${m.button.background}, texto ${m.button.color}, radio ${m.button.radius}${m.button.transform !== 'none' ? `, ${m.button.transform}` : ''}.` : '',
     m.palette.length ? `- Colores de marca por superficie: ${m.palette.join(', ')}.` : '',
-    m.logo ? `- Logo oficial ya descargado en PNG: ${m.logo} (cópialo a la carpeta del trabajo y úsalo).` : '- No se encontró el logo en la cabecera: descárgalo tú (PNG).',
+    m.logo ? `- Logo oficial ya descargado en PNG: ${m.logo} (Studio lo copia a la carpeta de la newsletter como logo-medido.png).` : '- No se encontró el logo en la cabecera: descárgalo tú (PNG).',
   ]
     .filter(Boolean)
     .join('\n');

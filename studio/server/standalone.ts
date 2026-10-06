@@ -92,8 +92,9 @@ export function buildHermesPrompt(job: Job): string {
   const images =
     job.input.imageMode === 'ai'
       ? 'Imágenes: GENÉRALAS CON IA con tu herramienta de generación de imágenes (hero, producto, ambiente). El logo, en cambio, SIEMPRE el oficial de la marca.'
-      : 'Imágenes: SOLO fotografía oficial de la marca, sacada de su web oficial, newsroom o press kit ' +
-        '(descárgala con el navegador y anota la URL de origen). No generes imágenes con IA. Las fotos de ' +
+      : 'Imágenes: SOLO fotografía oficial de la marca, sacada de su web oficial, newsroom o press kit. Si más abajo ' +
+        'hay una «Ficha de producto ya extraída», sus fotos ya están descargadas: úsalas. Si te falta alguna, ' +
+        'fetch-image con su URL de origen. No generes imágenes con IA. Las fotos de ' +
         `brands/${job.input.clientSlug}/design-input/ pueden venir de campañas anteriores generadas con IA: ` +
         'úsalas solo si puedes confirmar que están publicadas en la web oficial.';
   return [
@@ -107,9 +108,14 @@ export function buildHermesPrompt(job: Job): string {
     `- ${images}`,
     '- Nadie va a responder preguntas durante esta ejecución: no uses clarify ni esperes confirmación.',
     '  Si falta un dato, no lo inventes: déjalo fuera de la pieza y anótalo como pendiente.',
+    '- Lo que el brief deja como pendiente NO se investiga aquí y NO entra en la pieza, salvo que la «Ficha de producto',
+    '  ya extraída» de Studio (más abajo, si la hay) lo traiga. Esta fase maqueta; no vuelve a navegar la web.',
     `- Entrega UN ÚNICO archivo HTML de email, final y listo para enviar, en: ${outDir}/newsletter.html`,
-    '  Revisa el resultado renderizado (capturas) y corrígelo antes de darlo por terminado, como haces siempre.',
-    `- Base técnica: copia studio/hermes/email-base.html a ${outDir}/newsletter.html y diseña DENTRO. Trae resuelto lo`,
+    `  Revísalo con \`npm run render-newsletter -- ${outDir}/newsletter.html\`: deja en _trabajo/render-hoja.jpg la pieza a`,
+    '  600 px, a 375 px y en oscuro en una sola imagen. Mírala con vision_analyze (una vez por revisión) y corrige. No',
+    '  escribas tus propios scripts de captura ni levantes servidores.',
+    `- Base técnica: copia studio/hermes/email-base.html a ${outDir}/newsletter.html y diseña DENTRO (Studio adjunta su`,
+    '  contenido completo y el de los módulos al final de este encargo: no los leas del disco). Trae resuelto lo',
     '  técnico (tabla fantasma y 96 ppp de Outlook, modo oscuro declarado, preheader, media query de móvil con .px/.stack/',
     '  .fluid, enlace de baja). Módulos técnicos de ejemplo (foto + texto, dos columnas, botón VML) en',
     '  studio/hermes/email-modulos.md. La base NO decide el diseño: tipografía, colores, módulos y ritmo salen del brief',
@@ -124,11 +130,11 @@ export function buildHermesPrompt(job: Job): string {
     '- Si una imagen no se ve en tu propio render (rota, en blanco, 403), la pieza NO está terminada: descárgala de',
     '  otra forma o cámbiala por otra oficial. No la des por buena como «problema de red».',
     '- Preheader OBLIGATORIO (el bloque oculto ya está en la base): una frase que complemente al asunto (<title>).',
-    '- Enlaces: cada href debe llevar a una página que exista (compruébalo con el navegador); nunca inventes',
-    '  una URL.',
+    '- Enlaces: solo URL oficiales que ya tienes (brief, ficha de producto); nunca inventes una. No las abras con el',
+    '  navegador para comprobarlas: check-newsletter comprueba que todas respondan.',
     '- Modo oscuro OBLIGATORIO: define en el @media (prefers-color-scheme: dark) de la base los fondos, textos y CTA en',
     '  oscuro coherentes con la marca (si el logo es oscuro, una versión clara o un fondo que lo haga legible).',
-    '  Renderiza la pieza también en oscuro y revísala.',
+    '  La hoja de render-newsletter lo incluye: nada blanco sobre blanco ni negro sobre negro.',
     '- Outlook de escritorio OBLIGATORIO: maqueta con tablas (nada de flex/grid), atributo width en cada <img>, fondos',
     '  con imagen con alternativa VML y la tipografía de la marca con un respaldo genérico DETRÁS (p. ej. \'Fuente de',
     '  marca\', Arial, sans-serif).',
@@ -138,7 +144,7 @@ export function buildHermesPrompt(job: Job): string {
     ...DESIGN_RULES,
     `- Scripts y archivos auxiliares (conversiones, comprobaciones, capturas): en ${outDir}/_trabajo/`,
     '  o en /tmp. Nunca en scripts/, en la raíz del repo ni en brands/ (ahí solo logos e imágenes de marca).',
-    '- Móvil OBLIGATORIO: renderiza la pieza también a 375 px de ancho (iPhone). Nada puede salirse del ancho ni',
+    '- Móvil OBLIGATORIO a 375 px (iPhone, incluido en la hoja de render-newsletter). Nada puede salirse del ancho ni',
     '  quedar cortado; usa las clases de la base (.px en cada celda con texto, .stack en columnas, .fluid en imágenes).',
     `- Comprobación OBLIGATORIA antes de terminar: \`npm run check-newsletter -- ${outDir}/newsletter.html\`. Es la misma`,
     '  que hace Studio al recibir la pieza (móvil, espacios, contraste, letra, estructura, enlaces, imágenes, tipografía,',
@@ -151,7 +157,7 @@ export function buildHermesPrompt(job: Job): string {
     '     (URL oficial). Lo que no tenga fuente no puede estar en la pieza: quítalo o reescríbelo.',
     '  3. Origen de cada imagen: URL oficial, brand pack o generada con IA.',
     '  3b. Tipografía y colores usados, con su origen (web oficial o brand pack), y el módulo propio del concepto.',
-    '  4. Resultado de npm run check-newsletter y de tu revisión a 375 px y en oscuro (qué corregiste).',
+    '  4. Resultado de npm run check-newsletter y de tu revisión de la hoja de render-newsletter (qué corregiste).',
     '  5. Las preguntas de autoauditoría del prompt con su respuesta.',
     '- Respuesta final: breve — concepto y lo que quede pendiente.',
   ].join('\n');
@@ -227,8 +233,10 @@ export function buildBriefPrompt(job: Job): string {
     '- Mercado: España y castellano. Precios en euros y páginas de la web española de la marca.',
     `- Imágenes: ${images}`,
     '- Presupuesto: el brief se escribe en unos 5 minutos y unas 25 acciones EN TOTAL (búsquedas, páginas y navegador',
-    '  cuentan igual). No busques la URL de cada imagen: basta con la página oficial donde están; las imágenes se',
-    '  descargan al hacer la newsletter. Si no te da tiempo a verificar algo, márcalo como pendiente y escribe.',
+    '  cuentan igual). No busques la URL de cada imagen ni el precio en el texto: cita la URL EXACTA de la ficha de cada',
+    '  producto (no la home) y Studio saca de ella el precio, el envío y las fotos antes de maquetar.',
+    '- Resolver o quitar: lo que no verifiques va a «Fuera de la pieza» y nadie lo investigará después. No escribas',
+    '  escenas ni copy que dependan de un dato sin verificar (salvo el precio o el envío de una ficha citada).',
     '- Investigación: como mucho 5 búsquedas o páginas, solo para el CONTENIDO (producto, campaña, datos con fuente). La',
     '  identidad visual: si más abajo hay una sección «Identidad de la marca ya medida» o existe',
     `  brands/${slug}/tokens/brand-tokens.json, úsala tal cual y no la vuelvas a medir; si no, mídela en la web oficial`,
@@ -251,8 +259,8 @@ export function buildBriefPrompt(job: Job): string {
     '## 2. Identidad de marca — tipografía de titulares y de texto (nombre exacto, de dónde sale y cómo cargarla en un',
     '   email: Google Fonts o la alternativa web más parecida), paleta (hex de fondo, texto, acento y botón, con su',
     '   origen), estilo de botón, tono de voz y tratamiento de foto. Logo: ruta del PNG si ya existe o URL oficial.',
-    '## 3. Datos verificados — cada precio, cifra, nombre de modelo o dato técnico con su URL oficial. Lo no verificado',
-    '   va en «Pendiente» y NO entra en la pieza.',
+    '## 3. Datos verificados — cada precio, cifra, nombre de modelo o dato técnico con su URL oficial, y la URL exacta',
+    '   de la ficha de cada producto. Lo no verificado va en «Fuera de la pieza»: NO entra y no se investigará después.',
     '## 4. Asunto y preheader — asunto (≤ 50 caracteres) y preheader (≤ 90) que lo complemente.',
     '## 5. Escenas — una por escena: función narrativa, titular, texto (≤ 40 palabras), imagen, módulo/composición,',
     '   CTA (si lleva; cada CTA con un texto distinto) y el aire con la anterior.',
