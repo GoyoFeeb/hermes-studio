@@ -4691,12 +4691,28 @@ const shortcuts = document.getElementById('shortcuts');
 let shortcutsReturn = null;
 function toggleShortcuts(open) {
   shortcuts.hidden = !open;
+  // Atajos que se pulsan (2026-10-06): al abrir, las teclas se hunden una tras otra.
+  if (open && motionOk()) shortcuts.querySelectorAll('dt kbd').forEach((k, n) => pressKey(k, 260 + n * 80));
   if (open) {
     shortcutsReturn = document.activeElement !== document.body ? document.activeElement : null;
     document.getElementById('shortcuts-close').focus();
   } else (shortcutsReturn?.isConnected ? shortcutsReturn : menuBtn).focus({ preventScroll: true });
 }
 document.getElementById('shortcuts-close').addEventListener('click', () => toggleShortcuts(false));
+function pressKey(k, delay = 0) {
+  setTimeout(() => {
+    k.classList.remove('is-pressed');
+    void k.offsetWidth;
+    k.classList.add('is-pressed');
+    setTimeout(() => k.classList.remove('is-pressed'), 260);
+  }, delay);
+}
+// Con el diálogo abierto, la tecla que se pulsa se hunde.
+document.addEventListener('keydown', (e) => {
+  if (shortcuts.hidden || !motionOk() || e.metaKey || e.ctrlKey || e.altKey) return;
+  const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  shortcuts.querySelectorAll('dt kbd').forEach((k) => k.textContent.trim().toUpperCase() === key.toUpperCase() && pressKey(k));
+});
 shortcuts.addEventListener('click', (e) => {
   if (e.target === shortcuts) toggleShortcuts(false);
 });
@@ -5434,6 +5450,16 @@ function renderReview(quality, notes, matrix = null) {
         return `<li class="check-${escapeHtml(c.status)}"><details${c.status === 'ok' ? '' : ' open'}><summary>${head}</summary><ul class="check-details">${details}</ul></details></li>`;
       })
       .join('');
+    // Comprobaciones que se marcan (2026-10-06): la 1.ª vez de cada pieza, los puntos entran uno tras otro y su
+    // estado salta al llegar. Los refrescos de la misma pieza no lo repiten.
+    if (motionOk() && list.dataset.animFor !== currentJob) {
+      list.dataset.animFor = currentJob || '';
+      [...list.children].forEach((li, n) => {
+        li.style.setProperty('--n', String(n));
+        li.classList.add('is-ticking');
+        setTimeout(() => li.classList.remove('is-ticking'), 900 + n * 90);
+      });
+    }
   }
   renderClientMatrix();
 
@@ -6419,6 +6445,7 @@ let lastLogKey = '';
 /** Registro con la hora de cada línea, avisos y errores marcados y contados en el título (se ven aunque
  *  el registro esté plegado) y filtro "Solo avisos y errores". Solo se repinta si llegan líneas nuevas:
  *  así no se cierran las notas largas que alguien haya abierto (2026-09-28). */
+let logShown = { job: null, count: 0 };
 function renderLog(events) {
   const key = `${currentJob}:${events.length}`;
   if (key === lastLogKey) return;
@@ -6431,6 +6458,9 @@ function renderLog(events) {
     (warnings ? ` · <span class="warn">${warnings} aviso${warnings === 1 ? '' : 's'} o error${warnings === 1 ? '' : 'es'}</span>` : '');
   document.getElementById('log-filter').hidden = !warnings;
   const log = document.getElementById('job-log');
+  // Registro en vivo (2026-10-06): solo las líneas nuevas de la misma pieza entran con un resalte; al abrir, sin animar.
+  const fresh = motionOk() && logShown.job === currentJob && logShown.count > 0 ? logShown.count : null;
+  logShown = { job: currentJob, count: events.length };
   log.innerHTML = events
     .map((ev) => {
       const when = new Date(ev.ts);
@@ -6445,6 +6475,10 @@ function renderLog(events) {
       return `<li class="log-${escapeHtml(ev.level)}"><time datetime="${escapeHtml(ev.ts || '')}">${time}</time><span class="msg">${msg}</span></li>`;
     })
     .join('');
+  if (fresh != null) [...log.children].slice(fresh).forEach((li, n) => {
+    li.style.setProperty('--n', String(n));
+    li.classList.add('is-fresh');
+  });
   log.scrollTop = log.scrollHeight;
 }
 

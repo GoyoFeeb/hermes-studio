@@ -2342,3 +2342,9 @@ El usuario pidió «vamos con todas».
 - Paleta de marca en abanico: las muestras de la ficha entran una tras otra (`--n`) y el logo con fundido.
 - Pie que se ilumina: segundo tramo del hilo del «02» al final del historial (al final de la página cuenta como llegado); al llegar, un brillo rosa cruza el logo FEEBBO (máscara con su SVG: es una imagen, no se puede «letra a letra») y el © se enciende un momento.
 - Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.
+
+### 2026-10-06 — Studio: 10.ª tanda de animaciones (pedido por el usuario; el control de animaciones se propuso y no se quiso)
+- Comprobaciones que se marcan (`renderReview`): la 1.ª vez de cada pieza, los puntos entran uno tras otro y su punto de estado salta (`.is-ticking`, clave `list.dataset.animFor`); los refrescos no lo repiten.
+- Registro en vivo (`renderLog`, `logShown`): solo las líneas nuevas de la misma pieza entran con un resalte rosa (`.is-fresh`); al abrir una pieza, sin animar.
+- Atajos que se pulsan (`toggleShortcuts`, `pressKey`): al abrir el diálogo las teclas se hunden en cascada; con él abierto, la tecla pulsada se hunde.
+- Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.

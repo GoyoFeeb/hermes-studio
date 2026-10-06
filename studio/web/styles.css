@@ -2616,3 +2616,28 @@ input.is-shake, textarea.is-shake, select.is-shake { border-color: var(--pink) !
   .preview-device.is-revealing::after, .foot-logo-wrap::after { display: none; }
   .foot.is-lit .foot-copy { animation: none; }
 }
+
+/* ---------- 10.ª tanda de animaciones (2026-10-06) ---------- */
+/* Comprobaciones que se marcan: entran una tras otra y su punto de estado salta al llegar. */
+.is-ticking { animation: tick-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--n, 0) * 90ms); }
+.is-ticking .check-dot { animation: tick-dot 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both; animation-delay: calc(var(--n, 0) * 90ms + 220ms); }
+@keyframes tick-in { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+@keyframes tick-dot { from { transform: scale(0); } to { transform: scale(1); } }
+
+/* Registro en vivo: las líneas nuevas entran deslizándose con un resalte rosa que se apaga. */
+.is-fresh { animation: log-fresh 1.6s ease-out both; animation-delay: calc(var(--n, 0) * 60ms); }
+@keyframes log-fresh {
+  0% { opacity: 0; transform: translateY(6px); background: rgba(251, 115, 255, 0.22); }
+  20% { opacity: 1; transform: none; background: rgba(251, 115, 255, 0.22); }
+  100% { background: transparent; }
+}
+
+/* Atajos que se pulsan: la tecla se hunde (el borde inferior grueso desaparece) y vuelve. */
+kbd.is-pressed { animation: key-press 0.26s ease-out; }
+@keyframes key-press {
+  40% { transform: translateY(2px); border-bottom-width: 1px; margin-bottom: 1px; background: rgba(251, 115, 255, 0.18); border-color: var(--pink); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .is-ticking, .is-ticking .check-dot, .is-fresh, kbd.is-pressed { animation: none !important; }
+}
