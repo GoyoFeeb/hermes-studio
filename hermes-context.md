@@ -2324,3 +2324,7 @@ El usuario pidió «vamos con todas».
 - Avisos con sacudida: un `MutationObserver` sacude cualquier `role="alert"` que aparece o cambia de texto; el evento `invalid` sacude el campo obligatorio vacío (borde rosa).
 - Salto con destello (`jumpTo`): los saltos de la página (menú, historial, cajas de cambios/edición/aprobar, aviso de elegir, panel lateral, vista previa) dan un aro rosa al llegar. No en pestañas ni desplegables.
 - Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.
+
+### 2026-10-06 — Studio: hilo que conecta la sección 01 con la 02 (pedido por el usuario)
+- En el margen izquierdo de `#view-form`, una línea rosa→morado (`.section-thread`, con punto brillante en la punta) se dibuja del «01 Nueva newsletter» al «02 Historial» según se baja (avance = posición del 60 % de la pantalla entre ambos títulos; ligado al scroll, se recoge al subir). Al llegar, el «02» se ilumina (rosa mezclado con su azul: en rosa pleno tapaba «Historial») y vuelve a su color.
+- Va en el mismo cálculo por fotograma del parallax (`backgroundAndInteractions`), sin escuchadores nuevos salvo `resize`. Se mide sobre los títulos, no los números (tienen parallax). Oculto si el historial no se ve; nada con «reducir movimiento». Sin efecto en fases cerradas.

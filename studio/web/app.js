@@ -1467,6 +1467,45 @@ document.querySelectorAll('.segmented').forEach((seg) => {
     .join('');
   document.body.prepend(bg);
 
+  // Hilo que conecta (2026-10-06): en el margen, una línea se dibuja del «01» al «02» según se baja; al llegar,
+  // el «02» se ilumina. Ligado al scroll: si se sube, se recoge.
+  const formView = document.getElementById('view-form');
+  const thread = document.createElement('div');
+  thread.className = 'section-thread';
+  thread.setAttribute('aria-hidden', 'true');
+  thread.innerHTML = '<span class="section-thread-line"></span><span class="section-thread-dot"></span>';
+  formView.prepend(thread);
+  let threadArrived = false;
+  const placeThread = () => {
+    const nums = formView.querySelectorAll('.section-num');
+    const second = nums[1];
+    if (nums.length < 2 || !second.offsetParent || formView.hidden) {
+      thread.hidden = true;
+      return;
+    }
+    const box = formView.getBoundingClientRect();
+    // Sobre el título, no el número: el número tiene parallax y el hilo cambiaría de largo al bajar.
+    const a = nums[0].parentElement.getBoundingClientRect();
+    const b = second.parentElement.getBoundingClientRect();
+    const top = a.bottom - box.top + 12;
+    const height = b.top - box.top - 12 - top;
+    if (height <= 0) {
+      thread.hidden = true;
+      return;
+    }
+    thread.hidden = false;
+    thread.style.top = `${top}px`;
+    thread.style.height = `${height}px`;
+    const t = Math.max(0, Math.min(1, (window.innerHeight * 0.6 - (a.bottom + 12)) / height));
+    thread.style.setProperty('--t', t.toFixed(4));
+    if (t >= 1 && !threadArrived) {
+      threadArrived = true;
+      second.classList.remove('is-lit');
+      void second.offsetWidth;
+      second.classList.add('is-lit');
+    } else if (t < 0.95) threadArrived = false;
+  };
+
   // Parallax del fondo y de los números de sección.
   let ticking = false;
   const onScroll = () => {
@@ -1479,9 +1518,11 @@ document.querySelectorAll('.segmented').forEach((seg) => {
         const r = n.parentElement.getBoundingClientRect();
         n.style.setProperty('--px', `${Math.max(-30, Math.min(30, (r.top - window.innerHeight / 2) * 0.08)).toFixed(1)}px`);
       });
+      placeThread();
     });
   };
   window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
   onScroll();
 
   if (!fine) return;
