@@ -28,7 +28,7 @@ import { Timeline, summarize, type JobTimings } from './timeline';
 import { renderThumbnail } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
-import { joinLabels, missingInBrief } from '../server/requestCoverage';
+import { joinLabels, missingInBrief, type RequestTerm } from '../server/requestCoverage';
 import { buildProductSheet, productSheetNote, productUrls } from './productSheet';
 import { renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
@@ -649,10 +649,12 @@ const REVISION_EXPECTED_SEC = 8 * 60;
 
 /** Parte de la barra que ocupa el paso del brief cuando el trabajo llega como instrucción básica. */
 const BRIEF_SHARE = 12;
-const BRIEF_EXPECTED_SEC = 6 * 60;
-/** Tope del brief: pasadas estas acciones o estos minutos sin brief.md, se le pide que lo escriba con lo que tiene. */
-const BRIEF_ACTION_BUDGET = 35;
-const BRIEF_TIME_BUDGET_SEC = 8 * 60;
+const BRIEF_EXPECTED_SEC = 10 * 60;
+/** Tope del brief: pasadas estas acciones o estos minutos sin brief.md, se le pide que lo escriba con lo que tiene.
+ *  2026-10-06 (auditoría con GPT-6 Luna, punto 3): 35 acciones / 8 min eran para DeepSeek — dos briefs se cortaron por
+ *  tiempo con 7 y 21 acciones y se escribieron con media investigación. */
+export const BRIEF_ACTION_BUDGET = 70;
+export const BRIEF_TIME_BUDGET_SEC = 14 * 60;
 
 /** Lo que Hermes necesita del repo para el brief, ya resuelto: el 2026-09-24 (Adidas) hizo 21
  *  search_files (varios con patrón "*" sobre todo el repo) buscando el brand pack y no llegó a
@@ -691,11 +693,41 @@ function briefEnvNote(outputDir: string): string {
       ? `- Brand pack: EXISTE en ${tokens}. Léelo con read_file (una vez) y úsalo para la sección «Identidad de marca».`
       : `- Brand pack: NO existe para esta marca (${tokens}). Procede como marca nueva.`,
     '- No uses search_files para buscar el brand pack ni la estructura del repo: las rutas son estas.',
-    '- Investigación: como máximo 5 búsquedas web. Después escribe el brief (write_file) aunque falten',
-    '  datos — márcalos como pendientes de verificar, como pide la plantilla.',
+    '- Investigación: unas 12 búsquedas o páginas. Después escribe el brief (write_file) aunque falten',
+    '  datos — lo no verificado va a «Fuera de la pieza», como pide la plantilla.',
   ]
     .filter(Boolean)
     .join('\n');
+}
+
+/** Rúbrica de la autocrítica del brief: lo que más se nota en la pieza y el brief puede arreglar sin investigar más. */
+export const BRIEF_CRITIQUE = [
+  'Concepto: ¿es de esta marca, este producto y esta ocasión, o valdría para la competencia cambiando el nombre?',
+  'Titulares: ¿cada uno sale del concepto y se entiende sin contexto?',
+  'Copy: ¿hay frases genéricas de email marketing («descubre», «no te lo pierdas», «eleva tu estilo», «tu mejor versión», «lo tiene todo»)? Reescríbelas con algo que solo diría esta marca.',
+  'Escenas: ¿cada una cumple una función distinta? ¿al menos una usa un módulo que no parezca plantilla?',
+  'Fotos: ¿cada escena lleva una foto que has VISTO en la web oficial (o, con IA, una descripción concreta)?',
+  'Datos: ¿todo precio, cifra o afirmación comercial de las escenas está en la sección 3 con su URL?',
+  'Asunto: ¿es concreto (producto, ocasión o beneficio) y no un gancho vacío?',
+];
+
+/** La vuelta de autocrítica: sin navegar, reescribe brief.md si algo no pasa y deja las notas en _trabajo/. */
+export function briefCritiqueQuery(outputDir: string, gaps: RequestTerm[] = [], request?: string): string {
+  return [
+    `Relee ${outputDir}/brief.md como director creativo exigente, antes de que se maquete. NO navegues ni busques: trabaja con lo que ya tienes.`,
+    ...(gaps.length
+      ? [
+          `- PRIMERO: no recoge lo que pide la petición del equipo: ${joinLabels(gaps)}. Petición: «${request}».` +
+            `${gaps.some((g) => g.kind === 'occasion') ? ' La ocasión es el eje: el concepto, el asunto y al menos una escena la nombran tal cual.' : ''}` +
+            `${gaps.some((g) => g.kind === 'audience') ? ' El público va en el concepto (sección 1), en el tono y en las escenas.' : ''}` +
+            `${gaps.some((g) => g.kind === 'offer') ? ' La oferta (o el precio verificado) sale en una escena.' : ''}`,
+        ]
+      : []),
+    ...BRIEF_CRITIQUE.map((q) => `- ${q}`),
+    `Si algo no pasa, reescribe ${outputDir}/brief.md con write_file (mismas 8 secciones, mismo tope de palabras; lo que ya está bien se queda; lo no verificado va a «Fuera de la pieza»).`,
+    `Después escribe ${outputDir}/_trabajo/autocritica-brief.md con write_file: una línea por punto de la rúbrica (pasa / qué cambiaste).`,
+    'Sin texto previo: llama a las herramientas. Respuesta final: una línea.',
+  ].join('\n');
 }
 
 /** Segundos sin tocar brief.md (con sus 8 secciones) para dar el brief por terminado y cerrar el turno. */
@@ -799,22 +831,18 @@ async function runBriefStep(
     loops.nudge = null;
     turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief);
   }
-  // Lo que pide la petición y el brief no recoge (Paredes, 2026-10-05: «pre-black friday» y «público joven»
-  // desaparecieron). Una vuelta en la misma sesión, sin investigar; si aún falta, Studio lo avisa al revisar el brief.
-  const gaps = ready() && job.request && sessionId && !cancelled ? missingInBrief(job.request, fs.readFileSync(briefFile, 'utf8')) : [];
-  if (gaps.length) {
-    console.log(`[${stamp()}] Brief de ${job.id}: no recoge ${joinLabels(gaps)} — se le pide que lo rehaga`);
-    void api(`/api/worker/jobs/${job.id}/progress`, { message: `El brief no recoge ${joinLabels(gaps)} de la petición: se le pide a Hermes que lo añada.` }).catch(() => undefined);
-    await runHermesTurn(
-      `Tu brief no recoge lo que pide la petición del equipo: ${joinLabels(gaps)}. Petición: «${job.request}».\n` +
-        `Reescribe ${job.outputDir}/brief.md con write_file para que lo recoja: ${gaps.some((g) => g.kind === 'occasion') ? 'la ocasión es el eje — el concepto, el asunto y al menos una escena la nombran tal cual; ' : ''}` +
-        `${gaps.some((g) => g.kind === 'audience') ? 'el público va en el concepto (sección 1), en el tono y en las escenas; ' : ''}` +
-        `${gaps.some((g) => g.kind === 'offer') ? 'la oferta (o el precio verificado) sale en una escena; ' : ''}` +
-        'mantén lo que ya está bien. NO navegues ni busques: lo que no tengas verificado va a «Fuera de la pieza». Sin texto previo: llama a la herramienta.',
-      sessionId,
-      () => undefined,
-      MODELS.brief
-    );
+  // Autocrítica del brief (2026-10-06, punto 3 de la auditoría): una vuelta en la misma sesión, sin navegar, que relee
+  // el brief como director creativo y reescribe lo que no pase. Incluye lo que la petición pide y el brief no recoge
+  // (Paredes, 2026-10-05: «pre-black friday» y «público joven» desaparecieron); antes era una vuelta aparte.
+  const gaps = ready() && job.request ? missingInBrief(job.request, fs.readFileSync(briefFile, 'utf8')) : [];
+  if (ready() && sessionId && !cancelled && !loopStopped) {
+    if (gaps.length) {
+      console.log(`[${stamp()}] Brief de ${job.id}: no recoge ${joinLabels(gaps)} — va en la autocrítica`);
+      void api(`/api/worker/jobs/${job.id}/progress`, { message: `El brief no recoge ${joinLabels(gaps)} de la petición: se le pide a Hermes que lo añada.` }).catch(() => undefined);
+    }
+    console.log(`[${stamp()}] Brief de ${job.id}: autocrítica`);
+    void api(`/api/worker/jobs/${job.id}/progress`, { message: 'Hermes relee el brief como director creativo y corrige lo que no pasa.' }).catch(() => undefined);
+    await runHermesTurn(briefCritiqueQuery(job.outputDir, gaps, job.request), sessionId, () => undefined, MODELS.brief);
   }
   clearInterval(heartbeat);
   clearTimeout(killer);

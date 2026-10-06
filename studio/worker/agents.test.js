@@ -544,3 +544,23 @@ test('Brief con patrones y catálogo; encargo que apunta al catálogo', () => {
   assert.match(b.brief, /módulo \(el id del catálogo/);
   assert.match(h.hermes, /studio\/hermes\/catalogo\.md/);
 });
+
+// ------------------------------------------------ brief sin límites de DeepSeek y con autocrítica (2026-10-06, punto 3)
+
+test('Brief: presupuesto ampliado y autocrítica con la rúbrica y lo que falta de la petición', () => {
+  const r = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '', instruction: 'Newsletter de la Eden', imageMode: 'official', mode: 'standalone' });
+  assert.match(r.brief, /12 minutos y unas 60 acciones/);
+  assert.doesNotMatch(r.brief, /5 búsquedas/);
+  const w = run(`
+    const w = require(${JSON.stringify(path.join(ROOT, 'studio', 'worker', 'hermes-worker.ts'))});
+    const gaps = require(${JSON.stringify(path.join(ROOT, 'studio', 'server', 'requestCoverage.ts'))}).missingInBrief('Newsletter de Black Friday para público joven', '# Brief\\n## 1. Concepto — la Eden');
+    process.stdout.write(JSON.stringify({ a: w.BRIEF_ACTION_BUDGET, t: w.BRIEF_TIME_BUDGET_SEC, plain: w.briefCritiqueQuery('out', []), withGaps: w.briefCritiqueQuery('out', gaps, 'Newsletter de Black Friday para público joven'), n: gaps.length }));
+  `);
+  assert.ok(w.a >= 60 && w.t >= 12 * 60);
+  assert.match(w.plain, /NO navegues/);
+  assert.match(w.plain, /valdría para la competencia/);
+  assert.match(w.plain, /out\/_trabajo\/autocritica-brief\.md/);
+  assert.doesNotMatch(w.plain, /PRIMERO/);
+  assert.ok(w.n >= 1);
+  assert.match(w.withGaps, /PRIMERO: no recoge .*Black Friday/i);
+});

@@ -2145,3 +2145,44 @@ El usuario pidió «vamos con todas».
   por millón).
 - **Verificación:** +3 tests; `npm test` 214/214. Pendiente: un trabajo real para ver que el brief elige módulos y
   la pieza los usa.
+- **Desplegado (con permiso del usuario):** `ec042ed` (fase B) → Railway y `origin`; worker reiniciado. Pendiente:
+  primera newsletter real con el catálogo.
+
+### 2026-10-06 (continuación) — Auditoría de calidad con GPT-6 Luna (solo diagnóstico, nada cambiado)
+
+- **Cómo trabaja Luna** (Adeslas `muwfyed2`, Polo Ralph Lauren lanzada a mano): HTML a los ~4 min y después 4-5
+  ciclos de render → mirar la hoja → corregir; sin las relecturas en bucle de DeepSeek. Las dos pasan el control.
+- **Límites de calidad vistos en las piezas:** 1 sola foto por pieza y ningún hero con imagen potente arriba; copy
+  correcto pero genérico (Adeslas: «Empieza por lo que encaja contigo», sin oferta concreta → revisión visual con
+  petición 3 y oscuro 2).
+- **Visión:** Luna NUNCA ve las imágenes. `--image` y `vision_analyze` pasan por el modelo auxiliar, que se las
+  describe en texto. Causa: en `agent/image_routing.py`, `decide_image_input_mode` en modo `auto` devuelve `text` si
+  hay un `auxiliary.vision` explícito, y lo fijamos esta mañana (Qwen 3.8 Flash) para DeepSeek. Con Luna lo correcto
+  es `agent.image_input_mode: native` (Qwen sigue para el resto).
+- **Restricciones de la época de DeepSeek** que ya limitan más de lo que protegen:
+  - brief: 25 acciones / 5 min / 5 búsquedas (el worker corta a 35 acciones u 8 min);
+  - revisión visual que solo corrige notas < 4;
+  - `reasoning_effort: medium` global.
+- **Propuestas entregadas en el chat, pendiente de que el usuario elija.**
+- **Punto 1 aplicado (con permiso del usuario): visión nativa de GPT-6 Luna.** Solo en `~/.hermes/config.yaml`
+  (copia en `config.yaml.bak.20261006_native`); el repo no cambia y no hace falta reiniciar el worker.
+  - `agent.image_input_mode: auto → native`. En `auto`, el `auxiliary.vision` explícito forzaba `text`.
+  - `providers.nous.models."openai/gpt-6-luna".supports_vision: true`. El catálogo de Hermes no sabe que Luna ve, y
+    al activar `native` descartaba la imagen que devuelve `vision_analyze` («returned image content for non-vision
+    model … falling back to text summary»): Luna no recibía NADA. Declarado solo para Luna.
+  - Qwen 3.8 Flash sigue en `auxiliary.vision` como respaldo.
+  - **Ojo:** si se vuelve a un modelo principal que no ve (DeepSeek V4 Flash 0731), hay que devolver
+    `image_input_mode` a `auto`.
+- **Verificado:**
+  - `--image`: Luna lee el botón exacto («Explora las modalidades», cian).
+  - `vision_analyze`: igual, sin el aviso de modelo sin visión.
+  - Revisión de dirección de arte sobre Adeslas: 17 s (antes 58) y más precisa. Oscuro 4: la descripción del modelo
+    auxiliar se había inventado un problema de contraste. Señala petición 3, texto-imagen 3, originalidad 3 y móvil 3
+    (pie diminuto).
+
+### 2026-10-06 — Punto 3 de la auditoría aplicado (con permiso del usuario): brief sin límites de DeepSeek y con autocrítica
+- `standalone.ts` (`buildBriefPrompt`): presupuesto 5 min / 25 acciones → ~12 min / 60 acciones; investigación de 5 a ~12 búsquedas o páginas (producto, campaña vigente y, si la hay, una newsletter o landing reciente de la marca para el tono).
+- `hermes-worker.ts`: corte del brief 35 acciones / 8 min → 70 / 14 min (`BRIEF_ACTION_BUDGET`, `BRIEF_TIME_BUDGET_SEC`, exportados); barra estima 10 min; `briefEnvNote` alineada.
+- Autocrítica nueva (`BRIEF_CRITIQUE`, `briefCritiqueQuery`): con el brief escrito, una vuelta en la misma sesión sin navegar con 7 preguntas (concepto propio de la marca, titulares del concepto, frases genéricas, escenas y módulos, fotos vistas, datos en sección 3, asunto concreto). Reescribe `brief.md` si algo no pasa y deja `_trabajo/autocritica-brief.md`. Absorbe la vuelta de «la petición pide X y el brief no lo recoge» (antes era aparte).
+- Coste esperado: +1-2 min de autocrítica; el brief puede investigar unos minutos más. Sin efecto en 00-09 (se archivan en la fase E). Tests 215/215.
+- Pendiente: verificar con el primer trabajo real con brief (log «autocrítica» y `_trabajo/autocritica-brief.md`).
