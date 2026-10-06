@@ -1595,7 +1595,7 @@ if ('IntersectionObserver' in window && !reduceMotion.matches) {
       }),
     { rootMargin: '0px 0px -8% 0px' }
   );
-  document.querySelectorAll('.section-title, #history-stats, #now-strip, .hero-photo').forEach((el) => {
+  document.querySelectorAll('.section-title, #history-stats, #now-strip').forEach((el) => {
     el.classList.add('reveal');
     reveal.observe(el);
   });

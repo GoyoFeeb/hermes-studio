@@ -83,15 +83,25 @@
     </div>
 
     <section class="hero">
-      <!-- Foto en círculo con capa azul y trazo fino, como las de la web (2026-10-02). Decorativa. -->
-      <img class="hero-photo" src="/hero-equipo.jpg" alt="" width="420" height="420" />
-      <h1>Newsletters de marca, <span class="accent">con Hermes</span></h1>
-      <p class="lead">Pide la newsletter con una frase o pega un prompt creativo completo. Hermes investiga la marca, escribe la newsletter, la revisa y la corrige.</p>
-      <div class="hero-links">
-        <!-- Atajo al historial, que queda debajo de todo el formulario (2026-09-30). -->
-        <a id="history-jump" class="history-jump" href="#history" hidden></a>
-        <!-- Ayuda (2026-09-30): en ningún sitio se explicaba el flujo completo, de pedirla a enviarla. -->
-        <button type="button" id="how-btn" class="link-btn how-btn" aria-expanded="false" aria-controls="how-panel">¿Cómo funciona?</button>
+      <!-- Portada como la de feebbodigital.com (2026-10-06): su foto de fondo a todo el ancho con capa azul, titular
+           centrado con «Hermes» en degradado rosa y etiquetas espaciadas («CONSULTORÍA · INNOVACIÓN…» en la web). Antes,
+           un bloque a la izquierda con la foto del equipo en un círculo pequeño: genérico, no parecía Feebbo. -->
+      <div class="hero-cover">
+        <img class="hero-photo" src="/hero-portada.jpg" alt="" width="1280" height="680" />
+        <div class="hero-inner">
+          <h1>Newsletters de marca,<br /><span class="accent">con Hermes</span></h1>
+          <p class="lead">Pide la newsletter con una frase o pega un prompt creativo completo. Hermes investiga la marca, escribe la newsletter, la revisa y la corrige.</p>
+          <div class="hero-links">
+            <a class="btn btn-primary hero-cta" href="#view-form">Nueva newsletter <span aria-hidden="true">↓</span></a>
+            <!-- Atajo al historial, que queda debajo de todo el formulario (2026-09-30). -->
+            <a id="history-jump" class="history-jump" href="#history" hidden></a>
+            <!-- Ayuda (2026-09-30): en ningún sitio se explicaba el flujo completo, de pedirla a enviarla. -->
+            <button type="button" id="how-btn" class="link-btn how-btn" aria-expanded="false" aria-controls="how-panel">¿Cómo funciona?</button>
+          </div>
+          <ul class="hero-tags" aria-label="Lo que hace Hermes">
+            <li>Investiga</li><li>Escribe</li><li>Revisa</li><li>Corrige</li>
+          </ul>
+        </div>
       </div>
       <ol id="how-panel" class="how-panel surface-light" hidden>
         <li><strong>Pides la newsletter.</strong> Con una frase («Instrucción rápida») o, si ya tienes un prompt de dirección creativa, pegándolo entero («Prompt completo»). Elige si las imágenes salen de la marca o se generan con IA.</li>

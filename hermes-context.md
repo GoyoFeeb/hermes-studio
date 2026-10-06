@@ -2203,3 +2203,9 @@ El usuario pidió «vamos con todas».
 - Bug visto por el usuario desde GPT-6 Luna: la barra iba por el 75 %, caía de golpe al ~11 % y luego saltaba al 100 %.
 - Causa (`hermes-worker.ts`): la corrección y la revisión visual abren sesiones nuevas (`watchNewSession`) y la estimación partía de 0 acciones → fase «Preparando» (2-15 %). Con Luna se nota porque la revisión visual ya funciona y el modelo es tan rápido que el tiempo no levanta la barra.
 - Arreglo: `laterSessionProgress` — tras la primera versión, toda sesión cuenta como «Revisando y corrigiendo» (75-97 %); y la barra nunca baja de lo ya mostrado. Test nuevo; 223/223.
+
+### 2026-10-06 — Studio: portada nueva como la de feebbodigital.com (pedido por el usuario)
+- Antes: bloque alineado a la izquierda con la foto del equipo en un círculo de 160 px; el usuario la veía genérica, sin la identidad del programa.
+- Ahora (`studio/web/index.html`, `styles.css`, `app.js`): banda a todo el ancho que sube por detrás de la cabecera, con el fotograma del vídeo de portada de feebbodigital.com (`studio/web/hero-portada.jpg`, 1280×680, 16 KB) y capa azul; titular centrado con «con Hermes» en degradado rosa; subtítulo; botón «Nueva newsletter ↓» + historial + «¿Cómo funciona?»; etiquetas rosas espaciadas «INVESTIGA · ESCRIBE · REVISA · CORRIGE» (eco de «CONSULTORÍA · INNOVACIÓN · BASE DE DATOS» de la web).
+- La banda es oscura también en tema claro (como la web): dentro se fijan los colores del oscuro; la cabecera sobre la foto también (logo blanco, hamburguesa clara) hasta que se baja. En claro la banda acaba en limpio. Sin animación de entrada en el titular (tardaba en verse); zoom lento de la foto solo sin «reducir movimiento».
+- Verificado en local (ALLOW_NO_AUTH, puerto 4802): 1280 oscuro y claro, 375 sin desborde horizontal, el botón baja al formulario, sin errores de consola. `hero-equipo.jpg` queda sin uso en la portada. Tests 223/223.
