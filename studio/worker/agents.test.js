@@ -336,7 +336,7 @@ test('Revisión de arte: notas en JSON, las de menos de 4 abren corrección; res
     const ok = w.parseArtReview('Aquí va: ' + JSON.stringify({ notas, problemas: [] }) + ' fin');
     const bad = w.parseArtReview(JSON.stringify({ notas: { ...notas, oscuro: 2, texto_imagen: 3 }, problemas: ['texto blanco sobre blanco en oscuro'] }));
     const partial = w.parseArtReview(JSON.stringify({ notas: { peticion: 5 } }));
-    const q = w.artReviewQuery('pre-black friday', '# Brief X\\n\\n## Instrucciones de entrega\\nno', '<html><head><style>.a{}</style></head><body><h1>Hola&nbsp;mundo&#847;&zwnj;</h1></body></html>', '/tmp/hoja.jpg');
+    const q = w.artReviewQuery('pre-black friday', '# Brief X\\n\\n## Instrucciones de entrega\\nno', '<html><head><style>.a{}</style></head><body><h1>Hola&nbsp;mundo&#847;&zwnj;</h1></body></html>', '/tmp/hoja.jpg', { width: 1246, height: 2000 });
     const blind = w.parseArtReview('{"sin_imagen": true}');
     process.stdout.write(JSON.stringify({ okLow: w.lowScores(ok), badLow: w.lowScores(bad), problemas: bad.problemas, partial, q, blind }));
   `);
@@ -344,7 +344,9 @@ test('Revisión de arte: notas en JSON, las de menos de 4 abren corrección; res
   assert.deepEqual(r.badLow.sort(), ['oscuro', 'texto_imagen']);
   assert.deepEqual(r.problemas, ['texto blanco sobre blanco en oscuro']);
   assert.equal(r.partial, null);
-  assert.match(r.q, /UNA sola vez a vision_analyze con image_url \/tmp\/hoja\.jpg/);
+  // GPT-6 Luna rellena region con [0, 0, 0, 0] si no se le da: se le pasa la hoja entera.
+  assert.match(r.q, /vision_analyze con image_url \/tmp\/hoja\.jpg y region \[0, 0, 1246, 2000\]/);
+  assert.match(r.q, /reintenta UNA vez/);
   assert.match(r.q, /\{"sin_imagen": true\}: nunca puntúes sin haberla visto/);
   assert.equal(r.blind, null);
   assert.match(r.q, /«Hola mundo»/);

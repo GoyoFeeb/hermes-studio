@@ -2114,3 +2114,11 @@ El usuario pidió «vamos con todas».
   y «potencia» en Talaria y Adidas (el falso positivo de antes). Ningún falso positivo.
 - **Verificación:** +4 tests; `npm test` 211/211; check-newsletter de extremo a extremo con `datos-verificados.md`.
 - **Para desplegar:** Railway (encargo y brief) y reiniciar el worker.
+- **Desplegado (con permiso del usuario):** `1613acc` (fase A) → Railway y `origin`; worker reiniciado.
+- **Revisión visual con GPT-6 Luna, arreglada:** el primer trabajo con Luna (Adeslas `muwfyed2-t9xn6q`, 12 min 51 s)
+  perdió la revisión visual en 11 s (`sin_imagen`). Causa: Luna rellena SIEMPRE el parámetro opcional `region` de
+  `vision_analyze` (26 de 26 llamadas) y a veces con `[0, 0, 0, 0]`, que la herramienta rechaza.
+  - Arreglo, sin tocar el código de Hermes: `artReviewQuery` pasa `region [0, 0, ancho, alto]` de la hoja (leído con
+    sharp) y pide reintentar una vez si hay error; `WEB_ACCESS_NOTE` lleva la misma pauta para el resto de usos.
+  - Probado con Luna sobre la hoja real de Adeslas: 58 s, notas reales (oscuro 2, petición 3).
+  - Antes, en la mañana, también hubo una espera de visión de 120 s y luego un timeout del modelo auxiliar.

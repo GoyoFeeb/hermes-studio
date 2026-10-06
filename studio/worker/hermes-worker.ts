@@ -32,6 +32,7 @@ import { joinLabels, missingInBrief } from '../server/requestCoverage';
 import { buildProductSheet, productSheetNote, productUrls } from './productSheet';
 import { renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
+import sharp from 'sharp';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -497,6 +498,8 @@ export const WEB_ACCESS_NOTE = [
   '  (browser_navigate), que sale desde este Mac en España, o busca el dato en otra página oficial.',
   '- Máximo 2 intentos por dato. Si no aparece, anótalo como pendiente y sigue: la entrega es el HTML.',
   '- No anuncies lo que vas a hacer ("Let me..."): llama a la herramienta directamente.',
+  '- vision_analyze: si pasas region, que sea una zona real de la imagen ([0, 0, ancho, alto] para verla entera); nunca',
+  '  [0, 0, 0, 0]. Si la herramienta devuelve un error, corrige los parámetros y reinténtalo una vez.',
 ].join('\n');
 
 /** Hermes lee webs de terceros y ejecuta comandos sin pedir permiso: una página con instrucciones
@@ -844,6 +847,16 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
 const MEASURE_TIMEOUT_MS = 2 * 60 * 1000;
 const PRODUCT_TIMEOUT_MS = 2 * 60 * 1000;
 
+/** Ancho y alto de una imagen (para el `region` de vision_analyze); undefined si no se puede leer. */
+async function imageSize(file: string): Promise<{ width: number; height: number } | undefined> {
+  try {
+    const m = await sharp(file).metadata();
+    return m.width && m.height ? { width: m.width, height: m.height } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Lo que puntúa la revisión de dirección de arte (1-5). */
 export const ART_CRITERIA: Record<string, string> = {
   peticion: '¿la ocasión, la oferta y el público que pide la petición se notan a primera vista?',
@@ -882,11 +895,21 @@ export const ART_VISION_QUESTION =
   'solo o con personas, fondo, colores reales del producto. ¿Qué titulares se leen y qué jerarquía tienen? ¿Se ve el logo? ' +
   '¿Parece una plantilla genérica o tiene un diseño propio?';
 
-export function artReviewQuery(request: string | undefined, prompt: string, html: string, sheetPath = '<hoja>'): string {
+export function artReviewQuery(
+  request: string | undefined,
+  prompt: string,
+  html: string,
+  sheetPath = '<hoja>',
+  size?: { width: number; height: number }
+): string {
   const brief = prompt.split('## Instrucciones de entrega')[0].trim().slice(0, 3500);
+  // GPT-6 Luna rellena siempre el parámetro opcional `region` de vision_analyze y a veces con [0, 0, 0, 0], que la
+  // herramienta rechaza (Adeslas, 2026-10-06: revisión visual perdida en 11 s). Se le da el recorte de la hoja entera.
+  const region = size ? ` y region [0, 0, ${size.width}, ${size.height}] (la imagen entera)` : '';
   return [
     'Eres director de arte y vas a puntuar una newsletter de email ya terminada. Pasos, sin nada más:',
-    `1. Llama UNA sola vez a vision_analyze con image_url ${sheetPath} y esta pregunta: «${ART_VISION_QUESTION}»`,
+    `1. Llama a vision_analyze con image_url ${sheetPath}${region} y esta pregunta: «${ART_VISION_QUESTION}»`,
+    '   Si devuelve un error, reintenta UNA vez corrigiendo los parámetros que indique el error.',
     '2. Con lo que te devuelva, responde SOLO con un JSON, sin texto antes ni después. No uses ninguna otra herramienta.',
     'Si vision_analyze no puede ver la imagen, responde exactamente {"sin_imagen": true}: nunca puntúes sin haberla visto.',
     '',
@@ -1271,7 +1294,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       await progressMessage('Revisión de dirección de arte: una mirada a la pieza en escritorio, móvil y oscuro.');
       watchNewSession();
       const look = await runHermesTurn(
-        artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), sheet.sheet),
+        artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), sheet.sheet, await imageSize(sheet.sheet)),
         null,
         () => undefined,
         MODELS.draft
