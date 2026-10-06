@@ -1453,6 +1453,74 @@ function unfoldPreview(id) {
   }
 })();
 
+// ---------------------------------------------------------------- 4.ª tanda (2026-10-06)
+
+// Con el deslizador de «Libre» el ancho va pegado al dedo: sin transición mientras se arrastra.
+(function freeDragNoAnim() {
+  const range = document.getElementById('free-width-range');
+  const stage = document.getElementById('preview-stage');
+  if (!range || !stage) return;
+  range.addEventListener('pointerdown', () => stage.classList.add('no-anim'));
+  range.addEventListener('input', () => stage.classList.add('no-anim'));
+  range.addEventListener('change', () => setTimeout(() => stage.classList.remove('no-anim'), 50));
+  window.addEventListener('pointerup', () => setTimeout(() => stage.classList.remove('no-anim'), 50));
+})();
+
+/** Aprobar con celebración: una ráfaga de cartas de newsletter y destellos rosas sale del botón. */
+function celebrateApproval(from) {
+  if (!motionOk() || !from?.getBoundingClientRect) return;
+  const r = from.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  for (let i = 0; i < 16; i++) {
+    const card = i % 3 === 0;
+    const el = document.createElement('span');
+    el.className = card ? 'burst-card' : 'burst-spark';
+    el.style.left = `${cx}px`;
+    el.style.top = `${cy}px`;
+    document.body.appendChild(el);
+    const angle = (i / 16) * Math.PI * 2 + (i % 2 ? 0.2 : -0.1);
+    const dist = card ? 110 + (i % 4) * 18 : 70 + (i % 5) * 16;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist - 30;
+    el.animate(
+      [
+        { transform: 'translate(-50%, -50%) scale(0.2) rotate(0deg)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1) rotate(${(i % 2 ? 1 : -1) * 40}deg)`, opacity: 1, offset: 0.6 },
+        { transform: `translate(calc(-50% + ${dx * 1.15}px), calc(-50% + ${dy + 40}px)) scale(0.8) rotate(${(i % 2 ? 1 : -1) * 70}deg)`, opacity: 0 },
+      ],
+      { duration: 1000 + (i % 4) * 120, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' }
+    ).finished.then(() => el.remove(), () => el.remove());
+  }
+}
+/** El sello «Aprobada» cae con un golpe suave cuando aparece. */
+function stampApproval() {
+  if (!motionOk()) return;
+  let tries = 0;
+  const t = setInterval(() => {
+    const b = document.getElementById('approved-banner');
+    if ((b && !b.hidden) || ++tries > 20) {
+      clearInterval(t);
+      if (b && !b.hidden) {
+        b.classList.remove('is-stamp');
+        void b.offsetWidth;
+        b.classList.add('is-stamp');
+      }
+    }
+  }, 150);
+}
+
+/** Notas que se dibujan: las barras del panel de la revisión de arte se llenan una tras otra (al pintarse y al abrirlo). */
+function drawArtBars() {
+  if (!motionOk()) return;
+  document.querySelectorAll('#art-list .art-bar > span').forEach((bar, i) => {
+    bar.animate([{ width: '0%' }, { width: bar.style.width }], { duration: 700, delay: i * 70, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'backwards' });
+  });
+}
+document.getElementById('art-box')?.addEventListener('toggle', (e) => {
+  if (e.target.open) drawArtBars();
+});
+
 /** Paso de la cabecera (1-4) de una pieza en curso según su fase (stageLabel del worker). */
 function liveStep(j) {
   const label = j.stageLabel || '';
@@ -4029,9 +4097,11 @@ approveBox.addEventListener('submit', async (e) => {
     body: JSON.stringify({ checklist, by: savedRequester() || undefined }),
   }).catch(() => null);
   if (!res?.ok) return showToast('No se pudo aprobar. Inténtalo de nuevo.', 'error');
+  celebrateApproval(document.getElementById('approve-submit'));
   toggleApprove(false);
   showToast('Versión aprobada para envío.');
   poll(currentJob);
+  stampApproval();
 });
 document.getElementById('unapprove-btn').addEventListener('click', async () => {
   // Lo aprobado se guarda antes de quitarlo: "Deshacer" lo restaura con sus comprobaciones y quién lo aprobó
@@ -4904,6 +4974,7 @@ function renderArtReview(a) {
       );
     })
     .join('');
+  drawArtBars();
   const list = (title, items) => (items?.length ? `<p class="art-notes-title">${title}</p><ul class="art-notes">${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : '');
   document.getElementById('art-notes').innerHTML = list('Problemas que vio', a.problemas) + list('Mejoras que propuso', a.mejoras);
 }
@@ -4918,9 +4989,9 @@ function artSparkline(points) {
   const hi = Math.min(100, Math.max(...points.map((p) => p.pct)) + 5);
   const ys = points.map((p) => h - pad - ((p.pct - lo) / Math.max(1, hi - lo)) * (h - 2 * pad));
   const line = xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
-  return `<svg class="art-spark" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Nota de cada pieza por fecha">` +
-    `<path d="${line}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>` +
-    xs.map((x, i) => `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3"><title>${escapeHtml(new Date(points[i].createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))}: ${points[i].pct} %</title></circle>`).join('') +
+  return `<svg class="art-spark is-drawing" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Nota de cada pieza por fecha">` +
+    `<path d="${line}" pathLength="1" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>` +
+    xs.map((x, i) => `<circle style="--i:${i}" cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3"><title>${escapeHtml(new Date(points[i].createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))}: ${points[i].pct} %</title></circle>`).join('') +
     `</svg>`;
 }
 
@@ -5631,6 +5702,8 @@ document.querySelectorAll('input[name="previewTheme"]').forEach((r) =>
       // sin almacenamiento: solo dura esta visita
     }
     updateThemeHint();
+    // Fundido al cambiar claro/oscuro/invertido (2026-10-06), en vez de un salto.
+    if (motionOk()) document.getElementById('preview-device')?.animate([{ opacity: 0.25 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' });
     renderFrame('after');
     if (document.getElementById('preview-stage').classList.contains('is-compare')) renderFrame('before');
   })
@@ -5848,10 +5921,27 @@ function renderThemeBtn() {
   document.getElementById('menu-theme-name').textContent = THEME_SHORT[t];
 }
 
-document.getElementById('theme-btn').addEventListener('click', () => {
+document.getElementById('theme-btn').addEventListener('click', (e) => {
   const next = THEMES[(THEMES.indexOf(currentStudioTheme()) + 1) % THEMES.length];
-  if (next === 'auto') document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme', next);
+  const apply = () => {
+    if (next === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', next);
+    // Dentro de la transición: el botón se pinta con el tema ya aplicado (antes mostraba el anterior).
+    renderThemeBtn();
+  };
+  // Cambio de tema con onda (2026-10-06): el nuevo tema se extiende en círculo desde el botón (View Transitions).
+  if (document.startViewTransition && motionOk()) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+    document.startViewTransition(apply).ready.then(() => {
+      document.documentElement.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 650, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', pseudoElement: '::view-transition-new(root)' }
+      );
+    }).catch(() => undefined);
+  } else apply();
   try {
     if (next === 'auto') localStorage.removeItem('studioTheme');
     else localStorage.setItem('studioTheme', next);

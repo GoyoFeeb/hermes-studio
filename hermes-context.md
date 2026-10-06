@@ -2288,3 +2288,10 @@ El usuario pidió «vamos con todas».
 - Formulario: el campo enfocado lleva un borde en degradado rosa que gira (`@property --ring`); los ejemplos se reparten como cartas; las casillas saltan al marcarse.
 - Página del trabajo: la newsletter se despliega desde arriba al abrir el trabajo (una vez por trabajo) y las pestañas tienen un subrayado rosa que se desliza.
 - Todo quieto con «reducir movimiento». Verificado en local; tests 229/229.
+
+### 2026-10-06 — Studio: 4.ª tanda de animaciones (pedido por el usuario)
+- Aprobar con celebración: ráfaga de 16 cartas de newsletter y destellos rosas desde «Aprobar esta versión» y el sello «Aprobada» cae con un golpe suave (`celebrateApproval`, `stampApproval`).
+- Cambio de tema con onda: el nuevo tema se extiende en círculo desde el botón (View Transitions + `clip-path`); el botón se pinta dentro de la transición (antes mostraba el tema anterior). Sin View Transitions, cambio directo.
+- Notas que se dibujan: barras del panel de la revisión de arte que se llenan una tras otra (al pintarse y al abrirlo) y gráfico de calidad de la ficha de marca que se traza con sus puntos apareciendo.
+- Vista previa que se transforma: el marco cambia de ancho/alto suavemente entre escritorio, móvil y libre (sin transición mientras se arrastra el deslizador de «Libre») y fundido al cambiar claro/oscuro/invertido.
+- Todo quieto con «reducir movimiento». Verificado en local; tests 229/229.
