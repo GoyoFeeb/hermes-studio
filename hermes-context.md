@@ -2068,3 +2068,18 @@ El usuario pidió «vamos con todas».
 - **Desplegado (con permiso del usuario):** `3694f9f` (ficha de producto: solo fichas claras) → push a
   `Javifeebbo/hermes-studio` (Railway) y a `origin`. Worker reiniciado a las 10:2x, sin trabajos en curso y conectado.
   Desde aquí usa GPT-6 Luna (modelo principal) y Qwen 3.8 Flash (visión).
+- **Prueba de modelos, resultado final** (primera versión de la misma pieza; coste = estimación de Hermes):
+  - V4.1 Flash: 8,2 min; 0,036 $.
+  - GPT-6 Luna: 16,9 min; 0,086 $; mejor diseño.
+  - Qwen 3.8 Flash: notas a ~19 min y seguía retocando; 0,068 $; buen diseño (bloques crema de la marca, lista
+    numerada, precio); usó el banner ajeno «Pasos que nos unen».
+  - Kimi K2.6: 15,6 min; 0,30 $.
+  - V4 Flash 0731: 26,9 min (HTML a los 12,9); 0,055 $; el diseño más flojo (fotos repetidas, «#25282a», banner
+    ajeno).
+
+  El banner ajeno venía de la página «Novedades» (fallo de la ficha ya corregido en `3694f9f`). Las cinco piezas
+  pasan el control sin errores. Se confirma GPT-6 Luna como modelo principal.
+- **Carpetas de la prueba archivadas** (a petición del usuario): `_archive/prueba-modelos-2026-10-06/` (19 MB), con
+  `README.md` de resultados, `bakeoff.ts` y el registro. Se paró antes la sesión de Qwen 3.8 Flash, que seguía
+  retocando a los ~45 min. Se quitó una carpeta vacía `newsletters/2026/paredes/hermes/_trabajo` creada durante la
+  prueba.
