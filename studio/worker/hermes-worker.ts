@@ -32,6 +32,7 @@ import { joinLabels, missingInBrief, type RequestTerm } from '../server/requestC
 import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrls } from './productSheet';
 import { captureBrandWeb, renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
+import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
 
@@ -715,7 +716,7 @@ function briefEnvNote(outputDir: string): string {
 export const BRIEF_CRITIQUE = [
   'Concepto: ¿es de esta marca, este producto y esta ocasión, o valdría para la competencia cambiando el nombre?',
   'Titulares: ¿cada uno sale del concepto y se entiende sin contexto?',
-  'Copy: ¿hay frases genéricas de email marketing («descubre», «no te lo pierdas», «eleva tu estilo», «tu mejor versión», «lo tiene todo»)? Reescríbelas con algo que solo diría esta marca.',
+  `Copy: ¿cada titular nombra algo concreto (producto, beneficio, ocasión) con la voz de la marca? ¿hay muletillas de email marketing (${GENERIC_PHRASES_LIST}) o botones como «Descubre más»? Reescríbelos con algo que solo diría esta marca.`,
   'Escenas: ¿cada una cumple una función distinta? ¿al menos una usa un módulo que no parezca plantilla?',
   'Fotos: ¿cada escena lleva una foto que has VISTO en la web oficial (o, con IA, una descripción concreta)?',
   'Datos: ¿todo precio, cifra o afirmación comercial de las escenas está en la sección 3 con su URL?',
@@ -909,6 +910,7 @@ export const ART_CRITERIA: Record<string, string> = {
   originalidad: '¿evita parecer una plantilla de email marketing?',
   movil: '¿a 375 px todo se lee y nada se sale ni queda diminuto?',
   oscuro: '¿en oscuro todo se lee (nada blanco sobre blanco ni negro sobre negro)?',
+  copy: '¿cada titular nombra algo concreto (producto, beneficio, ocasión) y suena a la marca? ¿botones con verbo + objeto, sin muletillas de email marketing?',
 };
 
 export interface ArtReview {
@@ -956,7 +958,8 @@ export function artReviewQuery(
   html: string,
   sheetPath = '<hoja>',
   size?: { width: number; height: number },
-  web?: { path: string; size?: { width: number; height: number } } | null
+  web?: { path: string; size?: { width: number; height: number } } | null,
+  genericCopy: string[] = []
 ): string {
   const brief = prompt.split('## Instrucciones de entrega')[0].trim().slice(0, 3500);
   // GPT-6 Luna rellena siempre el parámetro opcional `region` de vision_analyze y a veces con [0, 0, 0, 0], que la
@@ -977,6 +980,9 @@ export function artReviewQuery(
     '',
     ...(request ? [`Petición original del equipo: «${request}».`] : []),
     `Texto visible de la pieza: «${visibleText(html).slice(0, 2500)}»`,
+    ...(genericCopy.length
+      ? [`Copy genérico que ha detectado Studio (cuenta para la nota de copy; cada uno va en «mejoras» con su reescritura): ${genericCopy.slice(0, 8).join('; ')}.`]
+      : []),
     '',
     'Brief (resumen):',
     brief,
@@ -1401,7 +1407,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       const reviewOnce = async (ready?: string): Promise<{ review: ArtReview | null; output: string }> => {
         const s2 = ready ? { sheet: ready } : await renderSheet(finalPath, workDir);
         const look = await runHermesTurn(
-          artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web),
+          artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found),
           null,
           () => undefined,
           MODELS.draft

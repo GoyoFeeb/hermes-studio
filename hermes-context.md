@@ -2221,3 +2221,19 @@ El usuario pidió «vamos con todas».
 - Ahora (`index.html`, `styles.css`, `app.js`): a la izquierda «HERMES STUDIO · un programa de Feebbo Digital», titular, subtítulo y botones; a la derecha un abanico con las miniaturas de las últimas newsletters terminadas (una por marca, 5 o 3, la más reciente en el centro; `renderShowcase`) que se abre al pasar el ratón y enlaza a cada trabajo. Sin piezas, tres maquetas de newsletter en CSS. Debajo, «01 Investiga — 02 Escribe — 03 Revisa — 04 Corrige» con los números de sección y la línea rosa. De Feebbo se toma solo el sistema (colores, Work Sans/Barlow, números grandes).
 - Quitados la foto a todo el ancho, las reglas de cabecera sobre la foto y `hero-portada.jpg`.
 - Verificado en local con miniaturas reales de prueba: 1280 oscuro y claro (el abanico sale de la columna de 880 px por la derecha a partir de 1180 px), 375 px sin desborde, hover sin pisar el texto. Tests 224/224.
+
+### 2026-10-06 — Punto 4 de la auditoría aplicado en local (con permiso del usuario): copy concreto
+- Diagnóstico: en las 12 últimas piezas, «descubre» en casi todas (sobre todo botones) y Adeslas con 7 muletillas; ninguna regla de copy en el encargo, el control ni la revisión de arte (solo 5 ejemplos en la autocrítica del brief).
+- `copyCheck.ts` (nuevo): una sola lista de ~25 muletillas (`GENERIC_PHRASES`) y de botones genéricos (`GENERIC_CTA`); `copyFindings` mira titulares y texto sin enlaces ni VML, y los botones aparte; `COPY_RULES` para los encargos.
+- `qualityCheck.ts`: control «Copy concreto», SOLO aviso. Calibrado con las 12 últimas piezas: avisa en 4 (Adeslas 3, Inglesina, Puma), limpias las otras 8.
+- `standalone.ts`: `COPY_RULES` en el método del brief y en el encargo de la pieza (también prompt completo): titular concreto, voz de la marca, botón verbo + objeto, sin muletillas.
+- `hermes-worker.ts`: la autocrítica del brief usa la lista; criterio nuevo `copy` en la revisión de arte (total sobre 50) y lo que detecta el control se le pasa a la revisión para que lo reescriba en la pasada de mejora.
+- Tests 225/225. **Sin desplegar** (pendiente de permiso).
+
+### 2026-10-06 — Fondos y franjas: la pieza se distingue de la página y sin franjas sueltas (pedido por el usuario)
+- Visto en Inglesina (`pom139`, revisión): exterior y secciones claras `#f4f4f5` (en oscuro, `#263743` los dos) → las secciones se funden con la página; franjas de 24 px del color exterior entre bloques y, en oscuro, una celda blanca sin versión oscura sobre una foto.
+- Causa raíz: `studio/hermes/email-base.html` usaba `[FONDO DE LA PIEZA]` en el body y en la tabla exterior, y el contenedor de 600 px no tenía fondo propio.
+- `email-base.html`: `[FONDO EXTERIOR]` (body y tabla exterior, clase `.dm-outer` con `[FONDO EXTERIOR OSCURO]`) y el lienzo de 600 px con `bgcolor`/`background-color` `[FONDO DE LA PIEZA]` y `.dm-bg`.
+- `standalone.ts` (encargo, Maquetación): espacios en múltiplos de 8; exterior y lienzo distinguibles en claro y oscuro; sin filas separadoras de color propio; cada fondo con su versión oscura (también celdas de foto).
+- `renderChecks.ts`: `frameMetrics`/`frameFromPixels`/`frameFindings` — captura a 900 px en claro y oscuro, por píxeles: «Lienzo distinguible» (error si un tramo seguido de ≥100 px tiene el borde del lienzo del color del exterior) y «Sin franjas sueltas» (error por franja plana de 4-28 px entre dos bloques de otro color o pegada al borde de una foto; líneas de 1-3 px no cuentan). `qualityCheck.ts`/`inspect.ts`: dos controles nuevos, solo piezas nuevas con diseño.
+- Calibrado con las 13 últimas piezas: franjas solo en las dos de Inglesina (sin falsos positivos); lienzo en 11 de 13 — real: todas se fundían por la base. Tests 226/226; motor íntegro.

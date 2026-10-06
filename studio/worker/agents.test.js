@@ -375,15 +375,72 @@ test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y re
   assert.deepEqual(r.mejoras, ['Texto secundario de 13 a 16 px en la apertura']);
   assert.deepEqual(r.legacy, []);
   assert.deepEqual(r.improve, [true, false, false]);
-  // Peor: más total (41 > 36) pero oscuro cae a 3 desde 4 → se descarta.
+  // Peor: más total (48 > 40) pero oscuro cae a 3 desde 4 → se descarta.
   assert.deepEqual(r.keep, [true, false, true, true]);
-  assert.equal(r.total, 36);
+  assert.equal(r.total, 40);
   assert.match(r.q, /5 = lo firmaría el director de arte de la marca/);
   assert.match(r.q, /"mejoras"/);
   assert.match(r.q, /2\. Llama a vision_analyze con image_url \/tmp\/web-marca\.jpg y region \[0, 0, 1280, 900\]/);
   assert.match(r.q, /3\. Con lo que te devuelvan, responde SOLO con un JSON/);
   assert.doesNotMatch(r.qNoWeb, /web-marca/);
   assert.match(r.qNoWeb, /2\. Con lo que te devuelva, responde SOLO/);
+});
+
+test('Copy concreto: muletillas en titulares y texto, botones genéricos; aviso en el control y reglas en los encargos', () => {
+  const html = `<html><head><style>.x{}</style></head><body>
+    <h1>Descubre la nueva W3 Shiga</h1><p>Tres capas para la nieve, en tu día a día también.</p>
+    <a href="https://x.es/a" class="btn">Descubre más</a><a href="https://x.es/b">Elige tu talla</a>
+    <!--[if mso]><v:roundrect><center>Descubre más</center></v:roundrect><![endif]--></body></html>`;
+  const clean = '<html><body><h1>W3 Shiga: tres capas para la nieve</h1><p>La chaqueta pesa 680 g.</p><a href="https://x.es/a">Elige tu talla</a></body></html>';
+  const r = run(`
+    const c = require(${mod('copyCheck.ts')});
+    const q = require(${mod('qualityCheck.ts')});
+    const s = require(${mod('../server/standalone.ts')});
+    const w = require(${mod('hermes-worker.ts')});
+    const item = (h) => q.staticChecks(h).find((x) => x.id === 'copy');
+    const review = w.artReviewQuery(undefined, '# Brief', '<p>x</p>', '/tmp/h.jpg', undefined, null, c.copyFindings(${JSON.stringify(html)}).found);
+    process.stdout.write(JSON.stringify({ bad: c.copyFindings(${JSON.stringify(html)}), good: c.copyFindings(${JSON.stringify(clean)}), badItem: item(${JSON.stringify(html)}), goodItem: item(${JSON.stringify(clean)}), rules: c.COPY_RULES.join(' '), review, critique: w.BRIEF_CRITIQUE.join(' '), criteria: Object.keys(w.ART_CRITERIA) }));
+  `);
+  assert.equal(r.bad.warnings.length, 3);
+  assert.match(r.bad.warnings[0], /Muletilla «descubre»: …Descubre la nueva W3 Shiga/);
+  assert.ok(r.bad.warnings.some((x) => /«en tu día a día»/.test(x)));
+  assert.ok(r.bad.warnings.some((x) => /Botón genérico «Descubre más»/.test(x)));
+  assert.ok(!r.bad.warnings.some((x) => /Elige tu talla/.test(x)));
+  assert.deepEqual(r.good.warnings, []);
+  assert.equal(r.badItem.status, 'warning');
+  assert.equal(r.badItem.errorCount, 0);
+  assert.equal(r.goodItem.status, 'ok');
+  assert.match(r.rules, /verbo \+ objeto/);
+  assert.match(r.rules, /«en tu día a día»/);
+  assert.match(r.review, /Copy genérico que ha detectado Studio.*botón «Descubre más»/);
+  assert.match(r.critique, /«explora»/);
+  assert.ok(r.criteria.includes('copy'));
+});
+
+test('Lienzo y franjas: secciones del color del exterior y franjas sueltas, medidas por píxeles', () => {
+  const r = run(`
+    const rc = require(${mod('renderChecks.ts')});
+    // Página de 900 px; lienzo 150-750 y 0-1000. Exterior gris claro.
+    const OUT = [244, 244, 245], DARK = [52, 73, 87], WHITE = [255, 255, 255], LIGHT = [234, 236, 240];
+    const page = (rows) => (x, y) => (x < 150 || x >= 750 ? OUT : rows(y, x));
+    const box = { left: 150, right: 750, top: 0, bottom: 1000 };
+    // Mala: sección 300-500 del color del exterior; franja de 20 px (600-620) del exterior entre dos bloques oscuros;
+    // franja blanca de 16 px (800-816) pegada a una foto que empieza en 816.
+    const bad = page((y, x) => (y < 300 ? DARK : y < 500 ? OUT : y < 600 ? DARK : y < 620 ? OUT : y < 800 ? DARK : y < 816 ? WHITE : (x + y) % 7 ? [90, 90, 90] : [20, 20, 20]));
+    // Buena: lienzo blanco y secciones oscuras, sin franjas; una línea de 2 px no cuenta.
+    const good = page((y) => (y < 400 ? WHITE : y < 402 ? [200, 200, 200] : y < 700 ? DARK : LIGHT));
+    const mb = rc.frameFromPixels(bad, box, 900, [816, 1000]);
+    const mg = rc.frameFromPixels(good, box, 900, []);
+    process.stdout.write(JSON.stringify({ mb, mg, f: rc.frameFindings(mb, null), ok: rc.frameFindings(mg, mg) }));
+  `);
+  assert.deepEqual(r.mb.blend, [{ y: 300, h: 200 }]);
+  assert.deepEqual(r.mb.strips.map((x) => [x.y, x.h]), [[600, 20], [800, 16]]);
+  assert.deepEqual(r.mg.blend, []);
+  assert.deepEqual(r.mg.strips, []);
+  assert.match(r.f.canvas.errors[0], /En claro, una sección se funde con el fondo exterior \(#f4f4f5\): 200 px a 300 px/);
+  assert.equal(r.f.strips.errors.length, 2);
+  assert.match(r.f.strips.errors[1], /franja suelta de 16 px de color #ffffff/);
+  assert.deepEqual(r.ok, { canvas: { errors: [], warnings: [] }, strips: { errors: [], warnings: [] } });
 });
 
 test('Ficha de producto: URLs de ficha del brief, umbrales de envío y fotos del propio producto', () => {

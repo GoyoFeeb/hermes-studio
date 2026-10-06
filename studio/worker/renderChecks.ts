@@ -199,6 +199,153 @@ export interface RenderReport {
   dark: Findings | null;
   /** Imagen principal y variedad de fotos (photoFindings). */
   photos: { hero: Findings; variety: Findings };
+  /** Lienzo distinguible del fondo exterior y franjas sueltas, medidos por píxeles en claro y oscuro (frameFindings). */
+  frame: { canvas: Findings; strips: Findings };
+}
+
+// --- Lienzo y franjas (2026-10-06) ---------------------------------------------------------------------
+// Inglesina: el fondo exterior y las secciones claras eran #f4f4f5 (en oscuro, #263743 los dos) y la pieza no tenía
+// bordes; entre bloques quedaban franjas de 12-24 px de otro color (en oscuro, una celda blanca sin versión oscura).
+// Se mide la pieza renderizada a 900 px, por píxeles: lo que se ve, sin interpretar el CSS.
+
+const FRAME_WIDTH = 900;
+/** Un tramo seguido de al menos este alto con el borde del lienzo igual al exterior = una sección que se funde con la
+ *  página (medir la parte del alto total lo diluía: en Inglesina, 26 % con dos secciones enteras fundidas). */
+export const CANVAS_BLEND_RUN = 100;
+export const STRIP_MIN = 4;
+export const STRIP_MAX = 28;
+
+export interface FrameMetrics {
+  /** Tramos (y, alto) en los que el borde del lienzo tiene el color del exterior; null si no hay exterior visible. */
+  blend: { y: number; h: number }[] | null;
+  outer: string | null;
+  strips: { y: number; h: number; color: string }[];
+}
+
+type Px = [number, number, number];
+const dist = (a: Px, b: Px): number => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]);
+const hexOf = (c: Px): string => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+
+/** Mide una captura: `px(x, y)` da el color; `box` es el lienzo de 600 px en la captura. Pura, para los tests. */
+export function frameFromPixels(
+  px: (x: number, y: number) => Px,
+  box: { left: number; right: number; top: number; bottom: number },
+  width: number,
+  imgEdges: number[] = []
+): FrameMetrics {
+  const { left, right, top, bottom } = box;
+  let blend: FrameMetrics['blend'] = null;
+  let outer: Px | null = null;
+  if (left >= 40 && right <= width - 40) {
+    blend = [];
+    let start = -1;
+    for (let y = top; y <= bottom; y++) {
+      const o = px(left - 30, Math.min(y, bottom - 1));
+      outer = outer || o;
+      const same = y < bottom && dist(o, px(left + 3, y)) < 14 && dist(px(right + 29, y), px(right - 4, y)) < 14;
+      if (same && start < 0) start = y;
+      if (!same && start >= 0) {
+        if (y - start >= CANVAS_BLEND_RUN) blend.push({ y: start - top, h: y - start });
+        start = -1;
+      }
+    }
+  }
+  // Bordes de las fotos (arriba y abajo), relativos al lienzo: una franja pegada a una foto también es franja.
+  const edges = imgEdges.map((e) => e - top);
+  const atImage = (y: number): boolean => edges.some((e) => Math.abs(e - y) <= 2);
+  // Filas planas: todo el ancho del lienzo del mismo color.
+  const flat: (Px | null)[] = [];
+  for (let y = top; y < bottom; y++) {
+    const first = px(left + 2, y);
+    let ok = true;
+    for (let x = left + 2; x < right - 2 && ok; x += 6) ok = dist(px(x, y), first) < 10;
+    flat.push(ok ? first : null);
+  }
+  const strips: FrameMetrics['strips'] = [];
+  let i = 0;
+  while (i < flat.length) {
+    const c = flat[i];
+    if (!c) {
+      i++;
+      continue;
+    }
+    let j = i + 1;
+    while (j < flat.length && flat[j] && dist(flat[j]!, c) < 10) j++;
+    const h = j - i;
+    const above = i > 0 ? flat[i - 1] : null;
+    const below = j < flat.length ? flat[j] : null;
+    // Franja: entre dos bloques planos de otro color (padding o fondo), o entre uno y el borde de una foto (Inglesina en
+    // oscuro: celda blanca de 20 px sobre la foto); no al principio ni al final de la pieza.
+    const diff = (n: Px | null): boolean => !!n && dist(n, c) >= 24;
+    const between = (diff(above) && diff(below)) || (diff(above) && !below && atImage(j)) || (diff(below) && !above && atImage(i));
+    if (h >= STRIP_MIN && h <= STRIP_MAX && i > 0 && j < flat.length && between) {
+      strips.push({ y: i, h, color: hexOf(c) });
+    }
+    i = j;
+  }
+  return { blend, outer: outer ? hexOf(outer) : null, strips };
+}
+
+/** Captura a 900 px y mide el lienzo (el bloque de 560-640 px de ancho más alto). */
+async function frameMetrics(browser: Browser, htmlPath: string, dark: boolean): Promise<FrameMetrics | null> {
+  const page = await browser.newPage({ viewport: { width: FRAME_WIDTH, height: 900 }, colorScheme: dark ? 'dark' : 'light', javaScriptEnabled: false });
+  try {
+    await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
+    const edges = (await page.evaluate(`(function () {
+      var out = [];
+      document.querySelectorAll('img').forEach(function (im) {
+        var r = im.getBoundingClientRect();
+        if (r.width >= 200 && r.height >= 60) { out.push(Math.round(r.top + window.scrollY)); out.push(Math.round(r.bottom + window.scrollY)); }
+      });
+      return out;
+    })()`)) as number[];
+    const box = (await page.evaluate(`(function () {
+      var best = null;
+      document.querySelectorAll('table, div, td').forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.width >= 560 && r.width <= 640 && r.height > 200 && (!best || r.height > best.bottom - best.top)) {
+          best = { left: Math.round(r.left + window.scrollX), right: Math.round(r.right + window.scrollX), top: Math.round(r.top + window.scrollY), bottom: Math.round(r.bottom + window.scrollY) };
+        }
+      });
+      return best;
+    })()`)) as { left: number; right: number; top: number; bottom: number } | null;
+    if (!box) return null;
+    const { data, info } = await sharp(await page.screenshot({ fullPage: true })).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const px = (x: number, y: number): Px => {
+      const cx = Math.max(0, Math.min(info.width - 1, x));
+      const cy = Math.max(0, Math.min(info.height - 1, y));
+      const k = (cy * info.width + cx) * 3;
+      return [data[k], data[k + 1], data[k + 2]];
+    };
+    return frameFromPixels(px, { ...box, bottom: Math.min(box.bottom, info.height) }, info.width, edges);
+  } finally {
+    await page.close();
+  }
+}
+
+/** Lo medido en claro y en oscuro, en errores para Hermes. */
+export function frameFindings(light: FrameMetrics | null, dark: FrameMetrics | null): { canvas: Findings; strips: Findings } {
+  const canvas: Findings = { errors: [], warnings: [] };
+  const strips: Findings = { errors: [], warnings: [] };
+  for (const [m, mode] of [[light, 'claro'], [dark, 'oscuro']] as const) {
+    if (!m) continue;
+    if (m.blend && m.blend.length) {
+      const where = m.blend.slice(0, 3).map((b) => `${b.h} px a ${b.y} px del inicio`).join(', ');
+      canvas.errors.push(
+        `En ${mode}, ${m.blend.length === 1 ? 'una sección se funde' : `${m.blend.length} secciones se funden`} con el fondo exterior (${m.outer}): ${where}. ` +
+          'El body y el lienzo de 600 px tienen que distinguirse a simple vista (p. ej. un neutro de la marca algo más oscuro alrededor de un lienzo ' +
+          'blanco o de color, con su versión oscura en .dm-outer), y ninguna sección puede tener el color del exterior.'
+      );
+    }
+    for (const st of m.strips.slice(0, 4)) {
+      strips.errors.push(
+        `En ${mode}, franja suelta de ${st.h} px de color ${st.color} a ${st.y} px del inicio de la pieza, entre dos bloques de otro color: ` +
+          'quita la fila separadora (la separación va en el padding de cada sección) o, si es el fondo de una celda, dale su versión oscura.'
+      );
+    }
+    if (m.strips.length > 4) strips.errors.push(`… y ${m.strips.length - 4} franja(s) más en ${mode}.`);
+  }
+  return { canvas, strips };
 }
 
 /** Resumen de la galería de campaña que dejó el worker (productSheet.ts, _trabajo/galeria.json). */
@@ -489,6 +636,7 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
       images: await imageFindings(html, path.dirname(htmlPath), root, desktop.imgWidths),
       imgWidths: desktop.imgWidths,
       photos: photoFindings(html, desktop.imgWidths, desktop.imgTops, readGallery(path.dirname(htmlPath))),
+      frame: frameFindings(await frameMetrics(browser, htmlPath, false).catch(() => null), darkCss ? await frameMetrics(browser, htmlPath, true).catch(() => null) : null),
     };
   } catch (err) {
     console.log(`No se pudo renderizar la pieza para medirla: ${(err as Error).message.slice(0, 200)}`);

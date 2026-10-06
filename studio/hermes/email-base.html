@@ -53,26 +53,31 @@
 
     /* Modo oscuro: define los colores de la pieza en oscuro (fondos, textos, botones, logo claro si hace falta). */
     @media (prefers-color-scheme: dark) {
+      .dm-outer { background-color: [FONDO EXTERIOR OSCURO] !important; }
       .dm-bg { background-color: [FONDO OSCURO] !important; }
       .dm-text { color: [TEXTO CLARO] !important; }
       .dm-logo-light { display: none !important; }
       .dm-logo-dark { display: block !important; max-height: none !important; overflow: visible !important; }
     }
     [data-ogsc] .dm-text { color: [TEXTO CLARO] !important; }
+    [data-ogsb] .dm-outer { background-color: [FONDO EXTERIOR OSCURO] !important; }
     [data-ogsb] .dm-bg { background-color: [FONDO OSCURO] !important; }
   </style>
 </head>
-<body class="dm-bg" style="margin:0; padding:0; background-color:[FONDO DE LA PIEZA];">
+<!-- Dos fondos (2026-10-06): el EXTERIOR, alrededor de la pieza, y el de la PIEZA (el lienzo de 600 px). Tienen que
+     distinguirse en claro y en oscuro; si son iguales, la pieza no tiene bordes y sus secciones se funden con la página
+     (Inglesina: #f4f4f5 y #f4f4f5; en oscuro, #263743 y #263743). Studio lo mide. -->
+<body class="dm-outer" style="margin:0; padding:0; background-color:[FONDO EXTERIOR];">
   <!-- Preheader: se ve junto al asunto en la bandeja. -->
-  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:[FONDO DE LA PIEZA];">
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:[FONDO EXTERIOR];">
     [PREHEADER: una frase que complemente al asunto]&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
   </div>
 
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="dm-bg" style="background-color:[FONDO DE LA PIEZA];">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="dm-outer" style="background-color:[FONDO EXTERIOR];">
     <tr>
       <td align="center">
         <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
-        <table role="presentation" class="container" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px;">
+        <table role="presentation" class="container dm-bg" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="[FONDO DE LA PIEZA]" style="width:100%; max-width:600px; background-color:[FONDO DE LA PIEZA];">
 
           <!-- Cabecera: logo oficial en PNG, descargado en la carpeta del trabajo. -->
           <tr>

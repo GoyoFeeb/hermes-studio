@@ -28,6 +28,7 @@
  * funcionan.
  */
 import { claimFindings } from './claims';
+import { copyFindings } from './copyCheck';
 
 export type CheckStatus = 'ok' | 'warning' | 'error';
 
@@ -158,6 +159,12 @@ export function staticChecks(html: string, missingLocal: string[] = [], verified
   const claimItem = item('claims', 'Claims de riesgo', claims.errors, claims.warnings);
   claimItem.details.push(...claims.verified);
   checks.push(claimItem);
+
+  // Copy genérico (punto 4, 2026-10-06): solo aviso; la revisión de dirección de arte lo recibe y lo reescribe.
+  const copy = copyFindings(html);
+  const copyItem = item('copy', 'Copy concreto', [], copy.warnings);
+  if (copyItem.status === 'ok') copyItem.details.push('Sin muletillas de email marketing ni botones genéricos.');
+  checks.push(copyItem);
 
   // Marcadores de la base técnica (studio/hermes/email-base.html) que se quedaron sin rellenar.
   const leftovers = [...new Set([...html.replace(/<!--(?!\[if)[\s\S]*?-->/g, '').matchAll(/\[(?:[A-ZÁÉÍÓÚÑ0-9][A-ZÁÉÍÓÚÑ0-9 .:,/-]{2,60}|[a-z0-9_-]+\.(?:png|jpe?g))\]/g)].map((m) => m[0]))];
@@ -541,6 +548,8 @@ export interface QualityOptions {
   darkFindings?: { errors: string[]; warnings: string[] } | null;
   /** Imagen principal y variedad de fotos (renderChecks.ts, photoFindings). */
   photoFindings?: { hero: { errors: string[]; warnings: string[] }; variety: { errors: string[]; warnings: string[] } };
+  /** Lienzo distinguible y franjas sueltas (renderChecks.ts, frameFindings). */
+  frameFindings?: { canvas: { errors: string[]; warnings: string[] }; strips: { errors: string[]; warnings: string[] } };
   /** Peso y encuadre de las imágenes (renderChecks.ts, imageFindings). */
   imageFindings?: { errors: string[]; warnings: string[] };
   /** Lo que pidió el equipo y la pieza no nombra (requestCoverage.ts); sin definir = no se comprobó. */
@@ -585,6 +594,13 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
     const v = item('photo-variety', 'Variedad de fotos', opts.photoFindings.variety.errors, opts.photoFindings.variety.warnings);
     if (v.status === 'ok') v.details.push('Fotos distintas suficientes para la galería disponible.');
     checks.push(h, v);
+  }
+  if (opts.frameFindings) {
+    const c = item('canvas', 'Lienzo distinguible', opts.frameFindings.canvas.errors, opts.frameFindings.canvas.warnings);
+    if (c.status === 'ok') c.details.push('La pieza se distingue del fondo exterior en claro y en oscuro.');
+    const st = item('strips', 'Sin franjas sueltas', opts.frameFindings.strips.errors, opts.frameFindings.strips.warnings);
+    if (st.status === 'ok') st.details.push('Sin filas separadoras de otro color entre las secciones.');
+    checks.push(c, st);
   }
   if (opts.requestMissing !== undefined) {
     const d = item(

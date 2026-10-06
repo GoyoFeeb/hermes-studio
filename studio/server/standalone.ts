@@ -26,6 +26,7 @@ import { applyTextEdits, type TextEdit, type AltEdit, type LinkEdit, type ImageE
 import { createJob } from './store';
 import { joinLabels, requestTerms } from './requestCoverage';
 import { CLAIMS_BRIEF_RULE, CLAIMS_PIECE_RULE } from '../worker/claims';
+import { COPY_RULES } from '../worker/copyCheck';
 import { PATTERNS_GUIDE, catalogIndex } from '../hermes/catalog';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
@@ -77,7 +78,13 @@ export const DESIGN_RULES = [
   '- Maquetación (Studio lo mide al recibir la pieza):',
   '  · Aire: nunca un texto pegado a una imagen. Entre una foto y el texto que la sigue o la precede, al menos 32 px',
   '    (padding de la celda, no solo margin del texto). Ritmo vertical coherente: mismos espacios entre bloques',
-  '    equivalentes.',
+  '    equivalentes, en múltiplos de 8 (24, 32, 48, 64).',
+  '  · Fondos: el EXTERIOR (body, alrededor de la pieza) y el de la PIEZA (el lienzo de 600 px) se distinguen a simple',
+  '    vista en claro y en oscuro (p. ej. un neutro de la marca algo más oscuro alrededor de un lienzo blanco o de color):',
+  '    si son iguales, las secciones se funden con la página. Studio lo mide.',
+  '  · Sin franjas sueltas: la separación entre secciones va en el padding de cada sección, nunca en una fila separadora',
+  '    con color propio; dos secciones de color distinto van pegadas. En oscuro, cada fondo (también el de las celdas de',
+  '    foto) tiene su versión oscura: una celda blanca que se queda blanca es una franja. Studio las mide (4-28 px).',
   '  · Móvil: laterales de 20-24 px a 375 px (aplica de verdad la clase de la media query a cada celda con texto;',
   '    una clase definida y sin usar no cuenta). Botones alineados con el texto y con el mismo margen lateral.',
   '  · Estructura propia del concepto: al menos un módulo pensado para ESTA pieza (comparativa, rejilla, cita,',
@@ -112,6 +119,7 @@ export function buildHermesPrompt(job: Job): string {
     '- Nadie va a responder preguntas durante esta ejecución: no uses clarify ni esperes confirmación.',
     '  Si falta un dato, no lo inventes: déjalo fuera de la pieza y anótalo como pendiente.',
     ...CLAIMS_PIECE_RULE,
+    ...COPY_RULES,
     '- Lo que el brief deja como pendiente NO se investiga aquí y NO entra en la pieza, salvo que la «Ficha de producto',
     '  ya extraída» de Studio (más abajo, si la hay) lo traiga. Esta fase maqueta; no vuelve a navegar la web.',
     `- Entrega UN ÚNICO archivo HTML de email, final y listo para enviar, en: ${outDir}/newsletter.html`,
@@ -264,6 +272,7 @@ export function buildBriefPrompt(job: Job): string {
     '  marca, secuencia…), no solo «foto a todo el ancho + titular + texto».',
     '- Copy: máximo 40 palabras por bloque; cada dato técnico dentro de una frase con verbo, contado como experiencia.',
     '- Los titulares hablan al cliente: nada de códigos de color (#25282a), referencias internas ni jerga de diseño.',
+    ...COPY_RULES,
     '- Si verificas el precio y la pieza es para vender (ocasión de compra, oferta, lanzamiento), el precio sale en una escena.',
     CLAIMS_BRIEF_RULE,
     '',
