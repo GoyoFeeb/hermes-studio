@@ -2244,3 +2244,8 @@ El usuario pidió «vamos con todas».
 - `store.ts`: `Job.artReview` (`JobArtReview`), `finalArtNotes` (después si la mejora se quedó) y `artPct` (porcentaje: los criterios pasan de 9 a 10 con el punto 4). `standalone.ts`: `sanitizeArtReview`. `index.ts`: se guarda al completar; el historial recibe `art {pct, notes}`; la ficha de marca recibe `quality {points, criteria}` (30 últimas, criterios de peor a mejor).
 - Web: panel «Revisión de dirección de arte» en cada trabajo (barra por criterio, antes → después, problemas y mejoras); «calidad N %» en cada fila del historial y «calidad media» en el resumen (respeta el filtro de marca; última versión de cada newsletter); sección «Calidad» en la ficha de marca (media, gráfico por fecha y los dos criterios más flojos).
 - Solo piezas nuevas (las anteriores no tienen notas en Studio). Tests 227/227.
+
+### 2026-10-06 — Studio: animaciones de la vista previa al pasar y pasos en vivo (pedido por el usuario)
+- Historial: al pasar el ratón por la miniatura de una fila, tarjeta grande (180×240) inclinada como las del abanico de la cabecera con la parte de arriba de la pieza (`thumb-peek`); solo con ratón, se oculta al salir o al hacer scroll.
+- Cabecera: los pasos «01 Investiga — 04 Corrige» siguen la fase real de la pieza en curso (`renderLiveSteps`/`liveStep`, por `stageLabel`: brief/preparación/investigación → 1, escribiendo → 2, revisando → 3 y, desde el 90 %, 4); lo hecho en rosa, el paso actual con brillo, y «● Ahora: <marca> · <fase> · N %» con enlace. Sin nada en curso, una luz recorre los pasos.
+- Todo se apaga con «reducir movimiento». Verificado en local; tests 227/227.

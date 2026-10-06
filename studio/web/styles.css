@@ -2111,3 +2111,49 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 .art-spark circle { fill: var(--bg); stroke: currentColor; stroke-width: 2; }
 .stat.stat-static { cursor: default; }
 .stat.stat-static:hover { transform: none; border-color: var(--border); }
+
+/* ---------- pasos en vivo y vista previa al pasar (2026-10-06) ---------- */
+.hero-steps li { transition: color 0.4s ease; }
+.hero-steps .step-num { transition: color 0.4s ease, text-shadow 0.4s ease; }
+.hero-steps li + li::before { background: var(--border-strong); transition: background 0.5s ease; position: relative; }
+/* Con una pieza en curso: lo hecho y el paso actual en rosa; lo que falta, apagado. */
+.hero-steps.is-live li { color: var(--muted); }
+.hero-steps.is-live li.is-done, .hero-steps.is-live li.is-current { color: var(--text); }
+.hero-steps.is-live li.is-done .step-num, .hero-steps.is-live li.is-current .step-num { color: var(--pink); }
+.hero-steps.is-live li.is-done + li::before, .hero-steps.is-live li.is-current::before { background: var(--pink); }
+.hero-steps.is-live li.is-current .step-num { animation: step-glow 1.6s ease-in-out infinite; }
+@keyframes step-glow { 50% { text-shadow: 0 0 14px rgba(251, 115, 255, 0.75); } }
+/* Sin nada en curso: una luz recorre los pasos, uno tras otro. */
+.hero-steps.is-idle li .step-num { animation: step-idle 6s ease-in-out infinite; }
+.hero-steps.is-idle li:nth-child(2) .step-num { animation-delay: 1.5s; }
+.hero-steps.is-idle li:nth-child(3) .step-num { animation-delay: 3s; }
+.hero-steps.is-idle li:nth-child(4) .step-num { animation-delay: 4.5s; }
+@keyframes step-idle { 0%, 30%, 100% { color: var(--section-num); } 12% { color: var(--pink); } }
+.hero-steps-live { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; font-size: var(--fs-small); color: var(--muted); }
+.hero-steps-live a { color: var(--text); font-weight: 600; }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); box-shadow: 0 0 0 0 rgba(251, 115, 255, 0.6); animation: live-dot 1.6s ease-out infinite; }
+@keyframes live-dot { 70% { box-shadow: 0 0 0 8px rgba(251, 115, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(251, 115, 255, 0); } }
+
+.thumb-peek {
+  position: fixed;
+  z-index: 80;
+  width: 180px;
+  height: 240px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.5), 0 0 0 2px var(--pink);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-12px) rotate(-6deg) scale(0.85);
+  transform-origin: 0% 50%;
+  transition: opacity 0.18s ease, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1.2);
+}
+.thumb-peek.is-on { opacity: 1; transform: rotate(-3deg) scale(1); }
+.thumb-peek img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-steps .step-num, .live-dot { animation: none !important; }
+  .thumb-peek { transition: opacity 0.1s; transform: none; }
+  .thumb-peek.is-on { transform: none; }
+}

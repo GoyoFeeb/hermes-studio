@@ -824,6 +824,7 @@ async function loadHistory() {
     renderHistoryJump(jobs);
     renderNowStrip(jobs);
     renderShowcase(jobs);
+    renderLiveSteps(jobs);
 
     const brandSelect = document.getElementById('history-brand');
     const current = brandSelect.value;
@@ -1116,6 +1117,67 @@ function renderShowcase(jobs) {
         `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"><span class="show-brand">${escapeHtml(j.clientName || '')}</span></a>`
     )
     .join('');
+}
+
+/** Paso de la cabecera (1-4) de una pieza en curso según su fase (stageLabel del worker). */
+function liveStep(j) {
+  const label = j.stageLabel || '';
+  if (/^(Escribiendo la newsletter|Aplicando los cambios)/.test(label)) return 2;
+  if (/^Revisando/.test(label)) return (j.pct ?? 0) >= 90 ? 4 : 3;
+  return 1; // brief, preparación, investigación o lectura de la versión original
+}
+
+/** Pasos en vivo (2026-10-06): con una pieza en curso, la línea rosa avanza hasta su paso; sin nada, una luz recorre
+ *  los pasos despacio (clase is-idle). */
+function renderLiveSteps(jobs) {
+  const steps = document.querySelector('.hero-steps');
+  const caption = document.getElementById('hero-steps-live');
+  if (!steps || !caption) return;
+  const running = jobs.find((j) => j.status === 'running' && !j.archivedAt);
+  const items = [...steps.querySelectorAll('li')];
+  steps.classList.toggle('is-idle', !running);
+  steps.classList.toggle('is-live', !!running);
+  const current = running ? liveStep(running) : 0;
+  items.forEach((li, i) => {
+    li.classList.toggle('is-done', i + 1 < current);
+    li.classList.toggle('is-current', i + 1 === current);
+  });
+  caption.hidden = !running;
+  if (running) {
+    caption.innerHTML = `<span class="live-dot" aria-hidden="true"></span>Ahora: <a href="?job=${encodeURIComponent(running.id)}">${escapeHtml(running.clientName || 'una newsletter')}</a> · ${escapeHtml(running.stageLabel || 'en marcha')}${running.pct != null ? ` · ${running.pct} %` : ''}`;
+  }
+}
+
+// Vista previa al pasar por la miniatura de una fila del historial (2026-10-06): una tarjeta grande e inclinada como
+// las del abanico de la cabecera, con la parte de arriba de la pieza. Solo con ratón (no en pantallas táctiles).
+const peek = document.createElement('div');
+peek.className = 'thumb-peek';
+peek.setAttribute('aria-hidden', 'true');
+peek.innerHTML = '<img alt="" width="300" height="400">';
+document.body.appendChild(peek);
+let peekFor = null;
+function showPeek(img) {
+  const r = img.getBoundingClientRect();
+  peekFor = img;
+  peek.querySelector('img').src = img.currentSrc || img.src;
+  const w = 180, h = 240;
+  const left = Math.min(window.innerWidth - w - 16, r.right + 16);
+  const top = Math.max(16, Math.min(window.innerHeight - h - 16, r.top + r.height / 2 - h / 2));
+  peek.style.left = `${left}px`;
+  peek.style.top = `${top}px`;
+  peek.classList.add('is-on');
+}
+function hidePeek() {
+  peekFor = null;
+  peek.classList.remove('is-on');
+}
+if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  document.addEventListener('mouseover', (e) => {
+    const img = e.target.closest?.('#history-list .thumb img, .job-row .thumb img');
+    if (img && img !== peekFor && !img.closest('.is-gallery')) showPeek(img);
+    else if (!img && peekFor) hidePeek();
+  });
+  window.addEventListener('scroll', hidePeek, { passive: true });
 }
 
 function renderNowStrip(jobs) {
