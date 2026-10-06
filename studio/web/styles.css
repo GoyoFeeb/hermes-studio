@@ -2530,3 +2530,38 @@ input.is-shake, textarea.is-shake, select.is-shake { border-color: var(--pink) !
   .section-thread { display: none; }
   .section-num.is-lit { animation: none; }
 }
+
+/* ---------- 8.ª tanda de animaciones (2026-10-06) ---------- */
+/* Descarga con flecha: sobre la esquina del botón, una flechita cae en una bandeja (la insignia) y se vuelve ✓. */
+.btn.is-dl { position: relative; overflow: visible; }
+.btn.is-dl::before, .btn.is-dl::after {
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+.btn.is-dl::before { content: '↓'; color: var(--pink); z-index: 2; animation: dl-arrow 1.6s ease both; }
+.btn.is-dl::after { content: '✓'; border-radius: 50%; background: var(--pink); color: #14183f; box-shadow: 0 0 0 3px rgba(251, 115, 255, 0.25); animation: dl-badge 1.6s ease both; }
+@keyframes dl-arrow {
+  0% { transform: translateY(-14px); opacity: 0; }
+  15% { opacity: 1; }
+  45% { transform: translateY(0); opacity: 1; }
+  55%, 100% { transform: translateY(2px); opacity: 0; }
+}
+@keyframes dl-badge {
+  0%, 40% { transform: scale(0.6); opacity: 0; color: transparent; }
+  50% { transform: scale(1.15); opacity: 1; color: transparent; }
+  60% { transform: scale(1); color: #14183f; }
+  85% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn.is-dl::before, .btn.is-dl::after { display: none; }
+}

@@ -2328,3 +2328,10 @@ El usuario pidió «vamos con todas».
 ### 2026-10-06 — Studio: hilo que conecta la sección 01 con la 02 (pedido por el usuario)
 - En el margen izquierdo de `#view-form`, una línea rosa→morado (`.section-thread`, con punto brillante en la punta) se dibuja del «01 Nueva newsletter» al «02 Historial» según se baja (avance = posición del 60 % de la pantalla entre ambos títulos; ligado al scroll, se recoge al subir). Al llegar, el «02» se ilumina (rosa mezclado con su azul: en rosa pleno tapaba «Historial») y vuelve a su color.
 - Va en el mismo cálculo por fotograma del parallax (`backgroundAndInteractions`), sin escuchadores nuevos salvo `resize`. Se mide sobre los títulos, no los números (tienen parallax). Oculto si el historial no se ve; nada con «reducir movimiento». Sin efecto en fases cerradas.
+
+### 2026-10-06 — Studio: 8.ª tanda de animaciones (pedido por el usuario)
+- Lista ↔ galería que se transforma (`morphThumbs`): cada miniatura viaja y se escala desde su sitio en la vista anterior (clave: el enlace del trabajo); el resto entra con fundido. Sustituye a la cascada de ese botón (que queda si no hay parejas).
+- Versiones que se despliegan (`foldFamily`): «Ver las otras versiones» crece desde 0 con las versiones en cascada; al ocultar se pliega antes de repintar. El foco sigue volviendo al botón.
+- Archivar con salida (`leaveRow`): solo tras confirmar el servidor, la fila se desliza a la derecha, se desvanece y cierra su hueco; luego se recarga el historial como antes.
+- Descarga con flecha: clic delegado en cualquier `a.btn[href*="download=1"]` → en la esquina del botón una flechita cae en una insignia rosa que se vuelve ✓ (1,6 s). Solo decoración.
+- Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.

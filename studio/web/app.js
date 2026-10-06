@@ -1259,6 +1259,47 @@ function flipRender(listId, render) {
   }
 }
 
+/** Versiones que se despliegan (2026-10-06): la lista crece desde 0 y las versiones entran una tras otra; al ocultar,
+ *  se pliega y luego se repinta. */
+function foldFamily(list, open) {
+  if (!list || list.hidden || !motionOk() || !list.animate) return Promise.resolve();
+  const h = list.scrollHeight;
+  const frames = open ? [{ height: '0px', opacity: 0 }, { height: `${h}px`, opacity: 1 }] : [{ height: `${h}px`, opacity: 1 }, { height: '0px', opacity: 0 }];
+  list.style.overflow = 'hidden';
+  const anim = list.animate(frames, { duration: open ? 320 : 240, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)' });
+  if (open) [...list.children].forEach((li, i) => li.animate([{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 280, delay: 60 + i * 50, easing: 'ease-out', fill: 'backwards' }));
+  return anim.finished.catch(() => undefined).then(() => {
+    list.style.overflow = '';
+  });
+}
+
+/** Archivar con salida (2026-10-06): la fila se desliza a la derecha, se desvanece y cierra su hueco. */
+function leaveRow(row) {
+  if (!row || !motionOk() || !row.animate) return Promise.resolve();
+  const h = row.offsetHeight;
+  row.style.overflow = 'hidden';
+  const anim = row.animate(
+    [
+      { transform: 'none', opacity: 1, height: `${h}px` },
+      { transform: 'translateX(40px)', opacity: 0, height: `${h}px`, offset: 0.55 },
+      { transform: 'translateX(40px)', opacity: 0, height: '0px', paddingTop: '0px', paddingBottom: '0px', marginTop: '-12px', borderWidth: '0px' },
+    ],
+    { duration: 520, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'forwards' }
+  );
+  return anim.finished.catch(() => undefined);
+}
+
+/** Descarga con flecha (2026-10-06): una flechita cae en una bandeja sobre el botón y se vuelve ✓. Solo decoración. */
+document.addEventListener('click', (e) => {
+  const a = e.target.closest?.('a[href*="download=1"]');
+  if (!a || !motionOk() || !a.classList.contains('btn')) return;
+  a.classList.remove('is-dl');
+  void a.offsetWidth;
+  a.classList.add('is-dl');
+  clearTimeout(a._dlTimer);
+  a._dlTimer = setTimeout(() => a.classList.remove('is-dl'), 1600);
+});
+
 /** Salto con destello: desplaza como siempre y, al llegar, el destino da un aro rosa que se abre y se apaga. */
 function jumpTo(el, block = 'start') {
   if (!el) return;
@@ -2115,10 +2156,40 @@ document.querySelectorAll('[data-history-view]').forEach((b) =>
     } catch {
       // sin almacenamiento
     }
-    renderHistory();
-    playCascade(document.getElementById('history-list'));
+    morphThumbs(renderHistory);
   })
 );
+
+/** Lista ↔ galería que se transforma (2026-10-06): cada miniatura viaja y se escala desde su sitio en la vista
+ *  anterior (por trabajo); el resto entra con un fundido. Sin pareja, solo el fundido. */
+function morphThumbs(render) {
+  const list = document.getElementById('history-list');
+  const keyOf = (t) => (t.closest('a[href]') || t.closest('li')?.querySelector('a[href]'))?.getAttribute('href');
+  const old = new Map();
+  if (motionOk()) list.querySelectorAll('.thumb').forEach((t) => {
+    const k = keyOf(t);
+    const r = t.getBoundingClientRect();
+    if (k && r.width && r.bottom > -200 && r.top < window.innerHeight + 200) old.set(k, r);
+  });
+  render();
+  if (!old.size || !list.animate) return playCascade(list);
+  list.animate([{ opacity: 0.001 }, { opacity: 1 }], { duration: 260, easing: 'ease-out' });
+  list.querySelectorAll('.thumb').forEach((t) => {
+    const was = old.get(keyOf(t));
+    if (!was) return;
+    const now = t.getBoundingClientRect();
+    if (!now.width) return;
+    const sx = was.width / now.width;
+    const sy = was.height / now.height;
+    t.animate(
+      [
+        { transformOrigin: 'top left', transform: `translate(${was.left - now.left}px, ${was.top - now.top}px) scale(${sx}, ${sy})`, opacity: 1 },
+        { transformOrigin: 'top left', transform: 'none', opacity: 1 },
+      ],
+      { duration: 520, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)' }
+    );
+  });
+}
 
 document.getElementById('history-search').addEventListener('input', (e) => {
   historyState.query = e.target.value;
@@ -2196,16 +2267,29 @@ document.getElementById('history-list').addEventListener('click', (e) => {
   const arch = e.target.closest('[data-archive], [data-unarchive]');
   if (arch) {
     const archived = !!arch.dataset.archive;
-    setArchived(arch.dataset.archive || arch.dataset.unarchive, archived).then((ok) => ok && loadHistory());
+    const row = arch.closest('#history-list > li');
+    setArchived(arch.dataset.archive || arch.dataset.unarchive, archived).then(async (ok) => {
+      if (!ok) return;
+      await leaveRow(row);
+      loadHistory();
+    });
     return;
   }
   const fam = e.target.closest('[data-family]');
   if (fam) {
     const root = fam.dataset.family;
-    if (openFamilies.has(root)) openFamilies.delete(root);
-    else openFamilies.add(root);
-    renderHistory();
-    document.querySelector(`[data-family="${CSS.escape(root)}"]`)?.focus();
+    const closing = openFamilies.has(root);
+    const toggle = async () => {
+      if (closing) {
+        await foldFamily(document.getElementById(fam.getAttribute('aria-controls')), false);
+        openFamilies.delete(root);
+      } else openFamilies.add(root);
+      renderHistory();
+      const btn = document.querySelector(`[data-family="${CSS.escape(root)}"]`);
+      btn?.focus();
+      if (!closing) foldFamily(btn && document.getElementById(btn.getAttribute('aria-controls')), true);
+    };
+    toggle();
     return;
   }
   const btn = e.target.closest('[data-reuse]');
