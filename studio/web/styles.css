@@ -2213,3 +2213,102 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
   #view-job.is-landing, #history-list > li.just-done, #history-list > li.just-done .thumb img, .show-card.is-new, .is-cascade > * { animation: none !important; }
   .seg-pill { transition: none; }
 }
+
+/* ---------- fondo de newsletters flotando e interacciones (2026-10-06) ---------- */
+.bg-float { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; transform: translateY(var(--py, 0px)); }
+.bg-card {
+  position: absolute;
+  left: var(--x);
+  top: 100%;
+  width: calc(90px * var(--s));
+  height: calc(120px * var(--s));
+  padding: calc(8px * var(--s));
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--s));
+  border: 1px solid rgba(198, 187, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(198, 187, 255, 0.025);
+  opacity: 0.5;
+  animation: bg-rise var(--d) linear infinite;
+  animation-delay: var(--dl);
+}
+.bg-card i { display: block; height: 6%; width: 40%; border-radius: 2px; background: rgba(198, 187, 255, 0.14); }
+.bg-card b { display: block; flex: 0 0 40%; border-radius: 4px; background: linear-gradient(135deg, rgba(178, 85, 195, 0.12), rgba(251, 115, 255, 0.08)); }
+.bg-card em { display: block; height: 4%; border-radius: 2px; background: rgba(198, 187, 255, 0.1); }
+.bg-card em:last-child { width: 70%; }
+@keyframes bg-rise {
+  from { transform: translateY(0) rotate(var(--r)); }
+  to { transform: translateY(calc(-100vh - 160px)) rotate(calc(var(--r) * -1)); }
+}
+:root[data-theme="light"] .bg-card { border-color: rgba(70, 58, 140, 0.14); background: rgba(70, 58, 140, 0.03); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .bg-card { border-color: rgba(70, 58, 140, 0.14); background: rgba(70, 58, 140, 0.03); } }
+
+/* Tarjetas que se inclinan hacia el ratón, con brillo. */
+#brief-form.card, .now-link, .g-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.is-tilting { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); position: relative; }
+.now-link.is-tilting, .g-card.is-tilting { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px); }
+.now-link.is-tilting::after, .g-card.is-tilting::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, 50%), rgba(251, 115, 255, 0.16), transparent 60%);
+}
+.show-card.is-tilting { transform: translateX(calc(var(--i, 0) * 58px)) rotate(0deg) translateY(-18px) scale(1.04) perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+
+/* Botones magnéticos y onda al pulsar. */
+.is-magnetic { translate: var(--mx, 0px) var(--my, 0px); transition: translate 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.has-ripple { position: relative; overflow: hidden; }
+.click-ripple {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: rgba(251, 115, 255, 0.55);
+  pointer-events: none;
+  animation: click-ripple 0.6s ease-out forwards;
+}
+@keyframes click-ripple { to { transform: scale(18); opacity: 0; } }
+
+/* Filas del historial que se levantan: sombra, borde en degradado rosa y destello de la etiqueta de estado. */
+.job-row { position: relative; transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease; }
+.job-row::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg, var(--purple), var(--pink), transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.job-row:hover { transform: translateY(-3px); box-shadow: 0 14px 30px var(--shadow-strong); }
+.job-row:hover::before { opacity: 1; }
+.job-row .status-badge { position: relative; overflow: hidden; }
+.job-row:hover .status-badge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  animation: badge-shine 0.8s ease forwards;
+}
+@keyframes badge-shine { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* Números de sección con parallax y título que se desliza al aparecer. */
+.section-num { transform: translateY(var(--px, 0px)); transition: transform 0.15s linear; }
+.section-title.reveal h2 { transform: translateX(-16px); transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s; }
+.section-title.reveal.is-in h2 { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-float { display: none; }
+  .is-tilting, .is-magnetic, .job-row:hover { transform: none !important; translate: none !important; }
+  .job-row:hover .status-badge::after, .click-ripple { animation: none; display: none; }
+  .section-num { transform: none; }
+}

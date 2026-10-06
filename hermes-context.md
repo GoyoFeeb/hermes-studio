@@ -2272,3 +2272,11 @@ El usuario pidió «vamos con todas».
 ### 2026-10-06 — Notas de calidad de piezas anteriores (pedido por el usuario)
 - De las piezas de hoy, solo Inglesina `mw39rq` tenía notas fiables en `revision-visual.md` (escala antigua de 9 criterios); Adeslas, Paredes y Polo decían `{"sin_imagen": true}` (fallo de visión de la mañana) y la de Siroko se reescribió en la corrección.
 - En vez de copiarlas: se vuelven a puntuar con la revisión actual (punto 5, sin corregir). Studio: `pendingArtReviews` (terminadas de los últimos 7 días sin notas), rutas `/api/worker/art/pending` y `/api/worker/jobs/:id/art-review` (guarda con `backfill: true` o marca `artReviewFailed`). Worker: `backfillArtReviews`, con el worker libre, UNA pieza por vuelta (HTML del Mac o el publicado, hoja, portada de la web y revisión en medium). Web: «puntuada después, sin pasada de mejora» en el panel. Tests 229/229.
+
+### 2026-10-06 — Studio: fondo de newsletters flotando e interacciones (pedido por el usuario)
+- Fondo: 12 siluetas muy tenues de newsletters (las maquetas del abanico) suben despacio a ritmos distintos (44-66 s), con parallax al hacer scroll (`.bg-float`, posiciones fijas, sin azar).
+- Tarjetas que se inclinan en 3D hacia el ratón con brillo que lo sigue: «Ahora mismo», galería, abanico y, apenas (1,2°), el formulario — y nada mientras se escribe en él.
+- Botones magnéticos («Nueva newsletter», «Generar newsletter», «Ver», historial) que se acercan al cursor; onda rosa al pulsar cualquier botón.
+- Filas del historial que se levantan con sombra, borde en degradado rosa y destello en la etiqueta de estado.
+- Números de sección con parallax y título que se desliza al aparecer.
+- Solo con ratón las interacciones; todo quieto con «reducir movimiento». Verificado en local; tests 229/229.

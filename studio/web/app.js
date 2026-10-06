@@ -1255,6 +1255,99 @@ document.querySelectorAll('.segmented').forEach((seg) => {
   if ('ResizeObserver' in window) new ResizeObserver(() => placePill(seg, false)).observe(seg);
 });
 
+// ---------------------------------------------------------------- fondo e interacciones (2026-10-06)
+// Fondo: siluetas muy tenues de newsletters (como las maquetas del abanico) que suben despacio a distintas velocidades,
+// con parallax al hacer scroll. Interacciones: tarjetas que se inclinan hacia el ratón, botones magnéticos con onda al
+// pulsar, filas que se levantan (CSS) y números de sección con parallax. Todo quieto con «reducir movimiento».
+(function backgroundAndInteractions() {
+  if (!motionOk()) return;
+  const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  // Fondo de newsletters flotando: 12 siluetas en posiciones y ritmos fijos (sin azar: la misma página cada vez).
+  const bg = document.createElement('div');
+  bg.className = 'bg-float';
+  bg.setAttribute('aria-hidden', 'true');
+  const spots = [
+    [4, 0.9, 44, 0], [14, 0.6, 58, -18], [27, 1.1, 50, -6], [38, 0.7, 64, -33], [52, 1, 47, -12], [63, 0.65, 60, -40],
+    [74, 1.2, 54, -22], [86, 0.75, 49, -3], [93, 0.95, 62, -28], [8, 0.8, 57, -45], [46, 0.55, 66, -50], [80, 0.85, 52, -15],
+  ];
+  bg.innerHTML = spots
+    .map(([x, scale, dur, delay], i) => `<span class="bg-card" style="--x:${x}vw;--s:${scale};--d:${dur}s;--dl:${delay}s;--r:${(i % 2 ? 1 : -1) * (4 + (i % 5))}deg"><i></i><b></b><em></em><em></em></span>`)
+    .join('');
+  document.body.prepend(bg);
+
+  // Parallax del fondo y de los números de sección.
+  let ticking = false;
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      bg.style.setProperty('--py', `${Math.round(window.scrollY * -0.12)}px`);
+      document.querySelectorAll('.section-num').forEach((n) => {
+        const r = n.parentElement.getBoundingClientRect();
+        n.style.setProperty('--px', `${Math.max(-30, Math.min(30, (r.top - window.innerHeight / 2) * 0.08)).toFixed(1)}px`);
+      });
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  if (!fine) return;
+
+  // Tarjetas que se inclinan hacia el ratón, con un brillo que lo sigue. La del formulario, apenas (y nada mientras
+  // se escribe en ella).
+  const TILT = '#brief-form.card, .now-link, .g-card, .show-card';
+  document.addEventListener('pointermove', (e) => {
+    const card = e.target.closest?.(TILT);
+    document.querySelectorAll('.is-tilting').forEach((c) => c !== card && resetTilt(c));
+    if (!card) return;
+    if (card.matches('#brief-form') && card.contains(document.activeElement) && document.activeElement !== document.body) return resetTilt(card);
+    const r = card.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    const max = card.matches('#brief-form') ? 1.2 : 6;
+    card.classList.add('is-tilting');
+    card.style.setProperty('--rx', `${((0.5 - py) * max).toFixed(2)}deg`);
+    card.style.setProperty('--ry', `${((px - 0.5) * max).toFixed(2)}deg`);
+    card.style.setProperty('--gx', `${(px * 100).toFixed(1)}%`);
+    card.style.setProperty('--gy', `${(py * 100).toFixed(1)}%`);
+  });
+  function resetTilt(c) {
+    c.classList.remove('is-tilting');
+    c.style.removeProperty('--rx');
+    c.style.removeProperty('--ry');
+  }
+  document.addEventListener('pointerleave', () => document.querySelectorAll('.is-tilting').forEach(resetTilt));
+
+  // Botones magnéticos: se acercan al cursor (hasta 6 px) y, al pulsar, una onda rosa sale del punto del clic.
+  const MAG = '.hero-cta, #brief-form button[type="submit"], .row-view, .history-jump';
+  document.addEventListener('pointermove', (e) => {
+    document.querySelectorAll(MAG).forEach((b) => {
+      const r = b.getBoundingClientRect();
+      if (!r.width) return;
+      const dx = e.clientX - (r.left + r.width / 2);
+      const dy = e.clientY - (r.top + r.height / 2);
+      const near = Math.abs(dx) < r.width / 2 + 40 && Math.abs(dy) < r.height / 2 + 30;
+      b.style.setProperty('--mx', near ? `${(dx * 0.15).toFixed(1)}px` : '0px');
+      b.style.setProperty('--my', near ? `${(dy * 0.25).toFixed(1)}px` : '0px');
+      b.classList.add('is-magnetic');
+    });
+  });
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest?.(`${MAG}, .btn`);
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const dot = document.createElement('span');
+    dot.className = 'click-ripple';
+    dot.style.left = `${e.clientX - r.left}px`;
+    dot.style.top = `${e.clientY - r.top}px`;
+    b.classList.add('has-ripple');
+    b.appendChild(dot);
+    setTimeout(() => dot.remove(), 650);
+  });
+})();
+
 /** Paso de la cabecera (1-4) de una pieza en curso según su fase (stageLabel del worker). */
 function liveStep(j) {
   const label = j.stageLabel || '';
