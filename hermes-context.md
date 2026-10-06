@@ -2305,3 +2305,8 @@ El usuario pidió «vamos con todas».
 - Verificado en local; tests 229/229.
 - Abanico (pedido del usuario): la carta señalada se endereza y crece un 40 % en su sitio (compensada hacia abajo para no tapar la cabecera) y las demás se apagan al 55 %. Arreglo de paso: la regla del abanico abierto (`.hero-showcase:hover .show-card`) pesaba más que la de la carta señalada, que se quedaba inclinada y sin crecer.
 - Fondo: vuelta a las newsletters flotando (pedido del usuario; la aurora no le convenció). Se conserva la pausa en la página del trabajo (`html.in-job .bg-card`).
+
+### 2026-10-06 — Studio: aro de la píldora de Hermes sin marcas (bug reportado por el usuario)
+- Síntoma: según el porcentaje, el borde de la píldora «Hermes · cliente · N %» mostraba un pico o escalón, como roto.
+- Causa: el aro era un `conic-gradient` en el borde; reparte por ángulo desde el centro, así que en una píldora ancha el corte del progreso y la costura de arriba caían en las curvas de los extremos (y el % no era proporcional al borde).
+- Arreglo (`studio/web/styles.css`, `app.js` → `drawPillRing`/`sizePillRing`): con anillo, la píldora quita el borde CSS y un SVG dibuja la pista gris y un rectángulo redondeado con `pathLength=100` y `stroke-dasharray` = %, medido al tamaño real (ResizeObserver). Comprobado a 8/45/63/97 %. Sin efecto en fases cerradas.

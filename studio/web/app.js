@@ -359,6 +359,29 @@ function renderEtaHints() {
   if (fix) document.getElementById('mobile-fix-btn').title = `Hermes adapta esta misma pieza a móvil sin cambiar el diseño de escritorio (suele tardar ${fix})`;
 }
 
+// Aro de progreso de la píldora: un rectángulo redondeado del tamaño de la píldora, rellenado con pathLength.
+let pillRingObserver = null;
+function drawPillRing(el, pct) {
+  el.insertAdjacentHTML('beforeend',
+    '<svg class="pill-ring" aria-hidden="true"><defs><linearGradient id="pill-ring-grad" x1="0" x2="1" y1="0" y2="0">'
+    + '<stop offset="0" stop-color="var(--pink)"/><stop offset="1" stop-color="var(--purple)"/></linearGradient></defs>'
+    + `<rect class="track"/><rect class="bar" pathLength="100" stroke-dasharray="${pct} 100"/></svg>`);
+  sizePillRing(el);
+  if (!pillRingObserver && 'ResizeObserver' in window) {
+    pillRingObserver = new ResizeObserver(() => sizePillRing(el));
+    pillRingObserver.observe(el);
+  }
+}
+function sizePillRing(el) {
+  const w = el.offsetWidth, h = el.offsetHeight;
+  if (!w || !h) return;
+  el.querySelectorAll('.pill-ring rect').forEach((rect) => {
+    rect.setAttribute('x', '0.75'); rect.setAttribute('y', '0.75');
+    rect.setAttribute('width', String(w - 1.5)); rect.setAttribute('height', String(h - 1.5));
+    rect.setAttribute('rx', String((h - 1.5) / 2));
+  });
+}
+
 async function loadHermesStatus() {
   clearTimeout(statusTimer);
   const el = document.getElementById('hermes-status');
@@ -388,8 +411,9 @@ async function loadHermesStatus() {
     }
     el.className = `status-pill ${current ? 'is-busy' : hermesOnline ? 'is-online' : 'is-offline'}`;
     // Anillo (2026-10-06): se cierra con el progreso de la pieza en curso; libre y conectado, late suave.
+    // Trazo SVG sobre el contorno real (2026-10-06): el degradado cónico cortaba en ángulo y dejaba picos en las curvas.
     el.classList.toggle('has-ring', !!current && current.pct != null);
-    if (current?.pct != null) el.style.setProperty('--pct', String(Math.max(2, Math.min(100, current.pct))));
+    if (current?.pct != null) drawPillRing(el, Math.max(2, Math.min(100, current.pct)));
   } catch {
     el.textContent = authMissing ? 'Sin sesión' : 'Sin conexión con Studio';
     el.removeAttribute('href');
