@@ -741,6 +741,21 @@ test('Galería: web que bloquea a Studio (403, «Un momento…») se marca y Her
   assert.match(r.note, /Imagen principal OBLIGATORIA igualmente: elige tú/);
 });
 
+test('Galería en pieza de producto: las fotos de la portada son AMBIENTE, no el producto; razonamiento high solo en la primera versión', () => {
+  const r = run(`
+    const p = require(${mod('productSheet.ts')});
+    const w = require(${mod('hermes-worker.ts')});
+    const pages = [{ url: 'https://www.paredes.es/es/eden.html', title: 'Eden negro', price: { amount: 43.99, currency: 'EUR', source: 'JSON-LD' }, shipping: [], images: ['a'], kind: 'product' }, { url: 'https://www.paredes.es/', title: null, price: null, shipping: [], images: ['b'], kind: 'gallery' }];
+    const photos = [{ file: 'foto-1.jpg (1200×600, 1 KB)', from: 'https://x/eden.jpg', hero: true }, { file: 'foto-2.jpg (1200×550, 1 KB)', from: 'https://x/home.jpg', hero: true, ambient: true }];
+    process.stdout.write(JSON.stringify({ note: p.productSheetNote({ pages, photos, contactSheet: null }, 'out'), draft: w.draftReasoningArgs(false), edit: w.draftReasoningArgs(true) }));
+  `);
+  assert.match(r.note, /foto-2\.jpg[^\n]*AMBIENTE de la marca, NO es el producto de la ficha/);
+  assert.doesNotMatch(r.note, /foto-1\.jpg[^\n]*AMBIENTE/);
+  assert.match(r.note, /nunca con un texto que las presente como el producto de la ficha/);
+  assert.deepEqual(r.draft, ['--reasoning', 'high']);
+  assert.deepEqual(r.edit, []);
+});
+
 test('Galería: candidatas a imagen principal y nota con ★, imagen principal obligatoria y variedad', () => {
   const r = run(`
     const p = require(${mod('productSheet.ts')});

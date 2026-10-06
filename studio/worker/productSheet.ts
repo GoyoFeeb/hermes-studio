@@ -68,6 +68,9 @@ export interface GalleryPhoto {
   width?: number;
   height?: number;
   hero?: boolean;
+  /** Foto de la galería (portada o campaña) en una pieza de producto: ambiente, NO es el producto de la ficha
+   *  (Paredes, prueba A/B del 2026-10-06: zapatillas de otros modelos presentadas como la Eden negro). */
+  ambient?: boolean;
 }
 
 export interface ProductSheet {
@@ -422,7 +425,7 @@ export async function buildProductSheet(urls: string[], outAbs: string, opts: { 
         const name = `foto-${photos.length + 1}`;
         const got = received.get(img);
         const saved = got ? await saveImage(got, img, outAbs, name).catch(() => fetchImage(img, outAbs, name)) : await fetchImage(img, outAbs, name);
-        photos.push({ file: saved, from: img, ...photoSize(saved) });
+        photos.push({ file: saved, from: img, ...photoSize(saved), ...(gallery && productPages.some((p) => p.price || p.images.length) ? { ambient: true } : {}) });
         if (gallery) perPage.set(from, (perPage.get(from) || 0) + 1);
         else fromProducts++;
       } catch {
@@ -476,7 +479,17 @@ export function productSheetNote(sheet: ProductSheet, outputDir: string): string
     const gallery = sheet.pages.filter((p) => p.kind === 'gallery').map((p) => p.url);
     if (gallery.length) lines.push(`- Galería de campaña leída de: ${gallery.join(', ')}`);
     lines.push(`- Fotos oficiales ya descargadas en ${outputDir}/ (enlázalas con esa ruta relativa, ya comprobadas y comprimidas):`);
-    for (const ph of sheet.photos) lines.push(`  · ${ph.file}${ph.hero ? ' ★ candidata a imagen principal' : ''} — de ${ph.from}`);
+    for (const ph of sheet.photos) {
+      lines.push(`  · ${ph.file}${ph.hero ? ' ★ candidata a imagen principal' : ''}${ph.ambient ? ' — AMBIENTE de la marca, NO es el producto de la ficha' : ''} — de ${ph.from}`);
+    }
+    if (sheet.photos.some((p) => p.ambient)) {
+      lines.push(
+        '- Las fotos de AMBIENTE salen de la portada o de páginas de campaña y pueden mostrar OTROS productos: úsalas para ' +
+          'la marca y el contexto, nunca con un texto que las presente como el producto de la ficha (ni su nombre, ni su ' +
+          'color, ni «ella», «este modelo»). El producto se enseña con sus fotos de la ficha. Para la imagen principal, ' +
+          'prefiere una ★ de la ficha; si eliges una de ambiente, el titular habla de la campaña, no del modelo.'
+      );
+    }
     if (sheet.contactSheet) {
       lines.push(`- Hoja de contacto numerada con todas (★ = candidata a imagen principal): ${outputDir}/_trabajo/fotos-producto.png. Mírala UNA vez para elegir.`);
     }

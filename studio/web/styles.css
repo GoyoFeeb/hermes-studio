@@ -2123,12 +2123,27 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 .hero-steps.is-live li.is-done + li::before, .hero-steps.is-live li.is-current::before { background: var(--pink); }
 .hero-steps.is-live li.is-current .step-num { animation: step-glow 1.6s ease-in-out infinite; }
 @keyframes step-glow { 50% { text-shadow: 0 0 14px rgba(251, 115, 255, 0.75); } }
-/* Sin nada en curso: una luz recorre los pasos, uno tras otro. */
-.hero-steps.is-idle li .step-num { animation: step-idle 6s ease-in-out infinite; }
-.hero-steps.is-idle li:nth-child(2) .step-num { animation-delay: 1.5s; }
-.hero-steps.is-idle li:nth-child(3) .step-num { animation-delay: 3s; }
-.hero-steps.is-idle li:nth-child(4) .step-num { animation-delay: 4.5s; }
-@keyframes step-idle { 0%, 30%, 100% { color: var(--section-num); } 12% { color: var(--pink); } }
+/* Sin nada en curso: un degradado rosa recorre la fila de izquierda a derecha, por los números y las líneas (2026-10-06,
+   pedido del usuario: antes cada paso se encendía entero). Cada elemento empieza su paso con un retraso proporcional a
+   su posición (--pn y --pl, en 0-1, los pone app.js), así que se ve como una sola luz que se desliza. */
+.hero-steps.is-idle .step-num {
+  color: transparent;
+  background: linear-gradient(90deg, var(--section-num) 0%, var(--section-num) 38%, var(--pink) 50%, var(--section-num) 62%, var(--section-num) 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: steps-sweep 6s linear infinite;
+  animation-delay: calc(var(--pn, 0) * 3.6s);
+}
+.hero-steps.is-idle li + li::before {
+  background: linear-gradient(90deg, var(--border-strong) 0%, var(--border-strong) 38%, var(--pink) 50%, var(--border-strong) 62%, var(--border-strong) 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  animation: steps-sweep 6s linear infinite;
+  animation-delay: calc(var(--pl, 0) * 3.6s);
+}
+@keyframes steps-sweep { 0% { background-position: 100% 0; } 25%, 100% { background-position: 0% 0; } }
 .hero-steps-live { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; font-size: var(--fs-small); color: var(--muted); }
 .hero-steps-live a { color: var(--text); font-weight: 600; }
 .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pink); box-shadow: 0 0 0 0 rgba(251, 115, 255, 0.6); animation: live-dot 1.6s ease-out infinite; }
@@ -2156,4 +2171,45 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
   .hero-steps .step-num, .live-dot { animation: none !important; }
   .thumb-peek { transition: opacity 0.1s; transform: none; }
   .thumb-peek.is-on { transform: none; }
+}
+
+/* ---------- animaciones (2026-10-06): vuelo, aterrizaje, cascada y píldoras ---------- */
+.fly-card { position: fixed; z-index: 120; width: 110px; height: 146px; border-radius: 8px; pointer-events: none; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), 0 0 0 2px var(--pink); }
+.fly-card b { flex-basis: 52px !important; }
+#view-job.is-landing { animation: job-land 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes job-land { from { opacity: 0; transform: translateY(-14px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+#history-list > li.just-done { animation: just-done 2.4s ease both; border-radius: var(--radius); }
+@keyframes just-done {
+  0% { box-shadow: 0 0 0 0 rgba(251, 115, 255, 0); }
+  15% { box-shadow: 0 0 0 2px var(--pink), 0 0 28px rgba(251, 115, 255, 0.45); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 115, 255, 0); }
+}
+#history-list > li.just-done .thumb img { animation: thumb-land 0.7s cubic-bezier(0.2, 0.8, 0.2, 1.3) both; }
+@keyframes thumb-land { from { transform: translateY(-16px) rotate(-8deg) scale(1.3); opacity: 0; } to { transform: none; opacity: 1; } }
+.show-card.is-new { animation: card-drop 1s cubic-bezier(0.2, 0.8, 0.2, 1.25) both; }
+@keyframes card-drop { from { opacity: 0; translate: 0 -60px; scale: 1.15; } to { opacity: 1; translate: 0 0; scale: 1; } }
+
+.is-cascade > * { animation: deal-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+.is-gallery.is-cascade > * { animation-name: deal-in-card; }
+@keyframes deal-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes deal-in-card { from { opacity: 0; transform: translateY(24px) rotate(-4deg) scale(0.94); } to { opacity: 1; transform: none; } }
+
+.segmented.has-pill { position: relative; }
+.segmented.has-pill > :not(.seg-pill) { position: relative; z-index: 1; }
+.seg-pill {
+  position: absolute;
+  z-index: 0;
+  opacity: 0;
+  border-radius: var(--pill);
+  background: var(--selected-bg);
+  box-shadow: 0 1px 2px var(--shadow);
+  pointer-events: none;
+  transition: left 0.32s cubic-bezier(0.3, 0.7, 0.2, 1.1), width 0.32s cubic-bezier(0.3, 0.7, 0.2, 1.1), top 0.32s ease, height 0.32s ease;
+}
+.segmented.has-pill input:checked + span, .segmented.has-pill .seg-btn[aria-pressed="true"] { background: transparent; box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  #view-job.is-landing, #history-list > li.just-done, #history-list > li.just-done .thumb img, .show-card.is-new, .is-cascade > * { animation: none !important; }
+  .seg-pill { transition: none; }
 }

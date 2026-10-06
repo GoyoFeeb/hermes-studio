@@ -575,8 +575,10 @@ async function submitJob(payload) {
     }
     requesterEditing = false;
     clearDraft();
+    await flyToJob(submitBtn);
     history.pushState({}, '', `?job=${data.id}`);
     showJobView(data.id);
+    landJobView();
   } catch {
     formError.textContent = NETWORK_ERROR;
     formError.hidden = false;
@@ -806,6 +808,9 @@ async function loadHistory() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { jobs, truncated, limit } = await res.json();
     assignFamilyTitles(jobs);
+    // Piezas que acaban de terminar con la página abierta (2026-10-06): se iluminan al volver a pintar.
+    const justDone = jobs.filter((j) => j.status === 'completed' && lastStatus.has(j.id) && lastStatus.get(j.id) !== 'completed').map((j) => j.id);
+    lastStatus = new Map(jobs.map((j) => [j.id, j.status]));
     historyState.jobs = jobs;
     historyState.truncated = truncated ? limit : 0;
     // Nombres de marca tal como los escribe el equipo ("El Corte Inglés", no "El Corte Ingles"), solo
@@ -825,6 +830,7 @@ async function loadHistory() {
     renderNowStrip(jobs);
     renderShowcase(jobs);
     renderLiveSteps(jobs);
+    if (justDone.length) celebrateDone(justDone);
 
     const brandSelect = document.getElementById('history-brand');
     const current = brandSelect.value;
@@ -1119,6 +1125,136 @@ function renderShowcase(jobs) {
     .join('');
 }
 
+// ---------------------------------------------------------------- animaciones (2026-10-06)
+// En el lenguaje del abanico de la cabecera: tarjetas que vuelan, aterrizan y se reparten. Con «reducir movimiento»
+// no se anima nada (motionOk) y el CSS las apaga.
+const motionOk = () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let lastStatus = new Map();
+
+/** Al enviar: una mini newsletter sale del botón y sube hacia donde aparece el trabajo. */
+async function flyToJob(btn) {
+  if (!motionOk() || !btn?.animate) return;
+  const r = btn.getBoundingClientRect();
+  const card = document.createElement('div');
+  card.className = 'fly-card show-mock';
+  card.innerHTML = '<i></i><b></b><em></em><em></em>';
+  card.style.left = `${r.left + r.width / 2 - 55}px`;
+  card.style.top = `${r.top + r.height / 2 - 73}px`;
+  document.body.appendChild(card);
+  const dx = window.innerWidth / 2 - (r.left + r.width / 2);
+  const dy = 90 - (r.top + r.height / 2);
+  const anim = card.animate(
+    [
+      { transform: 'translate(0, 0) rotate(0deg) scale(0.4)', opacity: 0 },
+      { transform: 'translate(0, -40px) rotate(-6deg) scale(1)', opacity: 1, offset: 0.25 },
+      { transform: `translate(${dx}px, ${dy}px) rotate(4deg) scale(0.7)`, opacity: 0.9, offset: 0.85 },
+      { transform: `translate(${dx}px, ${dy - 20}px) rotate(0deg) scale(0.5)`, opacity: 0 },
+    ],
+    { duration: 750, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)' }
+  );
+  await anim.finished.catch(() => undefined);
+  card.remove();
+}
+/** La página del trabajo «aterriza» tras el vuelo. */
+function landJobView() {
+  if (!motionOk()) return;
+  viewJob.classList.remove('is-landing');
+  void viewJob.offsetWidth;
+  viewJob.classList.add('is-landing');
+  setTimeout(() => viewJob.classList.remove('is-landing'), 900);
+}
+
+/** Pieza terminada: su fila se ilumina y su miniatura aterriza; en el abanico, la carta nueva cae con rebote. */
+function celebrateDone(ids) {
+  if (!motionOk()) return;
+  for (const id of ids) {
+    const href = `?job=${encodeURIComponent(id)}`;
+    const row = document.querySelector(`#history-list a[href="${href}"]`)?.closest('li');
+    if (row) {
+      row.classList.add('just-done');
+      setTimeout(() => row.classList.remove('just-done'), 2600);
+    }
+    const card = document.querySelector(`#hero-showcase a[href="${href}"]`);
+    if (card) {
+      card.classList.add('is-new');
+      setTimeout(() => card.classList.remove('is-new'), 1400);
+    }
+  }
+}
+
+/** Cascada: los elementos de la lista entran uno tras otro (como se reparten las cartas). Solo cuando se pide (al
+ *  verla por primera vez o al cambiar de vista), no en cada actualización. */
+function playCascade(list) {
+  if (!list || !motionOk()) return;
+  [...list.children].forEach((li, i) => li.style.setProperty('--i', String(Math.min(i, 14))));
+  list.classList.remove('is-cascade');
+  void list.offsetWidth;
+  list.classList.add('is-cascade');
+  clearTimeout(list._cascadeTimer);
+  list._cascadeTimer = setTimeout(() => list.classList.remove('is-cascade'), 1400);
+}
+
+/** Cifras del resumen: cuentan desde 0 la primera vez que se ven. */
+function countUp(box) {
+  if (!motionOk()) return;
+  box.querySelectorAll('.stat-num').forEach((el) => {
+    // El valor final se guarda: dos recuentos a la vez (al pintar y al verse) leían el número a medio contar.
+    if (el.dataset.counting) return;
+    const m = el.textContent.match(/^(\d+)(.*)$/);
+    if (!m) return;
+    el.dataset.counting = '1';
+    const end = Number(m[1]);
+    const t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 900);
+      el.textContent = `${Math.round(end * (1 - (1 - k) ** 3))}${m[2]}`;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+if ('IntersectionObserver' in window) {
+  const once = (id, fn) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting && el.children.length)) return;
+      io.disconnect();
+      fn(el);
+    }, { threshold: 0.15 });
+    io.observe(el);
+  };
+  once('history-list', playCascade);
+  once('history-stats', countUp);
+  once('now-strip', (el) => el.querySelectorAll('.now-list').forEach(playCascade));
+}
+
+/** Controles segmentados: una píldora se desliza hasta la opción elegida (formulario, Lista/Galería, vista previa). */
+function placePill(seg, animate = true) {
+  const pill = seg.querySelector(':scope > .seg-pill');
+  const active = seg.querySelector('input:checked + span') || seg.querySelector('.seg-btn[aria-pressed="true"]');
+  if (!pill || !active || !active.offsetWidth) return;
+  const a = active.getBoundingClientRect();
+  const b = seg.getBoundingClientRect();
+  if (!animate) pill.style.transition = 'none';
+  Object.assign(pill.style, { left: `${a.left - b.left}px`, top: `${a.top - b.top}px`, width: `${a.width}px`, height: `${a.height}px`, opacity: '1' });
+  if (!animate) {
+    void pill.offsetWidth;
+    pill.style.transition = '';
+  }
+}
+document.querySelectorAll('.segmented').forEach((seg) => {
+  const pill = document.createElement('i');
+  pill.className = 'seg-pill';
+  pill.setAttribute('aria-hidden', 'true');
+  seg.prepend(pill);
+  seg.classList.add('has-pill');
+  placePill(seg, false);
+  seg.addEventListener('change', () => placePill(seg));
+  new MutationObserver(() => placePill(seg)).observe(seg, { subtree: true, attributes: true, attributeFilter: ['aria-pressed'] });
+  if ('ResizeObserver' in window) new ResizeObserver(() => placePill(seg, false)).observe(seg);
+});
+
 /** Paso de la cabecera (1-4) de una pieza en curso según su fase (stageLabel del worker). */
 function liveStep(j) {
   const label = j.stageLabel || '';
@@ -1126,6 +1262,31 @@ function liveStep(j) {
   if (/^Revisando/.test(label)) return (j.pct ?? 0) >= 90 ? 4 : 3;
   return 1; // brief, preparación, investigación o lectura de la versión original
 }
+
+/** Posición de cada número y cada línea en la fila (0-1): el retraso del degradado que la recorre. */
+function placeStepSweep(steps) {
+  const box = steps.getBoundingClientRect();
+  if (!box.width) return;
+  steps.querySelectorAll('li').forEach((li) => {
+    const num = li.querySelector('.step-num').getBoundingClientRect();
+    const r = li.getBoundingClientRect();
+    li.style.setProperty('--pl', ((r.left - box.left) / box.width).toFixed(3));
+    li.style.setProperty('--pn', ((num.left - box.left) / box.width).toFixed(3));
+  });
+}
+window.addEventListener('resize', () => {
+  const steps = document.querySelector('.hero-steps');
+  if (steps) placeStepSweep(steps);
+});
+document.addEventListener('DOMContentLoaded', () => {
+  const steps = document.querySelector('.hero-steps');
+  if (steps) {
+    steps.classList.add('is-idle');
+    placeStepSweep(steps);
+    // Con la tipografía ya cargada cambian los anchos.
+    document.fonts?.ready.then(() => placeStepSweep(steps));
+  }
+});
 
 /** Pasos en vivo (2026-10-06): con una pieza en curso, la línea rosa avanza hasta su paso; sin nada, una luz recorre
  *  los pasos despacio (clase is-idle). */
@@ -1142,6 +1303,7 @@ function renderLiveSteps(jobs) {
     li.classList.toggle('is-done', i + 1 < current);
     li.classList.toggle('is-current', i + 1 === current);
   });
+  placeStepSweep(steps);
   caption.hidden = !running;
   if (running) {
     caption.innerHTML = `<span class="live-dot" aria-hidden="true"></span>Ahora: <a href="?job=${encodeURIComponent(running.id)}">${escapeHtml(running.clientName || 'una newsletter')}</a> · ${escapeHtml(running.stageLabel || 'en marcha')}${running.pct != null ? ` · ${running.pct} %` : ''}`;
@@ -1378,6 +1540,7 @@ document.querySelectorAll('[data-history-view]').forEach((b) =>
       // sin almacenamiento
     }
     renderHistory();
+    playCascade(document.getElementById('history-list'));
   })
 );
 

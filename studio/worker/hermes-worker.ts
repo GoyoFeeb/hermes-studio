@@ -532,6 +532,13 @@ export const MODELS = {
   draft: process.env.HERMES_MODEL_DRAFT || '',
   fix: process.env.HERMES_MODEL_FIX || '',
 };
+
+/** Razonamiento de la primera versión (2026-10-06, punto 6): en la prueba A/B, `high` subió la nota de arte de 71 a
+ *  76 % con +5 % de tiempo y menos coste (_archive/prueba-razonamiento-2026-10-06). Solo ese turno y sus «continúa»;
+ *  brief, correcciones y revisión siguen con el de la configuración (medium). Vacío = el de la configuración. */
+export const DRAFT_REASONING = process.env.HERMES_REASONING_DRAFT ?? 'high';
+export const draftReasoningArgs = (isEdit: boolean): string[] =>
+  !isEdit && /^(none|minimal|low|medium|high|xhigh)$/.test(DRAFT_REASONING) ? ['--reasoning', DRAFT_REASONING] : [];
 let modelFlag: string | null | undefined;
 
 function modelArgs(model?: string): string[] {
@@ -1276,7 +1283,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
-  let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model);
+  const reasoning = draftReasoningArgs(!!editKind);
+  let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
   sessionId = sessionId || watched;
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     const nudge = loops.nudge;
@@ -1292,7 +1300,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
       sessionId,
       () => undefined,
-      model
+      model,
+      reasoning
     );
   }
   // La autoauditoría por escrito es parte de la entrega (Adidas, 2026-09-24: titular que no salía

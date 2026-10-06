@@ -2249,3 +2249,22 @@ El usuario pidió «vamos con todas».
 - Historial: al pasar el ratón por la miniatura de una fila, tarjeta grande (180×240) inclinada como las del abanico de la cabecera con la parte de arriba de la pieza (`thumb-peek`); solo con ratón, se oculta al salir o al hacer scroll.
 - Cabecera: los pasos «01 Investiga — 04 Corrige» siguen la fase real de la pieza en curso (`renderLiveSteps`/`liveStep`, por `stageLabel`: brief/preparación/investigación → 1, escribiendo → 2, revisando → 3 y, desde el 90 %, 4); lo hecho en rosa, el paso actual con brillo, y «● Ahora: <marca> · <fase> · N %» con enlace. Sin nada en curso, una luz recorre los pasos.
 - Todo se apaga con «reducir movimiento». Verificado en local; tests 227/227.
+
+### 2026-10-06 — Punto 6 de la auditoría: prueba A/B de razonamiento (con permiso del usuario; sin cambios en el sistema)
+- `_archive/prueba-razonamiento-2026-10-06/` (README con la tabla). Luna, primera versión con `--reasoning medium` vs `high`, Paredes y Siroko, mismo encargo que el worker; control de Studio y revisión de arte del punto 5 en medium.
+- Media: medium 71 % en 4,9 min (32 acciones, 0,036 $); high 76 % en 5,1 min (23 acciones, 0,025 $). Cumple la regla fijada (≥ +5 puntos, ≤ +40 % de tiempo), con muestra pequeña.
+- Hallazgo: en Paredes «texto e imagen» = 2 en las dos: la galería de la portada mete fotos de otros modelos y la pieza las presenta como el producto (fallo del punto 2, pendiente).
+- Pendiente de permiso: `--reasoning high` solo en la primera versión del worker.
+- **Aplicado en local (con permiso del usuario):** `hermes-worker.ts` — `DRAFT_REASONING` (`HERMES_REASONING_DRAFT`, por defecto `high`; vacío = el de la configuración) y `draftReasoningArgs`: `--reasoning high` solo en el turno de la primera versión y sus «continúa»; brief, cambios, adaptación a móvil, correcciones y revisión siguen en medium. La nota del punto 7 dirá si se mantiene.
+
+### 2026-10-06 — Galería: las fotos de ambiente no son el producto (fallo visto en la prueba A/B)
+- En Paredes, la portada traía fotos de OTROS modelos y la pieza las presentaba como la Eden negro («texto e imagen» = 2 en las dos variantes).
+- `productSheet.ts`: en una pieza con ficha de producto (precio o fotos), las fotos de la galería llevan `ambient: true`; la nota las marca «AMBIENTE de la marca, NO es el producto de la ficha» y prohíbe presentarlas como él; para la imagen principal, mejor una ★ de la ficha (si se elige una de ambiente, el titular habla de la campaña). Test nuevo; 228/228.
+
+### 2026-10-06 — Studio: más animaciones (pedido por el usuario)
+- Enviar: una mini newsletter vuela desde «Generar newsletter» hacia donde aparece el trabajo, y la página del trabajo «aterriza» (`flyToJob`, `landJobView`).
+- Pieza terminada con la página abierta: su fila se ilumina en rosa, la miniatura aterriza con rebote y su carta cae en el abanico (`celebrateDone`, comparando estados entre actualizaciones).
+- Historial en cascada al verlo por primera vez y al cambiar Lista/Galería (en galería, las tarjetas se reparten inclinadas), igual las tarjetas de «Ahora mismo»; las cifras del resumen cuentan desde 0 (`playCascade`, `countUp`, con guarda para no contar dos veces).
+- Controles segmentados (formulario, Lista/Galería, vista previa, revisión): una píldora se desliza a la opción elegida (`placePill`).
+- Todo apagado con «reducir movimiento». Verificado en local; sin errores de consola.
+- Pasos de la cabecera sin nada en curso (pedido del usuario): en vez de encender cada paso entero, un degradado rosa se desliza de izquierda a derecha por los números y las líneas (`steps-sweep`, `background-clip: text`; cada elemento arranca con un retraso proporcional a su posición, `--pn`/`--pl` de `placeStepSweep`).
