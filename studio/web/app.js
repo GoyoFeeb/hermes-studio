@@ -830,6 +830,7 @@ async function loadHistory() {
     renderNowStrip(jobs);
     renderShowcase(jobs);
     renderLiveSteps(jobs);
+    animateBars();
     if (justDone.length) celebrateDone(justDone);
 
     const brandSelect = document.getElementById('history-brand');
@@ -1174,6 +1175,8 @@ function celebrateDone(ids) {
       row.classList.add('just-done');
       setTimeout(() => row.classList.remove('just-done'), 2600);
     }
+    // La etiqueta pasa de «Trabajando» a «Lista» con un giro de carta.
+    row?.querySelector('.status-badge')?.classList.add('flip-in');
     const card = document.querySelector(`#hero-showcase a[href="${href}"]`);
     if (card) {
       card.classList.add('is-new');
@@ -1348,6 +1351,106 @@ document.querySelectorAll('.segmented').forEach((seg) => {
     b.appendChild(dot);
     setTimeout(() => dot.remove(), 650);
   });
+})();
+
+// ---------------------------------------------------------------- más animaciones (2026-10-06, 3.ª tanda)
+
+/** Barras de las piezas en curso: crecen desde donde estaban (el historial se repinta en cada actualización y saltaban). */
+const lastPct = new Map();
+function animateBars() {
+  document.querySelectorAll('.now-track > span, .job-row .mini-track > div').forEach((bar) => {
+    const id = bar.closest('li')?.querySelector('a[href^="?job="]')?.getAttribute('href') || '';
+    const target = bar.style.width;
+    const before = lastPct.get(id + bar.className + bar.parentElement.className);
+    lastPct.set(id + bar.className + bar.parentElement.className, target);
+    if (!motionOk() || !before || before === target) return;
+    bar.style.transition = 'none';
+    bar.style.width = before;
+    void bar.offsetWidth;
+    bar.style.transition = 'width 1.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    bar.style.width = target;
+  });
+}
+
+/** Al abrir un trabajo, la newsletter se despliega desde arriba, como al abrir un correo (una vez por trabajo). */
+let unfoldedFor = null;
+function unfoldPreview(id) {
+  if (!motionOk() || unfoldedFor === id) return;
+  unfoldedFor = id;
+  const dev = document.getElementById('preview-device');
+  if (!dev) return;
+  dev.classList.remove('is-unfolding');
+  void dev.offsetWidth;
+  dev.classList.add('is-unfolding');
+  setTimeout(() => dev.classList.remove('is-unfolding'), 1100);
+}
+
+/** Pestañas del trabajo: un subrayado rosa que se desliza a la elegida (como las píldoras). */
+(function tabInk() {
+  const tabs = document.querySelector('.job-tabs');
+  if (!tabs) return;
+  const ink = document.createElement('i');
+  ink.className = 'tab-ink';
+  ink.setAttribute('aria-hidden', 'true');
+  tabs.appendChild(ink);
+  tabs.classList.add('has-ink');
+  const place = () => {
+    const sel = tabs.querySelector('.job-tab[aria-selected="true"]');
+    if (!sel || !sel.offsetWidth) return;
+    ink.style.left = `${sel.offsetLeft}px`;
+    ink.style.width = `${sel.offsetWidth}px`;
+    ink.style.opacity = '1';
+  };
+  new MutationObserver(place).observe(tabs, { subtree: true, attributes: true, attributeFilter: ['aria-selected', 'hidden'] });
+  if ('ResizeObserver' in window) new ResizeObserver(place).observe(tabs);
+  place();
+})();
+
+/** Raíl lateral: la línea rosa crece al bajar y debajo se marca la sección en la que estás («01», «02»). */
+(function railProgress() {
+  const rail = document.querySelector('.rail-line');
+  const sec = document.getElementById('rail-sec');
+  if (!rail) return;
+  let ticking = false;
+  const update = () => {
+    ticking = false;
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    rail.style.setProperty('--p', max > 0 ? (window.scrollY / max).toFixed(3) : '0');
+    if (!sec) return;
+    let current = '';
+    document.querySelectorAll('.section-title').forEach((t) => {
+      if (t.offsetParent && t.getBoundingClientRect().top < window.innerHeight * 0.5) current = t.querySelector('.section-num')?.textContent || '';
+    });
+    if (sec.textContent !== current) {
+      sec.textContent = current;
+      sec.classList.remove('is-new');
+      void sec.offsetWidth;
+      if (current) sec.classList.add('is-new');
+    }
+  };
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(update);
+    }
+  }, { passive: true });
+  update();
+})();
+
+/** Formulario: los ejemplos se reparten como cartas la primera vez que aparecen. */
+(function examplesDeal() {
+  const ex = document.getElementById('examples');
+  if (!ex || !motionOk()) return;
+  new MutationObserver(() => {
+    if (!ex.hidden && !ex.dataset.dealt) {
+      ex.dataset.dealt = '1';
+      playCascade(ex);
+    }
+  }).observe(ex, { attributes: true, attributeFilter: ['hidden'] });
+  if (!ex.hidden) {
+    ex.dataset.dealt = '1';
+    playCascade(ex);
+  }
 })();
 
 /** Paso de la cabecera (1-4) de una pieza en curso según su fase (stageLabel del worker). */
@@ -4338,6 +4441,7 @@ async function poll(id) {
       document.querySelector(`input[name="previewTheme"][value="${readTheme()}"]`).checked = true;
       document.getElementById('mobile-fix-btn').hidden = !!job.input.mobileFixOf;
       renderReview(job.quality, notes, matrix);
+      unfoldPreview(id);
       renderTimings(job.timings, job.briefWaitSec);
       renderArtReview(job.artReview);
       renderReportShare(job.reportShare);

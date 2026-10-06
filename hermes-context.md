@@ -2281,3 +2281,10 @@ El usuario pidió «vamos con todas».
 - Números de sección con parallax y título que se desliza al aparecer.
 - Solo con ratón las interacciones; todo quieto con «reducir movimiento». Verificado en local; tests 229/229.
 - Arreglo (pedido del usuario): las cartas del abanico de la cabecera quedan fuera de la inclinación 3D. La regla `.is-tilting { position: relative }` las sacaba del abanico (aparecían como un cuadrado grande al pasar o pinchar) y la inclinación chocaba con su transición (movimiento torpe). El abanico conserva su propio efecto al pasar.
+
+### 2026-10-06 — Studio: 3.ª tanda de animaciones (pedido por el usuario)
+- Pieza en curso: brillo que recorre su barra (en «Ahora mismo» y en su fila), las barras crecen desde su valor anterior al actualizarse (`animateBars`), y la etiqueta gira como una carta al pasar a «Lista».
+- Raíl lateral: la línea crece al bajar (progreso de lectura) y debajo se marca la sección actual («01», «02»).
+- Formulario: el campo enfocado lleva un borde en degradado rosa que gira (`@property --ring`); los ejemplos se reparten como cartas; las casillas saltan al marcarse.
+- Página del trabajo: la newsletter se despliega desde arriba al abrir el trabajo (una vez por trabajo) y las pestañas tienen un subrayado rosa que se desliza.
+- Todo quieto con «reducir movimiento». Verificado en local; tests 229/229.
