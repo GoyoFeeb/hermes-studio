@@ -2335,3 +2335,10 @@ El usuario pidió «vamos con todas».
 - Archivar con salida (`leaveRow`): solo tras confirmar el servidor, la fila se desliza a la derecha, se desvanece y cierra su hueco; luego se recarga el historial como antes.
 - Descarga con flecha: clic delegado en cualquier `a.btn[href*="download=1"]` → en la esquina del botón una flechita cae en una insignia rosa que se vuelve ✓ (1,6 s). Solo decoración.
 - Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.
+
+### 2026-10-06 — Studio: 9.ª tanda de animaciones (pedido por el usuario)
+- Entrada a la página (`introOn`, solo la 1.ª visita de la sesión vía `sessionStorage`): el título de la cabecera sube palabra por palabra (`.intro-word`) y el abanico se reparte desde una pila (`dealShowcase`, con la propiedad `translate` para no pisar el `transform` del abanico ni su efecto al pasar).
+- Vista previa que se revela (`renderFrame`): la 1.ª vez de cada pieza en la sesión, una capa del color del fondo baja con una línea de luz rosa (`.preview-device.is-revealing::after`). Tema o recarga del marco no la repiten.
+- Paleta de marca en abanico: las muestras de la ficha entran una tras otra (`--n`) y el logo con fundido.
+- Pie que se ilumina: segundo tramo del hilo del «02» al final del historial (al final de la página cuenta como llegado); al llegar, un brillo rosa cruza el logo FEEBBO (máscara con su SVG: es una imagen, no se puede «letra a letra») y el © se enciende un momento.
+- Todo apagado con «reducir movimiento». Sin efecto en fases cerradas.

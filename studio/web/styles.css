@@ -2565,3 +2565,54 @@ input.is-shake, textarea.is-shake, select.is-shake { border-color: var(--pink) !
 @media (prefers-reduced-motion: reduce) {
   .btn.is-dl::before, .btn.is-dl::after { display: none; }
 }
+
+/* ---------- 9.ª tanda de animaciones (2026-10-06) ---------- */
+/* Entrada a la página: el título sube palabra por palabra (solo la primera visita de la sesión). */
+.intro-word { display: inline-block; animation: intro-word 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 70ms + 80ms); }
+@keyframes intro-word { from { opacity: 0; transform: translateY(0.45em); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* Vista previa que se revela: una capa del color del fondo baja y se retira con una línea de luz en su borde. */
+.preview-device { position: relative; }
+.preview-device.is-revealing { overflow: hidden; }
+.preview-device.is-revealing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(251, 115, 255, 0.9) 0, rgba(251, 115, 255, 0.35) 3px, var(--bg) 14px);
+  box-shadow: 0 -10px 30px rgba(251, 115, 255, 0.5);
+  animation: preview-reveal 0.95s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+}
+@keyframes preview-reveal { from { transform: translateY(0); } to { transform: translateY(101%); } }
+
+/* Paleta de marca en abanico: las muestras salen una tras otra desde la anterior; el logo aparece. */
+.swatches li { animation: swatch-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--n, 0) * 45ms + 120ms); }
+@keyframes swatch-in { from { opacity: 0; transform: translateX(-14px) scale(0.92); } to { opacity: 1; transform: none; } }
+.brand-logo { animation: brand-logo-in 0.6s ease-out both; }
+@keyframes brand-logo-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
+
+/* Pie que se ilumina: un brillo rosa cruza el logo (máscara con su forma) y el texto se enciende un momento. */
+.foot-logo-wrap { position: relative; display: inline-block; }
+.foot-logo-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 16px 0; /* sin el margen inferior del logo */
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 35%, var(--pink) 50%, transparent 65%) no-repeat;
+  background-size: 300% 100%;
+  background-position: 150% 0;
+  -webkit-mask: url(/feebbo-logo.svg) center / contain no-repeat;
+  mask: url(/feebbo-logo.svg) center / contain no-repeat;
+  opacity: 0;
+}
+.foot.is-lit .foot-logo-wrap::after { animation: foot-sweep 1.3s ease-out; }
+@keyframes foot-sweep { 0% { opacity: 1; background-position: 150% 0; } 85% { opacity: 1; } 100% { opacity: 0; background-position: -50% 0; } }
+.foot.is-lit .foot-copy { animation: foot-copy 1.6s ease-out; }
+@keyframes foot-copy { 20% { color: var(--pink); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-word, .swatches li, .brand-logo { animation: none !important; }
+  .preview-device.is-revealing::after, .foot-logo-wrap::after { display: none; }
+  .foot.is-lit .foot-copy { animation: none; }
+}

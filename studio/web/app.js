@@ -1223,12 +1223,69 @@ function renderShowcase(jobs) {
         `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"><span class="show-brand">${escapeHtml(j.clientName || '')}</span></a>`
     )
     .join('');
+  dealShowcase(box);
 }
 
 // ---------------------------------------------------------------- animaciones (2026-10-06)
 // En el lenguaje del abanico de la cabecera: tarjetas que vuelan, aterrizan y se reparten. Con «reducir movimiento»
 // no se anima nada (motionOk) y el CSS las apaga.
 const motionOk = () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Entrada a la página (2026-10-06): solo la primera visita de la sesión. El título sube palabra por palabra y el
+ *  abanico se reparte desde una pila (en `renderShowcase`). */
+const introOn = (() => {
+  if (!motionOk()) return false;
+  try {
+    if (sessionStorage.getItem('introDone')) return false;
+    sessionStorage.setItem('introDone', '1');
+  } catch {
+    // sin almacenamiento: una vez por carga
+  }
+  return true;
+})();
+let introDealt = false;
+if (introOn) {
+  const h1 = document.querySelector('.hero h1');
+  let i = 0;
+  const split = (node) => {
+    for (const child of [...node.childNodes]) {
+      if (child.nodeType === 1) split(child);
+      else if (child.nodeType === 3 && child.textContent.trim()) {
+        const frag = document.createDocumentFragment();
+        for (const part of child.textContent.split(/(\s+)/)) {
+          if (!part) continue;
+          if (/^\s+$/.test(part)) frag.append(part);
+          else {
+            const w = document.createElement('span');
+            w.className = 'intro-word';
+            w.style.setProperty('--i', String(i++));
+            w.textContent = part;
+            frag.append(w);
+          }
+        }
+        child.replaceWith(frag);
+      }
+    }
+  };
+  if (h1) split(h1);
+}
+function dealShowcase(box) {
+  if (!introOn || introDealt || !box.animate) return;
+  introDealt = true;
+  const b = box.getBoundingClientRect();
+  [...box.querySelectorAll('.show-card')].forEach((card, n) => {
+    const r = card.getBoundingClientRect();
+    const dx = b.left + b.width / 2 - (r.left + r.width / 2);
+    card.animate(
+      [
+        { translate: `${dx}px 24px`, opacity: 0 },
+        { translate: `${dx}px 12px`, opacity: 1, offset: 0.35 },
+        { translate: '0 0', opacity: 1 },
+      ],
+      { duration: 700, delay: 250 + n * 70, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'backwards' }
+    );
+  });
+}
 
 // ---------------------------------------------------------------- 7.ª tanda de animaciones (2026-10-06)
 /** Filtrado que se recoloca: anota dónde estaba cada fila (por su primer enlace), repinta y desliza las que siguen
@@ -1517,11 +1574,40 @@ document.querySelectorAll('.segmented').forEach((seg) => {
   thread.innerHTML = '<span class="section-thread-line"></span><span class="section-thread-dot"></span>';
   formView.prepend(thread);
   let threadArrived = false;
+  // Segundo tramo (2026-10-06): del «02» al final del historial; al llegar, el pie se ilumina.
+  const thread2 = thread.cloneNode(true);
+  formView.prepend(thread2);
+  const foot = document.querySelector('.foot');
+  let footArrived = false;
+  const placeThread2 = (b, box) => {
+    const hist = document.getElementById('history');
+    const top = b.bottom - box.top + 12;
+    const height = hist.getBoundingClientRect().bottom - box.top - top;
+    if (height <= 40) {
+      thread2.hidden = true;
+      return;
+    }
+    thread2.hidden = false;
+    thread2.style.top = `${top}px`;
+    thread2.style.height = `${height}px`;
+    // Al final de la página cuenta como llegado: con un pie alto, el 85 % de la pantalla no alcanzaría el final.
+    const atEnd = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
+    const t = atEnd ? 1 : Math.max(0, Math.min(1, (window.innerHeight * 0.85 - (b.bottom + 12)) / height));
+    thread2.style.setProperty('--t', t.toFixed(4));
+    if (t >= 1 && !footArrived && foot) {
+      footArrived = true;
+      foot.classList.remove('is-lit');
+      void foot.offsetWidth;
+      foot.classList.add('is-lit');
+      setTimeout(() => foot.classList.remove('is-lit'), 1800);
+    } else if (t < 0.95) footArrived = false;
+  };
   const placeThread = () => {
     const nums = formView.querySelectorAll('.section-num');
     const second = nums[1];
     if (nums.length < 2 || !second.offsetParent || formView.hidden) {
       thread.hidden = true;
+      thread2.hidden = true;
       return;
     }
     const box = formView.getBoundingClientRect();
@@ -1539,6 +1625,7 @@ document.querySelectorAll('.segmented').forEach((seg) => {
     thread.style.height = `${height}px`;
     const t = Math.max(0, Math.min(1, (window.innerHeight * 0.6 - (a.bottom + 12)) / height));
     thread.style.setProperty('--t', t.toFixed(4));
+    placeThread2(b, box);
     if (t >= 1 && !threadArrived) {
       threadArrived = true;
       second.classList.remove('is-lit');
@@ -2844,7 +2931,7 @@ function renderBrandView(slug, data) {
   } else {
     const colors = card.colors
       .filter((c) => SAFE_COLOR.test(c.value))
-      .map((c) => `<li><span class="swatch" style="background:${c.value}"></span><span class="swatch-label">${escapeHtml(c.labels.join(' · '))}</span><code>${escapeHtml(c.value)}</code></li>`)
+      .map((c, n) => `<li style="--n:${n}"><span class="swatch" style="background:${c.value}"></span><span class="swatch-label">${escapeHtml(c.labels.join(' · '))}</span><code>${escapeHtml(c.value)}</code></li>`)
       .join('');
     const ty = card.typography;
     const cta = card.cta;
@@ -6075,14 +6162,26 @@ function resetFrame(frame) {
 
 /** Pinta una de las dos vistas previas ('after' = esta versión, 'before' = la anterior al comparar).
  *  El modo oscuro no se aplica en caliente a un documento ya cargado: se recarga el marco. */
+const revealedPreviews = new Set();
 function renderFrame(which) {
   const frame = document.getElementById(which === 'before' ? 'preview-frame-before' : 'preview-frame');
   const html = which === 'before' ? compareBeforeHtml : currentHtml;
   if (!html) return;
   const theme = currentTheme();
   frame.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+  // Vista previa que se revela (2026-10-06): la primera vez de cada pieza en la sesión, una capa se retira de arriba
+  // abajo con una línea de luz. Cambiar de tema o recargar el marco no la repite.
+  const reveal = which !== 'before' && currentJob && motionOk() && !revealedPreviews.has(currentJob);
+  if (reveal) revealedPreviews.add(currentJob);
   frame.onload = () => {
     fitFrames();
+    if (reveal) {
+      const device = document.getElementById('preview-device');
+      device.classList.remove('is-revealing');
+      void device.offsetWidth;
+      device.classList.add('is-revealing');
+      setTimeout(() => device.classList.remove('is-revealing'), 1100);
+    }
     if (which !== 'before') armPreview();
     else if (frame.contentDocument?.body) {
       ensureStudioStyle(frame.contentDocument);
