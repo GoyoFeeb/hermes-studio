@@ -2065,3 +2065,6 @@ El usuario pidió «vamos con todas».
 - **Riesgo anotado:** `htmlReady()` acepta el HTML más reciente de cualquier subcarpeta de la marca
   (`newestHtmlSince`). Con trabajos en paralelo en la misma marca podría coger el de otro. Hoy no pasó. Pendiente
   de acotarlo.
+- **Desplegado (con permiso del usuario):** `3694f9f` (ficha de producto: solo fichas claras) → push a
+  `Javifeebbo/hermes-studio` (Railway) y a `origin`. Worker reiniciado a las 10:2x, sin trabajos en curso y conectado.
+  Desde aquí usa GPT-6 Luna (modelo principal) y Qwen 3.8 Flash (visión).
