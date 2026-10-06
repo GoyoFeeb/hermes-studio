@@ -25,7 +25,8 @@ import sharp from 'sharp';
 import { launchBrowser } from './renderChecks';
 import { fetchImage, saveImage } from './fetch-image';
 
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+export const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+const UA = BROWSER_UA;
 const MAX_PAGES = 3;
 const MAX_PHOTOS = 15;
 /** De las fichas, como mucho estas: el resto del cupo es para las fotos de campaña. */

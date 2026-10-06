@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
 import { MOBILE_WIDTH, launchBrowser } from './renderChecks';
+import { BROWSER_UA, isBlockedPage } from './productSheet';
 
 /** Ancho de cada columna en la hoja: se lee la composición, no la letra pequeña (para eso, las capturas sueltas). */
 const SHEET_COL = 420;
@@ -71,6 +72,29 @@ export async function renderSheet(htmlPath: string, outDir = path.join(path.dirn
   const full = await sharp({ create: { width, height, channels: 3, background: '#d9d9d9' } }).composite(resolved).png().toBuffer();
   await sharp(full).resize({ height: Math.min(height, SHEET_OUT_H) }).jpeg({ quality: 80 }).toFile(sheet);
   return { sheet, shots: shots.map((s) => s.file) };
+}
+
+/** Portada de la web de la marca tal como se ve al abrirla (1280×900, JPEG), para que la revisión de dirección de arte
+ *  compare la pieza con la marca de verdad y no con lo que recuerda (2026-10-06, punto 5). null si la web bloquea a
+ *  Studio o no carga: la revisión sigue sin ella. */
+export async function captureBrandWeb(url: string, outFile: string): Promise<string | null> {
+  const browser = await launchBrowser();
+  try {
+    const ctx = await browser.newContext({ userAgent: BROWSER_UA, locale: 'es-ES', viewport: { width: 1280, height: 900 } });
+    const page = await ctx.newPage();
+    const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await page.waitForLoadState('load', { timeout: 10000 }).catch(() => undefined);
+    if (isBlockedPage(res?.status(), await page.title().catch(() => ''))) return null;
+    // Sin aceptar avisos de cookies: si tapan parte de la portada, la revisión lo sabe (se le dice en la pregunta).
+    await page.waitForTimeout(1200);
+    fs.mkdirSync(path.dirname(outFile), { recursive: true });
+    await sharp(await page.screenshot()).jpeg({ quality: 75 }).toFile(outFile);
+    return outFile;
+  } catch {
+    return null;
+  } finally {
+    await browser.close().catch(() => undefined);
+  }
 }
 
 if (require.main === module) {

@@ -30,7 +30,7 @@ import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
 import { joinLabels, missingInBrief, type RequestTerm } from '../server/requestCoverage';
 import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrls } from './productSheet';
-import { renderSheet } from './render-newsletter';
+import { captureBrandWeb, renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
@@ -914,7 +914,21 @@ export const ART_CRITERIA: Record<string, string> = {
 export interface ArtReview {
   notas: Record<string, number>;
   problemas: string[];
+  /** Lo que subiría a 5 lo que tiene 4 (2026-10-06, punto 5): se corrige si es barato. */
+  mejoras: string[];
 }
+
+/** Qué significa cada nota: sin escala, Luna ponía 4 a casi todo (Siroko, 2026-10-06: nueve 4 con el texto secundario
+ *  diminuto señalado) y con 4 no se tocaba nada. */
+export const ART_SCALE =
+  'Escala: 5 = lo firmaría el director de arte de la marca, nada que mejorar; 4 = correcto pero mejorable (di qué); ' +
+  '3 = se nota un fallo; 2 = fallo grave; 1 = roto. Un 5 se gana: si puedes nombrar una mejora concreta, es un 4.';
+
+/** Lo que se le pregunta a vision_analyze sobre la portada de la web de la marca. */
+export const ART_WEB_QUESTION =
+  'Es la portada de la web oficial de la marca (puede tapar parte un aviso de cookies: ignóralo). Describe su identidad: ' +
+  'tipografía (serif o sans, peso, mayúsculas), colores dominantes y de los botones, estilo de foto (luz, encuadre, ' +
+  'personas o producto), cantidad de aire y tono de los textos.';
 
 /** Texto visible de la pieza, para que la revisión compare lo que dice con lo que muestran las fotos. */
 function visibleText(html: string): string {
@@ -941,7 +955,8 @@ export function artReviewQuery(
   prompt: string,
   html: string,
   sheetPath = '<hoja>',
-  size?: { width: number; height: number }
+  size?: { width: number; height: number },
+  web?: { path: string; size?: { width: number; height: number } } | null
 ): string {
   const brief = prompt.split('## Instrucciones de entrega')[0].trim().slice(0, 3500);
   // GPT-6 Luna rellena siempre el parámetro opcional `region` de vision_analyze y a veces con [0, 0, 0, 0], que la
@@ -951,7 +966,13 @@ export function artReviewQuery(
     'Eres director de arte y vas a puntuar una newsletter de email ya terminada. Pasos, sin nada más:',
     `1. Llama a vision_analyze con image_url ${sheetPath}${region} y esta pregunta: «${ART_VISION_QUESTION}»`,
     '   Si devuelve un error, reintenta UNA vez corrigiendo los parámetros que indique el error.',
-    '2. Con lo que te devuelva, responde SOLO con un JSON, sin texto antes ni después. No uses ninguna otra herramienta.',
+    ...(web
+      ? [
+          `2. Llama a vision_analyze con image_url ${web.path}${web.size ? ` y region [0, 0, ${web.size.width}, ${web.size.height}] (la imagen entera)` : ''} ` +
+            `y esta pregunta: «${ART_WEB_QUESTION}» La nota de identidad sale de comparar la pieza con esta portada.`,
+          '3. Con lo que te devuelvan, responde SOLO con un JSON, sin texto antes ni después. No uses ninguna otra herramienta.',
+        ]
+      : ['2. Con lo que te devuelva, responde SOLO con un JSON, sin texto antes ni después. No uses ninguna otra herramienta.']),
     'Si vision_analyze no puede ver la imagen, responde exactamente {"sin_imagen": true}: nunca puntúes sin haberla visto.',
     '',
     ...(request ? [`Petición original del equipo: «${request}».`] : []),
@@ -962,9 +983,11 @@ export function artReviewQuery(
     '',
     'Puntúa de 1 a 5 cada criterio:',
     ...Object.entries(ART_CRITERIA).map(([k, v]) => `- ${k}: ${v}`),
+    ART_SCALE,
     '',
-    'Formato exacto: {"notas": {"peticion": 4, "texto_imagen": 4, ...todos los criterios}, "problemas": ["problema concreto ' +
-      'y dónde está, uno por línea; solo los que bajan alguna nota de 4"]}',
+    'Formato exacto: {"notas": {"peticion": 4, "texto_imagen": 4, ...todos los criterios}, "problemas": ["lo que baja una nota ' +
+      'de 4: qué y dónde"], "mejoras": ["por cada nota de 4, el cambio concreto que la subiría a 5: qué, dónde y cómo (tamaño, ' +
+      'espacio, orden, el texto de un titular…), sin rehacer la pieza ni cambiar datos, enlaces o fotos"]}',
   ].join('\n');
 }
 
@@ -981,8 +1004,8 @@ export function parseArtReview(output: string): ArtReview | null {
       if (!(n >= 1 && n <= 5)) return null;
       notas[k] = n;
     }
-    const problemas = Array.isArray(raw.problemas) ? raw.problemas.filter((p): p is string => typeof p === 'string' && !!p.trim()).slice(0, 10) : [];
-    return { notas, problemas };
+    const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((p): p is string => typeof p === 'string' && !!p.trim()).slice(0, 10) : []);
+    return { notas, problemas: list(raw.problemas), mejoras: list((raw as { mejoras?: unknown }).mejoras) };
   } catch {
     return null;
   }
@@ -992,14 +1015,33 @@ export function lowScores(review: ArtReview): string[] {
   return Object.keys(review.notas).filter((k) => review.notas[k] < 4);
 }
 
-function artReviewSummary(review: ArtReview): string {
-  return Object.entries(review.notas).map(([k, v]) => `${k} ${v}`).join(' · ') + (review.problemas.length ? `\n${review.problemas.map((p) => `- ${p}`).join('\n')}` : '');
+/** ¿Hay pasada de mejora? Siempre con notas por debajo de 4; con 4, si la revisión nombra mejoras concretas. */
+export function needsImprovement(review: ArtReview): boolean {
+  return lowScores(review).length > 0 || (review.mejoras.length > 0 && Object.values(review.notas).some((n) => n < 5));
 }
 
-function artReviewMarkdown(review: ArtReview | null, output: string): string {
-  return review
-    ? `# Revisión de dirección de arte\n\nHoja: _trabajo/render-hoja.jpg (600 px, 375 px y oscuro).\n\n${artReviewSummary(review)}\n`
-    : `# Revisión de dirección de arte\n\nLa respuesta no traía notas legibles; no se corrigió nada.\n\n${output.slice(0, 2000)}\n`;
+export const scoreTotal = (review: ArtReview): number => Object.values(review.notas).reduce((a, b) => a + b, 0);
+
+/** ¿Se queda la versión mejorada? Sí salvo que la segunda nota sume menos o deje por debajo de 4 algo que no lo estaba.
+ *  Sin segunda nota legible, se queda (la corrección pasó el control de Studio). */
+export function keepImproved(before: ArtReview, after: ArtReview | null): boolean {
+  if (!after) return true;
+  if (scoreTotal(after) < scoreTotal(before)) return false;
+  return !Object.keys(after.notas).some((k) => after.notas[k] < 4 && before.notas[k] >= 4);
+}
+
+function artReviewSummary(review: ArtReview): string {
+  return (
+    Object.entries(review.notas).map(([k, v]) => `${k} ${v}`).join(' · ') +
+    ` (total ${scoreTotal(review)}/${Object.keys(review.notas).length * 5})` +
+    (review.problemas.length ? `\n\nProblemas:\n${review.problemas.map((p) => `- ${p}`).join('\n')}` : '') +
+    (review.mejoras.length ? `\n\nMejoras propuestas:\n${review.mejoras.map((p) => `- ${p}`).join('\n')}` : '')
+  );
+}
+
+function artReviewMarkdown(review: ArtReview | null, output: string, web: boolean): string {
+  const head = `# Revisión de dirección de arte\n\nHoja: _trabajo/render-hoja.jpg (600 px, 375 px y oscuro).${web ? ' Comparada con la portada de la web: _trabajo/web-marca.jpg.' : ''}\n\n`;
+  return review ? `${head}## Primera nota\n\n${artReviewSummary(review)}\n` : `${head}La respuesta no traía notas legibles; no se corrigió nada.\n\n${output.slice(0, 2000)}\n`;
 }
 
 async function runJob(claimed: ClaimedJob): Promise<void> {
@@ -1337,8 +1379,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     quality = await check();
   }
 
-  // 5. Revisión de dirección de arte (2026-10-06): UNA llamada con la hoja (600, 375 y oscuro) y notas en JSON. Solo si
-  // algo baja de 4 se abre una sesión de corrección, con los problemas concretos. Antes era siempre una sesión entera.
+  // 5. Revisión de dirección de arte (2026-10-06): UNA llamada con la hoja (600, 375 y oscuro) y, si la web deja, la
+  // portada de la marca para comparar la identidad; notas en JSON con escala. Punto 5 de la auditoría: además de lo que
+  // baja de 4, se corrige lo que la revisión sabe subir de 4 a 5 si es barato; antes de corregir se guarda la pieza y
+  // una segunda nota decide si la mejora se queda.
   const finalPath = htmlReady();
   if (claimed.artReview && !editKind && finalPath && !cancelled && Date.now() - started < TIMEOUT_MS) {
     timeline.start('art', 'Revisión visual');
@@ -1348,35 +1392,52 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       console.log(`[${stamp()}] No se pudo hacer la hoja de capturas: ${(err as Error).message.slice(0, 200)}`);
       return null;
     });
+    const home = readMeasuredIdentity(ROOT, slug)?.url || brandHome(job.prompt.split('## Instrucciones de entrega')[0], slug);
+    const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
+    const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
     if (sheet) {
-      await progressMessage('Revisión de dirección de arte: una mirada a la pieza en escritorio, móvil y oscuro.');
+      await progressMessage(`Revisión de dirección de arte: una mirada a la pieza en escritorio, móvil y oscuro${web ? ', comparada con la web de la marca' : ''}.`);
       watchNewSession();
-      const look = await runHermesTurn(
-        artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), sheet.sheet, await imageSize(sheet.sheet)),
-        null,
-        () => undefined,
-        MODELS.draft
-      );
-      const review = parseArtReview(look.output);
+      const reviewOnce = async (ready?: string): Promise<{ review: ArtReview | null; output: string }> => {
+        const s2 = ready ? { sheet: ready } : await renderSheet(finalPath, workDir);
+        const look = await runHermesTurn(
+          artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web),
+          null,
+          () => undefined,
+          MODELS.draft
+        );
+        return { review: parseArtReview(look.output), output: look.output };
+      };
+      const first = await reviewOnce(sheet.sheet);
+      const review = first.review;
       const low = review ? lowScores(review) : [];
-      fs.writeFileSync(path.join(workDir, 'revision-visual.md'), artReviewMarkdown(review, look.output));
-      console.log(`[${stamp()}] ${job.id}: revisión visual ${review ? `— ${low.length ? `por debajo de 4: ${low.join(', ')}` : 'todo 4 o más'}` : '— respuesta sin notas legibles'}`);
-      if (review && low.length && !cancelled && Date.now() - started < TIMEOUT_MS) {
-        await progressMessage(`Revisión de dirección de arte: ${low.join(', ')} por debajo de 4 — Hermes lo corrige.`);
+      const reviewFile = path.join(workDir, 'revision-visual.md');
+      fs.writeFileSync(reviewFile, artReviewMarkdown(review, first.output, !!web));
+      console.log(
+        `[${stamp()}] ${job.id}: revisión visual ${review ? `— ${scoreTotal(review)}/${Object.keys(review.notas).length * 5}${low.length ? `, por debajo de 4: ${low.join(', ')}` : ''}, ${review.mejoras.length} mejora(s)` : '— respuesta sin notas legibles'}${web ? ' (con la web de la marca)' : ''}`
+      );
+      if (review && needsImprovement(review) && !cancelled && Date.now() - started < TIMEOUT_MS) {
+        const backup = path.join(workDir, 'antes-de-mejora.html');
+        fs.copyFileSync(finalPath, backup);
+        await progressMessage(
+          low.length
+            ? `Revisión de dirección de arte: ${low.join(', ')} por debajo de 4 — Hermes lo corrige y pule lo demás.`
+            : `Revisión de dirección de arte: ${review.mejoras.length} mejora(s) para subir de 4 a 5 — Hermes las aplica.`
+        );
         watchNewSession();
         await runHermesTurn(
           [
             `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
-            `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg. Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
+            `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg.${web ? ` Portada de la web de la marca: ${rel}/web-marca.jpg.` : ''} Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
             ...(claimed.request ? [`Petición original del equipo: «${claimed.request}».`] : []),
             '',
-            `Notas por debajo de 4: ${low.map((k) => `${k} ${review.notas[k]}`).join(', ')}.`,
-            'Problemas vistos:',
-            ...review.problemas.map((p) => `- ${p}`),
+            `Notas: ${Object.entries(review.notas).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
+            ...(review.problemas.length ? ['Problemas (OBLIGATORIO corregirlos: bajan una nota de 4):', ...review.problemas.map((p) => `- ${p}`)] : []),
+            ...(review.mejoras.length ? ['Mejoras para subir de 4 a 5 (aplica las baratas; si una exige rehacer la pieza, sáltala y dilo):', ...review.mejoras.map((p) => `- ${p}`)] : []),
             '',
-            'Corrige lo mínimo necesario en newsletter.html para que esas notas suban a 4: sin rehacer la pieza, sin investigar de ' +
-              'nuevo y sin cambiar datos ni enlaces. Si un texto contradice las fotos o se aparta de la petición, el texto es lo que ' +
-              'se corrige (las fotos son las oficiales).',
+            'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos, enlaces ni fotos. Si un texto ' +
+              'contradice las fotos o se aparta de la petición, el texto es lo que se corrige (las fotos son las oficiales). Studio ' +
+              'guarda la versión anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
             `Después: \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` hasta que salga sin errores y ` +
               `\`npm run render-newsletter -- ${job.outputDir}/newsletter.html\` para mirar la hoja UNA vez.`,
             `Añade al final de ${rel}/revision-visual.md lo que cambiaste y un resumen de dos líneas al final de notas.md.`,
@@ -1390,6 +1451,18 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           () => undefined,
           MODELS.draft
         );
+        if (cancelled) return finishCancelled();
+        // Segunda nota (una mirada) y red de seguridad: la mejora se queda solo si no empeora la pieza.
+        watchNewSession();
+        const second = Date.now() - started < TIMEOUT_MS ? await reviewOnce().catch(() => ({ review: null, output: '' })) : { review: null, output: '' };
+        const keep = keepImproved(review, second.review);
+        if (!keep) fs.copyFileSync(backup, finalPath);
+        const verdict = second.review
+          ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}${keep ? '' : ': empeoraba, se recupera la versión anterior'}`
+          : 'sin segunda nota legible: se queda la versión corregida';
+        fs.appendFileSync(reviewFile, `\n## Tras la mejora\n\n${second.review ? artReviewSummary(second.review) : '(sin notas legibles)'}\n\nResultado: ${verdict}.\n`);
+        console.log(`[${stamp()}] ${job.id}: revisión visual tras la mejora — ${verdict}`);
+        await progressMessage(`Revisión de dirección de arte: ${verdict}.`);
       } else if (review && notesReady()) {
         fs.appendFileSync(notesFile, `\n\n## Revisión de dirección de arte (Studio)\n${artReviewSummary(review)}\n`);
       }

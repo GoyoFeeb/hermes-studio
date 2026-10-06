@@ -354,6 +354,38 @@ test('Revisión de arte: notas en JSON, las de menos de 4 abren corrección; res
   assert.doesNotMatch(r.q, /Instrucciones de entrega/);
 });
 
+test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y red de seguridad', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    const all = (n) => Object.fromEntries(Object.keys(w.ART_CRITERIA).map((k) => [k, n]));
+    const fours = w.parseArtReview(JSON.stringify({ notas: all(4), problemas: [], mejoras: ['Texto secundario de 13 a 16 px en la apertura'] }));
+    const fives = w.parseArtReview(JSON.stringify({ notas: all(5), problemas: [], mejoras: [] }));
+    const foursNoIdeas = w.parseArtReview(JSON.stringify({ notas: all(4), problemas: [] }));
+    const better = w.parseArtReview(JSON.stringify({ notas: { ...all(4), jerarquia: 5, aire: 5 }, problemas: [], mejoras: [] }));
+    const worse = w.parseArtReview(JSON.stringify({ notas: { ...all(5), oscuro: 3 }, problemas: [], mejoras: [] }));
+    const q = w.artReviewQuery(undefined, '# Brief', '<p>Hola</p>', '/tmp/hoja.jpg', { width: 1246, height: 2000 }, { path: '/tmp/web-marca.jpg', size: { width: 1280, height: 900 } });
+    const qNoWeb = w.artReviewQuery(undefined, '# Brief', '<p>Hola</p>', '/tmp/hoja.jpg');
+    process.stdout.write(JSON.stringify({
+      mejoras: fours.mejoras, legacy: foursNoIdeas.mejoras,
+      improve: [w.needsImprovement(fours), w.needsImprovement(fives), w.needsImprovement(foursNoIdeas)],
+      keep: [w.keepImproved(fours, better), w.keepImproved(fours, worse), w.keepImproved(fours, null), w.keepImproved(fours, fours)],
+      total: w.scoreTotal(fours), q, qNoWeb,
+    }));
+  `);
+  assert.deepEqual(r.mejoras, ['Texto secundario de 13 a 16 px en la apertura']);
+  assert.deepEqual(r.legacy, []);
+  assert.deepEqual(r.improve, [true, false, false]);
+  // Peor: más total (41 > 36) pero oscuro cae a 3 desde 4 → se descarta.
+  assert.deepEqual(r.keep, [true, false, true, true]);
+  assert.equal(r.total, 36);
+  assert.match(r.q, /5 = lo firmaría el director de arte de la marca/);
+  assert.match(r.q, /"mejoras"/);
+  assert.match(r.q, /2\. Llama a vision_analyze con image_url \/tmp\/web-marca\.jpg y region \[0, 0, 1280, 900\]/);
+  assert.match(r.q, /3\. Con lo que te devuelvan, responde SOLO con un JSON/);
+  assert.doesNotMatch(r.qNoWeb, /web-marca/);
+  assert.match(r.qNoWeb, /2\. Con lo que te devuelva, responde SOLO/);
+});
+
 test('Ficha de producto: URLs de ficha del brief, umbrales de envío y fotos del propio producto', () => {
   const r = run(`
     const p = require(${mod('productSheet.ts')});
