@@ -88,10 +88,11 @@ const MEASURE_LAYOUT_JS = `function (gapMin) {
     return { r: 255, g: 255, b: 255, a: 1 };
   }
   var docH = Math.max(1, document.documentElement.scrollHeight);
-  var imgs = [], imgWidths = [], blocks = [];
+  var imgs = [], imgWidths = [], imgTops = [], blocks = [];
   document.querySelectorAll('img').forEach(function (img) {
     var r = img.getBoundingClientRect();
     imgWidths.push(vis(r) ? Math.round(r.width) : 0);
+    imgTops.push(Math.round(r.top + window.scrollY));
     if (vis(r) && r.height > 60) imgs.push(r);
   });
   document.body.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,td,div,a,span').forEach(function (el) {
@@ -164,7 +165,7 @@ const MEASURE_LAYOUT_JS = `function (gapMin) {
     if (area > 15000 || button) areas.push({ hex: hex(c), area: Math.round(area), button: !!button });
   });
   return { touching: touching, left: left, contrast: contrast, fonts: fonts, columns: columns, coloredText: coloredText,
-    fullImgs: fullImgs, areas: areas, imgWidths: imgWidths };
+    fullImgs: fullImgs, areas: areas, imgWidths: imgWidths, imgTops: imgTops };
 }`;
 
 interface PageMetrics {
@@ -177,6 +178,7 @@ interface PageMetrics {
   fullImgs: number;
   areas: { hex: string; area: number; button: boolean }[];
   imgWidths: number[];
+  imgTops: number[];
 }
 
 /** Errores (se devuelven a Hermes) y avisos (solo se enseñan) de los inspectores. */
@@ -195,6 +197,44 @@ export interface RenderReport {
   imgWidths: number[];
   /** Contraste en modo oscuro; null si la pieza no tiene estilos oscuros (eso ya lo marca el check «Modo oscuro»). */
   dark: Findings | null;
+  /** Imagen principal y variedad de fotos (photoFindings). */
+  photos: { hero: Findings; variety: Findings };
+}
+
+/** Resumen de la galería de campaña que dejó el worker (productSheet.ts, _trabajo/galeria.json). */
+export interface GallerySummary {
+  photos: number;
+  heroCandidates: string[];
+}
+
+/** Imagen principal: una foto de al menos este ancho pintado (a 700 px de ventana) … */
+export const HERO_MIN_PAINTED = 560;
+/** … que empieza antes de esta altura (cabecera con logo + un bloque corto como mucho). */
+export const HERO_MAX_TOP = 700;
+
+/** Imagen principal y variedad de fotos (2026-10-06, punto 2 de la auditoría: Adeslas salió con 1 foto y Polo con 2,
+ *  sin imagen principal). Sin imagen principal arriba es error si la galería tenía candidatas (vuelve a Hermes); si
+ *  no, aviso. Menos de 3 fotos distintas con una galería de 5 o más, aviso. El logo (src, alt, clase o id con «logo»
+ *  o «mark»), los SVG y las imágenes de menos de 200 px no cuentan como fotos. */
+export function photoFindings(html: string, widths: number[], tops: number[], gallery?: GallerySummary | null): { hero: Findings; variety: Findings } {
+  const tags = [...html.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
+  const attr = (t: string, a: string): string => t.match(new RegExp(`\\b${a}\\s*=\\s*["']([^"']*)["']`, 'i'))?.[1] || '';
+  const photos = tags
+    .map((t, i) => ({ src: attr(t, 'src'), w: widths[i] || 0, top: tops[i] ?? Infinity, t }))
+    .filter((p) => p.src && p.w >= 200 && !/\.svg([?#]|$)/i.test(p.src) && !/logo|mark/i.test(`${p.src} ${attr(p.t, 'alt')} ${attr(p.t, 'class')} ${attr(p.t, 'id')}`));
+  const hero: Findings = { errors: [], warnings: [] };
+  if (!photos.some((p) => p.w >= HERO_MIN_PAINTED && p.top <= HERO_MAX_TOP)) {
+    const msg =
+      `Sin imagen principal: el primer bloque tras el logo tiene que ser una foto a todo el ancho (≥ ${HERO_MIN_PAINTED} px, empezando antes de ${HERO_MAX_TOP} px de alto)` +
+      (gallery?.heroCandidates.length ? `; elige una de las candidatas de la galería: ${gallery.heroCandidates.join(', ')}.` : '.');
+    (gallery?.heroCandidates.length ? hero.errors : hero.warnings).push(msg);
+  }
+  const variety: Findings = { errors: [], warnings: [] };
+  const distinct = new Set(photos.map((p) => p.src)).size;
+  if (gallery && gallery.photos >= 5 && distinct < 3) {
+    variety.warnings.push(`La pieza usa ${distinct} foto(s) distinta(s) y la galería de campaña tiene ${gallery.photos}: usa al menos 3, sin repetir.`);
+  }
+  return { hero, variety };
 }
 
 export async function mobileOverflowWith(browser: Browser, htmlPath: string): Promise<string | null> {
@@ -420,6 +460,15 @@ export async function imageFindings(html: string, htmlDir: string, root: string,
   return { errors, warnings };
 }
 
+/** La galería de campaña del trabajo, si el worker la dejó. */
+export function readGallery(dir: string): GallerySummary | null {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dir, '_trabajo', 'galeria.json'), 'utf8')) as GallerySummary;
+  } catch {
+    return null;
+  }
+}
+
 /** Todo lo que se mide renderizando, con un solo Chromium. `palette`: colores de la marca para el inspector de
  *  paleta. Si Chromium no arranca, devuelve null y no bloquea nada. */
 export async function renderChecks(htmlPath: string, root: string, palette: string[] = []): Promise<RenderReport | null> {
@@ -439,6 +488,7 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
       design: designFindings(desktop, small.fonts, palette),
       images: await imageFindings(html, path.dirname(htmlPath), root, desktop.imgWidths),
       imgWidths: desktop.imgWidths,
+      photos: photoFindings(html, desktop.imgWidths, desktop.imgTops, readGallery(path.dirname(htmlPath))),
     };
   } catch (err) {
     console.log(`No se pudo renderizar la pieza para medirla: ${(err as Error).message.slice(0, 200)}`);

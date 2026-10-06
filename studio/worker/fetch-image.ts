@@ -73,7 +73,14 @@ async function svgToPng(svg: string): Promise<Buffer> {
 }
 
 export async function fetchImage(url: string, outDir: string, name?: string, maxWidth = 1200): Promise<string> {
-  const raw = await download(url);
+  return saveImage(await download(url), url, outDir, name, maxWidth);
+}
+
+/** La parte de fetchImage que no descarga: comprueba, convierte, reduce y comprime unos bytes ya recibidos (la
+ *  galería de productSheet.ts guarda las fotos que el navegador ya cargó con la página: Adeslas da 403 al pedirlas
+ *  otra vez). */
+export async function saveImage(raw: Buffer, url: string, outDir: string, name?: string, maxWidth = 1200): Promise<string> {
+  if (!isImage(raw)) throw new Error('Esos bytes no son una imagen.');
   const base = (name || path.basename(new URL(url).pathname).replace(/\.[a-z0-9]+$/i, '') || 'imagen').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 60);
   let out: Buffer;
   let ext: string;

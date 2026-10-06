@@ -2186,3 +2186,20 @@ El usuario pidió «vamos con todas».
 - Autocrítica nueva (`BRIEF_CRITIQUE`, `briefCritiqueQuery`): con el brief escrito, una vuelta en la misma sesión sin navegar con 7 preguntas (concepto propio de la marca, titulares del concepto, frases genéricas, escenas y módulos, fotos vistas, datos en sección 3, asunto concreto). Reescribe `brief.md` si algo no pasa y deja `_trabajo/autocritica-brief.md`. Absorbe la vuelta de «la petición pide X y el brief no lo recoge» (antes era aparte).
 - Coste esperado: +1-2 min de autocrítica; el brief puede investigar unos minutos más. Sin efecto en 00-09 (se archivan en la fase E). Tests 215/215.
 - Pendiente: verificar con el primer trabajo real con brief (log «autocrítica» y `_trabajo/autocritica-brief.md`).
+- ✅ Verificado el 2026-10-06 con Siroko (muwjmzjf-xfla8l): log «Brief de …: autocrítica», `_trabajo/autocritica-brief.md` con las 7 respuestas, brief en 3 min sin corte de presupuesto.
+
+### 2026-10-06 — Punto 2 de la auditoría aplicado (con permiso del usuario): galería de campaña e imagen principal obligatoria
+- Diagnóstico: de las 10 últimas piezas solo Paredes recibió fotos de Studio; Adeslas salió con 1 foto y Polo con 2, ninguna con imagen principal.
+- `productSheet.ts`: además de las fichas, lee la galería de campaña (páginas citadas en la sección 6 del brief, del dominio de la marca, máx. 2, + la portada). Portada: la de la identidad medida o, si no hay (17 de 18 marcas con brand pack), `brandHome()` = el dominio oficial más citado en el brief. Hasta 15 fotos (8 de producto, 4 por página de galería); ★ = candidata a imagen principal (≥1000 px y horizontal ≥1,2). Deja `_trabajo/galeria.json` `{photos, heroCandidates, blocked}` y la hoja de contacto marca las ★.
+- Fotos guardadas de lo que el navegador ya recibió al cargar la página (`saveImage` nuevo en `fetch-image.ts`; `fetchImage` sigue igual y es la alternativa): la portada de Adeslas cargaba sus fotos y luego daba 403 a cada descarga suelta → 0 fotos. Ahora 4 (con la de la campaña de septiembre).
+- Webs que bloquean a los robots (`isBlockedPage`: 403/429/503 o «Un momento…», «Access Denied»): Adeslas a ratos, Ralph Lauren siempre. No se intenta saltar el bloqueo: se anota en `galeria.json` y en el log, y la nota pide a Hermes que elija él la imagen principal.
+- `hermes-worker.ts`: el paso de ficha corre también sin fichas (solo galería); tope 3 min; log con nº de candidatas y aviso de bloqueo; pauta de corrección «Sin imagen principal → candidatas ★».
+- `renderChecks.ts` / `qualityCheck.ts` / `inspect.ts`: controles nuevos «Imagen principal» (foto ≥560 px pintados en los primeros 700 px; error si había candidatas ★, aviso si no; logos, SVG y <200 px no cuentan) y «Variedad de fotos» (aviso si <3 fotos distintas con galería de ≥5). Solo piezas nuevas con diseño.
+- `standalone.ts`: el brief abre la escena 1 con imagen principal a todo el ancho y la sección 6 cita la URL completa de cada página oficial de imágenes.
+- Sin efecto en el motor (check-engine limpio) ni en 00-09. Tests 222/222.
+- Pendiente: verificar con el primer trabajo real tras desplegar (log «candidata(s) a imagen principal», control «Imagen principal» en verde).
+
+### 2026-10-06 — Barra de progreso: ya no retrocede tras la primera versión (con permiso del usuario)
+- Bug visto por el usuario desde GPT-6 Luna: la barra iba por el 75 %, caía de golpe al ~11 % y luego saltaba al 100 %.
+- Causa (`hermes-worker.ts`): la corrección y la revisión visual abren sesiones nuevas (`watchNewSession`) y la estimación partía de 0 acciones → fase «Preparando» (2-15 %). Con Luna se nota porque la revisión visual ya funciona y el modelo es tan rápido que el tiempo no levanta la barra.
+- Arreglo: `laterSessionProgress` — tras la primera versión, toda sesión cuenta como «Revisando y corrigiendo» (75-97 %); y la barra nunca baja de lo ya mostrado. Test nuevo; 223/223.

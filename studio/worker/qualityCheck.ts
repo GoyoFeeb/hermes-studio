@@ -539,6 +539,8 @@ export interface QualityOptions {
   design?: { errors: string[]; warnings: string[] };
   /** Contraste con la pieza en modo oscuro (renderChecks.ts, darkFindings); null = sin estilos oscuros. */
   darkFindings?: { errors: string[]; warnings: string[] } | null;
+  /** Imagen principal y variedad de fotos (renderChecks.ts, photoFindings). */
+  photoFindings?: { hero: { errors: string[]; warnings: string[] }; variety: { errors: string[]; warnings: string[] } };
   /** Peso y encuadre de las imágenes (renderChecks.ts, imageFindings). */
   imageFindings?: { errors: string[]; warnings: string[] };
   /** Lo que pidió el equipo y la pieza no nombra (requestCoverage.ts); sin definir = no se comprobó. */
@@ -576,6 +578,13 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
     const d = item('image-quality', 'Peso y encuadre de las imágenes', opts.imageFindings.errors, opts.imageFindings.warnings);
     if (d.status === 'ok') d.details.push('Sin fotos con exceso de fondo vacío ni imágenes pesadas.');
     checks.push(d);
+  }
+  if (opts.photoFindings) {
+    const h = item('hero-image', 'Imagen principal', opts.photoFindings.hero.errors, opts.photoFindings.hero.warnings);
+    if (h.status === 'ok') h.details.push('La pieza abre con una foto a todo el ancho.');
+    const v = item('photo-variety', 'Variedad de fotos', opts.photoFindings.variety.errors, opts.photoFindings.variety.warnings);
+    if (v.status === 'ok') v.details.push('Fotos distintas suficientes para la galería disponible.');
+    checks.push(h, v);
   }
   if (opts.requestMissing !== undefined) {
     const d = item(

@@ -564,3 +564,150 @@ test('Brief: presupuesto ampliado y autocrítica con la rúbrica y lo que falta 
   assert.ok(w.n >= 1);
   assert.match(w.withGaps, /PRIMERO: no recoge .*Black Friday/i);
 });
+
+test('Barra: las sesiones tras la primera versión cuentan como revisión (no vuelve de 75 % a «Preparando»)', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    const fresh = w.estimateProgress([], 180, 900);
+    const later = w.laterSessionProgress(fresh);
+    const review = w.estimateProgress([{ name: 'write_file', target: 'a.html' }, { name: 'vision_analyze', target: '' }], 600, 900);
+    process.stdout.write(JSON.stringify({ fresh, later, same: w.laterSessionProgress(review) === review }));
+  `);
+  assert.equal(r.fresh.stage, 'preparando');
+  assert.ok(r.fresh.pct < 15);
+  assert.equal(r.later.stage, 'revisando');
+  assert.ok(r.later.pct >= 75 && r.later.pct < 97);
+  assert.equal(r.same, true);
+});
+
+// ------------------------------------------------ galería de campaña e imagen principal (2026-10-06, punto 2)
+
+test('Galería: páginas de la sección 6 del dominio de la marca, sin fichas ni otros dominios, y la portada al final', () => {
+  const brief = [
+    '## 3. Datos verificados', '- Ficha: https://www.paredes.es/es/zapatillas/eden-negro-DC26164.html',
+    '## 6. Imágenes',
+    '- Hero: https://www.paredes.es/es/campana-otono (lifestyle, horizontal)',
+    '- Detalle: https://www.paredes.es/es/zapatillas/eden-negro-DC26164.html',
+    '- Otra: https://www.instagram.com/paredes/ y https://otra-marca.com/look',
+    '- Lookbook: https://paredes.es/es/lookbook-2026',
+    '- Tercera: https://www.paredes.es/es/novedades',
+    '## 7. Prohibido en esta pieza', '- https://www.paredes.es/es/no-esta-en-6',
+  ].join('\n');
+  const r = run(`
+    const p = require(${mod('productSheet.ts')});
+    process.stdout.write(JSON.stringify({ a: p.galleryUrls(${JSON.stringify(brief)}, 'https://www.paredes.es/es/'), b: p.galleryUrls('# Brief pegado sin sección 6', 'https://www.adeslas.es/'), c: p.galleryUrls('nada', null) }));
+  `);
+  assert.deepEqual(r.a, ['https://www.paredes.es/es/campana-otono', 'https://paredes.es/es/lookbook-2026', 'https://www.paredes.es/es/']);
+  assert.deepEqual(r.b, ['https://www.adeslas.es/']);
+  assert.deepEqual(r.c, []);
+});
+
+test('Galería: portada de la marca deducida del brief (dominio más citado; a secas solo con palabra de la marca)', () => {
+  const r = run(`
+    const p = require(${mod('productSheet.ts')});
+    process.stdout.write(JSON.stringify({
+      url: p.brandHome('Fuente https://www.paredes.es/es/a y https://www.paredes.es/es/b; tipografía https://fonts.googleapis.com/x; https://cdn.paredes.es/y y https://instagram.com/paredes', 'paredes'),
+      bare: p.brandHome('Web oficial: segurcaixaadeslas.es (consultada hoy). Competencia: sanitas.es', 'segurcaixa-adeslas'),
+      none: p.brandHome('sin web', 'adeslas'),
+    }));
+  `);
+  assert.equal(r.url, 'https://www.paredes.es/');
+  assert.equal(r.bare, 'https://segurcaixaadeslas.es/');
+  assert.equal(r.none, null);
+});
+
+test('Galería: web que bloquea a Studio (403, «Un momento…») se marca y Hermes elige la imagen principal', () => {
+  const r = run(`
+    const p = require(${mod('productSheet.ts')});
+    const note = p.productSheetNote({ pages: [{ url: 'https://www.segurcaixaadeslas.es/', title: null, price: null, shipping: [], images: [], kind: 'gallery', blocked: true }], photos: [], contactSheet: null }, 'out');
+    process.stdout.write(JSON.stringify({
+      s403: p.isBlockedPage(403, 'Seguros'), wait: p.isBlockedPage(200, 'Un momento…'), denied: p.isBlockedPage(200, 'Access Denied'),
+      ok: p.isBlockedPage(200, 'Paredes - Tus Zapatillas Deportivas Online'), none: p.isBlockedPage(null, ''), note,
+    }));
+  `);
+  assert.equal(r.s403, true);
+  assert.equal(r.wait, true);
+  assert.equal(r.denied, true);
+  assert.equal(r.ok, false);
+  assert.equal(r.none, false);
+  assert.match(r.note, /bloquea la lectura automática de Studio en: https:\/\/www\.segurcaixaadeslas\.es\//);
+  assert.match(r.note, /Imagen principal OBLIGATORIA igualmente: elige tú/);
+});
+
+test('Galería: candidatas a imagen principal y nota con ★, imagen principal obligatoria y variedad', () => {
+  const r = run(`
+    const p = require(${mod('productSheet.ts')});
+    const photos = [
+      { file: 'foto-1.jpg (1200×600, 90 KB)', from: 'https://x.es/a.jpg', ...p.photoSize('foto-1.jpg (1200×600, 90 KB)') },
+      ...[2, 3, 4, 5].map((n) => ({ file: 'foto-' + n + '.jpg (800×800, 40 KB)', from: 'https://x.es/' + n + '.jpg', ...p.photoSize('foto-' + n + '.jpg (800×800, 40 KB)') })),
+    ];
+    const note = p.productSheetNote({ pages: [{ url: 'https://x.es/', title: null, price: null, shipping: [], images: ['a'], kind: 'gallery' }], photos, contactSheet: '/tmp/x.png' }, 'out');
+    process.stdout.write(JSON.stringify({ wide: p.photoSize('a.jpg (1200×600, 1 KB)'), square: p.photoSize('a.jpg (1200×1200, 1 KB)'), small: p.photoSize('a.jpg (900×500, 1 KB)'), note }));
+  `);
+  assert.equal(r.wide.hero, true);
+  assert.equal(r.square.hero, false);
+  assert.equal(r.small.hero, false);
+  assert.match(r.note, /galería de campaña/);
+  assert.match(r.note, /foto-1\.jpg \(1200×600, 90 KB\) ★ candidata/);
+  assert.doesNotMatch(r.note, /foto-2\.jpg[^\n]*★/);
+  assert.match(r.note, /Imagen principal OBLIGATORIA[^\n]*★/);
+  assert.match(r.note, /al menos 3 fotos distintas/);
+  assert.doesNotMatch(r.note, /Precio:/);
+});
+
+test('Imagen principal y variedad: error con candidatas, aviso sin ellas; logo y fotos pequeñas no cuentan', () => {
+  const html = (imgs) => imgs.map((i) => `<img src="${i}" alt="">`).join('');
+  const r = run(`
+    const { photoFindings } = require(${mod('renderChecks.ts')});
+    const g = { photos: 6, heroCandidates: ['foto-1.jpg'] };
+    process.stdout.write(JSON.stringify({
+      ok: photoFindings(${JSON.stringify(html(['logo.png', 'foto-1.jpg', 'foto-2.jpg', 'foto-3.jpg']))}, [180, 600, 280, 280], [20, 120, 900, 900], g),
+      low: photoFindings(${JSON.stringify(html(['logo.png', 'foto-1.jpg']))}, [180, 600], [20, 1400], g),
+      narrow: photoFindings(${JSON.stringify(html(['polo-mark.png', 'foto-2.jpg']))}, [600, 300], [20, 120], null),
+      noGallery: photoFindings(${JSON.stringify(html(['foto-2.jpg']))}, [300], [100], { photos: 2, heroCandidates: [] }),
+    }));
+  `);
+  assert.deepEqual(r.ok.hero.errors, []);
+  assert.deepEqual(r.ok.hero.warnings, []);
+  assert.deepEqual(r.ok.variety.warnings, []);
+  assert.match(r.low.hero.errors[0], /Sin imagen principal.*foto-1\.jpg/);
+  assert.match(r.low.variety.warnings[0], /1 foto\(s\) distinta\(s\).*6/);
+  assert.equal(r.narrow.hero.errors.length, 0);
+  assert.match(r.narrow.hero.warnings[0], /Sin imagen principal/);
+  assert.deepEqual(r.noGallery.variety.warnings, []);
+});
+
+test('Imagen principal renderizando: una foto a 600 px tras la cabecera pasa; sin ella, error en el control', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hero-'));
+  fs.mkdirSync(path.join(dir, '_trabajo'));
+  fs.writeFileSync(path.join(dir, '_trabajo', 'galeria.json'), JSON.stringify({ photos: 3, heroCandidates: ['foto-1.png'] }));
+  const page = (body) => `<!doctype html><html><body><table width="600"><tr><td><img src="logo.png" width="160" height="40" alt="Marca"></td></tr>${body}</table></body></html>`;
+  fs.writeFileSync(path.join(dir, 'con.html'), page('<tr><td><img src="foto-1.png" width="600" height="300" alt=""></td></tr>'));
+  fs.writeFileSync(path.join(dir, 'sin.html'), page('<tr><td><h1>Titular</h1><p>Texto</p></td></tr>'));
+  let out;
+  try {
+    out = run(`
+      const { execSync } = require('child_process');
+      const sharp = require('sharp');
+      await sharp({ create: { width: 1200, height: 600, channels: 3, background: '#888' } }).png().toFile(${JSON.stringify(path.join(dir, 'foto-1.png'))});
+      await sharp({ create: { width: 320, height: 80, channels: 3, background: '#111' } }).png().toFile(${JSON.stringify(path.join(dir, 'logo.png'))});
+      const { renderChecks } = require(${mod('renderChecks.ts')});
+      const a = await renderChecks(${JSON.stringify(path.join(dir, 'con.html'))}, ${JSON.stringify(dir)});
+      const b = await renderChecks(${JSON.stringify(path.join(dir, 'sin.html'))}, ${JSON.stringify(dir)});
+      process.stdout.write(JSON.stringify({ a: a && a.photos, b: b && b.photos }));
+    `);
+  } catch {
+    return t.skip('Chromium no arranca aquí');
+  }
+  if (!out.a) return t.skip('Chromium no arranca aquí');
+  assert.deepEqual(out.a.hero.errors, []);
+  assert.equal(out.b.hero.errors.length, 1);
+});
+
+test('Brief e encargo piden la imagen principal y la URL de cada página de imágenes', () => {
+  const r = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '', instruction: 'Newsletter de la Eden', imageMode: 'official', mode: 'standalone' });
+  const h = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '# Brief', imageMode: 'official', mode: 'standalone' });
+  assert.match(r.brief, /escena 1 abre con una imagen principal/);
+  assert.match(r.brief, /URL completa de la página oficial/);
+  assert.match(h.hermes, /imagen principal, a todo el ancho tras el logo/);
+});

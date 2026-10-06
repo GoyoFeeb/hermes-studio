@@ -11,17 +11,34 @@
  * - Fotos: las grandes de la ficha, descargadas con fetchImage (comprobadas y comprimidas) y una hoja de contacto
  *   numerada en _trabajo/fotos-producto.png para elegir con una sola mirada.
  *
+ * Galería de campaña (2026-10-06, punto 2 de la auditoría): de las 10 últimas piezas, solo una recibió fotos de Studio
+ * (las de la ficha); Adeslas salió con 1 foto y Polo con 2, sin imagen principal. Además de las fichas, se leen las
+ * páginas oficiales que el brief cita en «6. Imágenes» y la portada medida de la marca: hasta 15 fotos, con su tamaño,
+ * y las horizontales de ≥ 1000 px marcadas como candidatas a imagen principal. El resumen va a _trabajo/galeria.json,
+ * que lee la comprobación de la imagen principal (photoFindings, renderChecks.ts).
+ *
  * Uso suelto:  npx tsx studio/worker/productSheet.ts <carpeta-del-trabajo> <url> [url…]
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
 import { launchBrowser } from './renderChecks';
-import { fetchImage } from './fetch-image';
+import { fetchImage, saveImage } from './fetch-image';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 const MAX_PAGES = 3;
-const MAX_PHOTOS = 8;
+const MAX_PHOTOS = 15;
+/** De las fichas, como mucho estas: el resto del cupo es para las fotos de campaña. */
+const MAX_PRODUCT_PHOTOS = 8;
+/** Fotos por página de galería (la portada trae muchas). */
+const MAX_PER_GALLERY_PAGE = 4;
+/** Páginas de galería: las de la sección 6 del brief más la portada. */
+const MAX_GALLERY_PAGES = 3;
+/** Candidata a imagen principal: horizontal y ancha (fetchImage la deja en 1200 px como mucho). */
+export const HERO_MIN_WIDTH = 1000;
+export const HERO_MIN_RATIO = 1.2;
+/** Resumen de la galería, en `_trabajo/` (lo lee inspect.ts). */
+export const GALLERY_FILE = 'galeria.json';
 const SKIP_HOSTS = /(^|\.)(google|googleapis|gstatic|facebook|instagram|twitter|x|tiktok|youtube|pinterest|linkedin|wikipedia)\.[a-z.]+$/i;
 const IMAGE_EXT = /\.(jpe?g|png|gif|webp|avif|svg)(\?|$)/i;
 
@@ -31,11 +48,30 @@ export interface ProductPage {
   price: { amount: number; currency: string; source: string } | null;
   shipping: string[];
   images: string[];
+  /** 'gallery': página de campaña o portada (solo fotos). */
+  kind?: 'product' | 'gallery';
+  /** La web no deja leer la página a un navegador automático (403 de Akamai o Cloudflare, «Un momento…»). */
+  blocked?: boolean;
+}
+
+/** ¿Página de bloqueo anti-robots en vez de la de la marca? El 2026-10-06, segurcaixaadeslas.es («Un momento…») y
+ *  ralphlauren.es («Access Denied») respondían 403 al navegador de Studio. No se intenta saltar el bloqueo. */
+export function isBlockedPage(status: number | null | undefined, title: string): boolean {
+  if (status === 403 || status === 429 || status === 503) return true;
+  return /^\s*(access denied|un momento|just a moment|attention required|acceso denegado|forbidden|request blocked)\b/i.test(title || '');
+}
+
+export interface GalleryPhoto {
+  file: string;
+  from: string;
+  width?: number;
+  height?: number;
+  hero?: boolean;
 }
 
 export interface ProductSheet {
   pages: ProductPage[];
-  photos: { file: string; from: string }[];
+  photos: GalleryPhoto[];
   contactSheet: string | null;
 }
 
@@ -44,6 +80,13 @@ export interface ProductSheet {
  *  el 2026-10-06 la página de categoría «/es/1048-novedades» de Paredes contaba como ficha por llevar un número y
  *  colaba la foto de otro producto. Si ninguna lo parece, todas (en orden de aparición). */
 export function productUrls(text: string): string[] {
+  const urls = pageUrls(text);
+  const strong = urls.filter((u) => looksProduct(u));
+  return (strong.length ? strong : urls).slice(0, MAX_PAGES);
+}
+
+/** URL de páginas citadas en un texto (sin la home, imágenes sueltas ni redes), en orden y sin repetir. */
+function pageUrls(text: string): string[] {
   const seen = new Set<string>();
   const urls: string[] = [];
   for (const m of text.matchAll(/https?:\/\/[^\s<>()\]"'`«»]+/g)) {
@@ -62,8 +105,48 @@ export function productUrls(text: string): string[] {
     seen.add(key);
     urls.push(u.toString());
   }
-  const strong = urls.filter((u) => looksProduct(u));
-  return (strong.length ? strong : urls).slice(0, MAX_PAGES);
+  return urls;
+}
+
+/** Dominio registrable aproximado (paredes.es, segurcaixaadeslas.es): las fotos de campaña solo de la marca. */
+const siteOf = (u: string): string => {
+  try {
+    return new URL(u).hostname.split('.').slice(-2).join('.');
+  } catch {
+    return '';
+  }
+};
+
+/** Portada de la marca cuando no está medida (con brand pack no se mide: 17 de 18 marcas): el dominio oficial que más
+ *  cita el brief, con URL o escrito a secas («segurcaixaadeslas.es»); a secas, solo si lleva una palabra de la marca. */
+export function brandHome(text: string, slug: string): string | null {
+  const count = new Map<string, number>();
+  const add = (host: string, n = 1): void => {
+    host = host.toLowerCase().replace(/\.$/, '');
+    if (SKIP_HOSTS.test(host) || /^(fonts|cdn|static|assets|img|images|media)\./.test(host) || !/\.[a-z]{2,}$/.test(host)) return;
+    count.set(host, (count.get(host) || 0) + n);
+  };
+  for (const m of text.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) add(m[1]);
+  if (!count.size) {
+    const words = slug.toLowerCase().split('-').filter((w) => w.length >= 4);
+    for (const m of text.matchAll(/\b((?:www\.)?[a-z0-9-]+\.(?:es|com|eu|net|org|shop|store))\b/gi)) {
+      if (words.some((w) => m[1].toLowerCase().includes(w))) add(m[1]);
+    }
+  }
+  const best = [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  return best ? `https://${best}/` : null;
+}
+
+/** Páginas de la galería de campaña: las que el brief cita en «6. Imágenes» (que no sean ya fichas) y la portada de la
+ *  marca, solo del dominio de la marca (el de la portada o el de las fichas). */
+export function galleryUrls(text: string, home?: string | null): string[] {
+  const products = productUrls(text);
+  const sites = new Set([...(home ? [siteOf(home)] : []), ...products.map(siteOf)].filter(Boolean));
+  const sec6 = text.match(/^#{2,3}\s*6\.?[^\n]*\n([\s\S]*?)(?=^#{1,3}\s*\d+\.|(?![\s\S]))/m)?.[1] || '';
+  const pages = pageUrls(sec6).filter((u) => !products.includes(u) && (!sites.size || sites.has(siteOf(u))));
+  const out = pages.slice(0, home ? MAX_GALLERY_PAGES - 1 : MAX_GALLERY_PAGES);
+  if (home && !out.some((u) => u.replace(/\/$/, '') === home.replace(/\/$/, ''))) out.push(home);
+  return out;
 }
 
 /** Señal clara de ficha de producto en la ruta. Un número suelto no lo es (las categorías también lo llevan). */
@@ -212,28 +295,56 @@ export function ownGallery(pageUrl: string, imgs: string[]): string[] {
   return best === 0 ? imgs : imgs.filter((i) => score(i) === best);
 }
 
-async function readPages(urls: string[]): Promise<ProductPage[]> {
+/** Fotos que el navegador ya recibió al cargar las páginas, por URL: se guardan de aquí en vez de pedirlas otra vez
+ *  (el 2026-10-06, la portada de Adeslas cargaba sus 15 fotos y luego daba 403 a cada descarga suelta). */
+type Received = Map<string, Buffer>;
+const MIN_RECEIVED_BYTES = 15 * 1024;
+const MAX_RECEIVED = 80;
+
+async function readPages(urls: string[], galleryFrom = urls.length): Promise<{ pages: ProductPage[]; received: Received }> {
   const browser = await launchBrowser();
   const pages: ProductPage[] = [];
+  const received: Received = new Map();
   try {
     const ctx = await browser.newContext({ userAgent: UA, locale: 'es-ES', viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { 'Accept-Language': 'es-ES,es;q=0.9' } });
     // tsx compila con keepNames: las funciones anidadas de extractInPage llaman a __name, que en la página no existe.
     await ctx.addInitScript({ content: 'globalThis.__name = globalThis.__name || ((f) => f);' });
-    for (const url of urls) {
+    for (const [n, url] of urls.entries()) {
+      const gallery = n >= galleryFrom;
       const page = await ctx.newPage();
+      const pending: Promise<void>[] = [];
+      page.on('response', (r) => {
+        if (r.request().resourceType() !== 'image' || !r.ok() || received.size >= MAX_RECEIVED) return;
+        pending.push(
+          r.body().then(
+            (b) => {
+              if (b.length >= MIN_RECEIVED_BYTES && !received.has(r.url())) received.set(r.url(), b);
+            },
+            () => undefined
+          )
+        );
+      });
       try {
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+        const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
         await page.waitForLoadState('load', { timeout: 10000 }).catch(() => undefined);
+        if (isBlockedPage(res?.status(), await page.title().catch(() => ''))) {
+          if (process.env.PRODUCT_SHEET_DEBUG) console.error(`${url}: bloqueada (${res?.status()})`);
+          pages.push({ url, title: null, price: null, shipping: [], images: [], kind: gallery ? 'gallery' : 'product', blocked: true });
+          continue;
+        }
         // Galerías con carga diferida: se baja la página por tramos para que carguen.
         for (let y = 0; y < 4; y++) {
           await page.mouse.wheel(0, 900);
           await page.waitForTimeout(400);
         }
         const { structured, images, ...data } = await page.evaluate(extractInPage);
-        pages.push({ url, ...data, images: [...images.slice(0, structured), ...ownGallery(url, images.slice(structured))] });
+        await Promise.all(pending);
+        // En una página de campaña o la portada no hay «este producto»: valen todas las fotos grandes de la marca.
+        const imgs = gallery ? images : [...images.slice(0, structured), ...ownGallery(url, images.slice(structured))];
+        pages.push({ url, ...data, images: imgs, kind: gallery ? 'gallery' : 'product' });
       } catch (err) {
         if (process.env.PRODUCT_SHEET_DEBUG) console.error(`${url}: ${(err as Error).message}`);
-        pages.push({ url, title: null, price: null, shipping: [], images: [] });
+        pages.push({ url, title: null, price: null, shipping: [], images: [], kind: gallery ? 'gallery' : 'product' });
       } finally {
         await page.close().catch(() => undefined);
       }
@@ -241,11 +352,11 @@ async function readPages(urls: string[]): Promise<ProductPage[]> {
   } finally {
     await browser.close().catch(() => undefined);
   }
-  return pages;
+  return { pages, received };
 }
 
 /** Hoja de contacto numerada (4 columnas de 280 px) para elegir las fotos con una sola mirada. */
-async function contactSheet(files: string[], out: string): Promise<string | null> {
+async function contactSheet(files: string[], out: string, hero: boolean[] = []): Promise<string | null> {
   if (!files.length) return null;
   const cell = 280;
   const cols = Math.min(4, files.length);
@@ -254,7 +365,9 @@ async function contactSheet(files: string[], out: string): Promise<string | null
     files.map(async (f, i) => {
       const img = await sharp(f).resize(cell - 16, cell - 16, { fit: 'contain', background: '#ffffff' }).toBuffer();
       const label = Buffer.from(
-        `<svg width="40" height="28"><rect width="40" height="28" rx="4" fill="#111"/><text x="20" y="20" font-family="Arial" font-size="16" fill="#fff" text-anchor="middle">${i + 1}</text></svg>`
+        hero[i]
+          ? `<svg width="64" height="28"><rect width="64" height="28" rx="4" fill="#c4161c"/><text x="32" y="20" font-family="Arial" font-size="16" fill="#fff" text-anchor="middle">${i + 1} ★</text></svg>`
+          : `<svg width="40" height="28"><rect width="40" height="28" rx="4" fill="#111"/><text x="20" y="20" font-family="Arial" font-size="16" fill="#fff" text-anchor="middle">${i + 1}</text></svg>`
       );
       return [
         { input: img, left: (i % cols) * cell + 8, top: Math.floor(i / cols) * cell + 8 },
@@ -269,25 +382,48 @@ async function contactSheet(files: string[], out: string): Promise<string | null
   return out;
 }
 
-/** Lee las fichas, descarga las fotos (salvo con imágenes de IA) y deja la hoja de contacto. */
-export async function buildProductSheet(urls: string[], outAbs: string, opts: { photos?: boolean } = {}): Promise<ProductSheet> {
-  const pages = await readPages(urls.slice(0, MAX_PAGES));
-  const photos: { file: string; from: string }[] = [];
+/** Tamaño que devuelve fetchImage («foto-1.jpg (1200×800, 90 KB)») y si es candidata a imagen principal. */
+export function photoSize(saved: string): { width?: number; height?: number; hero: boolean } {
+  const m = saved.match(/\((\d+)×(\d+)/);
+  if (!m) return { hero: false };
+  const width = Number(m[1]);
+  const height = Number(m[2]);
+  return { width, height, hero: width >= HERO_MIN_WIDTH && width / height >= HERO_MIN_RATIO };
+}
+
+/** Lee las fichas y las páginas de la galería, descarga las fotos (salvo con imágenes de IA) y deja la hoja de
+ *  contacto y el resumen de la galería. */
+export async function buildProductSheet(urls: string[], outAbs: string, opts: { photos?: boolean; gallery?: string[] } = {}): Promise<ProductSheet> {
+  const products = urls.slice(0, MAX_PAGES);
+  const { pages, received } = await readPages([...products, ...(opts.photos === false ? [] : opts.gallery || [])], products.length);
+  const photos: GalleryPhoto[] = [];
   if (opts.photos !== false) {
-    // Si alguna página es una ficha de verdad (tiene precio de producto), las fotos salen solo de las fichas: una
-    // página sin precio entre ellas suele ser una categoría o una portada con fotos de otros productos.
-    const sources = pages.some((p) => p.price) ? pages.filter((p) => p.price) : pages;
-    const queue = sources.flatMap((p) => p.images.map((img) => ({ img, from: p.url })));
+    // Si alguna página es una ficha de verdad (tiene precio de producto), las fotos de producto salen solo de las
+    // fichas: una página sin precio entre ellas suele ser una categoría o una portada con fotos de otros productos.
+    const productPages = pages.filter((p) => p.kind !== 'gallery');
+    const sources = productPages.some((p) => p.price) ? productPages.filter((p) => p.price) : productPages;
+    const queue = [
+      ...sources.flatMap((p) => p.images.map((img) => ({ img, from: p.url, gallery: false }))),
+      ...pages.filter((p) => p.kind === 'gallery').flatMap((p) => p.images.map((img) => ({ img, from: p.url, gallery: true }))),
+    ];
     const seen = new Set<string>();
-    for (const { img, from } of queue) {
+    const perPage = new Map<string, number>();
+    let fromProducts = 0;
+    for (const { img, from, gallery } of queue) {
       if (photos.length >= MAX_PHOTOS) break;
+      if (!gallery && fromProducts >= MAX_PRODUCT_PHOTOS) continue;
+      if (gallery && (perPage.get(from) || 0) >= MAX_PER_GALLERY_PAGE) continue;
       // La misma foto en otro tamaño (…-large_default/…, ?w=800): se descarga una vez.
       const key = img.replace(/[?#].*$/, '').replace(/[-_](large|medium|small|home|thumb)[-_]default/i, '');
       if (seen.has(key)) continue;
       seen.add(key);
       try {
-        const saved = await fetchImage(img, outAbs, `foto-${photos.length + 1}`);
-        photos.push({ file: saved, from: img });
+        const name = `foto-${photos.length + 1}`;
+        const got = received.get(img);
+        const saved = got ? await saveImage(got, img, outAbs, name).catch(() => fetchImage(img, outAbs, name)) : await fetchImage(img, outAbs, name);
+        photos.push({ file: saved, from: img, ...photoSize(saved) });
+        if (gallery) perPage.set(from, (perPage.get(from) || 0) + 1);
+        else fromProducts++;
       } catch {
         // foto que no se deja descargar: se sigue con las demás
       }
@@ -296,15 +432,32 @@ export async function buildProductSheet(urls: string[], outAbs: string, opts: { 
   const sheetFile = path.join(outAbs, '_trabajo', 'fotos-producto.png');
   fs.mkdirSync(path.dirname(sheetFile), { recursive: true });
   const files = photos.map((p) => path.join(outAbs, p.file.split(' ')[0]));
-  const sheet = await contactSheet(files, sheetFile).catch(() => null);
+  const sheet = await contactSheet(files, sheetFile, photos.map((p) => !!p.hero)).catch(() => null);
+  if (opts.photos !== false) {
+    fs.writeFileSync(
+      path.join(outAbs, '_trabajo', GALLERY_FILE),
+      JSON.stringify(
+        { photos: photos.length, heroCandidates: photos.filter((p) => p.hero).map((p) => p.file.split(' ')[0]), blocked: pages.filter((p) => p.blocked).map((p) => p.url) },
+        null,
+        2
+      )
+    );
+  }
   return { pages, photos, contactSheet: sheet };
 }
 
 /** Sección del encargo con lo extraído: Hermes no tiene que volver a navegar estas páginas. */
 export function productSheetNote(sheet: ProductSheet, outputDir: string): string {
-  const useful = sheet.pages.filter((p) => p.title || p.price || p.shipping.length || p.images.length);
-  if (!useful.length && !sheet.photos.length) return '';
-  const lines = ['', '## Ficha de producto ya extraída por Studio (no vuelvas a navegar estas páginas)'];
+  const useful = sheet.pages.filter((p) => p.kind !== 'gallery' && (p.title || p.price || p.shipping.length || p.images.length));
+  const blocked = sheet.pages.filter((p) => p.blocked).map((p) => p.url);
+  if (!useful.length && !sheet.photos.length && !blocked.length) return '';
+  const lines = ['', '## Ficha de producto y galería de campaña ya extraídas por Studio (no vuelvas a navegar estas páginas)'];
+  if (blocked.length) {
+    lines.push(`- La web oficial bloquea la lectura automática de Studio en: ${blocked.join(', ')}. De ahí no hay datos ni fotos de Studio.`);
+    if (!sheet.photos.some((p) => p.hero)) {
+      lines.push('- Imagen principal OBLIGATORIA igualmente: elige tú una foto oficial de la campaña (`npm run fetch-image` o tus herramientas) y ponla a todo el ancho (600 px) como primer bloque tras el logo.');
+    }
+  }
   for (const p of useful) {
     lines.push(`- ${p.url}${p.title ? ` — «${p.title}»` : ''}`);
     lines.push(
@@ -319,11 +472,20 @@ export function productSheetNote(sheet: ProductSheet, outputDir: string): string
     }
   }
   if (sheet.photos.length) {
+    const gallery = sheet.pages.filter((p) => p.kind === 'gallery').map((p) => p.url);
+    if (gallery.length) lines.push(`- Galería de campaña leída de: ${gallery.join(', ')}`);
     lines.push(`- Fotos oficiales ya descargadas en ${outputDir}/ (enlázalas con esa ruta relativa, ya comprobadas y comprimidas):`);
-    for (const ph of sheet.photos) lines.push(`  · ${ph.file} — de ${ph.from}`);
+    for (const ph of sheet.photos) lines.push(`  · ${ph.file}${ph.hero ? ' ★ candidata a imagen principal' : ''} — de ${ph.from}`);
     if (sheet.contactSheet) {
-      lines.push(`- Hoja de contacto numerada con todas: ${outputDir}/_trabajo/fotos-producto.png. Mírala UNA vez con vision_analyze para elegir.`);
+      lines.push(`- Hoja de contacto numerada con todas (★ = candidata a imagen principal): ${outputDir}/_trabajo/fotos-producto.png. Mírala UNA vez para elegir.`);
     }
+    const heroes = sheet.photos.filter((p) => p.hero).length;
+    lines.push(
+      heroes
+        ? '- Imagen principal OBLIGATORIA: el primer bloque tras el logo es una foto a todo el ancho (600 px) elegida entre las ★ (Studio lo comprueba).'
+        : '- Imagen principal OBLIGATORIA: el primer bloque tras el logo es una foto a todo el ancho (600 px); ninguna es horizontal grande, así que recorta la que mejor funcione.'
+    );
+    if (sheet.photos.length >= 5) lines.push('- Usa al menos 3 fotos distintas de la galería y no repitas ninguna: una pieza de una sola foto parece una plantilla.');
     lines.push('- Si te falta una foto concreta, `npm run fetch-image` una vez; para lo demás, no navegues.');
   }
   return lines.join('\n');
@@ -336,7 +498,7 @@ if (require.main === module) {
     process.exit(2);
   }
   const outAbs = path.resolve(process.cwd(), dir);
-  buildProductSheet(urls, outAbs)
+  buildProductSheet(productUrls(urls.join(' ')), outAbs, { gallery: urls.filter((u) => !looksProduct(u)) })
     .then((s) => console.log(productSheetNote(s, dir) || 'No se pudo extraer nada de esas páginas.'))
     .catch((err) => {
       console.error(err);

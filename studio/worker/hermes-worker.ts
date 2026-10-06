@@ -29,7 +29,7 @@ import { renderThumbnail } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
 import { joinLabels, missingInBrief, type RequestTerm } from '../server/requestCoverage';
-import { buildProductSheet, productSheetNote, productUrls } from './productSheet';
+import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrls } from './productSheet';
 import { renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import sharp from 'sharp';
@@ -242,6 +242,15 @@ export function estimateProgress(calls: ToolCall[], elapsedSec: number, expected
     // muestra la última actividad en su lugar.
     etaSec: capped ? null : estimateEta(pct, elapsedSec, expectedSec),
   };
+}
+
+/** Sesiones después de la primera versión (corrección, revisión visual): empiezan con 0 acciones y la barra volvía a
+ *  «Preparando» — del 75 % al 11 % y luego al 100 % (desde GPT-6 Luna, 2026-10-06: la revisión visual ya funciona y
+ *  el modelo es tan rápido que el tiempo no la levanta). Cuentan siempre como «Revisando y corrigiendo». */
+export function laterSessionProgress(p: Progress, isEdit = false): Progress {
+  if (p.stage === 'revisando') return p;
+  const { from, to } = STAGES.revisando;
+  return { ...p, stage: 'revisando', stageLabel: isEdit ? EDIT_LABELS.revisando : STAGES.revisando.label, pct: Math.min(to - 1, Math.max(from, p.pct)) };
 }
 
 /** Lo que queda según el ritmo real (75 % en 8 min → ~3 min), acotado por la duración habitual.
@@ -609,6 +618,8 @@ const FIX_GUIDE =
   'con width:100% !important y height:auto; celdas fluidas con box-sizing:border-box. Contraste → oscurece el texto o ' +
   'aclara el fondo dentro de la paleta de la marca. Texto pequeño → al menos 14 px en móvil. Estructura repetida → ' +
   'convierte UN bloque en un módulo propio del concepto (dos columnas, rejilla, dato o cita sobre color de la marca). ' +
+  'Sin imagen principal → el primer bloque tras el logo pasa a ser una foto a todo el ancho (600 px, width="600" y ' +
+  'width:100% en móvil) de las candidatas ★ de la galería ya descargada; no busques fotos nuevas. ' +
   'Foto con mucho vacío → recórtala (sharp o el script que prefieras) dejando ~10 % de margen. Marcador sin rellenar → ' +
   'sustitúyelo por el contenido real o quita el elemento.';
 
@@ -874,7 +885,8 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
 }
 
 const MEASURE_TIMEOUT_MS = 2 * 60 * 1000;
-const PRODUCT_TIMEOUT_MS = 2 * 60 * 1000;
+/** Ficha y galería de campaña (hasta 6 páginas y 15 fotos desde el punto 2 de la auditoría, 2026-10-06). */
+const PRODUCT_TIMEOUT_MS = 3 * 60 * 1000;
 
 /** Ancho y alto de una imagen (para el `region` de vision_analyze); undefined si no se puede leer. */
 async function imageSize(file: string): Promise<{ width: number; height: number } | undefined> {
@@ -1080,16 +1092,21 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let productNote = '';
   let logoNote = '';
   if (!editKind) {
-    const urls = productUrls(prompt.split('## Instrucciones de entrega')[0]);
-    if (urls.length) {
-      timeline.start('product', 'Ficha de producto');
-      await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Leyendo la ficha del producto en la web oficial (precio, envío y fotos)…' }).catch(() => undefined);
+    const briefPart = prompt.split('## Instrucciones de entrega')[0];
+    const urls = productUrls(briefPart);
+    const photos = !/GENÉRALAS CON IA/.test(prompt);
+    // Galería de campaña (2026-10-06, punto 2): también las páginas de «6. Imágenes» del brief y la portada medida de la
+    // marca, para que haya imagen principal y variedad aunque la pieza no sea de un producto con ficha.
+    const gallery = photos ? galleryUrls(briefPart, readMeasuredIdentity(ROOT, slug)?.url || brandHome(briefPart, slug)) : [];
+    if (urls.length || gallery.length) {
+      timeline.start('product', 'Ficha de producto y galería');
+      await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Leyendo la web oficial: ficha del producto (precio, envío) y fotos de la campaña…' }).catch(() => undefined);
       try {
-        const sheet = await withTimeout(buildProductSheet(urls, outAbs, { photos: !/GENÉRALAS CON IA/.test(prompt) }), PRODUCT_TIMEOUT_MS);
+        const sheet = await withTimeout(buildProductSheet(urls, outAbs, { photos, gallery }), PRODUCT_TIMEOUT_MS);
         productNote = sheet ? productSheetNote(sheet, claimed.outputDir) : '';
         const price = sheet?.pages.find((p) => p.price)?.price;
         const msg = sheet
-          ? `Ficha de producto: ${price ? `precio ${price.amount} ${price.currency}` : 'sin precio'} · ${sheet.photos.length} foto(s) descargada(s).`
+          ? `Ficha de producto: ${urls.length ? (price ? `precio ${price.amount} ${price.currency}` : 'sin precio') : 'sin ficha'} · ${sheet.photos.length} foto(s) descargada(s), ${sheet.photos.filter((p) => p.hero).length} candidata(s) a imagen principal.${sheet.pages.some((p) => p.blocked) ? ' La web oficial bloquea a Studio: Hermes elegirá la imagen principal.' : ''}`
           : 'No se pudo leer la ficha del producto a tiempo: Hermes la consultará como siempre.';
         console.log(`[${stamp()}] ${claimed.id}: ${msg}`);
         await api(`/api/worker/jobs/${claimed.id}/progress`, { message: msg }).catch(() => undefined);
@@ -1137,7 +1154,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let lastChange = Date.now();
   let busy = false;
   let loops = newLoopState();
+  // La barra nunca retrocede; tras la primera versión, todo es revisión (laterSessionProgress).
+  let afterDraft = false;
+  let shownPct = 0;
   const watchNewSession = (): void => {
+    afterDraft = true;
     watched = null;
     watchedSince = Date.now();
     lastCount = -1;
@@ -1160,7 +1181,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       lastChange = Date.now();
     }
     watchForLoop(loops, tools, job.id, 'newsletter');
-    const progress = scale(estimateProgress(tools, elapsed, expected, !!editKind));
+    const raw = estimateProgress(tools, elapsed, expected, !!editKind);
+    const progress = scale(afterDraft ? laterSessionProgress(raw, !!editKind) : raw);
+    progress.pct = shownPct = Math.max(shownPct, progress.pct);
     progress.lastActionAt = lastChange;
     const idleSec = (Date.now() - lastChange) / 1000;
     if (idleSec >= STALL_WARN_SEC) {

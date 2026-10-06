@@ -98,6 +98,8 @@ export async function inspectNewsletter(htmlPath: string, root: string, opts: In
     design: opts.design && render ? render.design : undefined,
     darkFindings: render ? render.dark : undefined,
     imageFindings: render ? render.images : undefined,
+    // Solo en piezas nuevas (design): «Pedir cambios» y «Adaptar a móvil» no se fuerzan a cambiar la portada.
+    photoFindings: opts.design && render ? render.photos : undefined,
     fetcher: opts.fetcher,
   });
   return { report, render, applied };

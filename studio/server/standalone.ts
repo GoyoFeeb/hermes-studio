@@ -95,7 +95,8 @@ export function buildHermesPrompt(job: Job): string {
     job.input.imageMode === 'ai'
       ? 'Imágenes: GENÉRALAS CON IA con tu herramienta de generación de imágenes (hero, producto, ambiente). El logo, en cambio, SIEMPRE el oficial de la marca.'
       : 'Imágenes: SOLO fotografía oficial de la marca, sacada de su web oficial, newsroom o press kit. Si más abajo ' +
-        'hay una «Ficha de producto ya extraída», sus fotos ya están descargadas: úsalas. Si te falta alguna, ' +
+        'hay una «Ficha de producto y galería de campaña ya extraídas», sus fotos ya están descargadas: úsalas (la imagen ' +
+        'principal, a todo el ancho tras el logo, de las ★). Si te falta alguna, ' +
         'fetch-image con su URL de origen. No generes imágenes con IA. Las fotos de ' +
         `brands/${job.input.clientSlug}/design-input/ pueden venir de campañas anteriores generadas con IA: ` +
         'úsalas solo si puedes confirmar que están publicadas en la web oficial.';
@@ -256,6 +257,7 @@ export function buildBriefPrompt(job: Job): string {
     '',
     '## Método (no lo copies en el brief: aplícalo)',
     '- Un solo concepto rector, escrito como frase. Todo titular deriva de él; nada compite con él.',
+    '- La escena 1 abre con una imagen principal a todo el ancho (una foto que la sostenga sola: horizontal y grande).',
     '- 3 a 5 escenas, cada una con una función narrativa distinta (apertura de impacto, revelación de una capacidad',
     '  contada como experiencia, pausa o detalle diferenciador, cierre). Si dos escenas cumplen la misma función, fusiónalas.',
     '- Al menos una escena con un módulo propio del concepto (comparativa, rejilla, cita, dos columnas, dato sobre color de',
@@ -281,7 +283,8 @@ export function buildBriefPrompt(job: Job): string {
     job.input.imageMode === 'ai'
       ? '## 6. Imágenes — lista: para qué escena, qué debe mostrar (descripción para generarla) y encuadre.'
       : '## 6. Imágenes — solo las que has VISTO: para qué escena, qué muestran de verdad (colores, fondo, personas sí/no),\n' +
-        '   página oficial donde están y encuadre.',
+        '   la URL completa de la página oficial donde están (Studio descarga de ellas la galería de la campaña) y encuadre.\n' +
+        '   La primera, la imagen principal.',
     '## 7. Prohibido en esta pieza — siempre: ficha de datos sueltos sin verbo; rejilla de 3 columnas icono + título +',
     '   párrafo; la misma composición imagen/texto repetida; el mismo texto de CTA dos veces; texto duplicado; marcadores',
     '   sin rellenar; el nombre de la marca en texto con CSS en lugar del logo oficial; Arial como fuente principal;',
