@@ -823,6 +823,7 @@ async function loadHistory() {
     document.getElementById('history').hidden = jobs.length === 0;
     renderHistoryJump(jobs);
     renderNowStrip(jobs);
+    renderShowcase(jobs);
 
     const brandSelect = document.getElementById('history-brand');
     const current = brandSelect.value;
@@ -1082,6 +1083,34 @@ document.getElementById('now-strip').addEventListener('click', (e) => {
   history.pushState({}, '', a.getAttribute('href'));
   route();
 });
+
+/** Escaparate de la cabecera (2026-10-06): las últimas piezas terminadas con miniatura, una por marca, hasta 5 (o 3 si
+ *  no hay más). Sin piezas se quedan las maquetas del HTML. */
+function renderShowcase(jobs) {
+  const box = document.getElementById('hero-showcase');
+  if (!box) return;
+  const seen = new Set();
+  const picks = [];
+  for (const j of [...jobs].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    const brand = j.clientSlug || j.clientName;
+    if (j.archivedAt || j.status !== 'completed' || !j.hasThumb || seen.has(brand)) continue;
+    seen.add(brand);
+    picks.push(j);
+    if (picks.length === 5) break;
+  }
+  if (picks.length < 3) return;
+  const shown = picks.length >= 5 ? picks : picks.slice(0, 3);
+  // La más reciente en el centro del abanico.
+  const order = shown.length === 5 ? [shown[3], shown[1], shown[0], shown[2], shown[4]] : [shown[1], shown[0], shown[2]];
+  box.removeAttribute('aria-hidden');
+  box.setAttribute('aria-label', 'Últimas newsletters de Hermes');
+  box.innerHTML = order
+    .map(
+      (j) =>
+        `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"><span class="show-brand">${escapeHtml(j.clientName || '')}</span></a>`
+    )
+    .join('');
+}
 
 function renderNowStrip(jobs) {
   const live = jobs.filter((j) => !j.archivedAt);
