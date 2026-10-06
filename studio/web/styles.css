@@ -2217,11 +2217,13 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 /* ---------- fondo: aurora de marca e interacciones (2026-10-06) ---------- */
 /* Sustituye a las newsletters flotando (pedido del usuario): manchas de luz difuminadas que derivan muy despacio. */
 .bg-aurora { position: fixed; inset: -10vh -10vw; z-index: -1; overflow: hidden; pointer-events: none; transform: translateY(var(--py, 0px)); }
-.aurora-blob { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(80px); opacity: 0.85; will-change: transform; }
-.a-blue { left: -15vmax; top: -10vmax; background: radial-gradient(circle, rgba(16, 40, 125, 0.95), transparent 65%); animation: aurora-a 34s ease-in-out infinite alternate; }
-.a-violet { right: -20vmax; top: 10vh; background: radial-gradient(circle, rgba(178, 85, 195, 0.75), transparent 65%); animation: aurora-b 40s ease-in-out infinite alternate; }
-.a-pink { left: 25vw; bottom: -25vmax; background: radial-gradient(circle, rgba(251, 115, 255, 0.5), transparent 65%); animation: aurora-c 30s ease-in-out infinite alternate; }
-.a-deep { right: 10vw; bottom: -15vmax; width: 45vmax; height: 45vmax; background: radial-gradient(circle, rgba(90, 72, 220, 0.75), transparent 65%); animation: aurora-a 37s ease-in-out infinite alternate-reverse; }
+/* Sin filter: blur (rendimiento): el degradado radial ya es suave; el desenfoque animado de 4 capas enormes obligaba
+   a la tarjeta gráfica a recalcularlo en cada fotograma. */
+.aurora-blob { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; opacity: 0.85; will-change: transform; }
+.a-blue { left: -15vmax; top: -10vmax; background: radial-gradient(circle, rgba(16, 40, 125, 0.9) 0%, rgba(16, 40, 125, 0.35) 35%, transparent 70%); animation: aurora-a 34s ease-in-out infinite alternate; }
+.a-violet { right: -20vmax; top: 10vh; background: radial-gradient(circle, rgba(178, 85, 195, 0.55) 0%, rgba(178, 85, 195, 0.2) 35%, transparent 70%); animation: aurora-b 40s ease-in-out infinite alternate; }
+.a-pink { left: 25vw; bottom: -25vmax; background: radial-gradient(circle, rgba(251, 115, 255, 0.38) 0%, rgba(251, 115, 255, 0.12) 35%, transparent 70%); animation: aurora-c 30s ease-in-out infinite alternate; }
+.a-deep { right: 10vw; bottom: -15vmax; width: 45vmax; height: 45vmax; background: radial-gradient(circle, rgba(90, 72, 220, 0.55) 0%, rgba(90, 72, 220, 0.2) 35%, transparent 70%); animation: aurora-a 37s ease-in-out infinite alternate-reverse; }
 @keyframes aurora-a { from { transform: translate(0, 0) scale(1); } to { transform: translate(18vw, 14vh) scale(1.25); } }
 @keyframes aurora-b { from { transform: translate(0, 0) scale(1.1); } to { transform: translate(-22vw, 18vh) scale(0.9); } }
 @keyframes aurora-c { from { transform: translate(0, 0) scale(0.95); } to { transform: translate(-16vw, -22vh) scale(1.2); } }
@@ -2373,3 +2375,42 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
   #preview-frame, #preview-frame-before, .preview-device { transition: none; }
 }
 .preview-stage.no-anim #preview-frame, .preview-stage.no-anim #preview-frame-before, .preview-stage.no-anim .preview-device { transition: none; }
+
+/* ---------- rendimiento y 5.ª tanda (2026-10-06) ---------- */
+html.in-job .aurora-blob { animation-play-state: paused; }
+
+/* Píldora de Hermes con anillo: borde en degradado que se cierra con el progreso; libre y conectado, late suave. */
+.status-pill.has-ring {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--surface-pill), var(--surface-pill)) padding-box,
+    conic-gradient(var(--pink) 0, var(--purple) calc(var(--pct, 0) * 1%), var(--border) calc(var(--pct, 0) * 1%)) border-box;
+}
+.status-pill.is-online { animation: pill-breathe 3.2s ease-in-out infinite; }
+@keyframes pill-breathe { 50% { box-shadow: 0 0 0 4px rgba(79, 209, 165, 0.12); } }
+html.in-job .status-pill.is-online { animation: none; }
+
+/* Copiar con confirmación: un ✓ rosa dibujado sobre el botón. */
+.is-copied { position: relative; color: transparent !important; }
+.is-copied > :not(.copy-check) { visibility: hidden; }
+.copy-check { position: absolute; inset: 0; display: grid; place-items: center; }
+.copy-check svg { width: 18px; height: 18px; }
+.copy-check path { fill: none; stroke: var(--pink); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: check-draw 0.4s ease-out forwards; }
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
+
+/* Avisos: entran como una carta desde abajo, con una barra de tiempo. */
+.toast.is-in { animation: toast-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1.2) both; overflow: hidden; }
+/* Con translate/rotate/scale sueltos: el aviso se centra con transform: translateX(-50%) y no hay que pisarlo. */
+@keyframes toast-in { from { translate: 0 24px; rotate: -3deg; scale: 0.95; opacity: 0; } to { translate: 0 0; rotate: 0deg; scale: 1; opacity: 1; } }
+.toast.is-in::after { content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: linear-gradient(90deg, var(--purple), var(--pink)); transform-origin: left; animation: toast-time var(--toast-ms, 3000ms) linear forwards; }
+@keyframes toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* Cargas con brillo de marca: siluetas con un brillo rosa que las recorre y el logo late mientras se espera. */
+.skeleton { background: linear-gradient(90deg, var(--panel-2) 0%, var(--panel-2) 35%, rgba(251, 115, 255, 0.22) 50%, var(--panel-2) 65%, var(--panel-2) 100%) 0 0 / 220% 100%; }
+html.is-loading .brand img, html.is-loading .brand-anim { animation: logo-wait 1.1s ease-in-out infinite; }
+@keyframes logo-wait { 50% { opacity: 0.45; transform: scale(0.97); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .status-pill.is-online, .toast.is-in, .toast.is-in::after, .copy-check path, html.is-loading .brand img, html.is-loading .brand-anim { animation: none !important; }
+  .copy-check path { stroke-dashoffset: 0; }
+}

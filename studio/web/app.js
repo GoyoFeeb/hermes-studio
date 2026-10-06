@@ -30,8 +30,23 @@ function actionError(res, data, fallback, keepsText = false) {
   return fallback;
 }
 
+// Cargas con brillo de marca (2026-10-06): si una petición tarda más de 400 ms, el logo late (html.is-loading).
+let inFlight = 0;
+let loadingTimer = null;
 async function apiFetch(url, options) {
-  const res = await fetch(url, options);
+  inFlight++;
+  if (!loadingTimer) loadingTimer = setTimeout(() => document.documentElement.classList.toggle('is-loading', inFlight > 0), 400);
+  let res;
+  try {
+    res = await fetch(url, options);
+  } finally {
+    inFlight--;
+    if (!inFlight) {
+      clearTimeout(loadingTimer);
+      loadingTimer = null;
+      document.documentElement.classList.remove('is-loading');
+    }
+  }
   if (res.status === 401) {
     authMissing = true;
     document.getElementById('auth-banner').hidden = false;
@@ -372,6 +387,9 @@ async function loadHermesStatus() {
       el.title = hermesOnline ? '' : 'Puedes enviar igualmente: empezará cuando Hermes se conecte.';
     }
     el.className = `status-pill ${current ? 'is-busy' : hermesOnline ? 'is-online' : 'is-offline'}`;
+    // Anillo (2026-10-06): se cierra con el progreso de la pieza en curso; libre y conectado, late suave.
+    el.classList.toggle('has-ring', !!current && current.pct != null);
+    if (current?.pct != null) el.style.setProperty('--pct', String(Math.max(2, Math.min(100, current.pct))));
   } catch {
     el.textContent = authMissing ? 'Sin sesión' : 'Sin conexión con Studio';
     el.removeAttribute('href');
@@ -726,9 +744,15 @@ function showToast(message, level = 'info', action = null) {
     toast.appendChild(btn);
   }
   toast.classList.toggle('is-error', level === 'error');
+  const ms = action ? 10000 : level === 'error' ? 7000 : 3000;
+  // Entra como una carta desde abajo con una barra de tiempo (2026-10-06).
+  toast.style.setProperty('--toast-ms', `${ms}ms`);
   toast.hidden = false;
+  toast.classList.remove('is-in');
+  void toast.offsetWidth;
+  toast.classList.add('is-in');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toast.hidden = true), action ? 10000 : level === 'error' ? 7000 : 3000);
+  toastTimer = setTimeout(() => (toast.hidden = true), ms);
 }
 
 const STATUS_LABELS = {
@@ -1297,7 +1321,17 @@ document.querySelectorAll('.segmented').forEach((seg) => {
   // Sin las cartas del abanico de la cabecera: son absolutas y tienen su propio efecto al pasar (inclinarlas las sacaba
   // del abanico como un cuadrado grande y el movimiento chocaba con su transición).
   const TILT = '#brief-form.card, .now-link, .g-card';
+  // Rendimiento (2026-10-06): un cálculo por fotograma, no por cada evento del ratón.
+  let tiltEvt = null;
   document.addEventListener('pointermove', (e) => {
+    if (!tiltEvt) requestAnimationFrame(() => {
+      const ev = tiltEvt;
+      tiltEvt = null;
+      tiltAt(ev);
+    });
+    tiltEvt = e;
+  });
+  function tiltAt(e) {
     const card = e.target.closest?.(TILT);
     document.querySelectorAll('.is-tilting').forEach((c) => c !== card && resetTilt(c));
     if (!card) return;
@@ -1311,7 +1345,7 @@ document.querySelectorAll('.segmented').forEach((seg) => {
     card.style.setProperty('--ry', `${((px - 0.5) * max).toFixed(2)}deg`);
     card.style.setProperty('--gx', `${(px * 100).toFixed(1)}%`);
     card.style.setProperty('--gy', `${(py * 100).toFixed(1)}%`);
-  });
+  }
   function resetTilt(c) {
     c.classList.remove('is-tilting');
     c.style.removeProperty('--rx');
@@ -1321,8 +1355,30 @@ document.querySelectorAll('.segmented').forEach((seg) => {
 
   // Botones magnéticos: se acercan al cursor (hasta 6 px) y, al pulsar, una onda rosa sale del punto del clic.
   const MAG = '.hero-cta, #brief-form button[type="submit"], .row-view, .history-jump';
+  // Solo los botones a la vista (IntersectionObserver) y un cálculo por fotograma: antes se medían todos los «Ver» del
+  // historial con cada movimiento del ratón.
+  const visibleMag = new Set();
+  const magIO = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => entries.forEach((en) => (en.isIntersecting ? visibleMag.add(en.target) : visibleMag.delete(en.target)))) : null;
+  const watchMag = () => document.querySelectorAll(MAG).forEach((b) => {
+    if (!b.dataset.magWatched) {
+      b.dataset.magWatched = '1';
+      magIO?.observe(b);
+    }
+  });
+  watchMag();
+  new MutationObserver(watchMag).observe(document.body, { childList: true, subtree: true });
+  let magEvt = null;
   document.addEventListener('pointermove', (e) => {
-    document.querySelectorAll(MAG).forEach((b) => {
+    if (!magEvt) requestAnimationFrame(() => {
+      const ev = magEvt;
+      magEvt = null;
+      magnetAt(ev);
+    });
+    magEvt = e;
+  });
+  function magnetAt(e) {
+    visibleMag.forEach((b) => {
+      if (!b.isConnected) return visibleMag.delete(b);
       const r = b.getBoundingClientRect();
       if (!r.width) return;
       const dx = e.clientX - (r.left + r.width / 2);
@@ -1332,7 +1388,7 @@ document.querySelectorAll('.segmented').forEach((seg) => {
       b.style.setProperty('--my', near ? `${(dy * 0.25).toFixed(1)}px` : '0px');
       b.classList.add('is-magnetic');
     });
-  });
+  }
   document.addEventListener('pointerdown', (e) => {
     const b = e.target.closest?.(`${MAG}, .btn`);
     if (!b) return;
@@ -1459,6 +1515,27 @@ function unfoldPreview(id) {
   range.addEventListener('change', () => setTimeout(() => stage.classList.remove('no-anim'), 50));
   window.addEventListener('pointerup', () => setTimeout(() => stage.classList.remove('no-anim'), 50));
 })();
+
+/** Copiar con confirmación: el botón pulsado se convierte en un ✓ dibujado durante un segundo. */
+let lastPressed = null;
+document.addEventListener('pointerdown', (e) => {
+  lastPressed = { el: e.target.closest?.('button, a'), at: Date.now() };
+}, true);
+function confirmCopy() {
+  if (!motionOk() || !lastPressed?.el || Date.now() - lastPressed.at > 3000) return;
+  const b = lastPressed.el;
+  if (b.querySelector(':scope > .copy-check')) return;
+  b.classList.add('is-copied');
+  b.insertAdjacentHTML('beforeend', '<span class="copy-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path pathLength="1" d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>');
+  setTimeout(() => {
+    b.classList.remove('is-copied');
+    b.querySelector(':scope > .copy-check')?.remove();
+  }, 1200);
+}
+
+/** En la página del trabajo, la aurora se para: lo importante es la vista previa (rendimiento, 2026-10-06). */
+new MutationObserver(() => document.documentElement.classList.toggle('in-job', !viewJob.hidden)).observe(viewJob, { attributes: true, attributeFilter: ['hidden'] });
+document.documentElement.classList.toggle('in-job', !viewJob.hidden);
 
 /** Aprobar con celebración: una ráfaga de cartas de newsletter y destellos rosas sale del botón. */
 function celebrateApproval(from) {
@@ -4720,12 +4797,15 @@ async function copyText(text, okMessage, failHint = 'Usa «Descargar HTML».') {
   try {
     await navigator.clipboard.writeText(text);
     showToast(okMessage);
+    confirmCopy();
     return;
   } catch {
     // sigue con el método clásico
   }
-  if (copyWithSelection(text)) showToast(okMessage);
-  else showToast(`No se pudo copiar: el navegador no dio permiso para usar el portapapeles. ${failHint}`, 'error');
+  if (copyWithSelection(text)) {
+    showToast(okMessage);
+    confirmCopy();
+  } else showToast(`No se pudo copiar: el navegador no dio permiso para usar el portapapeles. ${failHint}`, 'error');
 }
 
 document.getElementById('email-meta').addEventListener('click', (e) => {

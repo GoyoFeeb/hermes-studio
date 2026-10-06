@@ -2296,3 +2296,10 @@ El usuario pidió «vamos con todas».
 - Vista previa que se transforma: el marco cambia de ancho/alto suavemente entre escritorio, móvil y libre (sin transición mientras se arrastra el deslizador de «Libre») y fundido al cambiar claro/oscuro/invertido.
 - Todo quieto con «reducir movimiento». Verificado en local; tests 229/229.
 - Fondo cambiado (pedido del usuario): las newsletters flotando se sustituyen por una aurora de marca — cuatro manchas de luz difuminadas (azul noche, violeta, rosa, índigo) que derivan en ciclos de 30-40 s con parallax al hacer scroll (`.bg-aurora`); más tenue en tema claro.
+
+### 2026-10-06 — Studio: revisión de rendimiento y 5.ª tanda de animaciones (pedido por el usuario)
+- Rendimiento: la aurora ya no usa `filter: blur(80px)` (4 capas de 60vmax con desenfoque animado: lo más caro de la página); los degradados radiales con tres paradas dan la misma suavidad. La aurora y el latido de la píldora se paran en la página del trabajo (`html.in-job`). Inclinación y botones magnéticos: un cálculo por fotograma (rAF) y solo los botones a la vista (IntersectionObserver); antes se medían todos los «Ver» del historial con cada movimiento del ratón.
+- Píldora de Hermes con anillo: borde en degradado que se cierra con el % de la pieza en curso; libre y conectado, late suave.
+- Copiar con confirmación: el botón pulsado muestra un ✓ rosa dibujado durante un segundo; los avisos entran como una carta desde abajo con una barra de tiempo (sin pisar su centrado).
+- Cargas con brillo de marca: siluetas de carga con brillo rosa y el logo late si una petición tarda más de 400 ms (`html.is-loading` desde `apiFetch`).
+- Verificado en local; tests 229/229.
