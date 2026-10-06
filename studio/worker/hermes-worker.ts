@@ -404,7 +404,7 @@ const STALL_KILL_SEC = Math.max(4, Number(process.env.HERMES_STALL_MIN) || 8) * 
 /** Intentos que no terminaron (2026-09-29): su carpeta pasa a `_fallido-…` o `_cancelado-…` y el encargo
  *  le dice a Hermes que no las use. En Lacoste, el intento a medias del día anterior hizo que Hermes se
  *  pasara 40 min releyéndolo en vez de escribir la newsletter nueva. */
-const PREVIOUS_WORK_NOTE = [
+export const PREVIOUS_WORK_NOTE = [
   '',
   '## Nota de entorno: intentos anteriores',
   '- Las carpetas newsletters/<año>/<marca>/hermes/_fallido-* y _cancelado-* son intentos que no terminaron:',
@@ -488,7 +488,7 @@ function loopNudge(loop: { kind: LoopKind; target: string; text: string }, deliv
 /** Firecrawl (web_extract/web_search) sale desde servidores de EE. UU.: webs españolas que
  *  redirigen por país o limitan peticiones (Prozis, 2026-09-24: "Go to Prozis USA" y 429)
  *  devuelven basura, y DeepSeek tiende a anunciar "Let me..." y cerrar el turno. */
-const WEB_ACCESS_NOTE = [
+export const WEB_ACCESS_NOTE = [
   '',
   '## Nota de entorno: webs que bloquean la lectura',
   '- web_extract/web_search salen desde EE. UU. Si una web oficial devuelve una redirección de país',
@@ -500,7 +500,7 @@ const WEB_ACCESS_NOTE = [
 
 /** Hermes lee webs de terceros y ejecuta comandos sin pedir permiso: una página con instrucciones
  *  ocultas no debe conseguir que lea credenciales (auditoría 2026-09-28, BUG-H14). */
-const SECRETS_NOTE = [
+export const SECRETS_NOTE = [
   '',
   '## Nota de entorno: credenciales',
   '- No abras, leas, copies ni muestres archivos .env ni otros archivos de credenciales o tokens (en el repo,',

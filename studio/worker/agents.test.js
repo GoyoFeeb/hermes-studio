@@ -358,6 +358,10 @@ test('Ficha de producto: URLs de ficha del brief, umbrales de envío y fotos del
     const brief = 'Home https://www.paredes.es/es/ y ficha https://www.paredes.es/es/1087-10558-zapatillas-ligeras-eden-negro-dc26164-ne.html, ' +
       'fuentes https://fonts.googleapis.com/css2?family=Barlow, foto https://www.paredes.es/1-large/x.jpg y novedades https://www.paredes.es/es/1048-novedades.';
     const urls = p.productUrls(brief);
+    const onlyCategory = p.productUrls('Solo la colección: https://www.paredes.es/es/1048-novedades');
+    const signals = ['https://www.nike.com/es/t/pegasus-42-S1bYkOza/IB1873-702', 'https://shop.example.com/products/gafas-k3',
+      'https://www.paredes.es/es/1087-10558-zapatillas-ligeras-eden-negro-dc26164-ne.html', 'https://www.paredes.es/es/1048-novedades',
+      'https://www.siroko.com/es/gafas'].map(p.looksProduct);
     const t = p.shippingThresholds(['Envio gratuito a partir de 29,99€', 'Coste del envío: Gratuito para pedidos superiores a 25€ sino el coste es de 6€', 'Envíos 48/72 horas']);
     const gallery = p.ownGallery('https://www.paredes.es/es/1087-10558-zapatillas-ligeras-eden-negro-dc26164-ne.html', [
       'https://www.paredes.es/15737-medium_default/zapatillas-ligeras-eden-negro.jpg',
@@ -367,9 +371,12 @@ test('Ficha de producto: URLs de ficha del brief, umbrales de envío y fotos del
     const hashed = p.ownGallery('https://shop.example.com/products/gafas-k3', ['https://cdn.shopify.com/a1b2.jpg', 'https://cdn.shopify.com/c3d4.jpg']);
     const note = p.productSheetNote({ pages: [{ url: 'https://x.es/p/1', title: 'Eden', price: { amount: 48.99, currency: 'EUR', source: 'JSON-LD' }, shipping: ['Envio gratuito a partir de 29,99€', 'Gratuito para pedidos superiores a 25€'], images: [] }], photos: [{ file: 'foto-1.jpg (800×800, 33 KB)', from: 'https://x.es/1.jpg' }], contactSheet: '/tmp/x.png' }, 'newsletters/2026/x/hermes/y');
     const noPrice = p.productSheetNote({ pages: [{ url: 'https://x.es/p/1', title: 'Eden', price: null, shipping: [], images: [] }], photos: [], contactSheet: null }, 'd');
-    process.stdout.write(JSON.stringify({ urls, t, gallery, hashed, note, noPrice }));
+    process.stdout.write(JSON.stringify({ urls, onlyCategory, signals, t, gallery, hashed, note, noPrice }));
   `);
-  assert.deepEqual(r.urls, ['https://www.paredes.es/es/1087-10558-zapatillas-ligeras-eden-negro-dc26164-ne.html', 'https://www.paredes.es/es/1048-novedades']);
+  // La categoría «1048-novedades» (solo un número) no cuenta como ficha cuando el brief cita una de verdad.
+  assert.deepEqual(r.urls, ['https://www.paredes.es/es/1087-10558-zapatillas-ligeras-eden-negro-dc26164-ne.html']);
+  assert.deepEqual(r.onlyCategory, ['https://www.paredes.es/es/1048-novedades']);
+  assert.deepEqual(r.signals, [true, true, true, false, false]);
   assert.deepEqual(r.t, [25, 29.99]);
   assert.deepEqual(r.gallery, ['https://www.paredes.es/15737-medium_default/zapatillas-ligeras-eden-negro.jpg']);
   assert.equal(r.hashed.length, 2);

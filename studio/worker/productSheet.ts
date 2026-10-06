@@ -39,8 +39,10 @@ export interface ProductSheet {
   contactSheet: string | null;
 }
 
-/** URL de ficha de producto citadas en un texto (brief): sin la home, sin imágenes sueltas ni redes. Primero las que
- *  parecen ficha (.html, un código o /p/, /product…), por orden de aparición. */
+/** URL de ficha de producto citadas en un texto (brief): sin la home, sin imágenes sueltas ni redes. Si alguna parece
+ *  ficha con claridad (.html, /p/, /product…, o un código de referencia con letras y números como DC26164), solo esas:
+ *  el 2026-10-06 la página de categoría «/es/1048-novedades» de Paredes contaba como ficha por llevar un número y
+ *  colaba la foto de otro producto. Si ninguna lo parece, todas (en orden de aparición). */
 export function productUrls(text: string): string[] {
   const seen = new Set<string>();
   const urls: string[] = [];
@@ -60,8 +62,21 @@ export function productUrls(text: string): string[] {
     seen.add(key);
     urls.push(u.toString());
   }
-  const looksProduct = (s: string): boolean => /\.html?$|\/p\/|\/products?\/|\/producto|[-_/][A-Z0-9]{5,}|\d{4,}/i.test(new URL(s).pathname);
-  return [...urls.filter(looksProduct), ...urls.filter((s) => !looksProduct(s))].slice(0, MAX_PAGES);
+  const strong = urls.filter((u) => looksProduct(u));
+  return (strong.length ? strong : urls).slice(0, MAX_PAGES);
+}
+
+/** Señal clara de ficha de producto en la ruta. Un número suelto no lo es (las categorías también lo llevan). */
+export function looksProduct(url: string): boolean {
+  let p: string;
+  try {
+    p = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+  // Código de referencia: letras y dígitos mezclados (DC26164, IB1873-702, S1bYkOza); no un número ni una palabra.
+  const code = p.split(/[\/_.-]/).some((t) => t.length >= 5 && /[a-z]/i.test(t) && /\d/.test(t));
+  return /\.html?$|\/p\/|\/products?\/|\/producto|\/t\//i.test(p) || code;
 }
 
 /** Umbrales distintos de «envío gratis» en las frases de envío (25 € y 29,99 € en Paredes). */
@@ -259,7 +274,10 @@ export async function buildProductSheet(urls: string[], outAbs: string, opts: { 
   const pages = await readPages(urls.slice(0, MAX_PAGES));
   const photos: { file: string; from: string }[] = [];
   if (opts.photos !== false) {
-    const queue = pages.flatMap((p) => p.images.map((img) => ({ img, from: p.url })));
+    // Si alguna página es una ficha de verdad (tiene precio de producto), las fotos salen solo de las fichas: una
+    // página sin precio entre ellas suele ser una categoría o una portada con fotos de otros productos.
+    const sources = pages.some((p) => p.price) ? pages.filter((p) => p.price) : pages;
+    const queue = sources.flatMap((p) => p.images.map((img) => ({ img, from: p.url })));
     const seen = new Set<string>();
     for (const { img, from } of queue) {
       if (photos.length >= MAX_PHOTOS) break;

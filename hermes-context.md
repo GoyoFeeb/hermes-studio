@@ -2004,3 +2004,64 @@ El usuario pidió «vamos con todas».
 - **Para desplegar:** worker (reiniciar en el Mac) y Railway solo por `clientMatrix.ts`.
 - **Desplegado (con permiso del usuario):** `26dba53` → push a `Javifeebbo/hermes-studio` (Railway) y a `origin`.
   Worker reiniciado (2026-10-06, sin trabajos en curso), conectado a Studio.
+
+### 2026-10-06 (continuación) — Modo oscuro de Nike/ECI/Talaria y comparativa de modelos de Nous (solo análisis)
+
+- **Modo oscuro:** el usuario prefiere corregirlo con «Pedir cambios» en Studio (las versiones las crea Hermes y quedan
+  publicadas). Causa común: textos con color en línea sin clase oscura:
+  - Nike: «nike.com» y «Ayuda» en #111111;
+  - El Corte Inglés: «Darse de baja» en #1c1c1c;
+  - Talaria: «O vívela antes: reserva tu test ride» en #1E1E1E.
+
+  Se le dieron los textos exactos.
+- **Modelos de Nous:** catálogo público en `https://inference-api.nousresearch.com/v1/models` (425 modelos, precios
+  con caché, modalidades, herramientas y esfuerzo de razonamiento; sin velocidad). Coste por newsletter estimado con
+  el consumo real de 53 sesiones (8,2 M de entrada sin caché, 129,7 M de caché, 1,4 M de salida; ~30 trabajos):
+  - actual `deepseek-v4-flash-0731` ≈ 0,09 $, solo texto (no ve imágenes: la visión pasa por un modelo auxiliar);
+  - mismo rango y con visión: `deepseek-v4.1-flash` 0,07 $, `openai/gpt-6-luna` 0,09 $, `qwen/qwen3.8-flash`
+    0,13 $, `z-ai/glm-5.3-flash` 0,16 $, `xiaomi/mimo-v2.6-pro` 0,17 $;
+  - escalón de calidad: `kimi-k2.6` 0,66 $, `gemini-3.8-flash` 0,70 $; `claude-sonnet-5.5` 1,87 $.
+
+  Pendiente: prueba comparativa real (misma pieza, `HERMES_MODEL_DRAFT`) si el usuario la aprueba.
+- **Fallo de la ficha de producto, corregido (sin desplegar):** en la prueba de modelos, `productUrls` tomó la categoría
+  `/es/1048-novedades` como ficha (la regla «4 dígitos» bastaba) y coló una foto de otro producto. Ahora:
+  - `looksProduct()` solo acepta señales claras: `.html`, `/p/`, `/products/`, `/producto`, `/t/` o un código de
+    referencia con letras y números (DC26164, IB1873-702);
+  - si el brief cita alguna ficha clara, solo se usan esas;
+  - al descargar, si alguna página tiene precio, las fotos salen solo de las que lo tienen.
+
+  Contra el brief real de Paredes: solo la ficha de la Eden y sus 5 fotos. `npm test` 207/207. El worker sigue con el
+  código anterior hasta reiniciarlo: había un trabajo real de Paredes en curso (`muwe6kbf-xfichh`).
+
+### 2026-10-06 (continuación) — Prueba de modelos, visión de Hermes y cambio de modelo principal
+
+- **Prueba de modelos** (misma pieza de Paredes con el brief de ayer y el encargo nuevo, en paralelo; carpetas
+  `newsletters/2026/paredes/hermes/_prueba-modelos-*`). Primera versión:
+
+  | Modelo | Total | HTML | Coste | Valoración |
+  |---|---|---|---|---|
+  | DeepSeek V4.1 Flash | 8,2 min | 3,7 min | 0,036 $ | Control limpio; sigue el brief al pie de la letra |
+  | GPT-6 Luna | 16,9 min | 3,5 min | 0,086 $ | La mejor: corrige el titular «#25282a», módulos propios, precio |
+  | Kimi K2.6 | 15,6 min | 7,2 min | — | Logo invisible en oscuro |
+
+  Qwen 3.8 Flash y V4 Flash 0731 seguían en curso al escribir esto.
+- **Precios:** el de entrada de V4.1 Flash es de promoción (0,003 $ frente a 0,30 $ de lista). GPT-6 Luna cuesta más
+  por sus 90 llamadas de pulido (5,5 M de caché releídos), no por el precio por token.
+- **Visión de Hermes rota a medias:** con `auxiliary.vision: auto`, `vision_analyze` acertaba 101 de 176 veces con
+  V4 Flash 0731 desde el 24-sep (hoy, casi ninguna: «Multimodal not supported», 404). El brief del trabajo real
+  `muwe6kbf-xfichh` vio 1 imagen de 10 y la revisión visual respondió `sin_imagen` (la protección funcionó).
+  - Arreglo (con permiso del usuario): `~/.hermes/config.yaml` → `auxiliary.vision: provider nous, model
+    qwen/qwen3.8-flash`. Copia en `config.yaml.bak.20261006_vision`. Comprobado: la llamada que fallaba ahora
+    funciona.
+- **Modelo principal:** el usuario lo cambió en `~/.hermes/config.yaml`, primero a `deepseek/deepseek-v4.1-flash` y
+  luego a `openai/gpt-6-luna` (vigente). El worker no pasa `--model`, así que todo (brief, pieza, correcciones) usa
+  Luna. El brief con Luna está sin probar.
+- **Trabajo real `muwe6kbf-xfichh`** (Paredes pre-Black Friday, primero con el circuito nuevo y todavía con V4 Flash
+  0731):
+  - tiempos: brief 11 min (tope de 8 min alcanzado); ficha de producto 6 s (43,99 €, 7 fotos de la Forés); primera
+    versión 1 min 22 s; total sin la espera de aprobación, 13 min (ayer, 57);
+  - control limpio; el Black Friday como eje; el color de la zapatilla (caqui, aunque la URL dice «negro») quedó
+    fuera por la regla «resolver o quitar».
+- **Riesgo anotado:** `htmlReady()` acepta el HTML más reciente de cualquier subcarpeta de la marca
+  (`newestHtmlSince`). Con trabajos en paralelo en la misma marca podría coger el de otro. Hoy no pasó. Pendiente
+  de acotarlo.
