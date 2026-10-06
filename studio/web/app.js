@@ -1297,7 +1297,9 @@ document.querySelectorAll('.segmented').forEach((seg) => {
 
   // Tarjetas que se inclinan hacia el ratón, con un brillo que lo sigue. La del formulario, apenas (y nada mientras
   // se escribe en ella).
-  const TILT = '#brief-form.card, .now-link, .g-card, .show-card';
+  // Sin las cartas del abanico de la cabecera: son absolutas y tienen su propio efecto al pasar (inclinarlas las sacaba
+  // del abanico como un cuadrado grande y el movimiento chocaba con su transición).
+  const TILT = '#brief-form.card, .now-link, .g-card';
   document.addEventListener('pointermove', (e) => {
     const card = e.target.closest?.(TILT);
     document.querySelectorAll('.is-tilting').forEach((c) => c !== card && resetTilt(c));

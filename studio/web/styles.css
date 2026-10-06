@@ -2246,7 +2246,8 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 
 /* Tarjetas que se inclinan hacia el ratón, con brillo. */
 #brief-form.card, .now-link, .g-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
-.is-tilting { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); position: relative; }
+.is-tilting { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+.now-link.is-tilting, .g-card.is-tilting { position: relative; }
 .now-link.is-tilting, .g-card.is-tilting { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px); }
 .now-link.is-tilting::after, .g-card.is-tilting::after {
   content: '';
@@ -2256,7 +2257,6 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
   pointer-events: none;
   background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, 50%), rgba(251, 115, 255, 0.16), transparent 60%);
 }
-.show-card.is-tilting { transform: translateX(calc(var(--i, 0) * 58px)) rotate(0deg) translateY(-18px) scale(1.04) perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
 
 /* Botones magnéticos y onda al pulsar. */
 .is-magnetic { translate: var(--mx, 0px) var(--my, 0px); transition: translate 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }

@@ -2280,3 +2280,4 @@ El usuario pidió «vamos con todas».
 - Filas del historial que se levantan con sombra, borde en degradado rosa y destello en la etiqueta de estado.
 - Números de sección con parallax y título que se desliza al aparecer.
 - Solo con ratón las interacciones; todo quieto con «reducir movimiento». Verificado en local; tests 229/229.
+- Arreglo (pedido del usuario): las cartas del abanico de la cabecera quedan fuera de la inclinación 3D. La regla `.is-tilting { position: relative }` las sacaba del abanico (aparecían como un cuadrado grande al pasar o pinchar) y la inclinación chocaba con su transición (movimiento torpe). El abanico conserva su propio efecto al pasar.
