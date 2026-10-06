@@ -2083,3 +2083,34 @@ El usuario pidió «vamos con todas».
   `README.md` de resultados, `bakeoff.ts` y el registro. Se paró antes la sesión de Qwen 3.8 Flash, que seguía
   retocando a los ~45 min. Se quitó una carpeta vacía `newsletters/2026/paredes/hermes/_trabajo` creada durante la
   prueba.
+
+### 2026-10-06 (continuación) — Opción 3 elegida: standalone como única vía. Fase A (claims) aplicada, sin desplegar
+
+- **Decisión del usuario:** Studio → Hermes (standalone) es la única vía de producción. Lo valioso de los agentes 00-09 y
+  del motor se absorbe en Studio, y el resto se archiva al final. Plan:
+  - A. Claims del agente 05 como comprobación real.
+  - B. Catálogo de módulos del motor y los 3 patrones en el brief.
+  - C. Brand pack automático (agente 02).
+  - D. Envíos recurrentes a partir de una pieza aprobada.
+  - E. Archivar `agents/`, `engine/`, scripts del motor, `pipeline-skill/` y las 27 campañas del motor; reescribir
+    `AGENTS.md`/`CLAUDE.md`/`README.md`; ajustar tests y CI.
+
+  Las fases 0-2 del roadmap original quedan cerradas y archivadas, no ampliadas. La skill `hermes-pipeline` habrá que
+  actualizarla al final.
+- **Fase A — `studio/worker/claims.ts`:**
+  - Reglas: las 30 del motor (`scripts/lib/claim-rules.ts`, sin tocar: está bajo el candado del motor) más 7 de
+    retail: envío gratis, gratis/regalo, descuento %, ahorra X, urgencia, precio más bajo y el más vendido/nº 1.
+  - Contra qué se comprueba: `verifiedSource()` (sección «3. Datos verificados» del brief hasta «Fuera de la pieza» o
+    «Pendiente», más la ficha de producto sin sus «NO cites»). El worker lo escribe en `_trabajo/datos-verificados.md`
+    ANTES de la pieza; `inspect.ts` lo lee, así que Hermes lo ve también en `check-newsletter`.
+  - Cuándo vale: misma expresión (con tolerancia a plurales y tildes) y mismas cifras; un % vale si ese % está en lo
+    verificado.
+  - Severidad: crítica sin verificar → error que vuelve a Hermes (pauta en `FIX_GUIDE`); high/medium → aviso; sin
+    archivo de verificados, todo aviso, como antes.
+  - Encargo y brief llevan la regla (`CLAIMS_PIECE_RULE`/`CLAIMS_BRIEF_RULE`). En «Pedir cambios», los claims que ya
+    traía la original no se fuerzan.
+- **Contra las ~30 piezas reales:** 1 error y es correcto: Paredes 05-oct, «Envío gratuito a partir de 29,99 €»,
+  pendiente en el brief y con la web en contradicción. Verificados y aceptados: Lacoste «hasta un 50 %»/«gratuito»,
+  y «potencia» en Talaria y Adidas (el falso positivo de antes). Ningún falso positivo.
+- **Verificación:** +4 tests; `npm test` 211/211; check-newsletter de extremo a extremo con `datos-verificados.md`.
+- **Para desplegar:** Railway (encargo y brief) y reiniciar el worker.

@@ -443,3 +443,64 @@ test('Modo oscuro legible renderizando: el @media que pasa el texto a blanco sin
   assert.match(out.a.errors[0], /#ffffff sobre #ffffff/);
   assert.deepEqual(out.b.errors, []);
 });
+
+// ------------------------------------------- afirmaciones comerciales contra lo verificado (2026-10-06, fase A)
+
+test('Claims: lo verificado sale de «Datos verificados» (sin «Fuera de la pieza») y de la ficha sin sus «no cites»', () => {
+  const r = run(`
+    const c = require(${mod('claims.ts')});
+    const brief = '# Brief\\n## 2. Identidad\\nenvío gratis en la web antigua\\n## 3. Datos verificados\\n- Precio 43,99 € → https://x.es/p.html\\n- Envío gratis a partir de 29,99 € → https://x.es/envios\\n- **Fuera de la pieza**: descuento del 30 %\\n## 4. Asunto\\nAsunto\\n\\n---\\n## Instrucciones de entrega\\n- gratis';
+    const note = '- Envío, texto literal: «Envío gratis desde 25 €»\\n  · La página da umbrales distintos: NO cites el envío gratis.';
+    const pasted = 'Newsletter de rebajas: hasta un 50 % en polos.\\nPendiente: envío gratis sin confirmar.';
+    process.stdout.write(JSON.stringify({ v: c.verifiedSource(brief, note), p: c.verifiedSource(pasted) }));
+  `);
+  assert.match(r.v, /43,99/);
+  assert.match(r.v, /29,99/);
+  assert.match(r.v, /desde 25/);
+  assert.doesNotMatch(r.v, /30 %|NO cites|web antigua|Instrucciones/);
+  assert.match(r.p, /hasta un 50 %/);
+  assert.doesNotMatch(r.p, /Pendiente/);
+});
+
+test('Claims: crítica sin verificar es error; verificada con la misma cifra pasa; cifra distinta, error; sin contexto, aviso', () => {
+  const r = run(`
+    const c = require(${mod('claims.ts')});
+    const verified = '- Envío gratis a partir de 29,99 €\\n- Descuento del 20 % en la colección';
+    const piece = 'Black Friday: -20 % en todo. Envío gratis a partir de 29,99 €. Solo hoy. Te regalamos una bolsa. La potencia que buscas.';
+    const other = 'Ahora -30 % en la colección.';
+    process.stdout.write(JSON.stringify({
+      a: c.claimFindings(piece, verified), b: c.claimFindings(other, verified), none: c.claimFindings(piece),
+    }));
+  `);
+  assert.equal(r.a.verified.length, 2, JSON.stringify(r.a));
+  assert.ok(r.a.verified.some((v) => /-20 %/.test(v)));
+  assert.ok(r.a.verified.some((v) => /Envío gratis/.test(v)));
+  assert.equal(r.a.errors.length, 2, JSON.stringify(r.a.errors));
+  assert.ok(r.a.errors.some((e) => /«urgencia»/.test(e)));
+  assert.ok(r.a.errors.some((e) => /«gratis \/ regalo»/.test(e)));
+  assert.ok(r.a.warnings.some((w) => /«potencia»/.test(w)), 'las técnicas del motor siguen como aviso');
+  assert.equal(r.b.errors.length, 1);
+  assert.match(r.b.errors[0], /«descuento»/);
+  assert.equal(r.none.errors.length, 0);
+  assert.ok(r.none.warnings.length >= 4);
+});
+
+test('Claims: el control los marca como error con datos verificados y como aviso sin ellos; el formato sigue sirviendo a locate.js', () => {
+  const r = run(`
+    const q = require(${mod('qualityCheck.ts')});
+    const html = '<html><body><p>Envío gratis en todos los pedidos.</p></body></html>';
+    const strict = q.staticChecks(html, [], '- Precio 43,99 €').find((x) => x.id === 'claims');
+    const loose = q.staticChecks(html).find((x) => x.id === 'claims');
+    process.stdout.write(JSON.stringify({ strict, loose }));
+  `);
+  assert.equal(r.strict.status, 'error');
+  assert.match(r.strict.details[0], /: ….+… — /);
+  assert.equal(r.loose.status, 'warning');
+});
+
+test('Encargo y brief llevan la regla de afirmaciones comerciales', () => {
+  const r = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '', instruction: 'Newsletter de la Eden', imageMode: 'official', mode: 'standalone' });
+  const h = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '# Brief', imageMode: 'official', mode: 'standalone' });
+  assert.match(r.brief, /Afirmaciones comerciales .*sección 3/);
+  assert.match(h.hermes, /Afirmaciones comerciales \(Studio las comprueba contra lo verificado\)/);
+});

@@ -21,11 +21,13 @@
  * Inspectores del 2026-10-05 (renderChecks.ts): contraste por debajo de 3:1, texto de menos de 13 px en móvil,
  * estructura «foto a todo el ancho + texto» repetida sin ningún otro módulo y fotos con más del 45 % de fondo liso
  * son errores; contraste justo, 13 px, colores fuera de la paleta de la marca y peso de las imágenes, avisos.
- * Avisos (no se devuelven): claims de riesgo — la regla da falsos positivos, p. ej. "potencia" en la
- * ficha técnica de una moto (Talaria) — y webs que bloquean a los robots (403/429: Prozis, Adeslas),
- * que en un navegador normal funcionan.
+ * Claims (2026-10-06, claims.ts): con lo verificado del encargo (`_trabajo/datos-verificados.md`), una afirmación
+ * crítica que no está ahí («envío gratis», «-30 %», «solo hoy», «garantizado»…) es error; las técnicas del motor
+ * siguen como aviso (daban falsos positivos: «potencia» en la ficha de una moto). Sin ese archivo, todo aviso.
+ * Avisos (no se devuelven): webs que bloquean a los robots (403/429: Prozis, Adeslas), que en un navegador normal
+ * funcionan.
  */
-import { CLAIM_RULES } from '../../scripts/lib/claim-rules';
+import { claimFindings } from './claims';
 
 export type CheckStatus = 'ok' | 'warning' | 'error';
 
@@ -117,7 +119,7 @@ function snippet(tag: string): string {
 }
 
 /** Comprobaciones que no necesitan red. `missingLocal`: imágenes con ruta local que no existen. */
-export function staticChecks(html: string, missingLocal: string[] = []): QualityCheckItem[] {
+export function staticChecks(html: string, missingLocal: string[] = [], verified?: string): QualityCheckItem[] {
   const checks: QualityCheckItem[] = [];
 
   const pre = findPreheader(html);
@@ -152,13 +154,10 @@ export function staticChecks(html: string, missingLocal: string[] = []): Quality
   checks[checks.length - 1].details.push(`${Math.round(bytes / 1024)} KB`);
 
   const text = visibleText(html);
-  const claims = CLAIM_RULES.flatMap((rule) => {
-    const m = text.match(rule.pattern);
-    if (!m) return [];
-    const i = m.index || 0;
-    return [`«${rule.label}» (${rule.severity}): …${text.slice(Math.max(0, i - 40), i + m[0].length + 40).trim()}… — ${rule.recommendation}`];
-  });
-  checks.push(item('claims', 'Claims de riesgo', [], claims));
+  const claims = claimFindings(text, verified);
+  const claimItem = item('claims', 'Claims de riesgo', claims.errors, claims.warnings);
+  claimItem.details.push(...claims.verified);
+  checks.push(claimItem);
 
   // Marcadores de la base técnica (studio/hermes/email-base.html) que se quedaron sin rellenar.
   const leftovers = [...new Set([...html.replace(/<!--(?!\[if)[\s\S]*?-->/g, '').matchAll(/\[(?:[A-ZÁÉÍÓÚÑ0-9][A-ZÁÉÍÓÚÑ0-9 .:,/-]{2,60}|[a-z0-9_-]+\.(?:png|jpe?g))\]/g)].map((m) => m[0]))];
@@ -544,11 +543,13 @@ export interface QualityOptions {
   imageFindings?: { errors: string[]; warnings: string[] };
   /** Lo que pidió el equipo y la pieza no nombra (requestCoverage.ts); sin definir = no se comprobó. */
   requestMissing?: string[];
+  /** Datos verificados del encargo (claims.ts); sin definir, los claims solo avisan. */
+  verified?: string;
   fetcher?: Fetcher;
 }
 
 export async function runQualityCheck(html: string, opts: QualityOptions = {}): Promise<QualityReport> {
-  const checks = staticChecks(html, opts.missingLocal);
+  const checks = staticChecks(html, opts.missingLocal, opts.verified);
   const { links, images } = collectUrls(html);
   const verdicts = await checkUrls([...links, ...images.filter((u) => !links.includes(u))], opts.fetcher);
   checks.unshift(

@@ -14,6 +14,7 @@ import { runQualityCheck, visibleText, type QualityReport, type Fetcher } from '
 import { buildBrandCard } from './brandCard';
 import { readMeasuredIdentity } from './measureBrand';
 import { missingInPiece } from '../server/requestCoverage';
+import { VERIFIED_FILE } from './claims';
 
 /** Petición del equipo, en `_trabajo/` junto a la pieza (la escribe el worker al recibir el encargo). */
 export const REQUEST_FILE = 'peticion.txt';
@@ -81,7 +82,15 @@ export async function inspectNewsletter(htmlPath: string, root: string, opts: In
   } catch {
     // trabajo con prompt pegado o anterior a esta comprobación
   }
+  // Lo verificado del encargo (brief + ficha de producto): sin él, los claims solo avisan (claims.ts).
+  let verified: string | undefined;
+  try {
+    verified = fs.readFileSync(path.join(dir, '_trabajo', VERIFIED_FILE), 'utf8');
+  } catch {
+    // pieza suelta o anterior a esta comprobación
+  }
   const report = await runQualityCheck(html, {
+    verified,
     requestMissing: request ? missingInPiece(request, `${html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || ''} ${visibleText(html)}`).map((t) => t.label) : undefined,
     missingLocal: missingLocalImages(html, dir, root),
     mobileProblem: render ? render.mobile : undefined,

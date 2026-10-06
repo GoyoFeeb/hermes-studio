@@ -31,6 +31,7 @@ import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCa
 import { joinLabels, missingInBrief } from '../server/requestCoverage';
 import { buildProductSheet, productSheetNote, productUrls } from './productSheet';
 import { renderSheet } from './render-newsletter';
+import { VERIFIED_FILE, verifiedSource } from './claims';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -592,6 +593,8 @@ const FIX_GUIDE =
   'y la comprime) y enlázala con ruta local. Sin preheader → al principio del <body>, un bloque oculto (display:none; ' +
   'max-height:0; overflow:hidden; mso-hide:all) con una frase que complemente al asunto. Modo oscuro → @media ' +
   '(prefers-color-scheme: dark) con fondos, textos y CTA en oscuro coherentes con la marca (logo claro si hace falta). ' +
+  'Claims de riesgo → quita la afirmación o reescribe la frase sin ella (sin cifras ni promesas que no estén en ' +
+  `_trabajo/${VERIFIED_FILE}); no busques datos nuevos para justificarla. ` +
   'Modo oscuro legible → en el @media (prefers-color-scheme: dark), cada celda con fondo claro (bgcolor/background) ' +
   'lleva una clase con su fondo oscuro y !important, a la vez que su texto pasa a claro. ' +
   'Outlook → tabla fantasma de 600 px en <!--[if mso]>, tablas en vez de flex/grid. Logo arriba y abajo → el del pie ' +
@@ -1054,6 +1057,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // La petición del equipo: check-newsletter (inspect.ts) comprueba con ella que la pieza nombra la ocasión o la
   // oferta que se pidió, igual cuando la lanza Hermes que cuando la lanza el worker (2026-10-05).
   if (claimed.request && !editKind) fs.writeFileSync(path.join(outAbs, '_trabajo', REQUEST_FILE), claimed.request);
+  // Lo verificado (brief + ficha de producto): check-newsletter y el control de Studio comprueban contra esto las
+  // afirmaciones comerciales (claims.ts). Antes de la pieza, para que Hermes lo vea en su propia comprobación.
+  if (!isMobileFix) fs.writeFileSync(path.join(outAbs, '_trabajo', VERIFIED_FILE), verifiedSource(prompt, productNote));
   const job = { id: claimed.id, outputDir: claimed.outputDir, prompt };
   const kind: 'new' | 'revision' | 'mobile-fix' = isMobileFix ? 'mobile-fix' : isRevision ? 'revision' : 'new';
   const scale = (p: Progress): Progress =>
@@ -1188,8 +1194,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const inherited = new Set(
     isRevision && claimed.sourceHtml
       ? [
-          ...staticChecks(claimed.sourceHtml)
-            .filter((c) => c.status === 'error' && ['dark-mode', 'dark-legibility', 'outlook', 'typography', 'logo-present', 'email-images'].includes(c.id))
+          ...staticChecks(claimed.sourceHtml, [], verifiedSource(prompt))
+            .filter((c) => c.status === 'error' && ['dark-mode', 'dark-legibility', 'outlook', 'typography', 'logo-present', 'email-images', 'claims'].includes(c.id))
             .map((c) => c.id),
           'image-quality',
         ]

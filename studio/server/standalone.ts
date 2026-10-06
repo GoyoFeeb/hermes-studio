@@ -25,6 +25,7 @@ import { findPreheader, staticChecks } from '../worker/qualityCheck';
 import { applyTextEdits, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { createJob } from './store';
 import { joinLabels, requestTerms } from './requestCoverage';
+import { CLAIMS_BRIEF_RULE, CLAIMS_PIECE_RULE } from '../worker/claims';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
 const GMAIL_CLIP_BYTES = 102 * 1024;
@@ -108,6 +109,7 @@ export function buildHermesPrompt(job: Job): string {
     `- ${images}`,
     '- Nadie va a responder preguntas durante esta ejecución: no uses clarify ni esperes confirmación.',
     '  Si falta un dato, no lo inventes: déjalo fuera de la pieza y anótalo como pendiente.',
+    ...CLAIMS_PIECE_RULE,
     '- Lo que el brief deja como pendiente NO se investiga aquí y NO entra en la pieza, salvo que la «Ficha de producto',
     '  ya extraída» de Studio (más abajo, si la hay) lo traiga. Esta fase maqueta; no vuelve a navegar la web.',
     `- Entrega UN ÚNICO archivo HTML de email, final y listo para enviar, en: ${outDir}/newsletter.html`,
@@ -251,6 +253,7 @@ export function buildBriefPrompt(job: Job): string {
     '- Copy: máximo 40 palabras por bloque; cada dato técnico dentro de una frase con verbo, contado como experiencia.',
     '- Los titulares hablan al cliente: nada de códigos de color (#25282a), referencias internas ni jerga de diseño.',
     '- Si verificas el precio y la pieza es para vender (ocasión de compra, oferta, lanzamiento), el precio sale en una escena.',
+    CLAIMS_BRIEF_RULE,
     '',
     `## Entregable: ${outDir}/brief.md (write_file), con EXACTAMENTE estas secciones y como mucho ${BRIEF_MAX_WORDS} palabras`,
     `# Brief — ${job.input.clientName} — <producto o campaña>`,
