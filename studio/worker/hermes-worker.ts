@@ -83,13 +83,18 @@ function stamp(): string {
   return new Date().toLocaleTimeString('es-ES');
 }
 
+const API_TIMEOUT_MS = 20_000;
 async function api(route: string, body?: unknown, attempts = 3): Promise<Response> {
   for (let i = 1; ; i++) {
     try {
+      // Con tiempo límite (auditoría, 2026-10-07): sin él, una llamada a Studio colgada (p. ej. en un despliegue de
+      // Railway) dejaba el latido ocupado para siempre y con él el vigilante de cuelgues (El Corte Inglés, 06-10:
+      // 16,5 min esperando al modelo sin que nadie cortara).
       const res = await fetch(`${BASE}${route}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body ?? {}),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
       // 409 en una ruta del trabajo en curso = lo han cancelado desde la web (ver standaloneJobForWorker).
       if (res.status === 409 && current && route.startsWith(`/api/worker/jobs/${current}/`)) markCancelled();
@@ -446,8 +451,9 @@ export function selfContainedNote(outputDir: string, root = ROOT): string {
     `  completo) y, si las hay, la identidad medida y la ficha de producto. ${outputDir}/brief.md es una copia del brief:`,
     '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
     `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
-    '  write_file partiendo de la base, 3) `npm run check-newsletter` y `npm run render-newsletter`, 4) corrige,',
-    '  5) notas.md. No investigues lo que el brief deja pendiente: queda fuera de la pieza.',
+    '  write_file partiendo de la base, 3) `npm run check-newsletter` hasta que salga limpio, 4) `npm run',
+    '  render-newsletter` y vision_analyze UNA vez, corrige lo que veas, 5) notas.md una vez. No investigues lo que el',
+    '  brief deja pendiente: queda fuera de la pieza.',
     ...(base ? ['', '### Base técnica: studio/hermes/email-base.html (contenido completo)', '```html', base, '```'] : []),
     ...(modules ? ['', '### Módulos técnicos de ejemplo: studio/hermes/email-modulos.md (contenido completo)', modules] : []),
   ].join('\n');
@@ -561,6 +567,23 @@ function modelArgs(model?: string): string[] {
  *  HERMES_KEEP_RULES=1 vuelve a cargarse todo. */
 const RULES_ARGS = process.env.HERMES_KEEP_RULES === '1' ? [] : ['--ignore-rules'];
 
+/** Herramientas por fase (auditoría de tiempo, 2026-10-07): antes cada sesión cargaba todas (navegador, búsqueda,
+ *  voz, tareas programadas, control del ordenador…). El borrador de Lacoste volvió a navegar 21 veces aunque el encargo
+ *  dice «no vuelve a navegar»; sin el navegador en su caja no puede. «Pedir cambios» y «Adaptar a móvil» siguen con
+ *  todas (un cambio puede pedir buscar un dato). Con HERMES_ALL_TOOLS=1 vuelven todas en todas las fases. */
+const toolsets = (list: string): string[] => (process.env.HERMES_ALL_TOOLS === '1' ? [] : ['-t', list]);
+export const TOOLS_BRIEF = toolsets('web,browser,terminal,file,vision');
+export const TOOLS_REVIEW = toolsets('terminal,file,vision');
+/** Pieza nueva: maquetar, comprobar y mirar; con imágenes de IA, también generarlas. */
+export const draftTools = (prompt: string): string[] =>
+  toolsets(/GENÉRALAS CON IA/.test(prompt) ? 'terminal,file,vision,image_gen' : 'terminal,file,vision');
+
+/** Orientación (auditoría de tiempo, 2026-10-07): cada sesión nueva gastaba ~8 turnos (~1,5 min) leyendo AGENTS.md y
+ *  CLAUDE.md, buscando carpetas y mirando git, aunque el encargo trae lo que necesita. Va al final de cada sesión nueva. */
+export const ORIENT_NOTE =
+  '\n\nPara empezar: NO leas AGENTS.md, CLAUDE.md, package.json ni README, no ejecutes git status ni busques carpetas o ' +
+  'archivos para orientarte. Este encargo trae todo lo que necesitas y las rutas exactas: ve directo al trabajo.';
+
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
  *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
 function runHermesTurn(
@@ -572,7 +595,7 @@ function runHermesTurn(
 ): Promise<{ code: number | null; output: string; stderr: string }> {
   if (cancelled) return Promise.resolve({ code: null, output: '', stderr: 'Trabajo cancelado.' });
   if (loopStopped) return Promise.resolve({ code: null, output: '', stderr: `Hermes se quedó en bucle: ${loopStopped}.` });
-  const args = ['chat', '-q', query, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...extraArgs];
+  const args = ['chat', '-q', resumeId ? query : query + ORIENT_NOTE, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...extraArgs];
   const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: HERMES_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
   currentChild = child;
   let stdout = '';
@@ -593,6 +616,24 @@ function runHermesTurn(
       resolve({ code: -1, output: stdout, stderr: `${stderr}\n${err.message}` });
     });
   });
+}
+
+/** Tope por turno en la revisión de arte (auditoría, 2026-10-07): la nota suele tardar 1-2 min y la mejora 2-3; una
+ *  llamada colgada (El Corte Inglés, 06-10: 990 s) se corta aquí aunque el latido falle. Al cortar, la nota sale
+ *  ilegible (la pieza sigue sin nota) y la mejora pasa igualmente por la segunda nota y la red de seguridad. */
+export const ART_SCORE_CAP_MS = 5 * 60 * 1000;
+export const ART_IMPROVE_CAP_MS = 8 * 60 * 1000;
+async function cappedTurn<T>(ms: number, jobId: string, what: string, turn: () => Promise<T>): Promise<T> {
+  const timer = setTimeout(() => {
+    if (!currentChild) return;
+    console.log(`[${stamp()}] ${jobId}: ${what} sin terminar en ${Math.round(ms / 60000)} min — se corta`);
+    currentChild.kill('SIGTERM');
+  }, ms);
+  try {
+    return await turn();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Rondas de corrección (2026-10-05): móvil, espacios y calidad van JUNTOS en una sola ronda (antes, dos bucles
@@ -775,14 +816,17 @@ async function runBriefStep(
   const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
   let sessionId: string | null = null;
   let busy = false;
+  let busySince = 0;
   let lastCount = -1;
   let lastChange = Date.now();
   let budgetHit = false;
   let firstTurn = true;
   const loops = newLoopState();
   const heartbeat = setInterval(async () => {
-    if (busy) return;
+    // Un latido atascado más de 2 min no bloquea los siguientes: el vigilante de cuelgues vive aquí (2026-10-07).
+    if (busy && Date.now() - busySince < 120_000) return;
     busy = true;
+    busySince = Date.now();
     const elapsed = (Date.now() - started) / 1000;
     let tools: ToolCall[] = [];
     try {
@@ -838,7 +882,8 @@ async function runBriefStep(
     job.briefPrompt! + identity + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
     null,
     (id) => (sessionId = sessionId || id),
-    MODELS.brief
+    MODELS.brief,
+    TOOLS_BRIEF
   );
   firstTurn = false;
   for (let i = 1; i <= 3 && !ready() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
@@ -848,7 +893,7 @@ async function runBriefStep(
         'Escríbelo AHORA con write_file, con lo que ya tengas (lo que no hayas podido verificar va a «Fuera de la pieza»; ' +
         'cita la URL exacta de la ficha del producto: Studio saca de ella precio, envío y fotos). Sin texto previo: llama a la herramienta.';
     loops.nudge = null;
-    turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief);
+    turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief, TOOLS_BRIEF);
   }
   // Autocrítica del brief (2026-10-06, punto 3 de la auditoría): una vuelta en la misma sesión, sin navegar, que relee
   // el brief como director creativo y reescribe lo que no pase. Incluye lo que la petición pide y el brief no recoge
@@ -861,7 +906,7 @@ async function runBriefStep(
     }
     console.log(`[${stamp()}] Brief de ${job.id}: autocrítica`);
     void api(`/api/worker/jobs/${job.id}/progress`, { message: 'Hermes relee el brief como director creativo y corrige lo que no pasa.' }).catch(() => undefined);
-    await runHermesTurn(briefCritiqueQuery(job.outputDir, gaps, job.request), sessionId, () => undefined, MODELS.brief);
+    await runHermesTurn(briefCritiqueQuery(job.outputDir, gaps, job.request), sessionId, () => undefined, MODELS.brief, TOOLS_BRIEF);
   }
   clearInterval(heartbeat);
   clearTimeout(killer);
@@ -1028,9 +1073,14 @@ export function lowScores(review: ArtReview): string[] {
   return Object.keys(review.notas).filter((k) => review.notas[k] < 4);
 }
 
-/** ¿Hay pasada de mejora? Siempre con notas por debajo de 4; con 4, si la revisión nombra mejoras concretas. */
+/** ¿Hay pasada de mejora? Solo con la nota baja (auditoría de tiempo, 2026-10-07): en las 8 piezas del 06-10 la
+ *  pasada sobre piezas de ~39/50 dio −2, +2, 0, −2, −1, 0, 0, +2 (3 revertidas) a ~3 min cada una. Ahora, si el total
+ *  baja del 72 % (36/50) o algún criterio se queda en 2 o menos. */
+export const IMPROVE_BELOW = 0.72;
 export function needsImprovement(review: ArtReview): boolean {
-  return lowScores(review).length > 0 || (review.mejoras.length > 0 && Object.values(review.notas).some((n) => n < 5));
+  const notes = Object.values(review.notas);
+  if (!notes.length) return false;
+  return scoreTotal(review) < IMPROVE_BELOW * notes.length * 5 || notes.some((n) => n <= 2);
 }
 
 export const scoreTotal = (review: ArtReview): number => Object.values(review.notas).reduce((a, b) => a + b, 0);
@@ -1208,6 +1258,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let lastCount = -1;
   let lastChange = Date.now();
   let busy = false;
+  let busySince = 0;
   let loops = newLoopState();
   // La barra nunca retrocede; tras la primera versión, todo es revisión (laterSessionProgress).
   let afterDraft = false;
@@ -1221,8 +1272,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     loops = newLoopState();
   };
   const heartbeat = setInterval(async () => {
-    if (busy) return;
+    // Un latido atascado más de 2 min no bloquea los siguientes: el vigilante de cuelgues vive aquí (2026-10-07).
+    if (busy && Date.now() - busySince < 120_000) return;
     busy = true;
+    busySince = Date.now();
     const elapsed = (Date.now() - started) / 1000;
     let tools: ToolCall[] = [];
     try {
@@ -1283,7 +1336,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
-  const reasoning = draftReasoningArgs(!!editKind);
+  const reasoning = [...draftReasoningArgs(!!editKind), ...(editKind ? [] : draftTools(job.prompt))];
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
   sessionId = sessionId || watched;
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
@@ -1296,8 +1349,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         ? loopNudge(nudge, `${job.outputDir}/newsletter.html`)
         : `Todavía no existe ${job.outputDir}/newsletter.html. Tu respuesta anterior anunció una acción pero ` +
             'no llamó a ninguna herramienta, y eso termina tu turno sin avanzar. Responde AHORA con llamadas a ' +
-            'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
-            'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
+            'herramientas, sin texto previo. Si te falta un dato, márcalo como pendiente; con lo que ya tengas, ' +
+            'escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
       sessionId,
       () => undefined,
       model,
@@ -1318,7 +1371,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         'origen de cada imagen, tipografía y colores con su origen, y las preguntas de autoauditoría. Si algo no cumple, corrige la newsletter.html antes.',
       sessionId,
       () => undefined,
-      model
+      model,
+      editKind ? [] : draftTools(job.prompt)
     );
   }
   timeline.end(Math.max(0, lastCount));
@@ -1387,7 +1441,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
           ].join('\n')
         : `Siguen estos errores tras tu corrección:\n\n${describeErrors(fixable)}\n\nCorrígelos con el mismo alcance y vuelve a ejecutar \`${checkCmd}\`.\n\n${SCOPED_FIX}`;
-    await runHermesTurn(message, fixSession, (id) => (fixSession = fixSession || id), MODELS.fix);
+    await runHermesTurn(message, fixSession, (id) => (fixSession = fixSession || id), MODELS.fix, TOOLS_REVIEW);
     fixSession = fixSession || watched;
     timeline.end(Math.max(0, lastCount));
     if (cancelled) return finishCancelled();
@@ -1417,12 +1471,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       watchNewSession();
       const reviewOnce = async (ready?: string): Promise<{ review: ArtReview | null; output: string }> => {
         const s2 = ready ? { sheet: ready } : await renderSheet(finalPath, workDir);
-        const look = await runHermesTurn(
-          artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found),
-          null,
-          () => undefined,
-          MODELS.draft
-        );
+        const query = artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found);
+        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.draft, TOOLS_REVIEW));
         return { review: parseArtReview(look.output), output: look.output };
       };
       const first = await reviewOnce(sheet.sheet);
@@ -1434,6 +1484,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       console.log(
         `[${stamp()}] ${job.id}: revisión visual ${review ? `— ${scoreTotal(review)}/${Object.keys(review.notas).length * 5}${low.length ? `, por debajo de 4: ${low.join(', ')}` : ''}, ${review.mejoras.length} mejora(s)` : '— respuesta sin notas legibles'}${web ? ' (con la web de la marca)' : ''}`
       );
+      if (review && !needsImprovement(review)) {
+        console.log(`[${stamp()}] ${job.id}: nota de arte suficiente (${scoreTotal(review)}/${Object.keys(review.notas).length * 5}): sin pasada de mejora`);
+      }
       if (review && needsImprovement(review) && !cancelled && Date.now() - started < TIMEOUT_MS) {
         const backup = path.join(workDir, 'antes-de-mejora.html');
         fs.copyFileSync(finalPath, backup);
@@ -1443,7 +1496,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             : `Revisión de dirección de arte: ${review.mejoras.length} mejora(s) para subir de 4 a 5 — Hermes las aplica.`
         );
         watchNewSession();
-        await runHermesTurn(
+        await cappedTurn(ART_IMPROVE_CAP_MS, job.id, 'mejora de arte', () => runHermesTurn(
           [
             `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
             `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg.${web ? ` Portada de la web de la marca: ${rel}/web-marca.jpg.` : ''} Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
@@ -1467,8 +1520,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           ].join('\n'),
           null,
           () => undefined,
-          MODELS.draft
-        );
+          MODELS.draft,
+          TOOLS_REVIEW
+        ));
         if (cancelled) return finishCancelled();
         // Segunda nota (una mirada) y red de seguridad: la mejora se queda solo si no empeora la pieza.
         watchNewSession();
@@ -1607,7 +1661,7 @@ async function backfillArtReviews(): Promise<void> {
       const home = readMeasuredIdentity(ROOT, j.slug)?.url || brandHome(j.prompt.split('## Instrucciones de entrega')[0], j.slug);
       const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
       const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
-      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found), null, () => undefined, MODELS.draft);
+      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found), null, () => undefined, MODELS.draft, TOOLS_REVIEW);
       const review = parseArtReview(look.output);
       await api(
         `/api/worker/jobs/${j.id}/art-review`,

@@ -2352,3 +2352,34 @@ El usuario pidió «vamos con todas».
 ### 2026-10-06 — Studio: pie con llamada final (pedido por el usuario)
 - El pie era un bloque negro (logo, ©, Correo/Web) que cortaba con el azul de Studio. Ahora va en el fondo de la página con una línea fina encima: «HERMES STUDIO · ¿Otra newsletter?», una frase y el botón «Nueva newsletter →» (`#foot-new`, hace lo mismo que el del menú, también desde la página de un trabajo); a la derecha, cifras del equipo (`renderFootStats`: newsletters hechas y calidad media del historial completo, sin filtros ni archivadas; ocultas sin historial). Debajo, una línea con logo pequeño (oscurecido en tema claro), © y contacto. Se mantiene el brillo del logo al llegar el hilo.
 - Archivos: `studio/web/index.html`, `styles.css`, `app.js`. Sin efecto en fases cerradas.
+
+### 2026-10-07 — Auditoría de tiempo y calidad (sin cambios aplicados; pendiente de decisión del usuario)
+Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y mensajes) + `_trabajo/revision-visual.md` de 10 piezas.
+- Tiempo: el 75-95 % de cada sesión es el modelo (turnos de 5-90 s), no las herramientas. Palanca = número de turnos.
+  Borrador («primera versión») 7-24 min (mediana ~11), 30-100 acciones; brief 3-13 min; revisión de arte ~3-4 min.
+- Cuellos: (1) 3 ciclos render+vision dentro del borrador y notas.md parcheado varias veces, y luego la revisión de arte
+  repite render+vision; (2) scripts ad hoc en cada pieza (recolorear logo, recortar fotos); (3) ~8 turnos de orientación
+  por sesión (AGENTS.md, CLAUDE.md, search_files, git status); (4) webs que bloquean: brief de Lacoste con 44
+  browser_exec (17 min) y el borrador vuelve a navegar (12 browser + 9 web_search) pese a «no vuelve a navegar»;
+  (5) la pasada de mejora de arte no mejora: 8 piezas → −2, +2, 0, −2, −1, 0, 0, +2 (3 revertidas) y no puede tocar
+  fotos; (6) la revisión de arte no tiene vigilante de cuelgues: una llamada de 990 s (El Corte Inglés, 06-10 19:47);
+  (7) Studio no limita toolsets (`-t`): todas las fases cargan web, browser, tts, cronjob, computer_use…
+- Calidad (media de 10 piezas, de 5): texto_imagen 3.6, petición 3.7, copy 3.75, móvil 3.8 … concepto 4.3. Casi todo
+  es 4: la nota discrimina poco. «Petición» baja sobre todo por ofertas sin concretar (rebajas sin % ni precio).
+
+### 2026-10-07 — Aplicados los puntos 1, 3, 4, 5 y 7 de la auditoría de tiempo (pedido por el usuario)
+- 1. Una sola revisión visual en el borrador: el encargo (`standalone.ts`) y el «Orden» del worker piden render-newsletter
+  + vision_analyze UNA vez cuando check-newsletter sale limpio (la revisión de arte de Studio viene después), y notas.md
+  escrito una vez al final con write_file.
+- 3. Pasada de mejora de arte solo con nota baja (`needsImprovement`, `IMPROVE_BELOW = 0.72`): total < 36/50 o algún
+  criterio ≤ 2. Con nota suficiente se registra «sin pasada de mejora». Test actualizado.
+- 4. Cuelgues: `api()` con tiempo límite de 20 s (`AbortSignal.timeout`): una llamada colgada a Studio dejaba el latido
+  ocupado y con él el vigilante (causa del 990 s del 06-10). El latido no se bloquea más de 2 min (`busySince`). Topes por
+  turno en la revisión de arte (`cappedTurn`): nota 5 min, mejora 8 min.
+- 5. `ORIENT_NOTE` al final de cada sesión nueva (en `runHermesTurn` sin `--resume`): no leer AGENTS.md/CLAUDE.md/
+  package.json/README, no git status ni búsquedas para orientarse.
+- 7. Herramientas por fase con `hermes chat -t`: brief web,browser,terminal,file,vision; pieza nueva terminal,file,vision
+  (+image_gen con imágenes de IA); correcciones y revisión de arte terminal,file,vision; «Pedir cambios» y «Adaptar a
+  móvil» con todas. `HERMES_ALL_TOOLS=1` las devuelve todas. El «continúa» del borrador ya no sugiere browser_navigate.
+- Pendientes de la auditoría: 2 (webs que bloquean: no navegar y reutilizar assets de piezas previas), 6 (Studio prepara
+  logo claro/oscuro y recortes), Q1-Q3 de calidad. Medir con las próximas piezas si el tiempo baja a ~12-17 min.

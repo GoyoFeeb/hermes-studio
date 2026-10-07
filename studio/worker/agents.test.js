@@ -361,20 +361,23 @@ test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y re
     const fours = w.parseArtReview(JSON.stringify({ notas: all(4), problemas: [], mejoras: ['Texto secundario de 13 a 16 px en la apertura'] }));
     const fives = w.parseArtReview(JSON.stringify({ notas: all(5), problemas: [], mejoras: [] }));
     const foursNoIdeas = w.parseArtReview(JSON.stringify({ notas: all(4), problemas: [] }));
+    const threes = w.parseArtReview(JSON.stringify({ notas: all(3), problemas: [], mejoras: ['Más aire'] }));
+    const oneTwo = w.parseArtReview(JSON.stringify({ notas: { ...all(4), copy: 2 }, problemas: ['titular genérico'], mejoras: [] }));
     const better = w.parseArtReview(JSON.stringify({ notas: { ...all(4), jerarquia: 5, aire: 5 }, problemas: [], mejoras: [] }));
     const worse = w.parseArtReview(JSON.stringify({ notas: { ...all(5), oscuro: 3 }, problemas: [], mejoras: [] }));
     const q = w.artReviewQuery(undefined, '# Brief', '<p>Hola</p>', '/tmp/hoja.jpg', { width: 1246, height: 2000 }, { path: '/tmp/web-marca.jpg', size: { width: 1280, height: 900 } });
     const qNoWeb = w.artReviewQuery(undefined, '# Brief', '<p>Hola</p>', '/tmp/hoja.jpg');
     process.stdout.write(JSON.stringify({
       mejoras: fours.mejoras, legacy: foursNoIdeas.mejoras,
-      improve: [w.needsImprovement(fours), w.needsImprovement(fives), w.needsImprovement(foursNoIdeas)],
+      improve: [w.needsImprovement(fours), w.needsImprovement(fives), w.needsImprovement(foursNoIdeas), w.needsImprovement(threes), w.needsImprovement(oneTwo)],
       keep: [w.keepImproved(fours, better), w.keepImproved(fours, worse), w.keepImproved(fours, null), w.keepImproved(fours, fours)],
       total: w.scoreTotal(fours), q, qNoWeb,
     }));
   `);
   assert.deepEqual(r.mejoras, ['Texto secundario de 13 a 16 px en la apertura']);
   assert.deepEqual(r.legacy, []);
-  assert.deepEqual(r.improve, [true, false, false]);
+  // Solo con nota baja (2026-10-07): 40/50 ya no pasa por la mejora; 30/50 o un criterio en 2, sí.
+  assert.deepEqual(r.improve, [false, false, false, true, true]);
   // Peor: más total (48 > 40) pero oscuro cae a 3 desde 4 → se descarta.
   assert.deepEqual(r.keep, [true, false, true, true]);
   assert.equal(r.total, 40);
@@ -842,4 +845,24 @@ test('Brief e encargo piden la imagen principal y la URL de cada página de imá
   assert.match(r.brief, /escena 1 abre con una imagen principal/);
   assert.match(r.brief, /URL completa de la página oficial/);
   assert.match(h.hermes, /imagen principal, a todo el ancho tras el logo/);
+});
+
+test('Auditoría de tiempo (2026-10-07): herramientas por fase, orientación y topes de la revisión de arte', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    process.stdout.write(JSON.stringify({
+      brief: w.TOOLS_BRIEF, review: w.TOOLS_REVIEW,
+      draft: w.draftTools('Imágenes: SOLO fotografía oficial'), draftAi: w.draftTools('Imágenes: GENÉRALAS CON IA con tu herramienta'),
+      orient: w.ORIENT_NOTE, caps: [w.ART_SCORE_CAP_MS, w.ART_IMPROVE_CAP_MS], below: w.IMPROVE_BELOW,
+    }));
+  `);
+  assert.deepEqual(r.brief, ['-t', 'web,browser,terminal,file,vision']);
+  assert.deepEqual(r.review, ['-t', 'terminal,file,vision']);
+  // El borrador no navega: sin web ni browser; con imágenes de IA, también image_gen.
+  assert.deepEqual(r.draft, ['-t', 'terminal,file,vision']);
+  assert.deepEqual(r.draftAi, ['-t', 'terminal,file,vision,image_gen']);
+  assert.match(r.orient, /NO leas AGENTS\.md, CLAUDE\.md/);
+  assert.match(r.orient, /no ejecutes git status/);
+  assert.deepEqual(r.caps, [5 * 60 * 1000, 8 * 60 * 1000]);
+  assert.equal(r.below, 0.72);
 });
