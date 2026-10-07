@@ -2467,3 +2467,11 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   fuente de ECI) y 5 campañas antiguas del pipeline (Converse, Mini, MyProtein, Supreme, Volkswagen).
 - Pendiente (no tocado): archivos de trabajo antiguos que YA estaban en git dentro de design-input (p. ej.
   `brands/feebbo/design-input/class5-hero-enforced.png`).
+- Segunda pasada (mismo día): 192 archivos de trabajo que SÍ estaban en git dentro de `brands/*/design-input/` movidos
+  con `git mv` (historial conservado) a `_archive/design-input-sesiones-manuales/`: 87 `.js`, 3 `.py`, 20 HTML de trabajo
+  (`*source*.html`, `part*.html`) y 82 capturas `preview-*.png`. Ninguna campaña ni código los referenciaba.
+  NO se movieron: `hero-source-page-*.png` (los escribe `scripts/generate-hero-image.ts` por trazabilidad, fase del
+  motor cerrada), las versiones intermedias de imágenes (`-raw`, `-original`, `-enforced`, `-crop`), los banners con
+  IA y las notas `.txt`, ni `brands/mazda/` ni la plantilla de Paraycompara.
+  `brandAssets` (brandCard.ts) ya no ofrece capturas como fotos (`SCREENSHOT`: `*preview-*`, `hero-source-page-*`,
+  `render-*`, `captura-*`, `screenshot-*`). Test nuevo (240).

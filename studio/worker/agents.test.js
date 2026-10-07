@@ -1097,3 +1097,18 @@ test('Q2 (2026-10-07): la foto de cada escena se elige antes de escribir su text
   assert.match(r.prompt, /elige la foto de cada escena ANTES de escribir su texto/);
   assert.match(r.prompt, /la escena donde va y qué se ve en ella/);
 });
+
+test('brandAssets (2026-10-07): las capturas no se ofrecen como fotos de la marca', () => {
+  const r = run(`
+    const fs = require('fs'), os = require('os'), path = require('path'), sharp = require('sharp');
+    const { brandAssets } = require(${mod('brandCard.ts')});
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'assets-'));
+    const dir = path.join(root, 'brands', 'marca', 'design-input'); fs.mkdirSync(dir, { recursive: true });
+    for (const f of ['logo.png', 'hero.jpg', 'preview-600.png', 'vuelta-preview-375.png', 'hero-source-page-mobile.png', 'render-600.png', 'previewer-campaign.jpg'])
+      await sharp({ create: { width: 4, height: 4, channels: 3, background: '#888888' } }).toFile(path.join(dir, f));
+    const a = brandAssets(root, 'marca');
+    process.stdout.write(JSON.stringify({ logos: a.logos, photos: a.photos.sort() }));
+  `);
+  assert.deepEqual(r.logos, ['logo.png']);
+  assert.deepEqual(r.photos, ['hero.jpg', 'previewer-campaign.jpg']);
+});
