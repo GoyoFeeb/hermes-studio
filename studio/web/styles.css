@@ -2169,6 +2169,20 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 .hero-steps.is-live li.is-done + li::before, .hero-steps.is-live li.is-current::before { background: var(--pink); }
 .hero-steps.is-live li.is-current .step-num { animation: step-glow 1.6s ease-in-out infinite; }
 @keyframes step-glow { 50% { text-shadow: 0 0 14px rgba(251, 115, 255, 0.75); } }
+/* Pasos vivos (2026-10-07, D): la línea hacia el paso siguiente se llena según lo que lleva el actual (--fill, 0-1, lo
+   pone app.js) y una chispa la recorre hasta donde va. */
+@property --fill { syntax: '<number>'; inherits: true; initial-value: 0; }
+.hero-steps.is-live { transition: --fill 1.4s cubic-bezier(0.22, 1, 0.36, 1); }
+.hero-steps.is-live li.is-current + li::before {
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent) no-repeat,
+    linear-gradient(90deg, var(--pink) 0 calc(var(--fill) * 100%), var(--border-strong) calc(var(--fill) * 100%) 100%);
+  background-size: 12px 100%, 100% 100%;
+  background-position: -12px 0, 0 0;
+  box-shadow: 0 0 6px rgba(251, 115, 255, 0.45);
+  animation: step-spark 2.2s ease-in-out infinite;
+}
+@keyframes step-spark { 0% { background-position: -12px 0, 0 0; } 70%, 100% { background-position: calc(var(--fill) * 40px - 6px) 0, 0 0; } }
 /* Sin nada en curso: un degradado rosa recorre la fila de izquierda a derecha, por los números y las líneas (2026-10-06,
    pedido del usuario: antes cada paso se encendía entero). Cada elemento empieza su paso con un retraso proporcional a
    su posición (--pn y --pl, en 0-1, los pone app.js), así que se ve como una sola luz que se desliza. */
@@ -2214,7 +2228,7 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 .thumb-peek img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-steps .step-num, .live-dot { animation: none !important; }
+  .hero-steps .step-num, .live-dot, .hero-steps li + li::before { animation: none !important; }
   .thumb-peek { transition: opacity 0.1s; transform: none; }
   .thumb-peek.is-on { transform: none; }
 }
@@ -2682,3 +2696,120 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 @media (prefers-reduced-motion: reduce) {
   .is-ticking, .is-ticking .check-dot, .is-fresh, kbd.is-pressed { animation: none !important; }
 }
+
+/* ---------- pieza en marcha que se construye (2026-10-07, C) ---------- */
+/* La miniatura de lo que hace Hermes: una maqueta cuyos bloques se encienden según avanza (app.js, buildThumbInner),
+   con una línea de escaneo; en cola respira, sin bloques. Blanca en los dos temas, como las miniaturas sin imagen. */
+.thumb.thumb-build {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 6%;
+  padding: 10% 11%;
+  border: none;
+  border-radius: var(--radius);
+  background: #f4f5fb;
+  box-shadow: -2px 8px 11px rgba(20, 24, 63, 0.2);
+}
+.now-thumb.thumb-build { padding: 6px 7px; gap: 3px; }
+.thumb-build i { display: block; flex: none; border-radius: 2px; background: #e1e4f2; transform-origin: left center; transition: background 0.5s ease; }
+.thumb-build .tb-logo { height: 7%; width: 40%; align-self: center; }
+.thumb-build .tb-img { height: 30%; border-radius: 3px; }
+.thumb-build .tb-h { height: 7%; width: 84%; }
+.thumb-build .tb-l { height: 4%; }
+.thumb-build .tb-l.is-short { width: 64%; }
+.thumb-build .tb-btn { height: 8%; width: 44%; border-radius: 999px; }
+.thumb-build .tb-logo.is-on, .thumb-build .tb-h.is-on { background: #0e1545; }
+.thumb-build .tb-img.is-on { background: linear-gradient(135deg, #1a2168, #b255c3 70%, #fb73ff); }
+.thumb-build .tb-l.is-on { background: #a3a8cc; }
+.thumb-build .tb-btn.is-on { background: var(--pink); }
+.thumb-build i.is-new { animation: tb-pop 0.8s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.thumb-build i.is-new:nth-child(2) { animation-delay: 0.08s; }
+.thumb-build i.is-new:nth-child(3) { animation-delay: 0.16s; }
+.thumb-build i.is-new:nth-child(4) { animation-delay: 0.24s; }
+.thumb-build i.is-new:nth-child(5) { animation-delay: 0.32s; }
+.thumb-build i.is-new:nth-child(6) { animation-delay: 0.4s; }
+@keyframes tb-pop { from { opacity: 0; transform: translateY(6px) scaleX(0.4); } }
+.thumb-build .tb-scan {
+  position: absolute; left: 0; right: 0; top: -22%; height: 22%;
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(251, 115, 255, 0), rgba(251, 115, 255, 0.22) 70%, rgba(251, 115, 255, 0.85));
+  box-shadow: 0 1px 6px rgba(251, 115, 255, 0.6);
+  pointer-events: none;
+  animation: tb-scan 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes tb-scan { 0% { top: -22%; } 80%, 100% { top: 100%; } }
+.thumb-build.is-queued { animation: tb-breathe 2.4s ease-in-out infinite; }
+@keyframes tb-breathe { 50% { opacity: 0.6; } }
+
+/* ---------- calidad con gráfica (2026-10-07, E) ---------- */
+/* La tarjeta de calidad ocupa la fila entera (antes se quedaba sola debajo) con la evolución de las últimas piezas. */
+.stat.stat-quality { grid-column: 1 / -1; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 20px; align-items: center; }
+.stat-quality .stat-num { grid-column: 1; grid-row: 1; }
+.stat-quality .stat-label { grid-column: 1; grid-row: 2; }
+.q-spark { grid-column: 2; grid-row: 1 / span 2; justify-self: end; width: 100%; max-width: 320px; height: auto; overflow: visible; }
+.q-spark .q-avg { stroke: var(--border-strong); stroke-width: 1; stroke-dasharray: 3 4; }
+.q-spark .q-line { fill: none; stroke: var(--pink); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.q-spark .q-area { opacity: 0; }
+.q-spark .q-dot { fill: var(--pink); stroke: var(--bg, #081136); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; }
+.q-spark.is-drawn .q-line { stroke-dashoffset: 0; }
+.q-spark.is-drawn .q-area, .q-spark.is-drawn .q-dot { opacity: 1; }
+.q-spark.is-drawing .q-line { animation: q-draw 1.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.q-spark.is-drawing .q-area { animation: q-fade 0.8s ease 0.9s forwards; }
+.q-spark.is-drawing .q-dot { animation: q-dot 0.6s cubic-bezier(0.34, 1.6, 0.64, 1) 1.3s forwards, q-pulse 2s ease-in-out 2s infinite; }
+.q-spark.is-drawn .q-dot { animation: q-pulse 2s ease-in-out infinite; }
+@keyframes q-draw { to { stroke-dashoffset: 0; } }
+@keyframes q-fade { to { opacity: 1; } }
+@keyframes q-dot { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
+@keyframes q-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (max-width: 640px) { .q-spark { max-width: 180px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb-build i.is-new, .thumb-build .tb-scan, .thumb-build.is-queued, .q-spark .q-dot { animation: none !important; }
+  .thumb-build .tb-scan { display: none; }
+}
+
+/* ---------- galería viva (2026-10-07, A y B) ---------- */
+/* A: la pieza de verdad, a 600 px y reducida al ancho de la tarjeta, se desliza por encima de la miniatura. */
+.g-card .thumb { position: relative; }
+.thumb-scroll {
+  position: absolute; top: 0; left: 0;
+  width: 600px; height: 100%;
+  border: 0; background: #ffffff;
+  transform-origin: 0 0;
+  opacity: 0;
+  pointer-events: none;
+}
+/* B: la miniatura que vuela de la galería a la vista previa del trabajo. */
+.card-fly {
+  position: fixed; z-index: 80;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(251, 115, 255, 0.35);
+  pointer-events: none;
+}
+.card-fly > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.card-fly.thumb-empty, .card-fly.thumb-logo { display: flex; align-items: center; justify-content: center; font-family: 'Barlow', sans-serif; font-weight: 700; font-size: 32px; color: #14183f; }
+.card-fly.thumb-logo img { max-width: 50%; max-height: 40%; object-fit: contain; }
+
+/* ---------- panel de marca (2026-10-07, F) ---------- */
+.brand-peek { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 10px 0 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-row); }
+.peek-logo { flex: none; display: flex; align-items: center; justify-content: center; width: 112px; height: 52px; padding: 8px 12px; border-radius: var(--radius-sm); background: #ffffff; box-shadow: -2px 6px 10px rgba(20, 24, 63, 0.2); }
+.peek-logo.is-dark { background: #14183f; }
+.peek-logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.peek-colors { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.peek-colors li { position: relative; width: 34px; height: 34px; border-radius: 9px; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18), 0 4px 10px rgba(0, 0, 0, 0.25); }
+.peek-colors li span { position: absolute; left: 50%; bottom: calc(100% + 6px); translate: -50% 4px; padding: 2px 6px; border-radius: var(--pill); background: #0e1545; color: #ffffff; font-size: 10px; font-family: ui-monospace, monospace; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s, translate 0.15s; }
+.peek-colors li:hover span { opacity: 1; translate: -50% 0; }
+/* Al elegir la marca: el logo aparece y los colores caen uno detrás de otro, con un pequeño bote. */
+.brand-peek.is-in { animation: peek-in 0.35s ease-out both; }
+.brand-peek.is-in .peek-logo { animation: peek-logo 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) 0.05s both; }
+.brand-peek.is-in .peek-colors li { animation: peek-drop 0.7s cubic-bezier(0.34, 1.5, 0.64, 1) both; animation-delay: calc(0.18s + var(--n, 0) * 70ms); }
+@keyframes peek-in { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes peek-logo { from { opacity: 0; transform: scale(0.7); filter: blur(6px); } }
+@keyframes peek-drop { 0% { opacity: 0; transform: translateY(-34px) rotate(-14deg); } 60% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .brand-peek.is-in, .brand-peek.is-in .peek-logo, .brand-peek.is-in .peek-colors li { animation: none; } }

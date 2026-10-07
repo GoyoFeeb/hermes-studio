@@ -138,6 +138,37 @@ function updateBrandMatch() {
   } else hint.innerHTML = `Marca nueva: Studio medirá su identidad en su web y Hermes investigará el contenido. Se guardará como ${folder}: revisa que el nombre esté bien escrito.`;
   document.getElementById('brand-url-field').hidden = !name || !!match;
   if (match) describeKnownBrand(match);
+  else renderBrandPeek(null);
+}
+
+/** Panel de marca (2026-10-07, F): al elegir una marca conocida aparece su logo y sus colores caen como fichas. Solo se
+ *  anima al cambiar de marca, no a cada letra. Sin logo ni colores en la ficha, no sale. */
+let brandPeekFor = null;
+function renderBrandPeek(slug, card) {
+  const box = document.getElementById('brand-peek');
+  if (!box) return;
+  if (!slug || !card) {
+    brandPeekFor = null;
+    box.hidden = true;
+    box.innerHTML = '';
+    return;
+  }
+  if (brandPeekFor === slug && !box.hidden) return;
+  const logo = card.logo && /^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(card.logo) ? card.logo : '';
+  const colors = (card.colors || []).filter((c) => SAFE_COLOR.test(c.value)).slice(0, 7);
+  if (!logo && !colors.length) return renderBrandPeek(null);
+  brandPeekFor = slug;
+  box.innerHTML =
+    (logo ? `<span class="peek-logo${card.logoOnDark ? ' is-dark' : ''}"><img src="${escapeHtml(logo)}" alt="Logo de ${escapeHtml(brandDisplayName(slug))}"></span>` : '') +
+    (colors.length
+      ? `<ul class="peek-colors" aria-label="Colores de la marca">${colors
+          .map((c, n) => `<li style="--n:${n};--c:${c.value}" title="${escapeHtml(`${c.labels.join(' · ')} ${c.value}`)}"><span>${escapeHtml(c.value)}</span></li>`)
+          .join('')}</ul>`
+      : '');
+  box.hidden = false;
+  box.classList.remove('is-in');
+  void box.offsetWidth;
+  if (motionOk()) box.classList.add('is-in');
 }
 document.getElementById('brand-match').addEventListener('click', (e) => {
   const pick = e.target.closest('[data-brand-pick]');
@@ -279,6 +310,7 @@ async function describeKnownBrand(slug) {
       ? 'Marca conocida, sin brand pack medido: Hermes usará sus logos e investigará colores y tono.'
       : 'Marca conocida, sin brand pack ni logos: Hermes la investigará como nueva.';
     hint.innerHTML = `${escapeHtml(text)} <a href="?brand=${encodeURIComponent(slug)}" target="_blank" rel="noopener">Ver ficha</a>`;
+    renderBrandPeek(slug, card);
   };
   if (brandSummaries.has(slug)) return render(brandSummaries.get(slug));
   try {
@@ -1181,8 +1213,47 @@ function renderHistoryStats(families) {
     )
     .join('') +
     (avg !== null
-      ? `<span class="stat stat-static" title="Media de la revisión de dirección de arte en ${scored.length} newsletter${scored.length === 1 ? '' : 's'}"><span class="stat-num">${avg} %</span><span class="stat-label">calidad media</span></span>`
+      ? `<span class="stat stat-static stat-quality" title="Media de la revisión de dirección de arte en ${scored.length} newsletter${scored.length === 1 ? '' : 's'}"><span class="stat-num">${avg} %</span><span class="stat-label">calidad media</span>${qualitySpark(scored)}</span>`
       : '');
+  // La línea se dibuja la primera vez que se ve (al repintar cada 20-30 s, ya dibujada).
+  const spark = box.querySelector('.q-spark');
+  if (!spark) return;
+  if (sparkDrawn || !motionOk() || !('IntersectionObserver' in window)) spark.classList.add('is-drawn');
+  else {
+    const io = new IntersectionObserver(([en]) => {
+      if (!en.isIntersecting) return;
+      io.disconnect();
+      sparkDrawn = true;
+      spark.classList.add('is-drawing');
+    }, { threshold: 0.6 });
+    io.observe(spark);
+  }
+}
+
+/** Calidad con gráfica (2026-10-07, E): la nota de las últimas piezas (hasta 14), de la más antigua a la más reciente,
+ *  con la media como línea de puntos y la última pieza marcada. */
+let sparkDrawn = false;
+function qualitySpark(scored) {
+  const pts = [...scored].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(-14);
+  if (pts.length < 2) return '';
+  const W = 220;
+  const H = 48;
+  const vals = pts.map((j) => j.art.pct);
+  const lo = Math.max(0, Math.min(...vals) - 8);
+  const hi = Math.min(100, Math.max(...vals) + 8);
+  const x = (i) => 4 + (i * (W - 8)) / (pts.length - 1);
+  const y = (v) => 4 + (H - 8) * (1 - (v - lo) / Math.max(1, hi - lo));
+  const line = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const last = vals[vals.length - 1];
+  const area = `${x(0).toFixed(1)},${H} ${line} ${x(vals.length - 1).toFixed(1)},${H}`;
+  return `<svg class="q-spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Notas de las últimas ${pts.length} piezas: la última, ${last} %">
+    <defs><linearGradient id="q-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--pink)" stop-opacity="0.28"/><stop offset="1" stop-color="var(--pink)" stop-opacity="0"/></linearGradient></defs>
+    <line class="q-avg" x1="0" x2="${W}" y1="${y(avg).toFixed(1)}" y2="${y(avg).toFixed(1)}"/>
+    <polygon class="q-area" points="${area}" fill="url(#q-fill)"/>
+    <polyline class="q-line" points="${line}" pathLength="1"/>
+    <circle class="q-dot" cx="${x(vals.length - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.5"/>
+  </svg>`;
 }
 document.getElementById('history-stats').addEventListener('click', (e) => {
   const stat = e.target.closest('[data-stat]');
@@ -2108,6 +2179,14 @@ function renderLiveSteps(jobs) {
     li.classList.toggle('is-done', i + 1 < current);
     li.classList.toggle('is-current', i + 1 === current);
   });
+  // Pasos vivos (2026-10-07, D): la línea hacia el paso siguiente se llena según lo que lleva del actual (tramos
+  // aproximados del porcentaje de Hermes: investigar 0-30, escribir 30-75, revisar 75-90, corregir 90-100).
+  const SPANS = [[0, 30], [30, 75], [75, 90], [90, 100]];
+  if (running) {
+    const [a, b] = SPANS[current - 1];
+    const fill = Math.max(0.06, Math.min(1, ((running.pct ?? 0) - a) / (b - a)));
+    steps.style.setProperty('--fill', fill.toFixed(2));
+  }
   placeStepSweep(steps);
   caption.hidden = !running;
   if (running) {
@@ -2200,10 +2279,32 @@ function renderNowStrip(jobs) {
 
 // Miniatura sin imagen (2026-10-05): el logo de la ficha de marca en el cuadrado (blanco, o azul noche si el logo es
 // la versión blanca), como los logos de clientes de feebbodigital.com; sin ficha, las iniciales.
+// Pieza en marcha que se construye (2026-10-07, C): la miniatura de lo que está haciendo Hermes es una maqueta cuyos
+// bloques (logo, imagen, titular, texto, botón) aparecen según avanza, con una línea de escaneo encima. En cola, la
+// maqueta respira, sin bloques. Solo los bloques que aparecen desde el último repintado se animan (el historial se
+// repinta cada 20-30 s y en tres sitios: «Ahora mismo», la lista y la galería).
+const BUILD_BLOCKS = [['tb-logo', 0], ['tb-img', 12], ['tb-h', 35], ['tb-l', 55], ['tb-l is-short', 62], ['tb-btn', 80]];
+const buildSeen = new Map();
+const isBuilding = (j) => j.status === 'running' || j.status === 'queued';
+function buildThumbInner(j) {
+  const pct = j.status === 'running' ? j.pct ?? 0 : -1;
+  const now = Date.now();
+  let rec = buildSeen.get(j.id);
+  if (!rec) rec = { prev: motionOk() ? -1 : pct, cur: pct, t: now };
+  else if (now - rec.t > 1500) rec = { prev: rec.cur, cur: pct, t: now };
+  else rec.cur = pct;
+  buildSeen.set(j.id, rec);
+  return (
+    BUILD_BLOCKS.map(([cls, at]) => `<i class="${cls}${pct >= at ? ' is-on' : ''}${pct >= at && rec.prev < at ? ' is-new' : ''}"></i>`).join('') +
+    (j.status === 'running' ? '<i class="tb-scan"></i>' : '')
+  );
+}
 function emptyThumbClass(j) {
+  if (isBuilding(j)) return `thumb-build${j.status === 'queued' ? ' is-queued' : ''}`;
   return j.brandLogo ? `thumb-empty thumb-logo${j.brandLogo === 'dark' ? ' is-on-dark' : ''}` : 'thumb-empty';
 }
 function emptyThumbInner(j, initials) {
+  if (isBuilding(j)) return buildThumbInner(j);
   return j.brandLogo
     ? `<img src="/api/brands/${encodeURIComponent(j.clientSlug)}/logo" alt="" loading="lazy" data-initials="${escapeHtml(initials)}">`
     : escapeHtml(initials);
@@ -6770,3 +6871,174 @@ form.reset();
 applyKind();
 restoreDraft();
 route();
+
+// ---------------------------------------------------------------- galería viva (2026-10-07)
+/** Miniatura que se recorre (A): al quedarse el ratón sobre una pieza de la galería, la miniatura se desliza despacio
+ *  de arriba abajo y enseña la newsletter entera. Es la pieza de verdad (su HTML, en un marco sin scripts) reducida al
+ *  ancho de la tarjeta. Solo con ratón y sin «reducir movimiento». */
+const scrollHtml = new Map();
+function scrollHtmlFor(id) {
+  if (!scrollHtml.has(id)) {
+    // fetch directo, no apiFetch: un hover no debe encender el indicador de carga de la página.
+    const p = fetch(`/api/jobs/${encodeURIComponent(id)}/result`)
+      .then((r) => (r.ok ? r.text() : null))
+      .catch(() => null)
+      .then((html) => {
+        if (!html) scrollHtml.delete(id);
+        return html;
+      });
+    scrollHtml.set(id, p);
+  }
+  return scrollHtml.get(id);
+}
+let scrollTimer = null;
+function startThumbScroll(card) {
+  const thumb = card.querySelector('.thumb');
+  const img = thumb?.querySelector('img[src*="/thumb"]');
+  if (!img || thumb.querySelector('.thumb-scroll')) return;
+  const id = decodeURIComponent((img.getAttribute('src').match(/\/api\/jobs\/([^/]+)\/thumb/) || [])[1] || '');
+  if (!id) return;
+  scrollHtmlFor(id).then((html) => {
+    if (!html || !card.matches(':hover') || thumb.querySelector('.thumb-scroll')) return;
+    const frame = document.createElement('iframe');
+    frame.className = 'thumb-scroll';
+    frame.setAttribute('sandbox', 'allow-same-origin');
+    // En claro, como la miniatura (si no, la pieza sigue el tema del navegador y cambia de golpe a su modo oscuro).
+    frame.style.colorScheme = 'light';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.tabIndex = -1;
+    frame.onload = () => {
+      const doc = frame.contentDocument;
+      if (!doc || !card.matches(':hover')) return frame.remove();
+      const w = thumb.clientWidth;
+      const h = thumb.clientHeight;
+      const scale = w / 600;
+      const full = Math.max(doc.documentElement.scrollHeight, doc.body?.scrollHeight || 0);
+      frame.style.height = `${full}px`;
+      const dist = full * scale - h;
+      if (dist < 8) return frame.remove();
+      frame.style.transform = `scale(${scale})`;
+      frame.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, fill: 'forwards' });
+      // Lento y constante: unas dos alturas de tarjeta por segundo y medio, con una pausa arriba y otra abajo.
+      const duration = Math.max(2600, Math.min(11000, (dist / h) * 1500));
+      frame._run = frame.animate(
+        [{ transform: `translateY(0) scale(${scale})` }, { transform: `translateY(-${dist.toFixed(1)}px) scale(${scale})` }],
+        { duration, delay: 250, easing: 'cubic-bezier(0.45, 0, 0.4, 1)', fill: 'forwards' }
+      );
+    };
+    frame.srcdoc = html;
+    thumb.appendChild(frame);
+  });
+}
+function stopThumbScroll(card) {
+  const frame = card.querySelector('.thumb-scroll');
+  if (!frame) return;
+  const run = frame._run;
+  const now = run ? getComputedStyle(frame).transform : null;
+  run?.cancel();
+  const back = frame.animate(
+    [{ transform: now || 'none', opacity: 1 }, { transform: frame.style.transform, opacity: 0 }],
+    { duration: 380, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'forwards' }
+  );
+  back.finished.then(() => frame.remove(), () => frame.remove());
+}
+if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  const list = document.getElementById('history-list');
+  list.addEventListener('mouseover', (e) => {
+    const card = e.target.closest('a.g-card');
+    if (!card || card.contains(e.relatedTarget) || !motionOk()) return;
+    clearTimeout(scrollTimer);
+    // Un momento quieto encima antes de empezar: pasar de largo no carga nada.
+    scrollTimer = setTimeout(() => startThumbScroll(card), 350);
+  });
+  list.addEventListener('mouseout', (e) => {
+    const card = e.target.closest('a.g-card');
+    if (!card || card.contains(e.relatedTarget)) return;
+    clearTimeout(scrollTimer);
+    stopThumbScroll(card);
+  });
+}
+
+/** La carta que se abre (B): al pulsar una pieza de la galería, su miniatura vuela y crece hasta el sitio de la vista
+ *  previa en la página del trabajo; cuando la pieza de verdad está cargada, la miniatura se funde con ella. Además, la
+ *  galería ya no recarga la página entera al abrir un trabajo. */
+function flyCardToPreview(thumb) {
+  if (!motionOk() || !thumb) return;
+  const r = thumb.getBoundingClientRect();
+  if (!r.width) return;
+  const fly = document.createElement('div');
+  fly.className = 'card-fly';
+  fly.setAttribute('aria-hidden', 'true');
+  const img = thumb.querySelector('img[src*="/thumb"]');
+  if (img) fly.innerHTML = `<img src="${escapeHtml(img.currentSrc || img.src)}" alt="">`;
+  else {
+    fly.innerHTML = thumb.innerHTML;
+    fly.classList.add(...thumb.classList);
+  }
+  fly.querySelector('.thumb-scroll')?.remove();
+  Object.assign(fly.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  document.body.appendChild(fly);
+  const place = (el) => {
+    const t = el.getBoundingClientRect();
+    const height = Math.min(t.height || t.width * 1.33, window.innerHeight - t.top - 24, t.width * 1.33);
+    return { left: `${t.left}px`, top: `${t.top}px`, width: `${t.width}px`, height: `${Math.max(120, height)}px` };
+  };
+  // En el fotograma siguiente o, si el navegador no da fotogramas (pestaña en segundo plano), a los 60 ms: la carta
+  // nunca se queda colgada encima de la página.
+  let launched = false;
+  const launch = (fn) => () => {
+    if (launched) return;
+    launched = true;
+    fn();
+  };
+  const go = launch(() => {
+    const target = document.querySelector('#job-skeleton:not([hidden]) .skeleton-preview') || document.getElementById('preview-device');
+    if (viewJob.hidden || !target || !target.getBoundingClientRect().width) return fly.remove();
+    const to = place(target);
+    fly.animate(
+      [
+        { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, borderRadius: '8px' },
+        { ...to, borderRadius: '14px' },
+      ],
+      { duration: 620, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }
+    );
+    // Se queda en su sitio, respirando, hasta que la vista previa de verdad carga (o 5 s como mucho).
+    const frame = document.getElementById('preview-frame');
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      frame.removeEventListener('load', onLoad);
+      const dev = document.getElementById('preview-device');
+      const visible = dev && dev.getBoundingClientRect().width && !viewJob.hidden;
+      const steps = visible ? [{ ...place(dev), opacity: 1 }, { ...place(dev), opacity: 0 }] : [{ opacity: 1 }, { opacity: 0 }];
+      fly.animate(steps, { duration: 420, easing: 'ease-out', fill: 'forwards' }).finished.finally(() => fly.remove());
+    };
+    const onLoad = () => setTimeout(finish, 60);
+    frame.addEventListener('load', onLoad);
+    setTimeout(finish, 5000);
+    // Si la página deja de esperar sin vista previa (trabajo en marcha, fallido o no encontrado), se retira ya.
+    const watch = setInterval(() => {
+      if (done) return clearInterval(watch);
+      const waiting = !document.getElementById('job-skeleton').hidden;
+      const result = !document.getElementById('job-result').hidden;
+      if (viewJob.hidden || (!waiting && !result)) {
+        clearInterval(watch);
+        finish();
+      }
+    }, 200);
+  });
+  requestAnimationFrame(go);
+  setTimeout(go, 60);
+  setTimeout(() => fly.remove(), 7000);
+}
+document.getElementById('history-list').addEventListener('click', (e) => {
+  const a = e.target.closest('a.g-card');
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+  e.preventDefault();
+  stopThumbScroll(a);
+  // Antes de cambiar de vista: la miniatura se mide mientras se ve; el vuelo arranca en el fotograma siguiente.
+  flyCardToPreview(a.querySelector('.thumb'));
+  history.pushState({}, '', a.getAttribute('href'));
+  route();
+});
