@@ -1013,3 +1013,39 @@ test('T1 (2026-10-07): identidad de marca del brief anterior (≤ 90 días)', ()
   assert.match(r.note, /no vuelvas a investigar tipografías/);
   assert.equal(r.none, '');
 });
+
+test('Punto 6 (2026-10-07): Studio prepara el logo en dos versiones, los recortes y las medidas', () => {
+  const r = run(`
+    const fs = require('fs'), os = require('os'), path = require('path'), sharp = require('sharp');
+    const p = require(${mod('prepAssets.ts')});
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'prep-'));
+    const brandDir = path.join(root, 'brands', 'marca', 'design-input'); fs.mkdirSync(brandDir, { recursive: true });
+    const out = path.join(root, 'pieza'); fs.mkdirSync(out);
+    // Logo negro sobre transparente con margen, y una versión blanca que no debe elegirse como base.
+    const ink = await sharp({ create: { width: 300, height: 80, channels: 4, background: '#111111ff' } }).png().toBuffer();
+    await sharp({ create: { width: 500, height: 200, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite([{ input: ink, left: 100, top: 60 }]).png().toFile(path.join(brandDir, 'logo-marca.png'));
+    await sharp({ create: { width: 500, height: 200, channels: 4, background: '#ffffffff' } }).png().toFile(path.join(brandDir, 'logo-marca-white.png'));
+    // Producto sobre fondo blanco (recortable), foto de ambiente y foto sin fondo liso.
+    const shoe = await sharp({ create: { width: 400, height: 200, channels: 3, background: '#33aa55' } }).png().toBuffer();
+    await sharp({ create: { width: 1000, height: 1200, channels: 3, background: '#ffffff' } }).composite([{ input: shoe, left: 300, top: 500 }]).jpeg().toFile(path.join(out, 'producto.jpg'));
+    await sharp({ create: { width: 1000, height: 1200, channels: 3, background: '#ffffff' } }).composite([{ input: shoe, left: 300, top: 500 }]).jpeg().toFile(path.join(out, 'ambiente.jpg'));
+    const noise = Buffer.alloc(200 * 100 * 3); for (let i = 0; i < noise.length; i++) noise[i] = (i * 97) % 256;
+    await sharp(noise, { raw: { width: 200, height: 100, channels: 3 } }).png().toFile(path.join(out, 'calle.png'));
+    const prep = await p.prepareAssets(root, 'marca', out, [{ file: 'producto.jpg' }, { file: 'ambiente.jpg', ambient: true }, { file: 'calle.png' }]);
+    const white = await sharp(path.join(out, 'logo-email-blanco.png')).raw().toBuffer({ resolveWithObject: true });
+    const firstVisible = [...Array(white.data.length / 4).keys()].map((i) => i * 4).find((i) => white.data[i + 3] > 128);
+    process.stdout.write(JSON.stringify({ source: path.basename(p.logoSource(root, 'marca')), logo: prep.logo, photos: prep.photos, whitePx: [...white.data.slice(firstVisible, firstVisible + 3)], note: p.preparedNote(prep, 'newsletters/2026/marca/hermes/x') }));
+  `);
+  assert.equal(r.source, 'logo-marca.png', 'nunca la versión blanca como base');
+  assert.deepEqual([r.logo.width, r.logo.height, r.logo.tone, r.logo.transparent], [300, 80, 'dark', true], 'sin márgenes');
+  assert.deepEqual(r.logo.counterpart, { file: 'logo-email-blanco.png', color: 'white' });
+  assert.deepEqual(r.whitePx, [255, 255, 255]);
+  const [prod, amb, calle] = r.photos;
+  assert.equal(prod.crop.file, 'producto-recorte.jpg');
+  assert.ok(prod.crop.width < 1000 && prod.crop.height < 1200 && prod.crop.width >= 400, 'recorta el margen y deja aire');
+  assert.equal(amb.crop, undefined, 'las de ambiente no se tocan');
+  assert.equal(calle.crop, undefined, 'sin fondo liso no hay recorte');
+  assert.match(r.note, /logo-email-blanco\.png, para fondos oscuros/);
+  assert.match(r.note, /width="150"/);
+  assert.match(r.note, /producto\.jpg: 1000×1200, vertical · recortada/);
+});

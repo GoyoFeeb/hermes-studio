@@ -2426,3 +2426,14 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   se propuso (endurecer el texto pequeño) se descartó: en 6 piezas no había texto de contenido < 14 px a 375 px.
 - T1. `previousIdentity`/`previousIdentityNote` (brandMemory.ts): sin brand pack, el brief recibe la sección «2.
   Identidad de marca» del brief más reciente de la marca (≤ 90 días) y no la vuelve a investigar.
+
+### 2026-10-07 — Punto 6 de la auditoría de tiempo: Studio prepara las imágenes (pedido por el usuario)
+- Nuevo `studio/worker/prepAssets.ts`, llamado por el worker antes del borrador (solo piezas nuevas, tope 60 s):
+  - Logo: el medido o el mejor de design-input (nunca el blanco como base), a PNG, sin márgenes (`trim`), ≤ 400 px →
+    `logo-email.png`; si el original tiene transparencia, versión para el fondo contrario (`logo-email-blanco.png` si
+    es oscuro o de color, `logo-email-negro.png` si es claro). La nota dice el width del HTML (a 2x solo si ≥ 240 px).
+  - Fotos de producto (no las de ambiente) sobre fondo liso: copia `-recorte` sin el margen sobrante (10 % / 14 % de
+    aire, como el script que Hermes reescribía). Todas: medidas y orientación en la nota.
+  - Nota «Imágenes preparadas por Studio … úsalas tal cual: no las recortes, recolorees, conviertas ni midas».
+- Motivo: en 3 días, ~400 acciones de imagen hechas a mano por Hermes (logo 73, recortes ~200, sips 77, formatos 46).
+- Los originales no se tocan. Test nuevo (236).

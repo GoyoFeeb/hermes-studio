@@ -33,6 +33,7 @@ import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrl
 import { captureBrandWeb, renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
+import { prepareAssets, preparedNote } from './prepAssets';
 import { blockedInfo, blockedNote, markBlocked, markOpen, previousIdentity, previousIdentityNote, previousPieces, previousPiecesNote, rememberLogo } from './brandMemory';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
@@ -1260,6 +1261,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // segundos en vez de que Hermes vuelva a navegar (Paredes: 12 min). Con imágenes de IA, sin fotos.
   let productNote = '';
   let logoNote = '';
+  let prepNote = '';
+  let productPhotos: { file: string; ambient?: boolean }[] = [];
   if (!editKind) {
     const briefPart = prompt.split('## Instrucciones de entrega')[0];
     const urls = productUrls(briefPart);
@@ -1273,6 +1276,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       try {
         const sheet = await withTimeout(buildProductSheet(urls, outAbs, { photos, gallery }), PRODUCT_TIMEOUT_MS);
         productNote = sheet ? productSheetNote(sheet, claimed.outputDir) : '';
+        productPhotos = sheet?.photos || [];
         // Memoria de bloqueos (punto 2): una página bloqueada se recuerda 30 días; una leída bien, lo olvida.
         // Solo páginas de la propia marca (el dominio lleva su nombre): una prensa o un tercero que bloquee no cuenta.
         const ownSite = (u: string): boolean => {
@@ -1298,6 +1302,18 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     }
     const logo = copyMeasuredLogo(slug, outAbs);
     if (logo) logoNote = `\n- Logo oficial medido ya copiado en ${claimed.outputDir}/${logo}: úsalo tal cual (no lo copies ni lo busques).`;
+    // 2c. Imágenes preparadas (punto 6, 2026-10-07): logo en dos versiones, recortes y medidas, sin modelo.
+    try {
+      const prep = await withTimeout(prepareAssets(ROOT, slug, outAbs, productPhotos), 60000);
+      prepNote = prep ? preparedNote(prep, claimed.outputDir) : '';
+      if (prep) {
+        console.log(
+          `[${stamp()}] ${claimed.id}: imágenes preparadas — ${prep.logo ? `logo ${prep.logo.tone}${prep.logo.counterpart ? ` + versión ${prep.logo.counterpart.color === 'white' ? 'blanca' : 'negra'}` : ''}` : 'sin logo'} · ${prep.photos.filter((p) => p.crop).length} recorte(s) de ${prep.photos.length} foto(s)`
+        );
+      }
+    } catch (err) {
+      console.log(`[${stamp()}] ${claimed.id}: no se pudieron preparar las imágenes — ${(err as Error).message.slice(0, 200)}`);
+    }
   }
   if (cancelled) {
     setAsideFolder(outAbs, 'cancelado');
@@ -1406,6 +1422,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       : identity +
         logoNote +
         productNote +
+        prepNote +
         brandAssetsNote(job.outputDir) +
         (claimed.briefPrompt ? '' : blockedNote(claimed.brand?.name || slug, blockedInfo(ROOT, slug))) +
         previousPiecesNote(previousPieces(ROOT, slug, job.outputDir)) +
