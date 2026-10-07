@@ -309,7 +309,16 @@
         <!-- Cabecera de marca (2026-10-07): al filtrar por una marca, su identidad, sus cifras y su mejor pieza. -->
         <div class="brand-head" id="brand-head" hidden></div>
         <ul id="history-list"></ul>
-        <p id="history-empty" class="hint history-empty" hidden>Ningún trabajo coincide con el filtro. <button type="button" id="history-clear" class="link-btn">Quitar filtros</button></p>
+        <!-- Vacío con personalidad (2026-10-07): un abanico vacío y un texto según el filtro, en vez de una línea suelta. -->
+        <div id="history-empty" class="history-empty" hidden>
+          <span class="empty-fan" aria-hidden="true"><i></i><i></i><i></i></span>
+          <p class="empty-title" id="history-empty-title">Ningún trabajo coincide con el filtro.</p>
+          <p class="hint" id="history-empty-hint"></p>
+          <div class="empty-actions">
+            <button type="button" id="history-clear" class="btn btn-secondary btn-sm">Quitar filtros</button>
+            <button type="button" id="history-empty-new" class="btn btn-ghost btn-sm" hidden>Nueva newsletter</button>
+          </div>
+        </div>
         <button type="button" id="history-more" class="btn btn-ghost" hidden>Ver más</button>
       </section>
     </section>
@@ -583,6 +592,9 @@
         </div>
 
         <div class="job-main">
+        <!-- Pieza recién terminada (2026-10-07): un resumen con lo que tardó, su nota y el siguiente paso. Solo al
+             terminar con la página abierta; se cierra con la ✕. -->
+        <div class="done-summary" id="done-summary" role="status" hidden></div>
         <!-- Pestañas del resultado (2026-09-30): antes, asunto, bandeja, revisión y comparación iban apilados encima
              de la vista previa y esta empezaba casi dos pantallas más abajo. Ahora es lo primero que se ve. -->
         <div class="job-tabs" role="tablist" aria-label="Detalle de la newsletter">

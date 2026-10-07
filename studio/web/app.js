@@ -2505,6 +2505,7 @@ function renderHistory() {
   renderBrandHead(scoped);
   renderFootStats([...families.values()].filter((m) => m.some((j) => !j.archivedAt)));
   document.getElementById('history-empty').hidden = groups.length > 0;
+  if (!groups.length) renderHistoryEmpty();
   document.getElementById('history-more').hidden = groups.length <= visible.length;
 
   const listEl = document.getElementById('history-list');
@@ -2639,6 +2640,44 @@ function renderBrandHead(scoped) {
       ? `<a class="bh-best" href="?job=${encodeURIComponent(best.id)}" title="Abrir su mejor pieza"><img src="/api/jobs/${encodeURIComponent(best.id)}/thumb" alt="" width="150" height="200" loading="lazy"><span>${best.art ? `Mejor pieza · ${best.art.pct} %` : 'Última pieza'}</span></a>`
       : '');
 }
+
+/** Vacío con personalidad (2026-10-07): qué decir según el filtro que deja la lista vacía. */
+function renderHistoryEmpty() {
+  const { status, query, brand, mine, archived } = historyState;
+  const brandName = brand ? (historyState.jobs.find((j) => (j.clientSlug || j.clientName) === brand)?.clientName || brand) : '';
+  const [title, hint, offerNew] = query
+    ? [`Nada coincide con «${query}».`, 'Prueba con otra marca, otra persona o menos letras.', false]
+    : status === 'failed'
+    ? ['Ninguna fallida: todo ha salido bien.', brandName ? `Ninguna pieza de ${brandName} ha fallado.` : 'Cuando una pieza falle, aparecerá aquí con el motivo y un botón para reintentarla.', false]
+    : status === 'review'
+    ? ['Nada por revisar ahora mismo.', 'Aquí salen los briefs que esperan tu aprobación antes de que Hermes haga la pieza.', false]
+    : status === 'active'
+    ? ['Hermes está libre.', 'No hay nada en marcha ni en cola. ¿Le pedimos una?', true]
+    : status === 'approved'
+    ? ['Todavía no hay ninguna aprobada.', 'Al aprobar una pieza para envío, aparecerá aquí con su sello.', false]
+    : status === 'completed'
+    ? ['Ninguna lista con este filtro.', '', false]
+    : archived
+    ? ['No hay nada archivado.', 'Lo que archives sale de la lista pero no se borra: lo encontrarás aquí.', false]
+    : mine
+    ? ['Aún no has pedido ninguna.', 'Las piezas que pidas con tu nombre aparecerán aquí.', true]
+    : brandName
+    ? [`Todavía no hay piezas de ${brandName}.`, '', true]
+    : ['Ningún trabajo coincide con el filtro.', '', false];
+  document.getElementById('history-empty-title').textContent = title;
+  const h = document.getElementById('history-empty-hint');
+  h.textContent = hint;
+  h.hidden = !hint;
+  document.getElementById('history-empty-new').hidden = !offerNew;
+  const box = document.getElementById('history-empty');
+  box.classList.remove('is-in');
+  void box.offsetWidth;
+  if (motionOk()) box.classList.add('is-in');
+}
+document.getElementById('history-empty-new').addEventListener('click', () => {
+  jumpTo(document.getElementById('view-form'), 'start');
+  setTimeout(() => clientNameInput.focus({ preventScroll: true }), 500);
+});
 
 /** Historial por días (2026-10-07): «Hoy», «Ayer», «Esta semana» y después por meses, según la última actividad de
  *  cada newsletter (el mismo orden de la lista). Devuelve los tramos con los índices de sus grupos. */
@@ -3971,12 +4010,118 @@ const reviewView = document.getElementById('review-brief-view');
 const reviewEditBtn = document.getElementById('review-edit');
 
 /** Con formato (por defecto) o el cuadro para corregirlo. Al volver al formato se ve lo corregido. */
+/** Brief maquetado (2026-10-07): sobre el HTML que da markdown.js (ya seguro), cada sección «## N. …» pasa a ser
+ *  una tarjeta con su icono; el concepto, una cita; los colores, con su muestra; los enlaces sueltos, un chip con el
+ *  dominio de la fuente; lo pendiente o fuera de la pieza, en ámbar; el asunto y el preheader, como en la bandeja; y
+ *  las escenas, numeradas. Solo cambia la presentación: el texto que se aprueba o corrige es el mismo. */
+const BRIEF_KINDS = [
+  [/concepto/i, 'concept', '✦'],
+  [/identidad|marca/i, 'identity', '◐'],
+  [/datos|investigaci/i, 'data', '✓'],
+  [/asunto|preheader/i, 'subject', '✉'],
+  [/escena|arquitectura/i, 'scenes', '▤'],
+  [/imagen|imágen|foto/i, 'images', '▣'],
+  [/prohibido|evitar/i, 'banned', '⊘'],
+  [/autoauditor|auditor/i, 'audit', '?'],
+];
+const PENDING_RE = /pendiente|fuera de la pieza|sin verificar|no verificad|no se pudo|no confirmad/i;
+function decorateBrief(root) {
+  if (!root || root.dataset.decorated === root.innerHTML.length + '') return;
+  let sec = null;
+  for (const el of [...root.children]) {
+    // markdown.js baja los títulos tres niveles: «#» es h4 y «##» es h5.
+    if (el.tagName === 'H4') {
+      el.classList.add('bf-title');
+      sec = null;
+      continue;
+    }
+    if (el.tagName === 'H5') {
+      const text = el.textContent;
+      const [, kind, icon] = BRIEF_KINDS.find(([re]) => re.test(text)) || [null, 'other', '•'];
+      sec = document.createElement('section');
+      sec.className = `bf-sec bf-${kind}`;
+      el.before(sec);
+      sec.append(el);
+      const mark = document.createElement('span');
+      mark.className = 'bf-icon';
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = icon;
+      el.prepend(mark);
+      continue;
+    }
+    if (sec) sec.append(el);
+  }
+  // El concepto: la frase entre «comillas» del principio, destacada; la explicación que sigue, normal.
+  const concept = root.querySelector('.bf-concept > p');
+  if (concept) {
+    const m = concept.innerHTML.match(/^\s*(«[^»]{8,}»\.?)([\s\S]*)$/);
+    if (m) concept.innerHTML = `<span class="bf-quote">${m[1]}</span>${m[2]}`;
+    else concept.classList.add('bf-quote');
+  }
+  // Enlaces sueltos (texto = URL): un chip con el dominio; la URL entera, al pasar el ratón.
+  root.querySelectorAll('a[href]').forEach((a) => {
+    const t = a.textContent.trim();
+    if (!/^https?:\/\//.test(t)) return;
+    try {
+      a.textContent = new URL(t).hostname.replace(/^www\./, '');
+      a.title = t;
+      a.classList.add('src-chip');
+    } catch {
+      // URL rara: se queda como está
+    }
+  });
+  // Colores: una muestra delante de cada #hex (en código o en el texto).
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const hits = [];
+  while (walker.nextNode()) if (/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i.test(walker.currentNode.nodeValue) && !walker.currentNode.parentElement.closest('a')) hits.push(walker.currentNode);
+  for (const node of hits) {
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    const text = node.nodeValue;
+    text.replace(/#(?:[0-9a-f]{6}|[0-9a-f]{3})\b/gi, (hex, at) => {
+      frag.append(text.slice(last, at));
+      const sw = document.createElement('span');
+      sw.className = 'bf-swatch';
+      sw.style.background = hex;
+      sw.setAttribute('aria-hidden', 'true');
+      frag.append(sw, hex);
+      last = at + hex.length;
+      return hex;
+    });
+    frag.append(text.slice(last));
+    node.replaceWith(frag);
+  }
+  // Pendiente o fuera de la pieza: en ámbar.
+  root.querySelectorAll('li, p').forEach((el) => {
+    if (PENDING_RE.test(el.textContent) && !el.closest('.bf-banned, .bf-audit')) el.classList.add('is-pending');
+  });
+  // Asunto y preheader: como se verían en la bandeja de entrada.
+  const subj = root.querySelector('.bf-subject');
+  if (subj) {
+    const txt = [...subj.querySelectorAll('p, li')].map((x) => x.textContent).join('\n');
+    const a = txt.match(/Asunto:\s*(.+?)\s*(?=Preheader:|\n|$)/i);
+    const b = txt.match(/Preheader:\s*(.+?)\s*(?=\n|$)/i);
+    if (a) {
+      const box = document.createElement('div');
+      box.className = 'bf-inbox';
+      box.innerHTML = `<span class="bf-inbox-dot" aria-hidden="true"></span><div><strong>${escapeHtml(a[1])}</strong>${b ? `<span>${escapeHtml(b[1])}</span>` : ''}</div>`;
+      subj.querySelectorAll('p, ul, ol').forEach((x) => x.remove());
+      subj.append(box);
+    }
+  }
+  root.classList.add('is-brief');
+  root.dataset.decorated = root.innerHTML.length + '';
+}
+
 function setBriefEditing(on) {
   reviewText.hidden = !on;
   reviewView.hidden = on;
   reviewEditBtn.setAttribute('aria-pressed', String(on));
   reviewEditBtn.textContent = on ? 'Ver con formato' : 'Corregir el brief';
-  if (!on) reviewView.innerHTML = window.HermesMarkdown ? window.HermesMarkdown.render(reviewText.value) : escapeHtml(reviewText.value);
+  if (!on) {
+    reviewView.innerHTML = window.HermesMarkdown ? window.HermesMarkdown.render(reviewText.value) : escapeHtml(reviewText.value);
+    decorateBrief(reviewView);
+  }
 }
 reviewEditBtn.addEventListener('click', () => {
   const on = reviewText.hidden;
@@ -5464,6 +5609,11 @@ async function poll(id) {
   }
   document.getElementById('job-skeleton').hidden = true;
   const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy, familyTitle, clientMatrix: matrix } = await res.json();
+  // Recién terminada con la página abierta (2026-10-07): la maqueta vuela a la vista previa y sale el resumen.
+  const justDone = liveStatusSeen.get(job.id) === 'running' && job.status === 'completed';
+  liveStatusSeen.set(job.id, job.status);
+  if (justDone) celebrateJobDone(job);
+  else if (job.status !== 'completed' || doneSummaryFor !== job.id) hideDoneSummary();
   renderJobName(familyTitle, meta);
   renderVersions(job, versions || []);
   currentJobData = job;
@@ -5517,6 +5667,7 @@ async function poll(id) {
     document.getElementById('brief-instruction').textContent = `Instrucción: «${job.input.instruction}»`;
     briefEl.dataset.src = job.input.briefText;
     briefEl.innerHTML = window.HermesMarkdown ? window.HermesMarkdown.render(job.input.briefText) : '';
+    decorateBrief(briefEl);
   }
 
   const statusEl = document.getElementById('job-status');
@@ -6897,6 +7048,88 @@ function plainText(el, text) {
   delete el.dataset.roll;
   el.textContent = text;
 }
+
+/** Pieza recién terminada (2026-10-07): la maqueta que se estaba construyendo vuela y crece hasta la vista previa y se
+ *  funde con la pieza de verdad cuando carga; arriba, un resumen (lo que tardó, la nota, los avisos) con el siguiente
+ *  paso. Solo cuando termina con la página abierta (antes «running», ahora «completed»). */
+const liveStatusSeen = new Map();
+let doneSummaryFor = null;
+function hideDoneSummary() {
+  doneSummaryFor = null;
+  document.getElementById('done-summary').hidden = true;
+}
+function celebrateJobDone(job) {
+  const build = document.getElementById('live-build');
+  const r = !build.hidden ? build.getBoundingClientRect() : null;
+  if (r?.width && motionOk()) {
+    const fly = document.createElement('div');
+    fly.className = 'card-fly thumb thumb-build is-done-fly';
+    fly.setAttribute('aria-hidden', 'true');
+    fly.innerHTML = build.innerHTML.replace(/<i class="tb-scan"><\/i>/, '');
+    fly.querySelectorAll('i').forEach((i) => i.classList.add('is-on'));
+    Object.assign(fly.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    document.body.appendChild(fly);
+    const frame = document.getElementById('preview-frame');
+    let done = false;
+    const land = () => {
+      if (done) return;
+      done = true;
+      frame.removeEventListener('load', onLoad);
+      const dev = document.getElementById('preview-device');
+      const t = dev?.getBoundingClientRect();
+      const ok = t?.width && !viewJob.hidden;
+      const to = ok ? { left: `${t.left}px`, top: `${t.top}px`, width: `${t.width}px`, height: `${Math.min(t.height, window.innerHeight - t.top - 24, t.width * 1.4)}px` } : {};
+      fly
+        .animate(
+          [
+            { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, opacity: 1, transform: 'rotate(-1.5deg)' },
+            { ...to, opacity: 1, transform: 'rotate(0deg)', offset: 0.75 },
+            { ...to, opacity: 0, transform: 'rotate(0deg)' },
+          ],
+          { duration: 900, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }
+        )
+        .finished.finally(() => fly.remove());
+    };
+    const onLoad = () => setTimeout(land, 60);
+    frame.addEventListener('load', onLoad);
+    setTimeout(land, 6000);
+    setTimeout(() => fly.remove(), 8000);
+  }
+  // El resumen.
+  const box = document.getElementById('done-summary');
+  const sec = job.progress?.elapsedSec;
+  const art = job.artReview?.before ? artPctOf(artFinal(job.artReview)) : null;
+  const errors = job.quality?.errors || 0;
+  const warnings = job.quality?.warnings || 0;
+  const bits = [
+    sec ? `<span><b>${escapeHtml(formatMinutes(sec))}</b> de trabajo</span>` : '',
+    art !== null ? `<span><b class="is-${art >= 76 ? 'high' : art >= 60 ? 'mid' : 'low'}">${art} %</b> dirección de arte</span>` : '',
+    errors ? `<span><b class="is-low">${errors}</b> error${errors === 1 ? '' : 'es'} de la revisión</span>` : warnings ? `<span><b class="is-mid">${warnings}</b> aviso${warnings === 1 ? '' : 's'}</span>` : job.quality ? '<span><b class="is-high">✓</b> revisión automática limpia</span>' : '',
+  ].filter(Boolean);
+  const next = errors ? 'Revisa los errores antes de aprobarla.' : 'Siguiente: revísala y apruébala para envío.';
+  doneSummaryFor = job.id;
+  box.innerHTML =
+    `<div class="ds-head"><span class="ds-check" aria-hidden="true">✓</span><div><strong>Newsletter lista</strong><span>${escapeHtml(next)}</span></div>` +
+    `<button type="button" class="ds-close" aria-label="Cerrar el resumen">✕</button></div>` +
+    `<div class="ds-stats">${bits.join('')}</div>` +
+    `<div class="ds-actions">${errors ? '<button type="button" class="btn btn-secondary btn-sm" data-ds="review">Ver errores</button>' : ''}<button type="button" class="btn btn-primary btn-sm" data-ds="approve">Aprobar para envío</button><button type="button" class="btn btn-ghost btn-sm" data-ds="revise">Pedir cambios</button></div>`;
+  box.hidden = false;
+  box.classList.remove('is-in');
+  void box.offsetWidth;
+  if (motionOk()) box.classList.add('is-in');
+}
+document.getElementById('done-summary').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.classList.contains('ds-close')) return hideDoneSummary();
+  const act = b.dataset.ds;
+  if (act === 'approve') document.getElementById('sticky-approve').click();
+  else if (act === 'revise') document.getElementById('sticky-revise').click();
+  else if (act === 'review') {
+    showJobTab('review');
+    jumpTo(document.getElementById('review'), 'start');
+  }
+});
 
 /** Maqueta grande de la pieza en marcha (2026-10-07): los mismos bloques que la miniatura de la galería
  *  (buildThumbInner), según el porcentaje. En cola, respira. */
