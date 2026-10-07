@@ -22,6 +22,7 @@ import { getJob, listJobs, updateJob, type Job } from './store';
 import { readResultHtml, resultMeta, versionFamily } from './standalone';
 import { STUDIO_DIR } from './paths';
 import { BRAND_BASE_STYLE, BRAND_FONTS, brandFooter, brandHeader } from './brandPage';
+import { readBrandCard } from './brandCards';
 
 export const SHARE_DAYS = 14;
 export const SHARE_TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
@@ -285,6 +286,63 @@ const PAGE_STYLE = BRAND_BASE_STYLE + `
     .jump.is-floating { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 20; background: var(--pink); color: var(--on-pink); border-color: var(--pink); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); }
     body.has-floating-jump { padding-bottom: 72px; }
   }
+  /* Rediseño (2026-10-07): la marca del cliente arriba, la pieza en su marco, chinchetas y la decisión siempre a mano. */
+  .client-id { display: flex; align-items: center; gap: 18px; }
+  .client-logo { flex: none; display: flex; align-items: center; justify-content: center; width: 120px; height: 68px; padding: 10px 16px; border-radius: 14px; background: #fff; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3); }
+  .client-logo.is-dark { background: #14183f; }
+  .client-logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+  .client-logo.is-initials { width: 68px; color: #14183f; font-family: 'Barlow', sans-serif; font-weight: 800; font-size: 24px; }
+  .subject { display: flex; align-items: center; gap: 14px; }
+  .subject-dot { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--pink), #8a3ffc); color: #fff; font-weight: 700; }
+  .subject-text { min-width: 0; }
+  .stage { padding: 28px; border-radius: 24px; background: radial-gradient(120% 80% at 50% 0%, rgba(251, 115, 255, 0.10), transparent 60%), rgba(5, 12, 42, 0.35); max-width: 860px; }
+  .stage.is-mobile { max-width: 451px; } /* 375 de pantalla + 2×10 de marco + 2×28 de aire */
+  .device { position: relative; margin: 0 auto; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); transition: border-radius .25s ease; }
+  .device-bar { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; background: #eef0f7; color: #4f5679; font-size: 12px; }
+  .device-bar i { width: 10px; height: 10px; border-radius: 50%; background: #d3d7e6; }
+  .device-bar i:nth-child(1) { background: #ff6159; } .device-bar i:nth-child(2) { background: #ffbd2e; } .device-bar i:nth-child(3) { background: #28c941; }
+  .device-bar span { flex: 1; min-width: 0; margin-left: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-weight: 600; }
+  .device iframe { border-radius: 0; box-shadow: none; }
+  .stage.is-mobile .device { border: 10px solid #0a0f2a; border-radius: 40px; }
+  .stage.is-mobile .device-bar { height: 26px; justify-content: center; background: #0a0f2a; }
+  .stage.is-mobile .device-bar i, .stage.is-mobile .device-bar span { display: none; }
+  .stage.is-mobile .device-bar::after { content: ''; width: 90px; height: 6px; border-radius: 3px; background: #1d2450; }
+  .stage.is-picking .device { outline: 3px solid var(--pick); outline-offset: 3px; }
+  .stage.is-picking iframe { outline: 0; }
+  .pins { position: absolute; inset: 0; pointer-events: none; }
+  .pin { position: absolute; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin: -6px 0 0 -6px; border: 2px solid #fff; border-radius: 50% 50% 50% 4px; background: var(--pink); color: var(--on-pink); font-size: 13px; font-weight: 800; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35); cursor: pointer; pointer-events: auto; animation: pin-drop .5s cubic-bezier(.34, 1.6, .64, 1) both; animation-delay: calc(var(--i, 0) * 60ms); transition: transform .15s; }
+  .pin:hover { transform: scale(1.15); }
+  .pin.is-resolved { background: #8b91b8; }
+  @keyframes pin-drop { from { opacity: 0; transform: translateY(-14px) scale(.6); } }
+  .c-num { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-right: 6px; padding: 0 5px; border-radius: 10px 10px 10px 3px; background: var(--pink); color: var(--on-pink); font-size: 11px; font-weight: 800; }
+  .comments li.is-flash { animation: c-flash 1.6s ease; }
+  @keyframes c-flash { 0%, 40% { box-shadow: 0 0 0 3px var(--pink); } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .jump, .jump.is-floating { display: none !important; }
+  .decide-bar { position: fixed; left: 50%; bottom: 16px; z-index: 30; transform: translateX(-50%); display: flex; align-items: center; gap: 18px; width: min(760px, calc(100vw - 24px)); padding: 12px 12px 12px 22px; border: 1px solid var(--line); border-radius: 999px; background: rgba(8, 14, 48, 0.92); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5); animation: bar-in .6s cubic-bezier(.22, 1, .36, 1) .3s both; }
+  .decide-bar p { display: flex; flex-direction: column; margin: 0 auto 0 0; min-width: 0; font-size: 13px; color: var(--lilac); }
+  .decide-bar p b { font-size: 15px; color: var(--text); }
+  .decide-actions { display: flex; gap: 8px; flex: none; }
+  .btn-approve { background: #2fbf71; color: #062614; border-color: #2fbf71; }
+  .btn-approve:hover { background: #3fd585; color: #062614; }
+  .decide-bar.is-approved { border-color: rgba(47, 191, 113, 0.6); }
+  .decide-bar.is-approved p b { color: #2fbf71; }
+  .decide-bar.is-changes { border-color: rgba(244, 165, 36, 0.6); }
+  .decide-bar.is-changes p b { color: #f4a524; }
+  @keyframes bar-in { from { opacity: 0; transform: translate(-50%, 24px); } }
+  body { padding-bottom: 96px; }
+  @media (max-width: 600px) {
+    /* En un teléfono, sin marco de teléfono (le quitaba ancho a la pieza) y la barra en una línea. */
+    .decide-bar { gap: 10px; padding: 8px 8px 8px 16px; bottom: 10px; }
+    .decide-bar p span { display: none; }
+    .decide-bar p b { font-size: 14px; }
+    .decide-actions .btn { padding: 9px 14px; }
+    .stage { padding: 0; background: none; }
+    .stage.is-mobile .device { border: 0; border-radius: 12px; }
+    .stage.is-mobile .device-bar { display: none; }
+    .client-logo { width: 88px; height: 52px; }
+    body { padding-bottom: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .pin, .decide-bar, .comments li.is-flash { animation: none; } }
   .gone { max-width: 560px; margin: 15vh auto; padding: 0 16px; text-align: center; }
   .gone .meta { margin-left: auto; margin-right: auto; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -328,8 +386,14 @@ export function renderSharePage(job: Job, nonce: string): string | null {
   const rootId = versionFamily(job)[0]?.id;
   const teamTitle = (rootId && rootId !== job.id ? getJob(rootId)?.title : job.title) || null;
   const subject = meta?.subject
-    ? `<p class="subject"><b>${esc(meta.subject)}</b>${meta.preheader ? `<span>${esc(meta.preheader)}</span>` : ''}</p>`
+    ? `<p class="subject"><span class="subject-dot" aria-hidden="true">${esc((job.input.clientName || '?').slice(0, 1).toUpperCase())}</span><span class="subject-text"><b>${esc(meta.subject)}</b>${meta.preheader ? `<span>${esc(meta.preheader)}</span>` : ''}</span></p>`
     : '';
+  // Logo de la marca (2026-10-07): de su ficha (data URI ya validado al guardarla); sin ficha, sus iniciales.
+  const card = job.input.clientSlug ? readBrandCard(job.input.clientSlug)?.card : null;
+  const logo =
+    card?.logo && /^data:image\/(png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(card.logo)
+      ? `<span class="client-logo${card.logoOnDark ? ' is-dark' : ''}"><img src="${card.logo}" alt="${name}"></span>`
+      : `<span class="client-logo is-initials" aria-hidden="true">${esc((job.input.clientName || '?').split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase())}</span>`;
   return `<!doctype html>
 <html lang="es">
 <head>
@@ -343,8 +407,13 @@ ${BRAND_FONTS}
 <body>
 ${brandHeader('Vista previa')}
 <header>
-  <h1>Newsletter de <span class="accent">${name}</span></h1>
-  ${teamTitle ? `<p class="team-title">${esc(teamTitle)}</p>` : ''}
+  <div class="client-id">
+    ${logo}
+    <div>
+      <h1>Newsletter de <span class="accent">${name}</span></h1>
+      ${teamTitle ? `<p class="team-title">${esc(teamTitle)}</p>` : ''}
+    </div>
+  </div>
   <p class="meta">Vista previa para revisar. No es un envío: los enlaces de baja y personalización se activan en la plataforma de envío.</p>
   ${subject}
   <div class="bar">
@@ -359,7 +428,12 @@ ${brandHeader('Vista previa')}
 <div class="layout">
   <main>
     <div class="stage" id="stage">
-      <iframe id="frame" title="Newsletter de ${name}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(withBaseTarget(html))}"></iframe>
+      <!-- Marco de navegador o de móvil (2026-10-07) y las chinchetas de los comentarios encima de la pieza. -->
+      <div class="device" id="device">
+        <div class="device-bar" aria-hidden="true"><i></i><i></i><i></i><span>${meta?.subject ? esc(meta.subject) : `Newsletter de ${name}`}</span></div>
+        <iframe id="frame" title="Newsletter de ${name}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcdoc="${esc(withBaseTarget(html))}"></iframe>
+        <div class="pins" id="pins"></div>
+      </div>
     </div>
   </main>
   <aside id="review">
@@ -402,6 +476,14 @@ ${brandHeader('Vista previa')}
       <details class="older" id="older" hidden><summary id="older-summary"></summary><ul class="comments" id="older-list"></ul></details>
     </section>
   </aside>
+</div>
+<!-- Barra fija de decisión (2026-10-07): lo que el cliente tiene que hacer, siempre a mano. -->
+<div class="decide-bar" id="decide-bar">
+  <p id="decide-text"><b>¿Lista para enviar?</b><span>Apruébala o pide cambios: el equipo lo ve al momento.</span></p>
+  <div class="decide-actions" id="decide-actions">
+    <button type="button" class="btn btn-approve" data-bar-decide="approved">✓ Aprobar</button>
+    <button type="button" class="btn" data-bar-decide="changes">Pedir cambios</button>
+  </div>
 </div>
 ${brandFooter(`Enlace válido hasta el ${esc(fmtDate(job.share.expiresAt))}.`)}
 <p class="sr-only" id="sr" role="status" aria-live="polite"></p>
@@ -448,6 +530,7 @@ ${brandFooter(`Enlace válido hasta el ${esc(fmtDate(job.share.expiresAt))}.`)}
     if (!d || !d.documentElement) return;
     frame.style.height = '0px';
     frame.style.height = Math.max(400, d.documentElement.scrollHeight) + 'px';
+    if (typeof placePins === 'function') placePins();
   }
 
   // ---- vista
@@ -554,23 +637,68 @@ ${brandFooter(`Enlace válido hasta el ${esc(fmtDate(job.share.expiresAt))}.`)}
   // ---- pintar
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function when(iso) { return new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
-  function item(c) {
-    return '<li' + (c.resolved ? ' class="is-resolved"' : '') + '><div class="c-head"><span><b>' + esc(c.author) + '</b> · ' + esc(when(c.at)) + (c.resolved ? ' · resuelto' : '') + '</span>' +
+  function item(c, n) {
+    return '<li id="c-' + esc(c.id) + '"' + (c.resolved ? ' class="is-resolved"' : '') + '><div class="c-head"><span>' + (n ? '<span class="c-num">' + n + '</span>' : '') + '<b>' + esc(c.author) + '</b> · ' + esc(when(c.at)) + (c.resolved ? ' · resuelto' : '') + '</span>' +
       (c.path && c.current ? '<button type="button" class="linkbtn" data-path="' + esc(JSON.stringify(c.path)) + '">Ver</button>' : '') + '</div>' +
       (c.ref ? '<span class="ref">' + esc(c.ref) + '</span>' : '') + '<p class="c-text">' + esc(c.text) + '</p></li>';
   }
   function render() {
     var cur = state.comments.filter(function (c) { return c.current; });
     var old = state.comments.filter(function (c) { return !c.current; });
-    $('comments').innerHTML = cur.map(item).join('');
+    $('comments').innerHTML = cur.map(function (c, i) { return item(c, i + 1); }).join('');
     $('older').hidden = !old.length;
     $('older-summary').textContent = 'Comentarios sobre la versión anterior (' + old.length + ')';
-    $('older-list').innerHTML = old.map(item).join('');
+    $('older-list').innerHTML = old.map(function (c) { return item(c, 0); }).join('');
     var d = state.decision;
     $('decision-box').innerHTML = d
       ? '<p class="decision ' + d.kind + '">' + (d.kind === 'approved' ? '✓ Aprobada' : 'Cambios pedidos') + ' por <b>' + esc(d.author) + '</b> el ' + esc(when(d.at)) + (d.note ? '<br>' + esc(d.note) : '') + '</p>'
       : '<p class="hint">Cuando la hayas revisado, apruébala o pide cambios. El equipo lo ve al momento.</p>';
+    // Barra fija: la pregunta o, ya decidido, lo que se dijo.
+    $('decide-actions').hidden = !!d;
+    $('decide-bar').className = 'decide-bar' + (d ? ' is-' + d.kind : '');
+    $('decide-text').innerHTML = d
+      ? '<b>' + (d.kind === 'approved' ? '✓ Aprobada' : 'Cambios pedidos') + '</b><span>por ' + esc(d.author) + ' el ' + esc(when(d.at)) + '</span>'
+      : '<b>¿Lista para enviar?</b><span>Apruébala o pide cambios: el equipo lo ve al momento.</span>';
+    placePins();
   }
+  // ---- chinchetas: un número sobre lo comentado, el mismo que en la lista (2026-10-07)
+  function placePins() {
+    var d = doc();
+    var box = $('pins');
+    if (!d || !d.body || !box) return;
+    var cur = state.comments.filter(function (c) { return c.current; });
+    var html = '';
+    cur.forEach(function (c, i) {
+      if (!c.path) return;
+      var el = byPath(d, c.path);
+      if (!el) return;
+      var r = el.getBoundingClientRect();
+      // Justo a la izquierda de lo comentado (encima tapaba la primera letra).
+      var x = Math.max(8, frame.offsetLeft + r.left - 22);
+      var y = frame.offsetTop + r.top + 4;
+      html += '<button type="button" class="pin' + (c.resolved ? ' is-resolved' : '') + '" data-pin="' + esc(c.id) + '" style="left:' + x + 'px;top:' + y + 'px;--i:' + i + '" aria-label="Comentario ' + (i + 1) + ': ' + esc(c.text.slice(0, 60)) + '">' + (i + 1) + '</button>';
+    });
+    box.innerHTML = html;
+  }
+  document.addEventListener('click', function (e) {
+    var pin = e.target.closest && e.target.closest('[data-pin]');
+    if (pin) {
+      var li = document.getElementById('c-' + pin.getAttribute('data-pin'));
+      if (li) {
+        li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        li.classList.remove('is-flash');
+        void li.offsetWidth;
+        li.classList.add('is-flash');
+      }
+      return;
+    }
+    var bar = e.target.closest && e.target.closest('[data-bar-decide]');
+    if (bar) {
+      var btn = document.querySelector('[data-decide="' + bar.getAttribute('data-bar-decide') + '"]');
+      if (btn) btn.click();
+      $('review').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-path]');
     if (b) flash(JSON.parse(b.getAttribute('data-path')));

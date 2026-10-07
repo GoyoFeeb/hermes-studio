@@ -100,7 +100,22 @@
     return TEXT_TARGET.test(value) && !NEEDS_HERMES.test(value);
   }
 
-  var api = { checkInstruction: checkInstruction, contentWords: contentWords, checkChangeRequest: checkChangeRequest, isSimpleTextChange: isSimpleTextChange };
+  /** Pistas en vivo mientras se escribe la instrucción (2026-10-07, formulario guiado): lo que suele hacer buena una
+   *  pieza, y si la instrucción ya lo dice. Las dos primeras son las que pide checkInstruction; las otras dos, extras
+   *  que ayudan (Hermes las investiga si faltan). */
+  var OFFER = /\d|%|€|descuento|oferta|rebaja|precio|cup[oó]n|c[oó]digo|gratis|regalo|2x1|envío gratis|promo/i;
+  var AUDIENCE = /\bclientes?\b|familias|p[úu]blico|audiencia|socios|j[oó]venes|padres|madres|ni[nñ]os|mujeres|hombres|profesionales|empresas|aut[oó]nomos|deportistas|corredor|runners|mascotas?|due[nñ]os|estudiantes|mayores|\bpara (los|las|quien|quienes|personas|gente|todo el que)\b/i;
+  function coachInstruction(text, brand) {
+    var t = String(text || '');
+    return [
+      { id: 'topic', label: 'De qué va', example: 'el producto u oferta concreta', done: contentWords(t, brand).length > 0 },
+      { id: 'goal', label: 'Objetivo o momento', example: 'lanzamiento, rebajas, vuelta al cole…', done: GOAL.test(t) },
+      { id: 'offer', label: 'Oferta o dato', example: 'un %, un precio, un código', done: OFFER.test(t) },
+      { id: 'audience', label: 'Para quién', example: 'familias, corredores, clientes…', done: AUDIENCE.test(t) },
+    ];
+  }
+
+  var api = { checkInstruction: checkInstruction, contentWords: contentWords, coachInstruction: coachInstruction, checkChangeRequest: checkChangeRequest, isSimpleTextChange: isSimpleTextChange };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HermesFormCheck = api;
 })(this);

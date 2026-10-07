@@ -630,6 +630,33 @@ function updateExamples() {
   const kind = form.querySelector('input[name="inputKind"]:checked')?.value;
   const text = promptInput.value.trim();
   document.getElementById('examples').hidden = kind !== 'instruction' || (!!text && !EXAMPLES.some((ex) => ex.text === text));
+  renderCoach(kind, text);
+}
+
+/** Formulario guiado (2026-10-07): bajo la instrucción, cuatro pistas (de qué va, objetivo o momento, oferta o dato,
+ *  para quién) que se tachan al cubrirlas, y una medida de lo concreta que es. Antes el aviso de instrucción vaga
+ *  solo salía al pulsar «Generar». Las que se cubren ahora mismo dan un pequeño salto. */
+let coachDone = new Set();
+function renderCoach(kind, text) {
+  const box = document.getElementById('prompt-coach');
+  if (kind !== 'instruction' || !text) {
+    box.hidden = true;
+    coachDone = new Set();
+    return;
+  }
+  const items = HermesFormCheck.coachInstruction(text, clientNameInput.value);
+  const n = items.filter((i) => i.done).length;
+  const [level, label] = n <= 1 ? ['low', 'Muy general: Hermes tendrá que suponer'] : n === 2 ? ['mid', 'Concreta'] : n === 3 ? ['good', 'Bien concreta'] : ['great', 'Completa'];
+  box.hidden = false;
+  box.innerHTML =
+    `<div class="coach-meter is-${level}"><span class="coach-bar" style="--n:${n}"><i></i></span><span>${label}</span></div>` +
+    `<ul class="coach-list">${items
+      .map(
+        (i) =>
+          `<li class="${i.done ? 'is-done' : ''}${i.done && !coachDone.has(i.id) && motionOk() ? ' is-new' : ''}" title="${escapeHtml(i.done ? 'Ya lo dice' : `Por ejemplo: ${i.example}`)}"><span class="coach-mark" aria-hidden="true">${i.done ? '✓' : ''}</span>${escapeHtml(i.label)}${i.done ? '' : `<small>${escapeHtml(i.example)}</small>`}</li>`
+      )
+      .join('')}</ul>`;
+  coachDone = new Set(items.filter((i) => i.done).map((i) => i.id));
 }
 
 document.getElementById('examples').insertAdjacentHTML(
@@ -648,6 +675,8 @@ document.getElementById('examples').addEventListener('click', (e) => {
   promptInput.focus();
 });
 promptInput.addEventListener('input', updateExamples);
+// La marca no cuenta como «de qué va»: al cambiarla, las pistas se recalculan.
+clientNameInput.addEventListener('input', updateExamples);
 
 // Ejemplos que se escriben solos (2026-10-06): con la instrucción vacía y sin foco, el texto de ejemplo escribe y
 // borra los ejemplos de arriba. Solo toca el placeholder: ni el borrador ni lo que se envía. Al enfocar, escribir,
@@ -3791,10 +3820,10 @@ document.getElementById('rename-form').addEventListener('submit', async (e) => {
 let clientShare = null;
 let clientPollTimer = null;
 
-function clientCommentItem(c, current) {
+function clientCommentItem(c, current, n = 0) {
   const when = new Date(c.at).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   return `<li class="${c.resolvedAt ? 'is-resolved' : ''}" data-comment="${escapeHtml(c.id)}">
-      <div class="c-head"><span><strong>${escapeHtml(c.author)}</strong> · ${escapeHtml(when)}${c.resolvedAt ? ` · resuelto${c.resolvedBy ? ` por ${escapeHtml(c.resolvedBy)}` : ''}` : ''}</span>
+      <div class="c-head"><span>${n ? `<span class="c-num">${n}</span>` : ''}<strong>${escapeHtml(c.author)}</strong> · ${escapeHtml(when)}${c.resolvedAt ? ` · resuelto${c.resolvedBy ? ` por ${escapeHtml(c.resolvedBy)}` : ''}` : ''}</span>
         <span class="c-actions">${current && c.path ? '<button type="button" class="link-btn" data-client-see>Ver</button>' : ''}${
           current ? `<button type="button" class="link-btn" data-client-resolve="${c.resolvedAt ? '0' : '1'}">${c.resolvedAt ? 'Reabrir' : 'Resuelto'}</button>` : ''
         }</span></div>
@@ -3835,7 +3864,8 @@ function renderClientReview(share) {
   }
   document.getElementById('client-empty').hidden = !!(current.length || decision);
   syncClientEmptyShare();
-  document.getElementById('client-comments').innerHTML = current.map((c) => clientCommentItem(c, true)).join('');
+  document.getElementById('client-comments').innerHTML = current.map((c, i) => clientCommentItem(c, true, i + 1)).join('');
+  placeClientPins();
   document.getElementById('client-actions').hidden = !(open || (pendingChanges && decision.note));
   document.getElementById('client-older').hidden = !older.length;
   document.getElementById('client-older-summary').textContent = `Comentarios sobre otras versiones (${older.length})`;
@@ -3844,6 +3874,64 @@ function renderClientReview(share) {
   clearTimeout(clientPollTimer);
   if (clientShare) clientPollTimer = setTimeout(refreshClientReview, 60000);
 }
+
+/** Comentarios del cliente como chinchetas (2026-10-07): un número sobre lo que señaló en la pieza, el mismo que en la
+ *  pestaña «Cliente». Al pulsarlo, un globo con el comentario y «Ver en Cliente». Se puede ocultar con el interruptor
+ *  de la vista previa; no salen mientras se señala o se edita el texto. */
+function placeClientPins() {
+  const box = document.getElementById('client-pins');
+  const wrap = document.getElementById('client-pins-wrap');
+  if (!box) return;
+  const current = (clientShare?.comments || []).filter((c) => c.jobId === currentJob);
+  const withPath = current.filter((c) => c.path);
+  wrap.hidden = !withPath.length;
+  const stage = document.getElementById('preview-stage');
+  const on = document.getElementById('client-pins-toggle').checked && !stage.classList.contains('is-picking') && !stage.classList.contains('is-editing');
+  const doc = previewDoc();
+  if (!on || !withPath.length || !doc?.body) {
+    box.innerHTML = '';
+    return;
+  }
+  const frame = document.getElementById('preview-frame');
+  box.innerHTML = current
+    .map((c, i) => {
+      const el = c.path ? byPath(doc, c.path) : null;
+      if (!el) return '';
+      const r = el.getBoundingClientRect();
+      // Justo a la izquierda de lo comentado (encima tapaba la primera letra).
+      const x = Math.max(8, frame.offsetLeft + r.left - 22);
+      const y = frame.offsetTop + r.top + 4;
+      return `<button type="button" class="client-pin${c.resolvedAt ? ' is-resolved' : ''}" data-pin="${escapeHtml(c.id)}" style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;--i:${i}" aria-label="Comentario ${i + 1} de ${escapeHtml(c.author)}">${i + 1}</button>`;
+    })
+    .join('');
+}
+document.getElementById('client-pins-toggle').addEventListener('change', placeClientPins);
+document.getElementById('client-pins').addEventListener('click', (e) => {
+  const box = document.getElementById('client-pins');
+  if (e.target.closest('[data-pin-see]')) {
+    const id = e.target.closest('[data-pin-see]').dataset.pinSee;
+    showJobTab('client');
+    const li = document.querySelector(`#client-comments [data-comment="${CSS.escape(id)}"]`);
+    if (li) jumpTo(li, 'center');
+    return;
+  }
+  const pin = e.target.closest('[data-pin]');
+  box.querySelector('.pin-pop')?.remove();
+  if (!pin || pin.classList.contains('is-open')) {
+    box.querySelectorAll('.client-pin.is-open').forEach((p) => p.classList.remove('is-open'));
+    return;
+  }
+  box.querySelectorAll('.client-pin.is-open').forEach((p) => p.classList.remove('is-open'));
+  pin.classList.add('is-open');
+  const c = (clientShare?.comments || []).find((x) => x.id === pin.dataset.pin);
+  if (!c) return;
+  const pop = document.createElement('div');
+  pop.className = 'pin-pop';
+  pop.style.left = pin.style.left;
+  pop.style.top = `${parseFloat(pin.style.top) + 30}px`;
+  pop.innerHTML = `<p class="pin-pop-head"><strong>${escapeHtml(c.author)}</strong>${c.resolvedAt ? ' · resuelto' : ''}</p>${c.ref ? `<span class="c-ref">${escapeHtml(c.ref)}</span>` : ''}<p>${escapeHtml(c.text)}</p><button type="button" class="link-btn" data-pin-see="${escapeHtml(c.id)}">Ver en Cliente →</button>`;
+  box.appendChild(pop);
+});
 
 async function refreshClientReview() {
   const id = currentJob;
@@ -6946,6 +7034,7 @@ function fitFrames() {
     frame.style.height = `${Math.max(200, Math.ceil(h))}px`;
   }
   applyPreviewView(readCheckedView());
+  placeClientPins();
 }
 
 function updateThemeHint() {

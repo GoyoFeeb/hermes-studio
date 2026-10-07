@@ -198,6 +198,8 @@
           <div class="examples" id="examples" hidden>
             <span class="hint">Ejemplos:</span>
           </div>
+          <!-- Formulario guiado (2026-10-07): mientras se escribe, lo que suele hacer buena una pieza y si ya está. -->
+          <div class="prompt-coach" id="prompt-coach" aria-live="polite" hidden></div>
           <fieldset>
             <legend class="label">¿De dónde salen las imágenes?</legend>
             <div class="choices">
@@ -625,6 +627,10 @@
               <input type="checkbox" id="highlight-toggle" checked />
               <span>Resaltar cambios</span>
             </label>
+            <label class="toggle" id="client-pins-wrap" hidden>
+              <input type="checkbox" id="client-pins-toggle" checked />
+              <span>Comentarios del cliente</span>
+            </label>
             <span class="hint" id="preview-size"></span>
             <a id="open-link" class="preview-open" href="#" target="_blank" rel="noopener">Abrir en pestaña ↗</a>
           </div>
@@ -662,6 +668,8 @@
               <p class="preview-label" id="preview-label-after" hidden></p>
               <div class="preview-device" id="preview-device">
                 <iframe id="preview-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Previsualización de la newsletter"></iframe>
+                <!-- Comentarios del cliente como chinchetas sobre la pieza (2026-10-07). -->
+                <div class="client-pins" id="client-pins"></div>
               </div>
             </div>
             <!-- «Los dos» (2026-10-07): la misma pieza a 375 px junto a la de escritorio, solo para mirar. -->

@@ -53,3 +53,14 @@ test('Cambio solo de texto (2026-10-05): se propone «Editar texto»; con fotos,
   assert.equal(isSimpleTextChange('Cambia el texto del botón y añade el precio'), false);
   assert.equal(isSimpleTextChange('Más aire entre bloques'), false);
 });
+
+test('pistas en vivo: marcan lo que la instrucción ya dice (formulario guiado, 2026-10-07)', () => {
+  const { coachInstruction } = require('./formcheck.js');
+  const done = (text, brand) => coachInstruction(text, brand).filter((i) => i.done).map((i) => i.id);
+  assert.deepEqual(done('', 'Nike'), []);
+  assert.deepEqual(done('newsletter de Nike', 'Nike'), []);
+  assert.deepEqual(done('newsletter de Nike de zapatillas', 'Nike'), ['topic']);
+  assert.deepEqual(done('newsletter de Nike para el lanzamiento de sus zapatillas de running', 'Nike'), ['topic', 'goal']);
+  assert.deepEqual(done('Prozis con un 20% en creatina para corredores', 'Prozis'), ['topic', 'goal', 'offer', 'audience']);
+  assert.deepEqual(done('Adeslas: seguro dental para familias con niños', 'Adeslas'), ['topic', 'goal', 'audience']);
+});
