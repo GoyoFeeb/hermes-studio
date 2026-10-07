@@ -2143,6 +2143,9 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
   .hero-steps li { letter-spacing: 2px; font-size: var(--fs-small); gap: 8px; }
   .step-num { font-size: 20px; }
 }
+/* Con el abanico que flota (startFan en app.js) el movimiento lo lleva JavaScript: fuera las transiciones de posición. */
+.hero-showcase.is-live .show-card, .hero-showcase.is-live a.show-card:hover, .hero-showcase.is-live a.show-card:focus-visible { transition: opacity 0.45s ease; will-change: transform; }
+.hero-showcase.is-live .show-face { transition: none; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { .show-card, .show-face, .show-face::after { transition: none; } }
 
 /* ---------- calidad (2026-10-06, punto 7) ---------- */

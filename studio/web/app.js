@@ -1247,6 +1247,7 @@ function renderShowcase(jobs) {
     )
     .join('');
   dealShowcase(box);
+  startFan(box);
 }
 
 // ---------------------------------------------------------------- animaciones (2026-10-06)
@@ -1309,6 +1310,111 @@ function dealShowcase(box) {
     );
   });
 }
+
+/** Abanico que flota (2026-10-07, pedido del usuario: «como si estuvieran flotando, con un poco de movimiento»). Cada
+ *  carta sigue a su posición con un muelle (abrir, cerrar y pasar de una a otra sin saltos ni curvas fijas) y encima
+ *  flota despacio, cada una a su ritmo. Con el abanico abierto, las cartas se inclinan un poco hacia el ratón. El CSS
+ *  sigue siendo la base: sin JavaScript, en móvil táctil sin hover o con «reducir movimiento», se queda como estaba. */
+const fanState = new WeakMap();
+let fanBox = null;
+let fanHover = null;
+let fanPointer = 0;
+let fanVisible = true;
+let fanFrame = 0;
+function startFan(box) {
+  if (!box || !motionOk()) return;
+  box.classList.add('is-live');
+  if (fanBox === box) return;
+  fanBox = box;
+  box.addEventListener('mouseover', (e) => {
+    fanHover = e.target.closest?.('.show-card') || null;
+  });
+  box.addEventListener('focusin', (e) => {
+    fanHover = e.target.closest?.('.show-card') || null;
+  });
+  box.addEventListener('focusout', () => {
+    fanHover = null;
+  });
+  box.addEventListener('mouseleave', () => {
+    fanHover = null;
+  });
+  box.addEventListener('pointermove', (e) => {
+    const r = box.getBoundingClientRect();
+    fanPointer = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+  });
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(([en]) => {
+      fanVisible = en.isIntersecting;
+      if (fanVisible && !fanFrame) fanFrame = requestAnimationFrame(fanTick);
+    }).observe(box);
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !fanFrame) fanFrame = requestAnimationFrame(fanTick);
+  });
+  fanFrame = requestAnimationFrame(fanTick);
+}
+/** Un muelle algo flojo: llega con un pequeño rebote, como algo que flota y se asienta. */
+function spring(st, key, target, dt, k = 120, c = 16) {
+  const v = (st.v[key] || 0) + ((target - st[key]) * k - (st.v[key] || 0) * c) * dt;
+  st.v[key] = v;
+  st[key] += v * dt;
+}
+let fanLast = 0;
+function fanTick(now) {
+  fanFrame = 0;
+  const box = fanBox;
+  if (!box || !fanVisible || document.hidden || !box.offsetParent) {
+    fanLast = 0;
+    return;
+  }
+  const dt = Math.min(0.05, fanLast ? (now - fanLast) / 1000 : 1 / 60);
+  fanLast = now;
+  const t = now / 1000;
+  const narrow = window.matchMedia('(max-width: 760px)').matches;
+  const open = !narrow && box.matches(':hover');
+  const cards = [...box.querySelectorAll('.show-card')];
+  if (fanHover && !cards.includes(fanHover)) fanHover = null;
+  cards.forEach((card, n) => {
+    let st = fanState.get(card);
+    if (!st) {
+      const i0 = parseFloat(getComputedStyle(card).getPropertyValue('--i')) || 0;
+      st = { i: i0, x: i0 * 50, y: i0 * i0 * 6, r: i0 * 6, s: 1, ly: 0, v: {}, phase: n * 1.7 + 0.4 };
+      fanState.set(card, st);
+    }
+    const i = st.i;
+    const hot = card === fanHover && !narrow;
+    // Destino: cerrado, abierto o señalada (los mismos valores que el CSS).
+    let x = narrow ? i * 26 : i * 50;
+    let y = narrow ? 0 : i * i * 6;
+    let r = i * 6;
+    if (open) {
+      x = i * 58 + fanPointer * 6;
+      y = i * i * 8 - 6;
+      r = i * 8 + fanPointer * 2.5;
+    }
+    if (hot) {
+      y = 0;
+      r = 0;
+    }
+    spring(st, 'x', x, dt);
+    spring(st, 'y', y, dt);
+    spring(st, 'r', r, dt);
+    spring(st, 's', hot ? 1.4 : 1, dt, 150, 15);
+    spring(st, 'ly', hot ? 64 : 0, dt, 150, 15);
+    // Flotar: vaivén lento y distinto en cada carta; la señalada casi quieta.
+    const amp = hot ? 0.25 : 1;
+    const fy = Math.sin(t * 1.05 + st.phase) * 5 * amp;
+    const fx = Math.sin(t * 0.63 + st.phase * 1.3) * 2 * amp;
+    const fr = Math.sin(t * 0.8 + st.phase * 0.7) * 1.1 * amp;
+    card.style.transform = `translate(${(st.x + fx).toFixed(2)}px, ${(st.y + fy).toFixed(2)}px) rotate(${(st.r + fr).toFixed(3)}deg)`;
+    const base = 3 - Math.abs(Math.round(i));
+    card.style.zIndex = hot ? '7' : st.s > 1.06 ? '6' : String(base);
+    const face = card.querySelector('.show-face');
+    if (face) face.style.transform = `translateY(${st.ly.toFixed(2)}px) scale(${st.s.toFixed(4)})`;
+  });
+  fanFrame = requestAnimationFrame(fanTick);
+}
+startFan(document.getElementById('hero-showcase'));
 
 // ---------------------------------------------------------------- 7.ª tanda de animaciones (2026-10-06)
 /** Filtrado que se recoloca: anota dónde estaba cada fila (por su primer enlace), repinta y desliza las que siguen
