@@ -1049,3 +1049,51 @@ test('Punto 6 (2026-10-07): Studio prepara el logo en dos versiones, los recorte
   assert.match(r.note, /width="150"/);
   assert.match(r.note, /producto\.jpg: 1000×1200, vertical · recortada/);
 });
+
+test('T2 (2026-10-07): la nota de arte, con las herramientas de revisión y el razonamiento de la configuración', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    process.stdout.write(JSON.stringify({ args: w.artScoreArgs(), level: w.ART_REASONING }));
+  `);
+  // «low» se descartó en la validación: aplanaba la nota (76 % de 4).
+  assert.equal(r.level, '');
+  assert.deepEqual(r.args, ['-t', 'terminal,file,vision']);
+});
+
+test('C2 (2026-10-07): la mejor pieza anterior de la marca como referencia', () => {
+  const r = run(`
+    const fs = require('fs'), os = require('os'), path = require('path');
+    const m = require(${mod('brandMemory.ts')});
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ref-'));
+    const piece = (rel, review) => {
+      const d = path.join(root, rel); fs.mkdirSync(path.join(d, '_trabajo'), { recursive: true });
+      fs.writeFileSync(path.join(d, 'newsletter.html'), '<html></html>');
+      fs.writeFileSync(path.join(d, '_trabajo', 'render-600.png'), 'png');
+      if (review) fs.writeFileSync(path.join(d, '_trabajo', 'revision-visual.md'), review);
+    };
+    piece('newsletters/2026/nike/hermes/2026-10-01-old', '# R\\npeticion 4 · texto_imagen 4 · identidad 5 · concepto 4 · jerarquia 4 · aire 4 · originalidad 4 · movil 4 · oscuro 4\\n');
+    piece('newsletters/2026/nike/hermes/2026-10-05-kept', '## Primera nota\\n… (total 35/50)\\n## Tras la mejora\\n… (total 41/50)\\nResultado: 35 → 41/50.');
+    piece('newsletters/2026/nike/hermes/2026-10-06-back', '## Primera nota\\n… (total 42/50)\\n## Tras la mejora\\n… (total 44/50)\\nResultado: 42 → 44/50: empeoraba, se recupera la versión anterior.');
+    piece('newsletters/2026/nike/hermes/2026-10-07-low', '## Primera nota\\n… (total 30/50)');
+    piece('newsletters/2026/nike/hermes/_fallido-2026-10-07-x', '## Primera nota\\n… (total 50/50)');
+    const s = (n) => m.pieceScore(path.join(root, 'newsletters/2026/nike/hermes', n));
+    const best = m.bestPreviousPiece(root, 'nike', 'newsletters/2026/nike/hermes/2026-10-08-now');
+    process.stdout.write(JSON.stringify({ old: s('2026-10-01-old'), kept: s('2026-10-05-kept'), back: s('2026-10-06-back'), best: best && { dir: best.dir, total: best.total }, note: m.referenceNote(best, 'Nike', 'x/_trabajo/referencia-marca.jpg'), none: m.bestPreviousPiece(root, 'adidas') }));
+  `);
+  assert.deepEqual(r.old, { total: 37, max: 45 }, 'formato anterior sin total');
+  assert.deepEqual(r.kept, { total: 41, max: 50 }, 'la mejora se quedó: cuenta la segunda nota');
+  assert.deepEqual(r.back, { total: 42, max: 50 }, 'la mejora se descartó: cuenta la primera');
+  assert.deepEqual(r.best, { dir: 'newsletters/2026/nike/hermes/2026-10-06-back', total: 42 }, 'la mejor, sin fallidos');
+  assert.match(r.note, /NO la copies/);
+  assert.equal(r.none, null);
+});
+
+test('Q2 (2026-10-07): la foto de cada escena se elige antes de escribir su texto', () => {
+  const r = run(`
+    const s = require(${JSON.stringify(path.join(__dirname, '../server/standalone.ts'))});
+    const job = { id: 'x', createdAt: '2026-10-07T10:00:00Z', input: { clientName: 'Nike', clientSlug: 'nike', briefText: '# Brief', imageMode: 'official' } };
+    process.stdout.write(JSON.stringify({ prompt: s.buildHermesPrompt(job) }));
+  `);
+  assert.match(r.prompt, /elige la foto de cada escena ANTES de escribir su texto/);
+  assert.match(r.prompt, /la escena donde va y qué se ve en ella/);
+});

@@ -25,10 +25,10 @@ const PIEZAS = [
 ];
 const REPETIR = ['newsletters/2026/lacoste/hermes/2026-10-06-idyg6t', 'newsletters/2026/nike/hermes/2026-10-06-jcpy0x'];
 
-function hermes(query: string): Promise<{ output: string; sec: number }> {
+function hermes(query: string, extra: string[] = []): Promise<{ output: string; sec: number }> {
   const t = Date.now();
   return new Promise((resolve) => {
-    const child = spawn('hermes', ['chat', '-q', query, '-Q', '--yolo', '--ignore-rules', '-t', 'terminal,file,vision'], { cwd: ROOT });
+    const child = spawn('hermes', ['chat', '-q', query, '-Q', '--yolo', '--ignore-rules', '-t', 'terminal,file,vision', ...extra], { cwd: ROOT });
     let out = '';
     child.stdout.on('data', (d) => (out += d));
     const cap = setTimeout(() => child.kill('SIGTERM'), 6 * 60 * 1000);
@@ -49,9 +49,10 @@ async function main(): Promise<void> {
   const done = new Set(results.map((r) => JSON.stringify([(r as { pieza: string }).pieza, (r as { escala: string }).escala, (r as { vuelta: number }).vuelta])));
   // «nueva2» (segunda vuelta): la escala ajustada para que un 5 se gane (5 con mejora de su criterio o sin prueba = 4).
   // Las tareas ya hechas («antigua», «nueva») se saltan; el código de «nueva» ya no existe, solo sus resultados.
-  type Escala = 'antigua' | 'nueva' | 'nueva2';
+  // «baja» (T2): la escala de nueva2 con razonamiento bajo en el turno de la nota.
+  type Escala = 'antigua' | 'nueva' | 'nueva2' | 'baja';
   const tareas: [string, Escala, number][] = [
-    ...PIEZAS.flatMap((p) => [[p, 'antigua', 1], [p, 'nueva', 1], [p, 'nueva2', 1]] as [string, Escala, number][]),
+    ...PIEZAS.flatMap((p) => [[p, 'antigua', 1], [p, 'nueva', 1], [p, 'nueva2', 1], [p, 'baja', 1]] as [string, Escala, number][]),
     ...REPETIR.flatMap((p) => [[p, 'nueva', 2], [p, 'nueva2', 2]] as [string, Escala, number][]),
   ];
   for (const [pieza, escala, vuelta] of tareas) {
@@ -68,7 +69,7 @@ async function main(): Promise<void> {
     const mod = escala === 'antigua' ? antigua : nueva;
     const query = mod.artReviewQuery(request, prompt, html, sheet, await size(path.join(ROOT, sheet)), web, []);
     console.log(`${new Date().toLocaleTimeString('es-ES')} ${pieza.split('/')[2]} · ${escala} · vuelta ${vuelta}…`);
-    const { output, sec } = await hermes(query);
+    const { output, sec } = await hermes(query, escala === 'baja' ? ['--reasoning', 'low'] : []);
     const review = mod.parseArtReview(output);
     results.push({ pieza, escala, vuelta, sec, notas: review?.notas ?? null, pruebas: (review as { pruebas?: unknown } | null)?.pruebas ?? null, problemas: review?.problemas ?? [], raw: review ? undefined : output.slice(0, 1500) });
     fs.writeFileSync(OUT, JSON.stringify(results, null, 2));

@@ -2437,3 +2437,16 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   - Nota «Imágenes preparadas por Studio … úsalas tal cual: no las recortes, recolorees, conviertas ni midas».
 - Motivo: en 3 días, ~400 acciones de imagen hechas a mano por Hermes (logo 73, recortes ~200, sips 77, formatos 46).
 - Los originales no se tocan. Test nuevo (236).
+
+### 2026-10-07 — T2 descartada; C2 y Q2 aplicadas en local (pedido por el usuario; sin publicar)
+- T2 (nota de arte con `--reasoning low`): validada en 8 piezas y DESCARTADA — 21 s por nota en vez de 43, pero 76 % de
+  notas 4, dispersión 1,6 (como la escala antigua), ±3,3 puntos frente a «medium» y una respuesta ilegible. Queda el
+  mecanismo apagado (`ART_REASONING`, `artScoreArgs`; `HERMES_REASONING_ART=low` lo activa).
+- C2 (brandMemory.ts `pieceScore`, `bestPreviousPiece`, `referenceNote`): la pieza anterior de la marca con mejor nota
+  de arte (≥ 76 %, la segunda nota si la mejora se quedó; también el formato antiguo sin total) se copia como
+  `_trabajo/referencia-marca.jpg` (≤ 2000 px de alto) y el borrador la mira UNA vez: «es el listón; no la copies,
+  supérala». +1 vision_analyze por pieza.
+- Q2: el brief escribe cada escena sobre su foto concreta («5. Escenas»); el encargo pide elegir la foto de cada escena
+  ANTES de su texto y notas.md dice de cada imagen la escena y qué se ve; la pasada de mejora puede cambiar una foto
+  por otra ya descargada (o su «-recorte») en vez de solo el texto, sin descargar nuevas.
+- Tests: 239. Medir el efecto en «texto_imagen» (media 3,6-3,9) con las próximas piezas.

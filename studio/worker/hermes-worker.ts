@@ -34,7 +34,7 @@ import { captureBrandWeb, renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
 import { prepareAssets, preparedNote } from './prepAssets';
-import { blockedInfo, blockedNote, markBlocked, markOpen, previousIdentity, previousIdentityNote, previousPieces, previousPiecesNote, rememberLogo } from './brandMemory';
+import { bestPreviousPiece, blockedInfo, blockedNote, markBlocked, markOpen, previousIdentity, previousIdentityNote, previousPieces, previousPiecesNote, referenceNote, rememberLogo } from './brandMemory';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
 
@@ -547,6 +547,14 @@ export const MODELS = {
 export const DRAFT_REASONING = process.env.HERMES_REASONING_DRAFT ?? 'high';
 export const draftReasoningArgs = (isEdit: boolean): string[] =>
   !isEdit && /^(none|minimal|low|medium|high|xhigh)$/.test(DRAFT_REASONING) ? ['--reasoning', DRAFT_REASONING] : [];
+/** Razonamiento de la NOTA de arte (T2, 2026-10-07). Probado «low» en 8 piezas (_archive/prueba-nota-2026-10-07): 21 s
+ *  en vez de 43, pero el 76 % de las notas volvían a ser 4 (dispersión de totales 1,6, como la escala antigua), ±3,3
+ *  puntos frente a «medium» y una respuesta ilegible. Se queda el de la configuración; HERMES_REASONING_ART lo cambia. */
+export const ART_REASONING = process.env.HERMES_REASONING_ART ?? '';
+export const artScoreArgs = (): string[] => [
+  ...TOOLS_REVIEW,
+  ...(/^(none|minimal|low|medium|high|xhigh)$/.test(ART_REASONING) ? ['--reasoning', ART_REASONING] : []),
+];
 let modelFlag: string | null | undefined;
 
 function modelArgs(model?: string): string[] {
@@ -1089,8 +1097,8 @@ export function artReviewQuery(
     'Formato exacto: {"notas": {"peticion": 3, "texto_imagen": 4, ...todos los criterios}, "pruebas": {"peticion": "qué ves y ' +
       'dónde que justifica la nota", ...todos los criterios}, "problemas": ["lo que deja un criterio por debajo de 4: qué y ' +
       'dónde"], "mejoras": ["criterio: por cada nota que no sea 5, el cambio concreto que la subiría, empezando por el nombre ' +
-      'del criterio (\\"aire: …\\"): qué, dónde y cómo (tamaño, espacio, orden, el texto de un titular…), sin rehacer la pieza ' +
-      'ni cambiar datos, enlaces o fotos"]}',
+      'del criterio (\\"aire: …\\"): qué, dónde y cómo (tamaño, espacio, orden, el texto de un titular, otra de las fotos ya ' +
+      'descargadas…), sin rehacer la pieza ni cambiar datos o enlaces"]}',
   ].join('\n');
 }
 
@@ -1262,6 +1270,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let productNote = '';
   let logoNote = '';
   let prepNote = '';
+  let refNote = '';
   let productPhotos: { file: string; ambient?: boolean }[] = [];
   if (!editKind) {
     const briefPart = prompt.split('## Instrucciones de entrega')[0];
@@ -1313,6 +1322,19 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       }
     } catch (err) {
       console.log(`[${stamp()}] ${claimed.id}: no se pudieron preparar las imágenes — ${(err as Error).message.slice(0, 200)}`);
+    }
+    // 2d. Referencia (C2, 2026-10-07): la mejor pieza anterior de la marca (≥ 38/50), como captura JPEG de ≤ 2000 px de
+    // alto (el modelo de visión no pudo con PNG de 3000 px, 2026-10-06).
+    try {
+      const ref = bestPreviousPiece(ROOT, slug, claimed.outputDir);
+      if (ref) {
+        const rel = path.join(claimed.outputDir, '_trabajo', 'referencia-marca.jpg');
+        await sharp(ref.render).resize({ height: 2000, withoutEnlargement: true }).jpeg({ quality: 80 }).toFile(path.join(ROOT, rel));
+        refNote = referenceNote(ref, claimed.brand?.name || slug, rel);
+        console.log(`[${stamp()}] ${claimed.id}: referencia de la marca — ${ref.dir} (${ref.total}/${ref.max})`);
+      }
+    } catch (err) {
+      console.log(`[${stamp()}] ${claimed.id}: sin referencia de la marca — ${(err as Error).message.slice(0, 200)}`);
     }
   }
   if (cancelled) {
@@ -1423,6 +1445,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         logoNote +
         productNote +
         prepNote +
+        refNote +
         brandAssetsNote(job.outputDir) +
         (claimed.briefPrompt ? '' : blockedNote(claimed.brand?.name || slug, blockedInfo(ROOT, slug))) +
         previousPiecesNote(previousPieces(ROOT, slug, job.outputDir)) +
@@ -1567,7 +1590,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       const reviewOnce = async (ready?: string): Promise<{ review: ArtReview | null; output: string }> => {
         const s2 = ready ? { sheet: ready } : await renderSheet(finalPath, workDir);
         const query = artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found);
-        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.draft, TOOLS_REVIEW));
+        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.draft, artScoreArgs()));
         return { review: parseArtReview(look.output), output: look.output };
       };
       const first = await reviewOnce(sheet.sheet);
@@ -1601,9 +1624,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             ...(review.problemas.length ? ['Problemas (OBLIGATORIO corregirlos: bajan una nota de 4):', ...review.problemas.map((p) => `- ${p}`)] : []),
             ...(review.mejoras.length ? ['Mejoras para subir de 4 a 5 (aplica las baratas; si una exige rehacer la pieza, sáltala y dilo):', ...review.mejoras.map((p) => `- ${p}`)] : []),
             '',
-            'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos, enlaces ni fotos. Si un texto ' +
-              'contradice las fotos o se aparta de la petición, el texto es lo que se corrige (las fotos son las oficiales). Studio ' +
-              'guarda la versión anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
+            'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos ni enlaces. Si un texto ' +
+              'contradice su foto o se aparta de la petición: corrige el texto o cambia la foto por otra de las que ya están en la ' +
+              `carpeta (${job.outputDir}/, también sus copias «-recorte») que sí muestre lo que dice; no descargues fotos nuevas ` +
+              '(Q2, 2026-10-07). Studio guarda la versión anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
             `Después: \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` hasta que salga sin errores y ` +
               `\`npm run render-newsletter -- ${job.outputDir}/newsletter.html\` para mirar la hoja UNA vez.`,
             `Añade al final de ${rel}/revision-visual.md lo que cambiaste y un resumen de dos líneas al final de notas.md.`,
@@ -1765,7 +1789,7 @@ async function backfillArtReviews(): Promise<void> {
       const home = readMeasuredIdentity(ROOT, j.slug)?.url || brandHome(j.prompt.split('## Instrucciones de entrega')[0], j.slug);
       const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
       const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
-      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found), null, () => undefined, MODELS.draft, TOOLS_REVIEW);
+      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found), null, () => undefined, MODELS.draft, artScoreArgs());
       const review = parseArtReview(look.output);
       await api(
         `/api/worker/jobs/${j.id}/art-review`,

@@ -225,3 +225,67 @@ export function previousIdentityNote(prev: PreviousIdentity | null): string {
     prev.text,
   ].join('\n');
 }
+
+// ---------------------------------------------------------------- la mejor pieza anterior como referencia (C2, 2026-10-07)
+// Con marcas repetidas, cada borrador empezaba sin listón. La pieza con mejor nota de arte de la marca (desde
+// revision-visual.md) se le da como captura: «este es el nivel; no la copies, supérala».
+
+/** Mínimo para ser referencia: 38/50 (lo que hoy saca una pieza buena). */
+const REFERENCE_MIN = 0.76;
+
+/** Nota final de una pieza según su revision-visual.md: la de tras la mejora si se quedó, si no la primera. */
+export function pieceScore(pieceAbs: string): { total: number; max: number } | null {
+  let text = '';
+  try {
+    text = fs.readFileSync(path.join(pieceAbs, '_trabajo', 'revision-visual.md'), 'utf8');
+  } catch {
+    return null;
+  }
+  const totals = [...text.matchAll(/\(total (\d+)\/(\d+)\)/g)].map((m) => ({ total: Number(m[1]), max: Number(m[2]) }));
+  if (!totals.length) {
+    // Formato anterior (hasta el 06-10): «peticion 4 · texto_imagen 4 · …» sin total.
+    const line = text.split('\n').find((l) => /^[a-z_]+ [1-5]( · [a-z_]+ [1-5]){4,}/.test(l.trim()));
+    const notes = line ? [...line.matchAll(/[a-z_]+ ([1-5])/g)].map((m) => Number(m[1])) : [];
+    return notes.length ? { total: notes.reduce((a, b) => a + b, 0), max: notes.length * 5 } : null;
+  }
+  const improvedKept = /## Tras la mejora/.test(text) && totals.length > 1 && !/Resultado:[^\n]*empeoraba/.test(text);
+  return improvedKept ? totals[totals.length - 1] : totals[0];
+}
+
+export interface ReferencePiece {
+  dir: string;
+  total: number;
+  max: number;
+  /** Captura a 600 px de esa pieza (render-600.png). */
+  render: string;
+}
+
+export function bestPreviousPiece(root: string, slug: string, currentDir = ''): ReferencePiece | null {
+  if (!slug) return null;
+  let best: ReferencePiece | null = null;
+  for (const year of listDirs(path.join(root, 'newsletters'))) {
+    const base = path.join(root, 'newsletters', year, slug, 'hermes');
+    for (const name of listDirs(base).filter((d) => !d.startsWith('_')).sort()) {
+      const abs = path.join(base, name);
+      const rel = path.relative(root, abs);
+      const render = path.join(abs, '_trabajo', 'render-600.png');
+      if (rel === currentDir || !fs.existsSync(path.join(abs, 'newsletter.html')) || !fs.existsSync(render)) continue;
+      const s = pieceScore(abs);
+      if (!s || s.total / s.max < REFERENCE_MIN) continue;
+      // A igual nota, la más reciente (los nombres empiezan por la fecha y van en orden).
+      if (!best || s.total / s.max >= best.total / best.max) best = { dir: rel, total: s.total, max: s.max, render };
+    }
+  }
+  return best;
+}
+
+export function referenceNote(ref: ReferencePiece | null, brandName: string, file: string): string {
+  if (!ref) return '';
+  return [
+    '',
+    `## Referencia: la mejor pieza anterior de ${brandName} (nota de arte ${ref.total}/${ref.max}, ${ref.dir})`,
+    `- Captura a 600 px: ${file}. Mírala UNA vez con vision_analyze antes de escribir: es el listón de calidad de esta`,
+    '  marca (identidad, aire, jerarquía, fotos). NO la copies: el concepto, las escenas y los titulares de esta pieza son',
+    '  nuevos y salen del brief. Supérala.',
+  ].join('\n');
+}
