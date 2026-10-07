@@ -2383,3 +2383,6 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   móvil» con todas. `HERMES_ALL_TOOLS=1` las devuelve todas. El «continúa» del borrador ya no sugiere browser_navigate.
 - Pendientes de la auditoría: 2 (webs que bloquean: no navegar y reutilizar assets de piezas previas), 6 (Studio prepara
   logo claro/oscuro y recortes), Q1-Q3 de calidad. Medir con las próximas piezas si el tiempo baja a ~12-17 min.
+- Corrección (mismo día, antes de reiniciar el worker): las piezas con «Prompt completo» no tienen fase de brief y su
+  borrador es quien investiga; `draftTools(prompt, briefDone)` les deja web y browser. Solo pierde el navegador el
+  borrador que viene de un brief.

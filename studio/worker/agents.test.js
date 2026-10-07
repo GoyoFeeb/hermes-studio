@@ -853,6 +853,7 @@ test('Auditoría de tiempo (2026-10-07): herramientas por fase, orientación y t
     process.stdout.write(JSON.stringify({
       brief: w.TOOLS_BRIEF, review: w.TOOLS_REVIEW,
       draft: w.draftTools('Imágenes: SOLO fotografía oficial'), draftAi: w.draftTools('Imágenes: GENÉRALAS CON IA con tu herramienta'),
+      draftNoBrief: w.draftTools('Imágenes: SOLO fotografía oficial', false),
       orient: w.ORIENT_NOTE, caps: [w.ART_SCORE_CAP_MS, w.ART_IMPROVE_CAP_MS], below: w.IMPROVE_BELOW,
     }));
   `);
@@ -861,6 +862,8 @@ test('Auditoría de tiempo (2026-10-07): herramientas por fase, orientación y t
   // El borrador no navega: sin web ni browser; con imágenes de IA, también image_gen.
   assert.deepEqual(r.draft, ['-t', 'terminal,file,vision']);
   assert.deepEqual(r.draftAi, ['-t', 'terminal,file,vision,image_gen']);
+  // «Prompt completo»: sin fase de brief, la pieza es quien investiga y conserva búsqueda y navegador.
+  assert.deepEqual(r.draftNoBrief, ['-t', 'web,browser,terminal,file,vision']);
   assert.match(r.orient, /NO leas AGENTS\.md, CLAUDE\.md/);
   assert.match(r.orient, /no ejecutes git status/);
   assert.deepEqual(r.caps, [5 * 60 * 1000, 8 * 60 * 1000]);

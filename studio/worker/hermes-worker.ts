@@ -574,9 +574,10 @@ const RULES_ARGS = process.env.HERMES_KEEP_RULES === '1' ? [] : ['--ignore-rules
 const toolsets = (list: string): string[] => (process.env.HERMES_ALL_TOOLS === '1' ? [] : ['-t', list]);
 export const TOOLS_BRIEF = toolsets('web,browser,terminal,file,vision');
 export const TOOLS_REVIEW = toolsets('terminal,file,vision');
-/** Pieza nueva: maquetar, comprobar y mirar; con imágenes de IA, también generarlas. */
-export const draftTools = (prompt: string): string[] =>
-  toolsets(/GENÉRALAS CON IA/.test(prompt) ? 'terminal,file,vision,image_gen' : 'terminal,file,vision');
+/** Pieza nueva: maquetar, comprobar y mirar; con imágenes de IA, también generarlas. Sin fase de brief («Prompt
+ *  completo») nadie ha investigado antes: la pieza conserva búsqueda y navegador (2026-10-07). */
+export const draftTools = (prompt: string, briefDone = true): string[] =>
+  toolsets([...(briefDone ? [] : ['web', 'browser']), 'terminal', 'file', 'vision', ...(/GENÉRALAS CON IA/.test(prompt) ? ['image_gen'] : [])].join(','));
 
 /** Orientación (auditoría de tiempo, 2026-10-07): cada sesión nueva gastaba ~8 turnos (~1,5 min) leyendo AGENTS.md y
  *  CLAUDE.md, buscando carpetas y mirando git, aunque el encargo trae lo que necesita. Va al final de cada sesión nueva. */
@@ -1336,7 +1337,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
-  const reasoning = [...draftReasoningArgs(!!editKind), ...(editKind ? [] : draftTools(job.prompt))];
+  const reasoning = [...draftReasoningArgs(!!editKind), ...(editKind ? [] : draftTools(job.prompt, !!claimed.briefPrompt))];
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
   sessionId = sessionId || watched;
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
@@ -1372,7 +1373,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       sessionId,
       () => undefined,
       model,
-      editKind ? [] : draftTools(job.prompt)
+      editKind ? [] : draftTools(job.prompt, !!claimed.briefPrompt)
     );
   }
   timeline.end(Math.max(0, lastCount));
