@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "measuredAt": "2026-10-06T10:46:04.506Z",
+  "url": "https://www.inglesina.com/es-es",
+  "title": "Inglesina | Para el bienestar de tu bebé",
+  "headings": {
+    "family": "\"EB Garamond\", times, serif",
+    "weight": "600",
+    "transform": "uppercase",
+    "letterSpacing": "normal",
+    "color": "#ffffff"
+  },
+  "body": {
+    "family": "Fustat, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Noto Color Emoji\"",
+    "size": "14px",
+    "color": "#3a4e5e"
+  },
+  "fonts": [
+    {
+      "family": "EB Garamond",
+      "googleFonts": false
+    },
+    {
+      "family": "Fustat",
+      "googleFonts": false
+    },
+    {
+      "family": "Onest",
+      "googleFonts": false
+    }
+  ],
+  "fontLinks": [
+    "https://fonts.googleapis.com/"
+  ],
+  "background": "#f4f4f5",
+  "text": "#3a4e5e",
+  "button": {
+    "background": "#ffffff",
+    "color": "#3a4e5e",
+    "radius": "200px",
+    "transform": "none"
+  },
+  "palette": [
+    "#3a4e5e",
+    "#445868",
+    "#b2a072",
+    "#a0aebb"
+  ],
+  "logo": "brands/inglesina/design-input/logo-medido.png"
+}

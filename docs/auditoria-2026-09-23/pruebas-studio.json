@@ -1,0 +1,56 @@
+{
+  "fixture": "/tmp/hermes-audit-repros-UaI9O1",
+  "unit": {
+    "traversal": {
+      "id": "audit-sentinel",
+      "message": "outside-jobs"
+    },
+    "model": {
+      "configured": "audit-configured-model",
+      "actual": "claude-sonnet-5"
+    },
+    "blocking": [
+      {
+        "text": "Sin preguntas bloqueantes.",
+        "blocked": true
+      },
+      {
+        "text": "Pregunta no bloqueante.",
+        "blocked": true
+      },
+      {
+        "text": "Todas las preguntas bloqueantes están resueltas.",
+        "blocked": true
+      }
+    ],
+    "phaseBoundary": "overwritten-by-unexpected-file",
+    "corruptStore": "Expected property name or '}' in JSON at position 1 (line 1 column 2)"
+  },
+  "tokenInjection": {
+    "exit": 0,
+    "output": "\n✓ BUILD OK\n  fuente:   /private/tmp/hermes-audit-repros-UaI9O1/build/final.html\n  inline:   /private/tmp/hermes-audit-repros-UaI9O1/build/final-inline.html (38.0 KB)\n  manifest: /private/tmp/hermes-audit-repros-UaI9O1/build/build-manifest.json\n\n",
+    "inlineContainsEvent": true
+  },
+  "emptyGate": {
+    "exit": 0,
+    "output": "\n═══════════════════════════════════════════════════\n   Hermes Newsletter System — Production Gate (motor)\n═══════════════════════════════════════════════════\n\n   Campaña: /private/tmp/hermes-audit-repros-UaI9O1/empty-campaign\n\n   ⏭️  Omitida: no existe /private/tmp/hermes-audit-repros-UaI9O1/empty-campaign/06-data/campaign-data.json.\n      Esta campaña no usa engine/build-newsletter.js (¿pipeline React Email\n      archivado, con 06-data/newsletter-data.json? production-gate-motor solo\n      audita campañas del motor — no es un fallo de esta campaña.\n\n"
+  },
+  "assets": {
+    "withoutAuth": 401,
+    "withAuth": 200
+  },
+  "httpTraversal": {
+    "status": 200,
+    "body": {
+      "job": {
+        "id": "audit-sentinel",
+        "message": "outside-jobs"
+      },
+      "events": []
+    }
+  },
+  "rateLimit": {
+    "sameClaimedIP": 429,
+    "changedClaimedIP": 401
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "_comment": "Template de campaign-data.json para el motor actual (engine/). create-campaign reemplaza Converse, converse, 2026-ago-converse-chuck70-industrial-glam, 2026-08-21, Hacerlas tuyas y https://www.converse.com/es/shop/p/chuck-70-industrial-glam-unisex/A18326C.html. Ajustar brand pack, patrón, módulos y copy en la fase 06 antes de ejecutar build-newsletter.",
+  "metadata": {
+    "campaignName": "2026-ago-converse-chuck70-industrial-glam",
+    "clientName": "Converse",
+    "subjectLine": "Converse — 2026-ago-converse-chuck70-industrial-glam",
+    "preheader": "Nueva comunicación de Converse. Revisa el contenido y valida CTA, claims y legales antes de producción.",
+    "fromName": "Converse",
+    "fromEmail": "newsletter@example.com",
+    "version": "1.0.0",
+    "createdAt": "2026-08-21",
+    "isTestCampaign": true,
+    "productionReady": false
+  },
+  "brand": "brands/converse/tokens/brand-tokens.json",
+  "pattern": "saving",
+  "modules": [
+    {
+      "component": "hero-asimetrico",
+      "data": {
+        "h1": "2026-ago-converse-chuck70-industrial-glam",
+        "stat": {
+          "number": "1",
+          "label": "campaña"
+        },
+        "subtitle": "Punto de partida para estructurar la newsletter. Sustituir por copy validado en la fase 05.",
+        "cta": {
+          "href": "https://www.converse.com/es/shop/p/chuck-70-industrial-glam-unisex/A18326C.html",
+          "label": "Hacerlas tuyas"
+        }
+      }
+    },
+    {
+      "component": "card-tarifa",
+      "data": {
+        "eyebrow": "CONTENIDO A DEFINIR",
+        "title": "Bloques principales de la propuesta",
+        "subtitle": "Sustituir por la estructura final aprobada en arquitectura y diseño.",
+        "items": [
+          {
+            "icon": "https://placeholder.invalid/assets/icon-1.png",
+            "title": "Bloque 1",
+            "body": "Describe el primer beneficio o módulo de contenido.",
+            "href": "https://www.converse.com/es/shop/p/chuck-70-industrial-glam-unisex/A18326C.html",
+            "linkLabel": "Ver detalle"
+          },
+          {
+            "icon": "https://placeholder.invalid/assets/icon-2.png",
+            "title": "Bloque 2",
+            "body": "Describe el segundo beneficio o módulo de contenido.",
+            "href": "https://www.converse.com/es/shop/p/chuck-70-industrial-glam-unisex/A18326C.html",
+            "linkLabel": "Ver detalle"
+          },
+          {
+            "icon": "https://placeholder.invalid/assets/icon-3.png",
+            "title": "Bloque 3",
+            "body": "Describe el tercer beneficio o módulo de contenido.",
+            "href": "https://www.converse.com/es/shop/p/chuck-70-industrial-glam-unisex/A18326C.html",
+            "linkLabel": "Ver detalle"
+          },
+          {
+            "icon": "https://placeholder.invalid/assets/icon-4.png",
+            "title": "Bloque 4",
+            "body": "Describe el cuarto beneficio o módulo de contenido.",
+            "href": "https://www.converse.com/es/shop/p/chuck-70-industrial-glam-unisex/A18326C.html",
+            "linkLabel": "Ver detalle"
+          }
+        ]
+      }
+    },
+    {
+      "component": "pasos",
+      "data": {
+        "eyebrow": "SIGUIENTE ACCION",
+        "title": "Tres pasos para avanzar",
+        "items": [
+          {
+            "number": "01",
+            "title": "Revisar brief",
+            "body": "Confirmar objetivo, audiencia, oferta y CTA."
+          },
+          {
+            "number": "02",
+            "title": "Validar contenido",
+            "body": "Sustituir copy de arranque por mensajes aprobados."
+          },
+          {
+            "number": "03",
+            "title": "Cerrar QA",
+            "body": "Ejecutar build, renders y production-gate-motor."
+          }
+        ]
+      }
+    },
+    {
+      "component": "banda-cierre",
+      "data": {
+        "title": "Listo para validar la campaña",
+        "body": "Cuando el brief, los assets y los legales estén confirmados, reconstruye el HTML con el motor.",
+        "cta": {
+          "href": "https://www.converse.com/es/shop/p/chuck-70-industrial-glam-unisex/A18326C.html",
+          "label": "Hacerlas tuyas"
+        }
+      }
+    },
+    {
+      "component": "footer",
+      "data": {
+        "brandName": "Converse",
+        "tagline": "Newsletter de Converse.",
+        "disclosure": "Recibes este correo porque formas parte de la audiencia definida para esta campaña.",
+        "unsubscribeUrl": "[UNSUBSCRIBE_LINK]",
+        "preferencesUrl": "[PREFERENCES_LINK]",
+        "legalLine": "© 2026 Converse. [DIRECCION FISICA PENDIENTE]"
+      }
+    }
+  ],
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-ago-converse-chuck70-industrial-glam"
+  }
+}

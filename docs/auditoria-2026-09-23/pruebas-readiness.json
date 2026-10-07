@@ -1,0 +1,6 @@
+{
+  "metadataSchemaAccepts": true,
+  "readinessExit": 0,
+  "readinessOutput": "\n═══════════════════════════════════════════════════\n   check-production-readiness\n═══════════════════════════════════════════════════\n\n   ⚠️  No existe /tmp/hermes-audit-repros-UaI9O1/contradictory-campaign/09-exports/final-inline.html — solo se audita campaign-data.json, no el HTML exportado.\n\n   metadata.isTestCampaign: true\n\n   ⚠️  metadata.subjectLine: \"[Q-001] Texto por confirmar\" — empieza por \"[\" — placeholder de texto sin resolver (permitido: isTestCampaign:true)\n\n   ✅ check-production-readiness: OK (con avisos, ver arriba — campaña de prueba)\n\n",
+  "brandSchemaAcceptsInjection": true
+}

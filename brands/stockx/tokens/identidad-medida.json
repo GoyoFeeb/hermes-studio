@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "measuredAt": "2026-10-06T13:38:04.947Z",
+  "url": "https://stockx.com/",
+  "title": "StockX: Sneakers, Streetwear, Trading Cards, Handbags, Watches",
+  "headings": {
+    "family": "SuisseIntl, sans-serif, sans-serif",
+    "weight": "400",
+    "transform": "none",
+    "letterSpacing": "normal",
+    "color": "#242424"
+  },
+  "body": {
+    "family": "SuisseIntl, sans-serif, sans-serif",
+    "size": "16px",
+    "color": "#242424"
+  },
+  "fonts": [
+    {
+      "family": "SuisseIntl",
+      "googleFonts": false
+    },
+    {
+      "family": "SuisseIntl-Regular",
+      "googleFonts": false
+    }
+  ],
+  "fontLinks": [],
+  "background": "#ffffff",
+  "text": "#242424",
+  "button": {
+    "background": "#ffffff",
+    "color": "#0f0f0f",
+    "radius": "50%",
+    "transform": "none"
+  },
+  "palette": [
+    "#006340",
+    "#006240",
+    "#c92e1a"
+  ],
+  "logo": "brands/stockx/design-input/logo-medido.png"
+}

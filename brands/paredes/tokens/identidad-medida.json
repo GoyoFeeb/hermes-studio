@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "measuredAt": "2026-10-05T16:00:17.541Z",
+  "url": "https://www.paredes.es/es/",
+  "title": "Paredes - Tus Zapatillas Deportivas Online",
+  "headings": {
+    "family": "Barlow, sans-serif",
+    "weight": "700",
+    "transform": "none",
+    "letterSpacing": "normal",
+    "color": "#25282a"
+  },
+  "body": {
+    "family": "Barlow, sans-serif",
+    "size": "14px",
+    "color": "#25282a"
+  },
+  "fonts": [
+    {
+      "family": "Barlow",
+      "googleFonts": true
+    },
+    {
+      "family": "icons-pd",
+      "googleFonts": false
+    },
+    {
+      "family": "Font Awesome 6 Free",
+      "googleFonts": false
+    },
+    {
+      "family": "Oswald",
+      "googleFonts": false
+    }
+  ],
+  "fontLinks": [
+    "https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&display=swap",
+    "https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&display=swap"
+  ],
+  "background": "#ffffff",
+  "text": "#25282a",
+  "button": {
+    "background": "#25282a",
+    "color": "#ffffff",
+    "radius": "20px 0px 0px 20px",
+    "transform": "none"
+  },
+  "palette": [
+    "#ba0c2f",
+    "#eed3c2",
+    "#1c5399",
+    "#e63d40",
+    "#011033"
+  ],
+  "logo": "brands/paredes/design-input/logo-medido.png"
+}

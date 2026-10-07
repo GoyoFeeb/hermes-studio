@@ -1,0 +1,320 @@
+{
+  "brand": "converse",
+  "description": "Design tokens for Converse — global heritage sneaker brand. Verified with real getComputedStyle + CSS custom properties from converse.com/es on 2026-08-21 (browser; Akamai blocks curl). First-time onboarding — no previous pack.",
+  "version": "2.2.0",
+  "colors": {
+    "source": "getComputedStyle + CSS custom properties observado en converse.com/es el 2026-08-21 (browser; Akamai bloquea curl) — ver _changelog",
+    "primary": "#000000",
+    "ctaBackground": "#FFFFFF",
+    "ctaText": "#000000",
+    "ctaHover": "#1B1B1B",
+    "textPrimary": "#000000",
+    "textBody": "#1B1B1B",
+    "textSecondary": "#757575",
+    "textTertiary": "#9B9B9B",
+    "white": "#FFFFFF",
+    "black": "#000000",
+    "link": "#000000",
+    "light": "#F4F4F4",
+    "deep": "#1B1B1B",
+    "accentHaloLight": "#E5E5E5",
+    "footerSeparator": "#E5E5E5",
+    "onBrandSecondary": "#D3D2D3",
+    "lightBg": "#F4F4F4",
+    "mediumBg": "#9B9B9B",
+    "darkBg": "#000000",
+    "border": "#E5E5E5",
+    "borders": {
+      "card": "#E5E5E5",
+      "footer": "#E5E5E5"
+    },
+    "success": "#138410",
+    "warning": "#F5A623",
+    "error": "#D62929",
+    "footerBg": "#F4F4F4",
+    "footerText": "#757575",
+    "heroOverlay": "rgba(0,0,0,0.3)",
+    "background": {
+      "white": "#FFFFFF",
+      "sectionAlt": "#F4F4F4",
+      "dark": "#000000"
+    },
+    "text": {
+      "primary": "#000000",
+      "body": "#1B1B1B",
+      "secondary": "#757575",
+      "tertiary": "#9B9B9B"
+    },
+    "brandRed": "#D62929",
+    "monza": "#E00A15",
+    "codGray": "#1B1B1B",
+    "wildSand": "#F4F4F4",
+    "mercury": "#E5E5E5",
+    "alabaster": "#FAFAFA",
+    "dustyGray": "#9B9B9B",
+    "boulder": "#757575",
+    "paleSlate": "#D3D2D3"
+  },
+  "typography": {
+    "source": "getComputedStyle observado en converse.com/es el 2026-08-21 (browser) — body 14px/400, H1 home 60px/700, botones 14px/600; familia 'proxima nova' con fallback Helvetica/Arial — ver _changelog",
+    "family": "\"proxima nova\", proxima-nova, Helvetica, Arial, sans-serif",
+    "note": "Proxima Nova es la fuente real de converse.com (getComputedStyle: body 14px/400, H1 home 60px/700, botones 14px/600). Es una fuente de pago sin CDN web — el email usa el fallback Arial/Helvetica/sans-serif, que es el MISMO stack de fallback que la web real declara. NO se declara webFont (no hay sustituto gratuito fiel; regla del skill: nunca sustituir con Montserrat/Inter).",
+    "displayFont": "Arial, Helvetica, sans-serif",
+    "webFont": "",
+    "headline": {
+      "hero": "32px",
+      "h1": "24px",
+      "h2": "20px",
+      "h3": "16px",
+      "h4": "14px"
+    },
+    "body": {
+      "size": 14,
+      "weight": 400,
+      "lineHeight": 1.55,
+      "color": "#1B1B1B"
+    },
+    "weights": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeight": 1.55,
+    "hero": {
+      "h1": {
+        "size": 32,
+        "weight": 700,
+        "lineHeight": 1.15,
+        "color": "#FFFFFF",
+        "mobile": {
+          "size": 24,
+          "lineHeight": 1.15
+        }
+      },
+      "subtitle": {
+        "size": 15,
+        "weight": 400,
+        "lineHeight": 1.5,
+        "color": "#D3D2D3",
+        "mobile": {
+          "size": 13
+        }
+      }
+    },
+    "h2Section": {
+      "size": 20,
+      "weight": 600,
+      "lineHeight": 1.25
+    },
+    "h3Card": {
+      "size": 16,
+      "weight": 600,
+      "lineHeight": 1.3
+    },
+    "bodyLarge": {
+      "size": 15,
+      "weight": 400,
+      "lineHeight": 1.55
+    },
+    "cta": {
+      "size": 14,
+      "weight": 600,
+      "letterSpacing": "normal"
+    },
+    "footer": {
+      "brand": {
+        "size": 12,
+        "weight": 600,
+        "color": "#000000"
+      },
+      "legal": {
+        "size": 11,
+        "weight": 400,
+        "color": "#757575"
+      }
+    }
+  },
+  "spacing": {
+    "micro": 4,
+    "small": 8,
+    "medium": 16,
+    "large": 24,
+    "section": 36,
+    "hero": 40,
+    "innerSection": "24px 20px",
+    "cta": "14px 40px"
+  },
+  "radius": {
+    "cta": 0,
+    "ctaPill": 0,
+    "cardStripe": 0,
+    "image": 0,
+    "card": 0
+  },
+  "shadows": {
+    "card": "none",
+    "cta": "none"
+  },
+  "surfaces": {
+    "global": "#FFFFFF",
+    "white": "#FFFFFF",
+    "sectionAlt": "#F4F4F4",
+    "sectionLila": "#F4F4F4"
+  },
+  "gradients": {
+    "heroBackground": "linear-gradient(180deg, #000000 0%, #1B1B1B 100%)"
+  },
+  "components": {
+    "header": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#000000"
+    },
+    "cta": {
+      "style": "default",
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#000000",
+      "borderRadius": 0,
+      "padding": "14px 40px",
+      "fontSize": 14,
+      "fontWeight": 600
+    },
+    "card": {
+      "borderRadius": 0,
+      "borderColor": "#E5E5E5",
+      "shadow": "none"
+    }
+  },
+  "layout": {
+    "maxWidth": 600,
+    "mobileBreakpoint": 599,
+    "emailWidth": 600,
+    "sectionStyle": "centrado",
+    "reason": "Converse usa composiciones limpias centradas: header blanco con wordmark negro, hero de fotografía a sangre, texto breve centrado, botones cuadrados negros sobre blanco. La fotografía de producto es el protagonista absoluto. Para email, el centrado maximiza legibilidad y fidelidad a la web.",
+    "contentRhythm": {
+      "realSectionCount": 6,
+      "photographyWeight": "fotografía 100% del peso visual — hero a sangre, grid de producto sobre blanco infinito, tiles de campaña; texto mínimo",
+      "iconDensity": "ninguna — sin iconografía decorativa; los iconos 'At a Glance' del PDP son atributos funcionales del template, no decoración de marca",
+      "source": "converse.com/es observado el 2026-08-21 (browser + getComputedStyle) — ver layout.contentRhythm (string) para la descripción completa",
+      "description": "Página converse.com/es observada el 2026-08-21 (browser + getComputedStyle): 1) Header blanco con wordmark Converse (SVG inline 120×15, negro) + navegación (fondo NEGRO), 2) Hero de campaña con fotografía a sangre + titular breve (home: 'TÚ > TODO LO DEMÁS — Empieza de cero con unas Chuck nuevas.'), 3) Grid de producto sobre fondo blanco infinito (nombre + precio + color), 4) Ficha de producto: foto grande, título 20px/600, precio, 'At a Glance' (OrthoLite, lona, cordones), botón 'Añadir al carro' NEGRO cuadrado (border-radius:0px, 14px/600, padding 16px), 5) Tile de campaña con fotografía + texto superpuesto, 6) Footer sobre #F4F4F4 con enlaces legales. La fotografía lleva el 100% del peso visual. Texto mínimo. Sin iconos decorativos. CTAs: negro sólido sobre blanco (web) — en email la banda de hero es NEGRA (colors.primary), así que el CTA primario se invierte a blanco con texto negro (tratamiento blanco-sobre-negro que la marca usa en su nav y tiles oscuros; contraste 21:1 AAA)."
+    },
+    "brandStructure": {
+      "compositionArchetype": "editorial-foto-texto",
+      "signatureSections": [
+        {
+          "sourceSection": "hero de campaña (home / categoría Chuck 70)",
+          "visualPattern": "fotografía de producto a sangre + titular breve centrado + CTA",
+          "emailTranslation": "hero-imagen",
+          "why": "Converse abre con fotografía real del producto a todo el ancho; el texto vive debajo sobre banda de color de marca (en la web: texto sobre imagen; en el componente del motor: banda negra sólida — ver patrón fotografia-primero)."
+        },
+        {
+          "sourceSection": "bloque editorial de ficha ('Detalles del producto')",
+          "visualPattern": "foto de detalle (ángulo/top) + lista breve de características de construcción",
+          "emailTranslation": "editorial-foto-texto (o inverso)",
+          "why": "La ficha A18326C lista la construcción (piel bruñida, cadena, mediasuela desgastada, OrthoLite) con fotos por ángulo. En email se traduce a un bloque foto+texto único."
+        },
+        {
+          "sourceSection": "categoría Chuck 70 ('Solo son zapatillas. Hasta que tú las llevas.')",
+          "visualPattern": "tile de campaña con línea de marca + CTA de compra",
+          "emailTranslation": "banda-cierre",
+          "why": "La línea de categoría es el cierre natural: la memoria del modelo se completa cuando el usuario la lleva. Banda oscura (#1B1B1B) con CTA blanco cuadrado."
+        }
+      ],
+      "mustAvoid": [
+        "Iconos decorativos o emojis — Converse no usa iconografía decorativa; los iconos 'At a Glance' del site son funcionales (atributos de producto)",
+        "Pills redondeados en CTAs — botón real con border-radius:0px verificado con getComputedStyle",
+        "Textos densos o párrafos largos — la marca prioriza imagen sobre texto (body 14px, titulares 3-8 palabras)",
+        "Urgencia o exclusividad artificial — 'edición limitada' NO verificado para Industrial Glam (solo para la collab DBZ, fuera de pieza)",
+        "Múltiples fuentes — una sola familia sans (Proxima Nova → Arial/Helvetica en email)",
+        "Cifras sueltas sin verbo — precios y tallas dentro de frases ('Cuestan 120 €')"
+      ],
+      "source": "converse.com/es (browser + getComputedStyle observado 2026-08-21)"
+    }
+  },
+  "photography": {
+    "usesRealPhotography": true,
+    "treatment": "Converse usa fotografía de producto real como protagonista: zapatillas sobre fondo blanco infinito (o casi blanco), perfil lateral / 3/4 / top, luz homogénea y suave, color preciso. Fotografía de campaña/lifestyle con personas reales en contexto urbano. Para la edición Industrial Glam: estética envejecida/vintage — piel bruñida con brillo, mediasuela off-white con acabado desgastado, cadena metálica visible. El desgaste es un acabado de diseño, no suciedad. NO usa renders 3D ni ilustraciones.",
+    "source": "observado en converse.com/es (PDP A18326C + home) el 2026-08-21",
+    "note": "Para hero-imagen, el prompt debe pedir la foto REAL del producto desde el CDN oficial (vía navegador — Akamai bloquea curl): zapatilla high top sobre fondo blanco infinito, perfil lateral, luz homogénea. La edición Industrial Glam es Egret/negro con mediasuela off-white desgastada y cadena metálica."
+  },
+  "iconography": {
+    "style": "ninguno",
+    "monochrome": true,
+    "color": "#000000",
+    "source": "observado en converse.com/es el 2026-08-21",
+    "componentImplication": "Converse no usa iconografía decorativa en comunicación de producto — la fotografía es el lenguaje visual. Usar variantes -sin-icono de todos los componentes. Los iconos 'At a Glance' del site (OrthoLite, lona, cordones) son atributos funcionales del template de producto, no decoración de marca. El patrón fotografia-primero ya excluye iconos."
+  },
+  "darkMode": {
+    "status": "not-implemented",
+    "note": "No implementado para esta campaña. isTestCampaign: true."
+  },
+  "personalization": {
+    "status": "not-implemented",
+    "note": "isTestCampaign: true — sin personalización real."
+  },
+  "utm": {
+    "source": "newsletter",
+    "medium": "email",
+    "campaign": "2026-ago-converse-chuck70-industrial-glam",
+    "content": ""
+  },
+  "assets": {
+    "logo": "https://PENDING-CDN-UPLOAD/converse/logo-header.png",
+    "logoWidth": 120,
+    "logoHeight": 15,
+    "logoAlt": "Converse",
+    "headerPatternTile": "",
+    "note": "Wordmark Converse real extraído del header de converse.com/es (SVG inline 120×15, negro). Guardado en brands/converse/design-input/logo-header.svg. Alternativa verificada: Wikimedia commons/3/30/Converse_logo.svg (200 OK). Pendiente de subida a CDN.",
+    "heroBannerPlaceholder": "https://PENDING-CDN-UPLOAD/converse/hero-banner.png",
+    "heroBannerWidth": 600,
+    "heroBannerHeight": 350
+  },
+  "voice": {
+    "tone": "editorial, heritage, rebelde sin estridente — directo, concreto, en segunda persona. La marca tiene 115+ años de historia y una silueta icónica: no necesita gritar.",
+    "ctaDefault": "Hacerlas tuyas",
+    "ctaSecondary": "Ver los detalles",
+    "rhythm": {
+      "sentenceLength": "titulares cortos y contundentes (3-6 palabras); cuerpo 1-2 frases; todo número dentro de una frase con verbo",
+      "mode": "tono concreto y aspiracional a la vez — el detalle de construcción es el argumento ('piel bruñida', 'cadena metálica', 'mediasuela desgastada'). Segunda persona: la memoria se completa cuando tú la llevas.",
+      "formality": "tú directo, sin slang",
+      "punctuationHabits": "Puntuación limpia. Titulares sin punto final. Cuerpo con punto y seguido. Sin exclamaciones en body.",
+      "sources": [
+        "converse.com/es — 'TÚ > TODO LO DEMÁS — Empieza de cero con unas Chuck nuevas.'",
+        "converse.com/es (categoría Chuck 70) — 'Solo son zapatillas. Hasta que tú las llevas.'",
+        "PDP A18326C — 'Sube el volumen con estas Chuck 70 de acabado envejecido.' / 'Parte punk. Parte glamurosa. Totalmente Chuck.'",
+        "History oficial — 2013 'THROWBACK, LOOK FORWARD: Converse launches the Chuck 70, built off of the 1970s Chuck Taylor All Star design'"
+      ],
+      "examples": [
+        "Nuevas, con memoria.",
+        "Solo son zapatillas. Hasta que tú las llevas.",
+        "Sube el volumen.",
+        "Parte punk. Parte glamurosa. Totalmente Chuck.",
+        "La transformación de los setenta.",
+        "La memoria, al detalle."
+      ],
+      "source": "observado en converse.com/es el 2026-08-21"
+    }
+  },
+  "_changelog": [
+    {
+      "version": "2.2.0",
+      "date": "2026-08-21",
+      "author": "02 — Brand Visual Analyst",
+      "changes": [
+        "Pack CREADO desde cero (first-time onboarding) con getComputedStyle real de converse.com/es (browser; Akamai bloquea curl).",
+        "Colores: primary #000000 (negro = logo, header, nav, botones — el negro ES el color primario de Converse). Secondary text #757575 (--boulder, color real del link 'Más información'). textBody #1B1B1B (--codgray). light #F4F4F4 (--wildsand). border #E5E5E5 (--mercury).",
+        "CTA: real verificado con getComputedStyle en el PDP — 'Añadir al carro' backgroundColor #000000, texto #FFFFFF, border-radius:0px, 14px/600, padding 16px. DECISIÓN DOCUMENTADA: en email el CTA primario se INVIERTE a blanco (#FFFFFF) con texto negro porque la banda de hero del motor es NEGRA (colors.primary) y un botón negro sería invisible; el blanco-sobre-negro es un tratamiento real de la marca (nav negro, tiles oscuros con texto blanco). Contraste 21:1 AAA. El botón negro sólido real queda como CTA secundario (outline negro) en escenas blancas.",
+        "components.cta.style: 'default' (NO 'block') — el botón real es un bloque cuadrado SIN flecha; cta-block-bulletproof fuerza una flecha '→' que el botón real no tiene. La esquina cuadrada se consigue con radius.ctaPill=0 sobre la píldora estándar.",
+        "radius: TODO 0 — botón real border-radius:0px verificado.",
+        "Fuentes: Proxima Nova (real, de pago) → fallback Arial/Helvetica/sans-serif (el mismo stack de fallback de la web real). NO webFont, NO sustituto gratuito.",
+        "Surfaces: global #FFFFFF, sectionAlt #F4F4F4 (--wildsand).",
+        "iconography: Converse NO usa iconos decorativos — variantes -sin-icono; los 'At a Glance' son funcionales.",
+        "layout.brandStructure: header blanco+wordmark negro / nav NEGRO / hero foto a sangre / grid producto blanco / tiles campaña / footer #F4F4F4. Mapeado a 4 secciones email (hero-imagen, intro, editorial, banda-cierre).",
+        "gradients.heroBackground: negro → #1B1B1B (degradado sutil de la banda de marca).",
+        "voice: concepto 'Nuevas, con memoria.' + líneas oficiales de marca con fuente.",
+        "logo: SVG real del header (120×15) extraído y guardado en brands/converse/design-input/logo-header.svg; Wikimedia como respaldo verificado."
+      ]
+    }
+  ]
+}

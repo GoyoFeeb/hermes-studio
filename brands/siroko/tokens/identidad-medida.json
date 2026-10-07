@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "measuredAt": "2026-10-06T10:36:48.650Z",
+  "url": "https://www.siroko.com/",
+  "title": "SIROKO - OFFICIAL STORE",
+  "headings": {
+    "family": "work-sans-medium, sans-serif",
+    "weight": "500",
+    "transform": "none",
+    "letterSpacing": "normal",
+    "color": "#111111"
+  },
+  "body": {
+    "family": "work-sans-regular, sans-serif",
+    "size": "16px",
+    "color": "#111111"
+  },
+  "fonts": [
+    {
+      "family": "work-sans-medium",
+      "googleFonts": false
+    },
+    {
+      "family": "work-sans-regular",
+      "googleFonts": false
+    },
+    {
+      "family": "work-sans-semibold",
+      "googleFonts": false
+    }
+  ],
+  "fontLinks": [],
+  "background": "#ffffff",
+  "text": "#111111",
+  "button": {
+    "background": "#fafafa",
+    "color": "#111111",
+    "radius": "800px",
+    "transform": "none"
+  },
+  "palette": [
+    "#cf0a2c"
+  ],
+  "logo": "brands/siroko/design-input/logo-medido.png"
+}

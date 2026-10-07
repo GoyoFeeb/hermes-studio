@@ -2450,3 +2450,20 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   ANTES de su texto y notas.md dice de cada imagen la escena y qué se ve; la pasada de mejora puede cambiar una foto
   por otra ya descargada (o su «-recorte») en vez de solo el texto, sin descargar nuevas.
 - Tests: 239. Medir el efecto en «texto_imagen» (media 3,6-3,9) con las próximas piezas.
+
+### 2026-10-07 — Orden del repo (pedido por el usuario)
+- ~180 elementos sin guardar (>350 MB). Decisiones del usuario: las piezas de Studio (`newsletters/*/*/hermes/`) NO van
+  a git (viven en Studio/Railway y en el Mac; .gitignore actualizado); de las pruebas de _archive solo README, scripts y
+  resultados.
+- A la Papelera del Mac (`~/.Trash/orden-repo-hermes-2026-10-07/`, recuperable): la exportación de sesión de Hermes
+  `20260929_112429_e87b90` (88 MB, copia de su base de datos), 5 scripts sueltos de la raíz y 6 de `scripts/` (nadie
+  los referencia).
+- 100 restos de sesiones manuales (ago-sep) sacados de `brands/*/design-input/` a
+  `_archive/design-input-sesiones-manuales/` (rutas conservadas; sus PNG, ignorados): scripts `*.js`, `part*.html`,
+  `*source*.html` y capturas `preview-*.png`. Además de desordenar, `brandAssets` ofrecía esas capturas de newsletters
+  viejas a Hermes como «fotos de la marca» (Feebbo: 10 `preview-b2b-*`).
+- Guardado en git (26 MB, sin credenciales): docs/auditoria-2026-09-23, backup de CHANGELOG de agosto, fichas y logos
+  de marca nuevos (tokens, identidad medida, logos medidos, fotos de Prozis y Fitness Park, documentación de Mazda,
+  fuente de ECI) y 5 campañas antiguas del pipeline (Converse, Mini, MyProtein, Supreme, Volkswagen).
+- Pendiente (no tocado): archivos de trabajo antiguos que YA estaban en git dentro de design-input (p. ej.
+  `brands/feebbo/design-input/class5-hero-enforced.png`).
