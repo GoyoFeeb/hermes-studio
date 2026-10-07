@@ -362,6 +362,8 @@ test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y re
     const fives = w.parseArtReview(JSON.stringify({ notas: all(5), problemas: [], mejoras: [] }));
     const foursNoIdeas = w.parseArtReview(JSON.stringify({ notas: all(4), problemas: [] }));
     const threes = w.parseArtReview(JSON.stringify({ notas: all(3), problemas: [], mejoras: ['Más aire'] }));
+    const threeThrees = w.parseArtReview(JSON.stringify({ notas: { ...all(4), texto_imagen: 3, identidad: 3, copy: 3, oscuro: 5 }, problemas: [], mejoras: [] }));
+    const twoThrees = w.parseArtReview(JSON.stringify({ notas: { ...all(4), texto_imagen: 3, copy: 3 }, problemas: [], mejoras: [] }));
     const oneTwo = w.parseArtReview(JSON.stringify({ notas: { ...all(4), copy: 2 }, problemas: ['titular genérico'], mejoras: [] }));
     const proofs = Object.fromEntries(Object.keys(w.ART_CRITERIA).map((k) => [k, 'se ve bien en las tres columnas']));
     const capped = w.parseArtReview(JSON.stringify({ notas: all(5), pruebas: { ...proofs, copy: '' }, problemas: [], mejoras: ['aire: 8 px más entre la escena 2 y la 3', '- jerarquia: titular de la escena 3 más grande'] }));
@@ -372,7 +374,7 @@ test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y re
     const qNoWeb = w.artReviewQuery(undefined, '# Brief', '<p>Hola</p>', '/tmp/hoja.jpg');
     process.stdout.write(JSON.stringify({
       mejoras: fours.mejoras, legacy: foursNoIdeas.mejoras,
-      improve: [w.needsImprovement(fours), w.needsImprovement(fives), w.needsImprovement(foursNoIdeas), w.needsImprovement(threes), w.needsImprovement(oneTwo)],
+      improve: [w.needsImprovement(fours), w.needsImprovement(fives), w.needsImprovement(foursNoIdeas), w.needsImprovement(threes), w.needsImprovement(oneTwo), w.needsImprovement(threeThrees), w.needsImprovement(twoThrees)],
       keep: [w.keepImproved(fours, better), w.keepImproved(fours, worse), w.keepImproved(fours, null), w.keepImproved(fours, fours)],
       total: w.scoreTotal(fours), q, qNoWeb, withProof, capped: capped.notas,
     }));
@@ -380,7 +382,7 @@ test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y re
   assert.deepEqual(r.mejoras, ['Texto secundario de 13 a 16 px en la apertura']);
   assert.deepEqual(r.legacy, []);
   // Solo con nota baja (2026-10-07): 40/50 ya no pasa por la mejora; 30/50 o un criterio en 2, sí.
-  assert.deepEqual(r.improve, [false, false, false, true, true]);
+  assert.deepEqual(r.improve, [false, false, false, true, true, true, false]);
   // Peor: más total (48 > 40) pero oscuro cae a 3 desde 4 → se descarta.
   assert.deepEqual(r.keep, [true, false, true, true]);
   assert.equal(r.total, 40);
@@ -1129,4 +1131,19 @@ test('Retoques (2026-10-07): herramientas de «Adaptar a móvil» y «Pedir camb
   assert.deepEqual(r.revision, ['-t', 'web,browser,terminal,file,vision']);
   assert.deepEqual(r.revisionAi, ['-t', 'web,browser,terminal,file,vision,image_gen']);
   assert.deepEqual(r.revisionBlocked, ['-t', 'web,terminal,file,vision']);
+});
+
+test('Imagen principal (2026-10-07): una pieza sin ninguna foto es error aunque la galería no traiga candidatas', () => {
+  const r = run(`
+    const { photoFindings } = require(${mod('renderChecks.ts')});
+    const html = (srcs) => srcs.map((s) => '<img src="' + s + '" alt="">').join('');
+    process.stdout.write(JSON.stringify({
+      none: photoFindings(html(['logo-email.png']), [180], [20], null).hero,
+      lowNoGallery: photoFindings(html(['logo.png', 'foto-1.jpg']), [180, 600], [20, 1400], null).hero,
+    }));
+  `);
+  assert.equal(r.none.errors.length, 1);
+  assert.match(r.none.errors[0], /no tiene ninguna foto/);
+  // Con fotos pero sin imagen principal arriba y sin candidatas de Studio, sigue siendo aviso.
+  assert.deepEqual([r.lowNoGallery.errors.length, r.lowNoGallery.warnings.length], [0, 1]);
 });

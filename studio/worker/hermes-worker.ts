@@ -1147,12 +1147,13 @@ export function lowScores(review: ArtReview): string[] {
 
 /** ¿Hay pasada de mejora? Solo con la nota baja (auditoría de tiempo, 2026-10-07): en las 8 piezas del 06-10 la
  *  pasada sobre piezas de ~39/50 dio −2, +2, 0, −2, −1, 0, 0, +2 (3 revertidas) a ~3 min cada una. Ahora, si el total
- *  baja del 72 % (36/50) o algún criterio se queda en 2 o menos. */
+ *  baja del 72 % (36/50), algún criterio se queda en 2 o menos, o tres o más se quedan por debajo de 4. */
 export const IMPROVE_BELOW = 0.72;
 export function needsImprovement(review: ArtReview): boolean {
   const notes = Object.values(review.notas);
   if (!notes.length) return false;
-  return scoreTotal(review) < IMPROVE_BELOW * notes.length * 5 || notes.some((n) => n <= 2);
+  // Tres o más criterios por debajo de 4 también (Prozis, 2026-10-07: 38/50 con texto_imagen, identidad y copy en 3).
+  return scoreTotal(review) < IMPROVE_BELOW * notes.length * 5 || notes.some((n) => n <= 2) || notes.filter((n) => n < 4).length >= 3;
 }
 
 export const scoreTotal = (review: ArtReview): number => Object.values(review.notas).reduce((a, b) => a + b, 0);

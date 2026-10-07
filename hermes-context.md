@@ -2482,3 +2482,11 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   `blockedNote`). Antes cargaban todas las herramientas. Conservan búsqueda/navegador porque su encargo permite un dato o
   una foto nueva de la web oficial. No se les da memoria de marca, imágenes preparadas ni referencia: parten de una pieza
   hecha. Ganancia esperada pequeña (los cambios ya duran 1-3 min). Test nuevo (241).
+
+### 2026-10-07 — Primera pieza con todos los cambios (Prozis) y dos ajustes (pedido por el usuario)
+- Prozis (`muxuutln-vbjf37`, «Prompt completo»): 5 min (borrador 3:00, corrección 1:12, nota 0:36) frente a la mediana de
+  15, pero SIN FOTOS (solo el logo; 6 acciones, sin búsqueda ni revisión visual). Nota 38/50 con texto_imagen,
+  identidad y copy en 3; sin pasada de mejora (38 ≥ 36). La Q1 funcionó (la corrección arregló la oferta).
+- `photoFindings` (renderChecks.ts): una pieza nueva sin ninguna foto (aparte del logo) es error aunque la galería de
+  Studio no traiga candidatas (antes, aviso). Comprobado: la pieza de Prozis daría error.
+- `needsImprovement`: también con tres o más criterios por debajo de 4. Tests (242).
