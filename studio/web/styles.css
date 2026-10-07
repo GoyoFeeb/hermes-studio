@@ -2852,11 +2852,27 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .side-recent img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .side-empty { display: flex; align-items: center; gap: 16px; }
 .side-empty p { margin: 0; font-size: var(--fs-small); color: var(--muted); }
-.side-empty-art { position: relative; flex: none; width: 64px; height: 64px; }
-.side-empty-art i { position: absolute; left: 18px; top: 6px; width: 30px; height: 40px; border-radius: 5px; background: linear-gradient(160deg, var(--thumb-a, #1a2168), var(--thumb-b, #b255c3)); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); transform-origin: 50% 120%; }
-.side-empty-art i:nth-child(1) { transform: rotate(-14deg); opacity: 0.55; }
-.side-empty-art i:nth-child(2) { transform: rotate(14deg); opacity: 0.55; }
-.side-empty-art i:nth-child(3) { background: #f4f5fb; }
+/* Sin marca elegida (2026-10-07): un abanico de tres maquetas de newsletter, como el de la cabecera. Antes era un
+   rectángulo blanco suelto que parecía roto. */
+.side-empty-art { position: relative; flex: none; width: 76px; height: 70px; }
+.side-empty-art i {
+  position: absolute; left: 22px; top: 8px; width: 32px; height: 44px; border-radius: 5px;
+  background:
+    linear-gradient(#0e1545, #0e1545) 50% 14% / 44% 7% no-repeat,
+    linear-gradient(135deg, #1a2168, #b255c3 70%, #fb73ff) 50% 42% / 78% 32% no-repeat,
+    linear-gradient(#c9cde3, #c9cde3) 50% 72% / 78% 6% no-repeat,
+    linear-gradient(#c9cde3, #c9cde3) 24% 84% / 46% 6% no-repeat,
+    #f4f5fb;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  transform-origin: 50% 130%;
+  transition: transform 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.side-empty-art i:nth-child(1) { transform: rotate(-16deg); }
+.side-empty-art i:nth-child(2) { transform: rotate(16deg); }
+.side-empty-art i:nth-child(3) { z-index: 1; transform: translateY(-2px); }
+.side-empty:hover .side-empty-art i:nth-child(1) { transform: rotate(-24deg); }
+.side-empty:hover .side-empty-art i:nth-child(2) { transform: rotate(24deg); }
+.side-empty:hover .side-empty-art i:nth-child(3) { transform: translateY(-6px); }
 .brand-side.is-in > * { animation: peek-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .brand-side.is-in > *:nth-child(2) { animation-delay: 0.06s; }
 .brand-side.is-in > *:nth-child(3) { animation-delay: 0.12s; }
@@ -3243,3 +3259,80 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 .topbar-new:hover { filter: brightness(1.08); }
 @media (max-width: 600px) { .topbar-new .lbl-long { display: none; } .topbar.has-new .topbar-new { padding: 6px 11px; } }
 @media (prefers-reduced-motion: reduce) { .topbar, .topbar-new, .topbar .brand img { transition: none; } }
+
+/* ---------- búsqueda que sugiere (2026-10-07) ---------- */
+.search-combo { position: relative; min-width: 0; }
+.search-combo input { width: 100%; }
+.search-suggest { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 40; max-height: 360px; overflow-y: auto; margin: 0; padding: 6px; list-style: none; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--panel); box-shadow: 0 18px 40px var(--shadow-strong, rgba(0, 0, 0, 0.45)); transform-origin: top; animation: ss-in 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes ss-in { from { opacity: 0; transform: translateY(-6px) scaleY(0.96); } }
+.ss-head { padding: 8px 10px 4px; font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--pink); }
+.ss-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; cursor: pointer; animation: peek-in 0.25s ease both; animation-delay: calc(var(--n, 0) * 25ms); }
+.ss-item:hover, .ss-item[aria-selected="true"] { background: var(--surface-row-hover, rgba(255, 255, 255, 0.06)); }
+.ss-item[aria-selected="true"] { box-shadow: inset 2px 0 0 var(--pink); }
+.ss-icon { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; overflow: hidden; font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 800; }
+.ss-icon.thumb-initials { position: relative; inset: auto; font-size: 12px; }
+.ss-icon.is-logo { padding: 3px; background: #fff; }
+.ss-icon.is-logo.is-dark { background: #14183f; }
+.ss-icon.is-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.ss-icon.is-person { border-radius: 50%; background: linear-gradient(135deg, var(--purple, #b255c3), var(--pink)); color: #1b0420; }
+.ss-icon.is-status { border-radius: 50%; width: 14px; height: 14px; margin: 0 8px; background: #5b8cff; }
+.ss-icon.is-status.is-active { background: var(--pink); }
+.ss-icon.is-status.is-approved { background: #2fbf71; }
+.ss-icon.is-status.is-review { background: #f4a524; }
+.ss-icon.is-status.is-failed { background: #e5484d; }
+.ss-label { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ss-label mark { background: none; color: var(--pink); }
+.ss-extra { flex: none; font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .search-suggest, .ss-item { animation: none; } }
+
+/* ---------- versiones apiladas en la galería (2026-10-07) ---------- */
+.g-stack { position: relative; display: block; }
+.g-stack > .thumb { position: relative; z-index: 1; transition: transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.g-back { position: absolute; inset: 0; z-index: 0; display: block; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #e9ebf5; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25); transform-origin: 50% 100%; transition: transform 0.5s cubic-bezier(0.34, 1.4, 0.64, 1), filter 0.3s; filter: brightness(0.85); }
+.g-back img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.g-back[style*="--k:1"] { transform: translate(-5px, 4px) rotate(-4deg) scale(0.97); }
+.g-back[style*="--k:2"] { transform: translate(5px, 7px) rotate(4deg) scale(0.94); }
+.g-card:hover .g-stack > .thumb, .g-card:focus-visible .g-stack > .thumb { transform: translateY(-6px); }
+.g-card:hover .g-back[style*="--k:1"], .g-card:focus-visible .g-back[style*="--k:1"] { transform: translate(-26%, 2px) rotate(-11deg) scale(0.9); filter: brightness(0.95); }
+.g-card:hover .g-back[style*="--k:2"], .g-card:focus-visible .g-back[style*="--k:2"] { transform: translate(26%, 6px) rotate(11deg) scale(0.86); filter: brightness(0.95); transition-delay: 0.04s; }
+.g-card:has(.g-stack) { position: relative; }
+.g-card:has(.g-stack):hover { z-index: 4; }
+.g-count { position: absolute; left: 6px; bottom: 6px; z-index: 2; display: inline-flex; align-items: baseline; gap: 2px; padding: 2px 8px; border-radius: 999px; background: rgba(8, 13, 46, 0.85); color: #fff; font-size: 12px; font-weight: 800; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
+.g-count small { font-size: 10px; font-weight: 600; opacity: 0.8; }
+@media (prefers-reduced-motion: reduce) { .g-back, .g-stack > .thumb { transition: none; } }
+
+/* ---------- títulos de sección sin solaparse (2026-10-07) ---------- */
+/* El número grande detrás del título seguía pareciendo un error (marca de agua o no). Ahora es una etiqueta pequeña
+   encima, «01 ——», como los antetítulos de la web. Sin desplazamiento al hacer scroll. */
+.section-title { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 56px 0 20px; padding: 0; }
+.section-head .section-title { margin: 0; }
+.section-num {
+  position: static; display: inline-flex; align-items: center; gap: 12px;
+  font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 4px; line-height: 1;
+  color: var(--pink); background: none; -webkit-text-stroke: 0; transform: none !important; transition: none;
+}
+.section-num::after { content: ''; width: 44px; height: 1px; background: linear-gradient(90deg, var(--pink), transparent); }
+.section-title h2 { font-size: 30px; }
+@keyframes num-lit { 0%, 100% { text-shadow: none; } 15% { text-shadow: 0 0 14px rgba(251, 115, 255, 0.8); } }
+@media (max-width: 640px) {
+  .section-title { margin-top: 36px; padding: 0; }
+  .section-num { font-size: 12px; }
+  .section-title h2 { font-size: 24px; }
+}
+
+/* ---------- cifras a cero, discretas (2026-10-07) ---------- */
+.stats { display: flex; flex-wrap: wrap; }
+.stats > .stat { flex: 1 1 0; min-width: 0; }
+.stats > .stat.is-zero { flex: 0 0 auto; flex-direction: row; align-items: baseline; gap: 8px; padding: 12px 16px; opacity: 0.6; align-self: stretch; }
+.stats > .stat.is-zero .stat-num { font-size: 20px; }
+.stats > .stat.is-zero:hover, .stats > .stat.is-zero.is-active { opacity: 1; }
+.stats > .stat-quality { flex: 1 1 100%; }
+
+/* ---------- «Ahora mismo» compacto en la cabecera (2026-10-07) ---------- */
+.now-compact { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; margin-top: 16px; padding: 9px 14px 9px 12px; border: 1px solid color-mix(in srgb, #f4a524 45%, var(--border)); border-radius: 999px; background: color-mix(in srgb, #f4a524 10%, var(--surface-row)); color: var(--text); font-size: var(--fs-small); text-decoration: none; transition: border-color 0.2s, transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1); animation: peek-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.now-compact .live-dot { background: #f4a524; box-shadow: 0 0 0 0 rgba(244, 165, 36, 0.6); }
+.now-compact span:not(.live-dot):not(.now-compact-go) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--lilac); }
+.now-compact-go { color: #f4a524; font-weight: 700; transition: transform 0.2s; }
+.now-compact:hover { border-color: #f4a524; transform: translateY(-1px); }
+.now-compact:hover .now-compact-go { transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) { .now-compact { animation: none; } }

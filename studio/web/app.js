@@ -1295,7 +1295,8 @@ function renderHistoryStats(families) {
   box.innerHTML = stats
     .map(
       (st) =>
-        `<button type="button" class="stat${historyState.status === st.status ? ' is-active' : ''}" data-stat="${st.status}" aria-pressed="${historyState.status === st.status}">` +
+        // A cero (2026-10-07), pequeña y apagada: «0 en curso» y «0 aprobadas» ocupaban dos tarjetas grandes.
+        `<button type="button" class="stat${historyState.status === st.status ? ' is-active' : ''}${st.n === 0 && st.status ? ' is-zero' : ''}" data-stat="${st.status}" aria-pressed="${historyState.status === st.status}">` +
         `<span class="stat-num">${st.n}</span><span class="stat-label">${st.n === 1 ? st.one : st.many}</span></button>`
     )
     .join('') +
@@ -1363,6 +1364,13 @@ function nowItem(j, line, action, extra = '', tab = '') {
     </a></li>`;
 }
 // Sin recargar la página, como el resto de Studio (antes, un enlace normal: recarga entera).
+document.getElementById('now-compact').addEventListener('click', (e) => {
+  const a = e.currentTarget;
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  e.preventDefault();
+  history.pushState({}, '', a.getAttribute('href'));
+  route();
+});
 document.getElementById('now-strip').addEventListener('click', (e) => {
   const a = e.target.closest('a.now-link');
   if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
@@ -2396,10 +2404,15 @@ if (window.matchMedia('(hover: hover) and (pointer: fine)').matches && motionOk(
 function renderNowStrip(jobs) {
   const live = jobs.filter((j) => !j.archivedAt);
   const waiting = [];
+  const waitingJobs = [];
+  const wait = (j, line, action, tab = '') => {
+    waiting.push(nowItem(j, line, action, '', tab));
+    waitingJobs.push({ j, line, tab });
+  };
   for (const j of live) {
-    if (j.status === 'review') waiting.push(nowItem(j, 'Brief listo para revisar', 'Revisar el brief'));
-    else if (j.client?.open) waiting.push(nowItem(j, `${j.client.open} comentario${j.client.open === 1 ? '' : 's'} del cliente sin resolver`, 'Ver comentarios', '', 'client'));
-    else if (j.client?.decision === 'changes') waiting.push(nowItem(j, 'El cliente pide cambios', 'Ver qué pide', '', 'client'));
+    if (j.status === 'review') wait(j, 'Brief listo para revisar', 'Revisar el brief');
+    else if (j.client?.open) wait(j, `${j.client.open} comentario${j.client.open === 1 ? '' : 's'} del cliente sin resolver`, 'Ver comentarios', 'client');
+    else if (j.client?.decision === 'changes') wait(j, 'El cliente pide cambios', 'Ver qué pide', 'client');
   }
   const active = live
     .filter((j) => j.status === 'running' || j.status === 'queued')
@@ -2409,6 +2422,22 @@ function renderNowStrip(jobs) {
       const pct = j.pct ?? 0;
       return nowItem(j, `${escapeHtml(j.stageLabel || 'Trabajando')} · ${pct} %`, 'Ver', `<span class="now-track" aria-hidden="true"><span style="width:${Math.max(2, Math.min(100, pct))}%"></span></span>`);
     });
+  // Un solo aviso que espera al equipo (y como mucho la pieza en marcha, que ya sale en los pasos de arriba): compacto
+  // bajo los botones de la cabecera, sin la franja (2026-10-07). Con dos o más, la franja de siempre.
+  const compact = document.getElementById('now-compact');
+  const runningOnly = live.filter((j) => j.status === 'running' || j.status === 'queued');
+  const single = waiting.length === 1 && runningOnly.length <= 1 ? waitingJobs[0] : null;
+  const onlyRunning = !waiting.length && runningOnly.length === 1 && runningOnly[0].status === 'running';
+  compact.hidden = !single;
+  if (single) {
+    const { j, line, tab } = single;
+    compact.href = `?job=${encodeURIComponent(j.id)}${tab ? `&tab=${tab}` : ''}`;
+    compact.innerHTML = `<span class="live-dot" aria-hidden="true"></span><strong>${escapeHtml(j.clientName || '')}</strong><span>${escapeHtml(line)}</span><span class="now-compact-go" aria-hidden="true">→</span>`;
+  }
+  if (single || onlyRunning) {
+    document.getElementById('now-strip').hidden = true;
+    return;
+  }
   document.getElementById('now-waiting').innerHTML = waiting.slice(0, NOW_MAX).join('');
   document.getElementById('now-active').innerHTML = active.slice(0, NOW_MAX).join('');
   document.getElementById('now-waiting-group').hidden = !waiting.length;
@@ -2781,6 +2810,17 @@ function renderGallery(groups, info) {
         ? `<span class="thumb"><img src="/api/jobs/${encodeURIComponent(withThumb.id)}/thumb" alt="" loading="lazy" width="150" height="200" data-initials="${escapeHtml(initials)}"></span>`
         : `<span class="thumb ${emptyThumbClass(j)}">${emptyThumbInner(j, initials)}</span>`;
       const thumbRich = thumb.replace(/<\/span>$/, `${galleryOverlay(j, [j, ...others])}</span>`);
+      // Versiones apiladas (2026-10-07): detrás de la miniatura, hasta dos cartas con las de otras versiones (o lisas
+      // si no tienen); al pasar el ratón se abren en abanico. El número de versiones va en la esquina.
+      const backs = fam.size > 1
+        ? [...others.filter((x) => x.hasThumb && x !== withThumb), ...[j, ...others].filter((x) => !x.hasThumb)]
+            .slice(0, Math.min(2, fam.size - 1))
+            .map((x, k) => `<span class="g-back" style="--k:${k + 1}" aria-hidden="true">${x.hasThumb ? `<img src="/api/jobs/${encodeURIComponent(x.id)}/thumb" alt="" loading="lazy">` : ''}</span>`)
+            .join('')
+        : '';
+      const stacked = fam.size > 1
+        ? `<span class="g-stack">${backs}${thumbRich}<span class="g-count" title="${fam.size} versiones">${fam.size}<small> versiones</small></span></span>`
+        : thumbRich;
       const approved = [j, ...others].find((x) => x.approvedAt);
       const when = new Date(j.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
       const bits = [
@@ -2790,7 +2830,7 @@ function renderGallery(groups, info) {
       ].filter(Boolean);
       const status = j.status === 'completed' ? '' : `<span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>`;
       return `<li><a class="g-card" href="?job=${id}" title="${escapeHtml(`${j.clientName} · ${new Date(j.createdAt).toLocaleString('es-ES')}`)}">
-          ${thumbRich}
+          ${stacked}
           <span class="g-name">${escapeHtml(j.clientName)}</span>${j.familyTitle ? `<span class="g-title">${escapeHtml(j.familyTitle)}</span>` : ''}
           <span class="g-meta">${escapeHtml(bits.join(' · '))}</span>
           ${approved ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (v${info.get(approved.id).number})` : ''}</span>` : ''}
@@ -2846,7 +2886,127 @@ function morphThumbs(render) {
   });
 }
 
+// ---------------------------------------------------------------- búsqueda que sugiere (2026-10-07)
+// Mientras se escribe en «Buscar», un desplegable con lo que hay en el historial: marcas (con su logo o iniciales),
+// personas que han pedido piezas y estados («fallidas», «aprobadas»…). Elegir una marca o un estado pone ese filtro;
+// una persona deja su nombre en la búsqueda. Flechas, Intro y Escape como en el campo de marca del formulario.
+const searchInput = document.getElementById('history-search');
+const searchSuggest = document.getElementById('search-suggest');
+const SEARCH_STATUSES = [
+  ['active', 'En curso', /curso|marcha|trabaj|cola/],
+  ['completed', 'Listas', /lista|termin|hecha/],
+  ['review', 'Por revisar', /revis|brief|pendient/],
+  ['failed', 'Fallidas', /fall|error|rota/],
+  ['approved', 'Aprobadas', /aprob|ok|envi/],
+];
+let searchActive = -1;
+function searchItems(q) {
+  const nq = normalize(q);
+  if (!nq) return [];
+  const brands = new Map();
+  const people = new Map();
+  for (const j of historyState.jobs) {
+    // Newsletters, no versiones (como el resto del historial): solo las originales.
+    if (j.archivedAt || j.revisionOf || j.mobileFixOf || j.textEditOf || j.retryOf) continue;
+    const key = j.clientSlug || j.clientName;
+    if (normalize(j.clientName || '').includes(nq)) {
+      const b = brands.get(key) || { key, name: j.clientName, slug: j.clientSlug, logo: j.brandLogo, n: 0 };
+      b.n++;
+      brands.set(key, b);
+    }
+    const who = (j.requesterName || '').trim();
+    if (who && normalize(who).includes(nq)) people.set(normalize(who), { name: who, n: (people.get(normalize(who))?.n || 0) + 1 });
+  }
+  const statuses = SEARCH_STATUSES.filter(([, label, re]) => normalize(label).includes(nq) || re.test(nq));
+  return [
+    ...[...brands.values()].sort((a, b) => b.n - a.n).slice(0, 5).map((b) => ({ kind: 'brand', ...b })),
+    ...[...people.values()].sort((a, b) => b.n - a.n).slice(0, 3).map((p) => ({ kind: 'person', ...p })),
+    ...statuses.slice(0, 2).map(([id, label]) => ({ kind: 'status', id, label })),
+  ];
+}
+function highlight(text, q) {
+  const i = normalize(text).indexOf(normalize(q));
+  return i < 0 || !q ? escapeHtml(text) : `${escapeHtml(text.slice(0, i))}<mark>${escapeHtml(text.slice(i, i + q.length))}</mark>${escapeHtml(text.slice(i + q.length))}`;
+}
+function renderSearchSuggest() {
+  const q = searchInput.value.trim();
+  const items = searchItems(q);
+  searchActive = -1;
+  if (!items.length || document.activeElement !== searchInput) return closeSearchSuggest();
+  let lastKind = '';
+  const head = { brand: 'Marcas', person: 'Personas', status: 'Estados' };
+  searchSuggest.innerHTML = items
+    .map((it, i) => {
+      const sep = it.kind !== lastKind ? `<li class="ss-head" role="presentation">${head[it.kind]}</li>` : '';
+      lastKind = it.kind;
+      const icon =
+        it.kind === 'brand'
+          ? it.logo && it.slug
+            ? `<span class="ss-icon is-logo${it.logo === 'dark' ? ' is-dark' : ''}"><img src="/api/brands/${encodeURIComponent(it.slug)}/logo" alt=""></span>`
+            : `<span class="ss-icon thumb-initials" style="--h:${brandHue(it.slug || it.name)}">${escapeHtml(String(it.name).split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('').toUpperCase())}</span>`
+          : it.kind === 'person'
+          ? `<span class="ss-icon is-person" aria-hidden="true">${escapeHtml(it.name.slice(0, 1).toUpperCase())}</span>`
+          : `<span class="ss-icon is-status is-${it.id}" aria-hidden="true"></span>`;
+      const label = it.kind === 'status' ? escapeHtml(it.label) : highlight(it.name, q);
+      const extra = it.kind === 'brand' ? `${it.n} newsletter${it.n === 1 ? '' : 's'} · filtrar` : it.kind === 'person' ? `${it.n} newsletter${it.n === 1 ? '' : 's'}` : 'filtrar por estado';
+      return `${sep}<li role="option" id="ss-${i}" class="ss-item" data-i="${i}" aria-selected="false" style="--n:${i}">${icon}<span class="ss-label">${label}</span><span class="ss-extra">${escapeHtml(extra)}</span></li>`;
+    })
+    .join('');
+  searchSuggest._items = items;
+  searchSuggest.hidden = false;
+  searchInput.setAttribute('aria-expanded', 'true');
+}
+function closeSearchSuggest() {
+  searchSuggest.hidden = true;
+  searchActive = -1;
+  searchInput.setAttribute('aria-expanded', 'false');
+  searchInput.removeAttribute('aria-activedescendant');
+}
+function pickSearchItem(it) {
+  closeSearchSuggest();
+  if (it.kind === 'brand') {
+    searchInput.value = '';
+    historyState.query = '';
+    const sel = document.getElementById('history-brand');
+    sel.value = it.key;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  } else if (it.kind === 'person') {
+    searchInput.value = it.name;
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    closeSearchSuggest();
+  } else {
+    searchInput.value = '';
+    historyState.query = '';
+    document.querySelector(`#history-status .chip[data-status="${it.id}"]`)?.click();
+  }
+}
+searchInput.addEventListener('focus', renderSearchSuggest);
+searchInput.addEventListener('blur', () => setTimeout(closeSearchSuggest, 150));
+searchInput.addEventListener('keydown', (e) => {
+  if (searchSuggest.hidden) return;
+  const opts = [...searchSuggest.querySelectorAll('.ss-item')];
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    searchActive = (searchActive + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length;
+    opts.forEach((o, i) => o.setAttribute('aria-selected', String(i === searchActive)));
+    searchInput.setAttribute('aria-activedescendant', opts[searchActive].id);
+    opts[searchActive].scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter' && searchActive >= 0) {
+    e.preventDefault();
+    pickSearchItem(searchSuggest._items[searchActive]);
+  } else if (e.key === 'Escape') {
+    closeSearchSuggest();
+  }
+});
+searchSuggest.addEventListener('mousedown', (e) => {
+  const li = e.target.closest('.ss-item');
+  if (!li) return;
+  e.preventDefault();
+  pickSearchItem(searchSuggest._items[Number(li.dataset.i)]);
+});
+
 document.getElementById('history-search').addEventListener('input', (e) => {
+  renderSearchSuggest();
   historyState.query = e.target.value;
   historyState.shown = HISTORY_PAGE;
   flipRender('history-list', renderHistory);
@@ -3166,10 +3326,15 @@ window.addEventListener('DOMContentLoaded', () => {
   try {
     if (!reduceMotion.matches) {
       const box = document.getElementById('brand-anim');
-      const logo = window.lottie.loadAnimation({ container: box, renderer: 'svg', loop: true, autoplay: true, path: '/feebbo-logo.json' });
+      // Una vez al cargar y quieto en el último fotograma (el logo entero); otra vez al pasar el ratón (2026-10-07).
+      // En bucle, una captura podía pillarlo a medias («FEEB 0»).
+      const logo = window.lottie.loadAnimation({ container: box, renderer: 'svg', loop: false, autoplay: true, path: '/feebbo-logo.json' });
       logo.addEventListener('DOMLoaded', () => {
         box.hidden = false;
         box.parentElement.querySelector('img').hidden = true;
+      });
+      box.parentElement.addEventListener('mouseenter', () => {
+        if (logo.isPaused) logo.goToAndPlay(0, true);
       });
     }
     const mbox = document.getElementById('menu-anim');

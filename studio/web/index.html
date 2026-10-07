@@ -103,6 +103,8 @@
             <!-- Ayuda (2026-09-30): en ningún sitio se explicaba el flujo completo, de pedirla a enviarla. -->
             <button type="button" id="how-btn" class="link-btn how-btn" aria-expanded="false" aria-controls="how-panel">¿Cómo funciona?</button>
           </div>
+          <!-- «Ahora mismo» con un solo aviso (2026-10-07): aquí, compacto, en vez de una franja ancha casi vacía. -->
+          <a class="now-compact" id="now-compact" hidden></a>
         </div>
         <!-- Escaparate: lo rellena renderShowcase() (app.js) con las miniaturas de las últimas piezas; mientras tanto, o
              sin piezas, tres maquetas de newsletter dibujadas con CSS. -->
@@ -290,7 +292,12 @@
         <!-- Fila de cifras como la de la web (2026-10-02): cada cifra filtra el historial. -->
         <div class="stats" id="history-stats" role="group" aria-label="Resumen del historial"></div>
         <div class="history-tools">
-          <input type="search" id="history-search" placeholder="Buscar por marca o persona…" aria-label="Buscar en el historial" />
+          <!-- Búsqueda que sugiere (2026-10-07): marcas con su logo, personas y estados mientras se escribe. -->
+          <div class="search-combo">
+            <input type="search" id="history-search" placeholder="Buscar por marca o persona…" aria-label="Buscar en el historial"
+              role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-suggest" autocomplete="off" />
+            <ul id="search-suggest" class="search-suggest" role="listbox" aria-label="Sugerencias" hidden></ul>
+          </div>
           <select id="history-brand" aria-label="Filtrar por marca">
             <option value="">Todas las marcas</option>
           </select>
