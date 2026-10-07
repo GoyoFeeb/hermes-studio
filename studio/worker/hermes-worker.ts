@@ -436,7 +436,7 @@ export const PREVIOUS_WORK_NOTE = [
  *  releyó 5 veces email-modulos.md, 3 veces encargo.md (que es su propio prompt) y 2 la base, con razonamientos de
  *  15-40 K caracteres del tipo «I'm going in circles, let me re-check», porque el brief le llegaba tres veces (prompt,
  *  brief.md y _trabajo/encargo.md). Aquí va todo dentro del mensaje y se le dice que no lea nada más. */
-export function selfContainedNote(outputDir: string, root = ROOT): string {
+export function selfContainedNote(outputDir: string, root = ROOT, briefDone = true): string {
   const read = (rel: string): string => {
     try {
       return fs.readFileSync(path.join(root, rel), 'utf8').trim();
@@ -449,13 +449,26 @@ export function selfContainedNote(outputDir: string, root = ROOT): string {
   return [
     '',
     '## Cómo trabajar este encargo (Studio)',
-    '- TODO lo que necesitas está en este mensaje: el brief (arriba), la base técnica y los módulos (abajo, contenido',
-    `  completo) y, si las hay, la identidad medida y la ficha de producto. ${outputDir}/brief.md es una copia del brief:`,
-    '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
-    `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
-    '  write_file partiendo de la base, 3) `npm run check-newsletter` hasta que salga limpio, 4) `npm run',
-    '  render-newsletter` y vision_analyze UNA vez, corrige lo que veas, 5) notas.md una vez. No investigues lo que el',
-    '  brief deja pendiente: queda fuera de la pieza.',
+    ...(briefDone
+      ? [
+          '- TODO lo que necesitas está en este mensaje: el brief (arriba), la base técnica y los módulos (abajo, contenido',
+          `  completo) y, si las hay, la identidad medida y la ficha de producto. ${outputDir}/brief.md es una copia del brief:`,
+          '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
+          `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
+          '  write_file partiendo de la base, 3) `npm run check-newsletter` hasta que salga limpio, 4) `npm run',
+          '  render-newsletter` y vision_analyze UNA vez, corrige lo que veas, 5) notas.md una vez. No investigues lo que el',
+          '  brief deja pendiente: queda fuera de la pieza.',
+        ]
+      : [
+          // «Prompt completo» (2026-10-07): sin brief, la investigación que pide el prompt la hace esta sesión.
+          '- Este prompt NO ha pasado por un brief: la investigación que pide (datos, productos, precios, promoción, fotos y',
+          '  logo oficiales) la haces tú ahora, con fuente para cada dato, unas 12 búsquedas o páginas. La base técnica y los',
+          '  módulos están abajo (contenido completo): no los leas del disco, no listes el repo ni leas package.json o scripts.',
+          '- Orden: 1) investiga lo que pide el prompt y descarga las fotos oficiales (`npm run fetch-image`), 2) mira las fotos,',
+          `  3) escribe ${outputDir}/newsletter.html entero con write_file partiendo de la base, 4) \`npm run check-newsletter\``,
+          '  hasta que salga limpio, 5) `npm run render-newsletter` y vision_analyze UNA vez, corrige lo que veas, 6) notas.md',
+          '  una vez. Lo que no verifiques queda fuera de la pieza.',
+        ]),
     ...(base ? ['', '### Base técnica: studio/hermes/email-base.html (contenido completo)', '```html', base, '```'] : []),
     ...(modules ? ['', '### Módulos técnicos de ejemplo: studio/hermes/email-modulos.md (contenido completo)', modules] : []),
   ].join('\n');
@@ -601,9 +614,13 @@ export const briefTools = (blocked: boolean): string[] => (blocked ? toolsets('w
 
 /** Orientación (auditoría de tiempo, 2026-10-07): cada sesión nueva gastaba ~8 turnos (~1,5 min) leyendo AGENTS.md y
  *  CLAUDE.md, buscando carpetas y mirando git, aunque el encargo trae lo que necesita. Va al final de cada sesión nueva. */
+// Corregido el mismo día: decía además «Este encargo trae todo lo que necesitas: ve directo al trabajo», y en un «Prompt
+// completo» (sin brief: la investigación la hace el borrador) Hermes se saltó la investigación entera (Prozis, 10:38: 6
+// acciones, sin productos ni fotos). Ahora solo habla de orientarse en el repo, no del trabajo que pida el encargo.
 export const ORIENT_NOTE =
-  '\n\nPara empezar: NO leas AGENTS.md, CLAUDE.md, package.json ni README, no ejecutes git status ni busques carpetas o ' +
-  'archivos para orientarte. Este encargo trae todo lo que necesitas y las rutas exactas: ve directo al trabajo.';
+  '\n\nPara orientarte en el repo no hace falta nada: NO leas AGENTS.md, CLAUDE.md, package.json ni README, no ejecutes ' +
+  'git status ni busques carpetas o archivos del proyecto. Las rutas que necesitas están en este encargo. Lo que el encargo ' +
+  'pida investigar, sí lo investigas.';
 
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
  *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
@@ -1456,15 +1473,17 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         prepNote +
         refNote +
         brandAssetsNote(job.outputDir) +
-        (claimed.briefPrompt ? '' : blockedNote(claimed.brand?.name || slug, blockedInfo(ROOT, slug))) +
+        (claimed.briefPrompt || claimed.request ? '' : blockedNote(claimed.brand?.name || slug, blockedInfo(ROOT, slug))) +
         previousPiecesNote(previousPieces(ROOT, slug, job.outputDir)) +
         WEB_ACCESS_NOTE +
-        selfContainedNote(job.outputDir) +
+        selfContainedNote(job.outputDir, ROOT, !!claimed.briefPrompt || !!claimed.request) +
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
   const blockedNow = !!blockedInfo(ROOT, slug);
-  const tools = editKind ? editTools(editKind, job.prompt, blockedNow) : draftTools(job.prompt, !!claimed.briefPrompt, blockedNow);
+  // Hubo brief: el de este trabajo o uno ya aprobado por el equipo (llega con la petición, sin el paso de brief).
+  const briefDone = !!claimed.briefPrompt || !!claimed.request;
+  const tools = editKind ? editTools(editKind, job.prompt, blockedNow) : draftTools(job.prompt, briefDone, blockedNow);
   const reasoning = [...draftReasoningArgs(!!editKind), ...tools];
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
   sessionId = sessionId || watched;

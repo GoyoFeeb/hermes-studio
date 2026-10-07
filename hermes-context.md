@@ -2503,3 +2503,15 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
     el worker lo copiaba a la pieza como «logo oficial: úsalo tal cual». `hasVisiblePixels`: la medición ya no guarda
     logos vacíos, el worker no los copia y `logoSource` los salta. Solo Inglesina lo tenía; falta su logo oficial.
 - Tests: 243.
+
+### 2026-10-07 — Regresión: piezas con «Prompt completo» genéricas (Prozis) — causa y arreglo (pedido por el usuario)
+- Síntoma: Prozis (prompt completo con «1. Investigación obligatoria») salió sin productos, sin fotos y con copy
+  genérico; el borrador hizo 6 acciones, ninguna búsqueda.
+- Causa: en «Prompt completo» no hay brief, la investigación la hace el borrador. Le llegaron dos órdenes en contra:
+  `ORIENT_NOTE` (punto 5 de esta mañana) decía «Este encargo trae todo lo que necesitas: ve directo al trabajo» y el
+  encargo de Studio ya decía «Esta fase maqueta; no vuelve a navegar la web» (antes Hermes la ignoraba en estos casos).
+- Arreglo: `ORIENT_NOTE` habla solo de no orientarse en el repo y añade «lo que el encargo pida investigar, sí lo
+  investigas»; `buildHermesPrompt` y `selfContainedNote` distinguen con brief (no investiga) y sin brief («haz tú la
+  investigación que pide, unas 12 búsquedas o páginas, con fuente; descarga las fotos oficiales»). Criterio «hubo
+  brief» = `briefPrompt` o `request` (brief aprobado por el equipo), también para las herramientas del borrador.
+  Tests: 244. Pendiente: relanzar Prozis con el mismo prompt para comprobarlo antes de publicar.

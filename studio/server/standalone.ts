@@ -123,8 +123,17 @@ export function buildHermesPrompt(job: Job): string {
     '- Texto e imagen (Q2, Studio lo revisa): elige la foto de cada escena ANTES de escribir su texto, y el titular y el',
     '  texto hablan de lo que se ve en ESA foto (producto, color, uso, personas). Si el brief pide para una escena algo que',
     '  ninguna foto muestra, cambia el texto; nunca lo afirmes sobre una foto que no lo enseña.',
-    '- Lo que el brief deja como pendiente NO se investiga aquí y NO entra en la pieza, salvo que la «Ficha de producto',
-    '  ya extraída» de Studio (más abajo, si la hay) lo traiga. Esta fase maqueta; no vuelve a navegar la web.',
+    ...(job.input.instruction
+      ? [
+          '- Lo que el brief deja como pendiente NO se investiga aquí y NO entra en la pieza, salvo que la «Ficha de producto',
+          '  ya extraída» de Studio (más abajo, si la hay) lo traiga. Esta fase maqueta; no vuelve a navegar la web.',
+        ]
+      : [
+          // «Prompt completo» (2026-10-07): sin brief, nadie ha investigado; la línea de arriba hizo que Prozis saliera sin
+          // productos ni fotos (junto con «trae todo lo que necesitas» del worker).
+          '- Este prompt no ha pasado por un brief: haz tú la investigación que pide (unas 12 búsquedas o páginas), con fuente',
+          '  para cada dato y foto, y después maqueta. Lo que no verifiques no entra en la pieza.',
+        ]),
     `- Entrega UN ÚNICO archivo HTML de email, final y listo para enviar, en: ${outDir}/newsletter.html`,
     `  Revísalo con \`npm run render-newsletter -- ${outDir}/newsletter.html\`: deja en _trabajo/render-hoja.jpg la pieza a`,
     '  600 px, a 375 px y en oscuro en una sola imagen. UNA sola revisión visual: cuando check-newsletter salga limpio,',

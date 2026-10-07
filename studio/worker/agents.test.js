@@ -290,7 +290,8 @@ test('Encargo: base técnica, ayudante de imágenes y la comprobación de Studio
 // ------------------------------------------- ronda de tiempos (2026-10-06): encargo autocontenido, ficha, revisión
 
 test('Encargo: no comprueba enlaces con el navegador, revisa con render-newsletter y no investiga lo pendiente', () => {
-  const r = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '# Brief', imageMode: 'official', mode: 'standalone' });
+  // Con brief (hay petición del equipo): la pieza no investiga. Sin brief («Prompt completo»), sí (test de Prozis, 2026-10-07).
+  const r = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '# Brief', instruction: 'Newsletter de la Eden', imageMode: 'official', mode: 'standalone' });
   assert.doesNotMatch(r.hermes, /compruébalo con el navegador/);
   assert.match(r.hermes, /npm run render-newsletter -- newsletters\/2026\/paredes\/hermes\/2026-10-05-abc123\/newsletter\.html/);
   assert.match(r.hermes, /NO se investiga aquí y NO entra en la pieza/);
@@ -1164,4 +1165,25 @@ test('Logo medido vacío (Inglesina, 2026-10-07): no se usa como logo oficial', 
   assert.equal(r.blank, false);
   assert.equal(r.onlyBlank, null, 'sin otro logo, ninguno');
   assert.equal(r.withOther, 'logo-marca.png', 'el vacío se salta y se usa otro de la marca');
+});
+
+test('«Prompt completo» (Prozis, 2026-10-07): sin brief, el encargo pide investigar y no «ve directo al trabajo»', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    const s = require(${JSON.stringify(path.join(__dirname, '../server/standalone.ts'))});
+    const job = (instruction) => ({ id: 'x', createdAt: '2026-10-07T10:00:00Z', input: { clientName: 'Prozis', clientSlug: 'prozis', briefText: '# Prompt', imageMode: 'official', ...(instruction ? { instruction } : {}) } });
+    process.stdout.write(JSON.stringify({
+      orient: w.ORIENT_NOTE,
+      noteBrief: w.selfContainedNote('x', undefined, true), notePrompt: w.selfContainedNote('x', undefined, false),
+      encPrompt: s.buildHermesPrompt(job()), encBrief: s.buildHermesPrompt(job('newsletter de vuelta a la rutina')),
+    }));
+  `);
+  assert.doesNotMatch(r.orient, /trae todo lo que necesitas|ve directo al trabajo/);
+  assert.match(r.orient, /Lo que el encargo pida investigar, sí lo investigas/);
+  assert.match(r.notePrompt, /NO ha pasado por un brief: la investigación que pide/);
+  assert.doesNotMatch(r.notePrompt, /TODO lo que necesitas está en este mensaje/);
+  assert.match(r.noteBrief, /TODO lo que necesitas está en este mensaje/);
+  assert.match(r.encPrompt, /haz tú la investigación que pide/);
+  assert.doesNotMatch(r.encPrompt, /no vuelve a navegar la web/);
+  assert.match(r.encBrief, /no vuelve a navegar la web/);
 });
