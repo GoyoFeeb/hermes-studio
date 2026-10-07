@@ -2809,7 +2809,7 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .peek-logo.is-dark { background: #14183f; }
 .peek-logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
 .peek-colors { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.peek-colors li { position: relative; width: 34px; height: 34px; border-radius: 9px; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18), 0 4px 10px rgba(0, 0, 0, 0.25); }
+.peek-colors li { position: relative; width: 34px; height: 34px; border-radius: 9px; background: var(--c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent), 0 4px 10px rgba(0, 0, 0, 0.18); }
 .peek-colors li span { position: absolute; left: 50%; bottom: calc(100% + 6px); translate: -50% 4px; padding: 2px 6px; border-radius: var(--pill); background: #0e1545; color: #ffffff; font-size: 10px; font-family: ui-monospace, monospace; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s, translate 0.15s; }
 .peek-colors li:hover span { opacity: 1; translate: -50% 0; }
 /* Al elegir la marca: el logo aparece y los colores caen uno detrás de otro, con un pequeño bote. */
@@ -2987,3 +2987,74 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .hero-showcase.is-live.has-hot .show-card:not(.is-hot) { opacity: 0.55; }
 .hero-showcase.is-live .show-face::after { transition: opacity 0.35s ease; }
 .hero-showcase.is-live .show-card { transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* ---------- pieza en marcha: maqueta grande y últimas acciones (2026-10-07) ---------- */
+#job-progress.has-build { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px 32px; align-items: start; }
+#job-progress .progress-main { min-width: 0; }
+.thumb.live-build { grid-row: 1 / span 2; width: 180px; aspect-ratio: 3 / 4; box-shadow: 0 22px 44px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(251, 115, 255, 0.25); animation: live-float 5s ease-in-out infinite; }
+.thumb.live-build.is-queued { animation: tb-breathe 2.4s ease-in-out infinite; }
+@keyframes live-float { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-6px) rotate(1deg); } }
+.live-feed-box { grid-column: 2; min-width: 0; }
+.live-feed-title { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--lilac); }
+.live-feed { position: relative; display: grid; gap: 6px; margin: 0; padding: 0 0 0 16px; list-style: none; }
+.live-feed::before { content: ''; position: absolute; left: 3px; top: 6px; bottom: 6px; width: 2px; border-radius: 1px; background: linear-gradient(180deg, var(--pink), transparent); }
+.live-feed li { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; font-size: var(--fs-small); color: var(--muted); }
+.live-feed li::before { content: ''; position: absolute; left: -16px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
+.live-feed li:first-child { color: var(--text); }
+.live-feed li:first-child::before { background: var(--pink); box-shadow: 0 0 0 4px rgba(251, 115, 255, 0.2); }
+.live-feed li:nth-child(3) { opacity: 0.75; }
+.live-feed li:nth-child(4) { opacity: 0.5; }
+.live-feed li.is-warn span { color: var(--warning, #f4a524); }
+.live-feed time { font-variant-numeric: tabular-nums; color: var(--muted); }
+.live-feed li.is-new { animation: feed-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(var(--n, 0) * 60ms); }
+@keyframes feed-in { from { opacity: 0; transform: translateY(-10px); } }
+@media (max-width: 640px) {
+  #job-progress.has-build { grid-template-columns: 84px minmax(0, 1fr); gap: 14px 16px; }
+  .thumb.live-build { width: 84px; }
+  .live-feed-box { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .thumb.live-build, .live-feed li.is-new { animation: none; } }
+
+/* ---------- cabecera de marca en el historial (2026-10-07) ---------- */
+.brand-head {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) auto minmax(0, 1fr) auto; align-items: center; gap: 24px;
+  margin: 0 0 20px; padding: 18px 20px;
+  border: 1px solid var(--card-border); border-radius: var(--radius-card);
+  background: linear-gradient(156deg, var(--card-grad-1) 11%, var(--card-grad-2) 76%), var(--card-base);
+}
+.bh-id { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.bh-logo { flex: none; display: flex; align-items: center; justify-content: center; width: 112px; height: 64px; padding: 10px 14px; border-radius: var(--radius-sm); background: #ffffff; box-shadow: -2px 8px 14px rgba(20, 24, 63, 0.22); }
+.bh-logo.is-dark { background: #14183f; }
+.bh-logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.bh-logo.is-initials { width: 64px; background: radial-gradient(120% 90% at 30% 15%, hsl(var(--h, 240) 70% 96%), hsl(var(--h, 240) 55% 84%)); color: hsl(var(--h, 240) 50% 28%); font-family: 'Barlow', sans-serif; font-weight: 800; font-size: 22px; }
+.bh-name { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.15; }
+.bh-colors { margin-top: 8px; }
+.bh-colors li { width: 22px; height: 22px; border-radius: 6px; }
+.bh-link { display: inline-block; margin-top: 8px; font-size: var(--fs-small); color: var(--accent-text); }
+.bh-stats { display: flex; gap: 22px; margin: 0; }
+.bh-stats div { display: flex; flex-direction: column; }
+.bh-stats dt { font-size: 26px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.bh-stats dd { margin: 4px 0 0; font-size: var(--fs-small); color: var(--lilac); }
+.bh-spark { min-width: 0; }
+.bh-spark .q-spark { grid-column: auto; grid-row: auto; width: 100%; max-width: 260px; }
+.bh-best { position: relative; display: block; width: 84px; aspect-ratio: 3 / 4; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: #fff; box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25); transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.bh-best:hover { transform: translateY(-4px) rotate(-2deg); }
+.bh-best img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.bh-best span { position: absolute; left: 4px; right: 4px; bottom: 4px; padding: 2px 4px; border-radius: 999px; background: rgba(8, 13, 46, 0.85); color: #fff; font-size: 9px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-head.is-in > * { animation: peek-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.brand-head.is-in > *:nth-child(2) { animation-delay: 0.07s; }
+.brand-head.is-in > *:nth-child(3) { animation-delay: 0.14s; }
+.brand-head.is-in > *:nth-child(4) { animation-delay: 0.21s; }
+.brand-head.is-in .bh-logo { animation: peek-logo 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.brand-head.is-in .bh-colors li { animation: peek-drop 0.7s cubic-bezier(0.34, 1.5, 0.64, 1) both; animation-delay: calc(0.2s + var(--n, 0) * 60ms); }
+.brand-head.is-in .q-spark .q-line { animation: bh-draw 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both; }
+@keyframes bh-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@media (max-width: 900px) {
+  .brand-head { grid-template-columns: minmax(0, 1fr) auto; }
+  .bh-spark { display: none; }
+}
+@media (max-width: 560px) {
+  .brand-head { grid-template-columns: 1fr; gap: 14px; }
+  .bh-best { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .brand-head.is-in *, .brand-head.is-in > * { animation: none !important; } }

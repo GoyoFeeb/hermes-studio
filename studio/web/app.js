@@ -2502,6 +2502,7 @@ function renderHistory() {
     el.textContent = `${el.textContent ? `${el.textContent} · ` : ''}solo los ${historyState.truncated.toLocaleString('es-ES')} trabajos más recientes`;
   }
   renderHistoryStats(scoped);
+  renderBrandHead(scoped);
   renderFootStats([...families.values()].filter((m) => m.some((j) => !j.archivedAt)));
   document.getElementById('history-empty').hidden = groups.length > 0;
   document.getElementById('history-more').hidden = groups.length <= visible.length;
@@ -2584,6 +2585,61 @@ function renderHistory() {
  *  a la versión que representa la familia; las acciones (descargar, archivar…) siguen en la vista de lista.
  *  Desde 2026-09-30, una sola cuadrícula con la marca en cada tarjeta: agrupada por marca, con una o dos
  *  newsletters por marca salía una fila por tarjeta y mucho hueco. */
+/** Cabecera de marca (2026-10-07): al filtrar el historial por una marca, arriba su logo y sus colores (de su ficha),
+ *  cuántas newsletters lleva, su nota media con la evolución y su mejor pieza. Solo se anima al cambiar de marca. */
+let brandHeadFor = null;
+function renderBrandHead(scoped) {
+  const box = document.getElementById('brand-head');
+  const brand = historyState.brand;
+  if (!brand) {
+    box.hidden = true;
+    brandHeadFor = null;
+    return;
+  }
+  const fams = scoped.filter((m) => m.some((j) => (j.clientSlug || j.clientName) === brand));
+  const any = fams.flat()[0];
+  const slug = any?.clientSlug || '';
+  const name = any ? any.clientName : brand;
+  const card = slug ? brandSummaries.get(slug)?.card : null;
+  if (slug && !brandSummaries.has(slug)) {
+    // La ficha (logo y colores) llega después: se repinta al tenerla.
+    apiFetch(`/api/brands/${encodeURIComponent(slug)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        brandSummaries.set(slug, d);
+        if (historyState.brand === brand) renderBrandHead(scoped);
+      })
+      .catch(() => undefined);
+  }
+  const latest = fams.map((m) => [...m].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  const scored = latest.map((m) => m.find((j) => j.art)).filter(Boolean);
+  const avg = scored.length ? Math.round(scored.reduce((n, j) => n + j.art.pct, 0) / scored.length) : null;
+  const best = scored.filter((j) => j.hasThumb).sort((a, b) => b.art.pct - a.art.pct)[0] || latest.map((m) => m.find((j) => j.hasThumb)).find(Boolean);
+  const approved = fams.filter((m) => m.some((j) => j.approvedAt)).length;
+  const logo = card?.logo && /^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(card.logo)
+    ? `<span class="bh-logo${card.logoOnDark ? ' is-dark' : ''}"><img src="${escapeHtml(card.logo)}" alt="Logo de ${escapeHtml(name)}"></span>`
+    : any?.brandLogo
+    ? `<span class="bh-logo${any.brandLogo === 'dark' ? ' is-dark' : ''}"><img src="/api/brands/${encodeURIComponent(slug)}/logo" alt="Logo de ${escapeHtml(name)}"></span>`
+    : `<span class="bh-logo is-initials" style="--h:${brandHue(slug || name)}">${escapeHtml(String(name).split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || '').join(''))}</span>`;
+  const colors = (card?.colors || []).filter((c) => SAFE_COLOR.test(c.value)).slice(0, 6);
+  const fresh = brandHeadFor !== brand;
+  brandHeadFor = brand;
+  box.hidden = false;
+  box.className = `brand-head${fresh && motionOk() ? ' is-in' : ''}`;
+  box.innerHTML =
+    `<div class="bh-id">${logo}<div><p class="bh-name">${escapeHtml(name)}</p>` +
+    (colors.length ? `<ul class="peek-colors bh-colors" aria-label="Colores de la marca">${colors.map((c, n) => `<li style="--n:${n};--c:${c.value}" title="${escapeHtml(`${c.labels.join(' · ')} ${c.value}`)}"><span>${escapeHtml(c.value)}</span></li>`).join('')}</ul>` : '') +
+    `${slug ? `<a class="bh-link" href="?brand=${encodeURIComponent(slug)}">Ficha de marca →</a>` : ''}</div></div>` +
+    `<dl class="bh-stats"><div><dt>${fams.length}</dt><dd>newsletter${fams.length === 1 ? '' : 's'}</dd></div><div><dt>${approved}</dt><dd>aprobada${approved === 1 ? '' : 's'}</dd></div>` +
+    (avg !== null ? `<div><dt>${avg} %</dt><dd>calidad media</dd></div>` : '') +
+    `</dl>` +
+    (scored.length >= 2 ? `<div class="bh-spark">${qualitySpark(scored).replace('class="q-spark"', 'class="q-spark is-drawn"').replace(/q-fill/g, 'bh-fill')}</div>` : '') +
+    (best
+      ? `<a class="bh-best" href="?job=${encodeURIComponent(best.id)}" title="Abrir su mejor pieza"><img src="/api/jobs/${encodeURIComponent(best.id)}/thumb" alt="" width="150" height="200" loading="lazy"><span>${best.art ? `Mejor pieza · ${best.art.pct} %` : 'Última pieza'}</span></a>`
+      : '');
+}
+
 /** Historial por días (2026-10-07): «Hoy», «Ayer», «Esta semana» y después por meses, según la última actividad de
  *  cada newsletter (el mismo orden de la lista). Devuelve los tramos con los índices de sus grupos. */
 function dayBucket(iso, now = new Date()) {
@@ -2597,10 +2653,12 @@ function dayBucket(iso, now = new Date()) {
   const label = month.charAt(0).toUpperCase() + month.slice(1);
   return d.getFullYear() === now.getFullYear() ? label : `${label} ${d.getFullYear()}`;
 }
-function byDay(groups) {
+function byDay(groups, coarse = false) {
   const out = [];
   groups.forEach((g, i) => {
-    const label = dayBucket(g.latest || g.lead.createdAt);
+    let label = dayBucket(g.latest || g.lead.createdAt);
+    // En la galería, tramos más largos: con «Hoy» y «Ayer» cada fila se quedaba con una o dos piezas.
+    if (coarse && (label === 'Hoy' || label === 'Ayer')) label = 'Esta semana';
     const last = out[out.length - 1];
     if (last && last.label === label) {
       last.items.push(i);
@@ -2672,7 +2730,7 @@ function renderGallery(groups, info) {
         </a></li>`;
     });
   // Por días (2026-10-07): un separador fijo y una cuadrícula por tramo.
-  return byDay(groups)
+  return byDay(groups, true)
     .map(({ label, count, items }) => `${daySep(label, count)}<li class="g-all"><ul class="g-grid">${items.map((i) => cards[i]).join('')}</ul></li>`)
     .join('');
 }
@@ -5470,6 +5528,7 @@ async function poll(id) {
   announceJob(job, queue);
 
   renderLog(events);
+  renderLiveFeed(job, events || []);
 
   if (job.status === 'completed') {
     const resultBox = document.getElementById('job-result');
@@ -6839,9 +6898,49 @@ function plainText(el, text) {
   el.textContent = text;
 }
 
+/** Maqueta grande de la pieza en marcha (2026-10-07): los mismos bloques que la miniatura de la galería
+ *  (buildThumbInner), según el porcentaje. En cola, respira. */
+function renderLiveBuild(job) {
+  const el = document.getElementById('live-build');
+  const on = job.status === 'running' || job.status === 'queued';
+  el.hidden = !on;
+  document.getElementById('job-progress').classList.toggle('has-build', on);
+  if (!on) return;
+  el.classList.toggle('is-queued', job.status === 'queued');
+  el.innerHTML = buildThumbInner({ id: `${job.id}:live`, status: job.status, pct: job.progress?.pct ?? 0 });
+}
+
+/** Últimas acciones de Hermes (2026-10-07): las 4 líneas más recientes del registro, de la más nueva a la más vieja;
+ *  las que llegan entran deslizándose. Solo con la pieza en marcha. */
+let feedShown = { job: null, count: 0 };
+function renderLiveFeed(job, events) {
+  const box = document.getElementById('live-feed-box');
+  const list = document.getElementById('live-feed');
+  const on = job.status === 'running' && events?.length > 0;
+  box.hidden = !on;
+  if (!on) {
+    feedShown = { job: null, count: 0 };
+    return;
+  }
+  if (feedShown.job === job.id && feedShown.count === events.length) return;
+  const fresh = feedShown.job === job.id ? events.length - feedShown.count : 0;
+  feedShown = { job: job.id, count: events.length };
+  const last = events.slice(-4).reverse();
+  list.innerHTML = last
+    .map((ev, n) => {
+      const when = new Date(ev.ts);
+      const time = isNaN(when) ? '' : when.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      const text = String(ev.message || '').replace(/\s+/g, ' ');
+      const short = text.length > 140 ? `${text.slice(0, 138)}…` : text;
+      return `<li class="${n < fresh && motionOk() ? 'is-new' : ''}${ev.level === 'error' ? ' is-warn' : ''}" style="--n:${n}"><time>${escapeHtml(time)}</time><span>${escapeHtml(short)}</span></li>`;
+    })
+    .join('');
+}
+
 function renderProgress(job, queue, hermesOnline) {
   const box = document.getElementById('job-progress');
   renderProgressSteps(job);
+  renderLiveBuild(job);
   // Terminada, la barra al 100 % no aporta nada: lo que tardó ya está en la cabecera (2026-09-29).
   // Con el brief por revisar no hay nada en marcha: el panel de revisión ocupa su sitio.
   if (job.status === 'completed' || job.status === 'review') {

@@ -306,6 +306,8 @@
             <button type="button" class="chip" id="archived-chip" aria-pressed="false" hidden>Archivadas</button>
           </span>
         </div>
+        <!-- Cabecera de marca (2026-10-07): al filtrar por una marca, su identidad, sus cifras y su mejor pieza. -->
+        <div class="brand-head" id="brand-head" hidden></div>
         <ul id="history-list"></ul>
         <p id="history-empty" class="hint history-empty" hidden>Ningún trabajo coincide con el filtro. <button type="button" id="history-clear" class="link-btn">Quitar filtros</button></p>
         <button type="button" id="history-more" class="btn btn-ghost" hidden>Ver más</button>
@@ -357,6 +359,10 @@
       </nav>
 
       <div id="job-progress" hidden>
+        <!-- Pieza en marcha (2026-10-07): la maqueta que se construye en grande, al lado de la fase y los pasos, y las
+             últimas acciones de Hermes debajo. Durante 10-15 min es lo que mira el equipo. -->
+        <span class="thumb thumb-build live-build" id="live-build" aria-hidden="true" hidden></span>
+        <div class="progress-main">
         <div class="progress-head">
           <strong id="progress-stage"></strong>
           <span id="progress-eta"></span>
@@ -367,6 +373,11 @@
         <p id="progress-detail" class="hint"></p>
         <!-- Fases como pasos numerados (2026-10-05): durante los ~20 min solo había una barra y una frase. -->
         <ol class="progress-steps" id="progress-steps" aria-label="Fases del trabajo"></ol>
+        </div>
+        <div class="live-feed-box" id="live-feed-box" hidden>
+          <p class="live-feed-title"><span class="live-dot" aria-hidden="true"></span>Últimas acciones</p>
+          <ol class="live-feed" id="live-feed" aria-live="polite"></ol>
+        </div>
       </div>
 
       <div class="cancel-row" id="cancel-row" hidden>
