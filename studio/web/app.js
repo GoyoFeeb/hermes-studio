@@ -1455,21 +1455,34 @@ function startFan(box) {
   box.classList.add('is-live');
   if (fanBox === box) return;
   fanBox = box;
-  box.addEventListener('mouseover', (e) => {
-    fanHover = e.target.closest?.('.show-card') || null;
-  });
-  box.addEventListener('focusin', (e) => {
-    fanHover = e.target.closest?.('.show-card') || null;
-  });
-  box.addEventListener('focusout', () => {
-    fanHover = null;
-  });
-  box.addEventListener('mouseleave', () => {
-    fanHover = null;
-  });
+  // Qué carta se señala (2026-10-07, «al pinchar en el borde se bugea»): antes la decidía la carta bajo el ratón, pero
+  // la carta se mueve (flota, se endereza, crece) y en el borde salía de debajo del ratón, se soltaba, volvía y se
+  // volvía a coger: tirones y clics perdidos. Ahora las cartas no reciben el ratón (CSS) y la señalada sale de la
+  // posición horizontal del ratón sobre huecos FIJOS del abanico abierto, con un margen para no saltar en la frontera.
+  const pick = (e) => {
+    const card = fanCardAt(box, e.clientX, e.clientY);
+    if (card !== fanHover) setFanHover(box, card);
+  };
   box.addEventListener('pointermove', (e) => {
     const r = box.getBoundingClientRect();
     fanPointer = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+    if (e.pointerType === 'mouse') pick(e);
+  });
+  box.addEventListener('pointerleave', () => setFanHover(box, null));
+  box.addEventListener('focusin', (e) => setFanHover(box, e.target.closest?.('.show-card') || null));
+  box.addEventListener('focusout', () => setFanHover(box, null));
+  // El clic (o el toque) abre la carta de ese hueco; con Cmd/Ctrl, en otra pestaña.
+  box.addEventListener('click', (e) => {
+    if (e.target.closest('a.show-card')) return; // teclado (Intro sobre un enlace): lo hace el propio enlace
+    const card = fanCardAt(box, e.clientX, e.clientY, true);
+    const href = card?.getAttribute('href');
+    if (!href) return;
+    e.preventDefault();
+    if (e.metaKey || e.ctrlKey) window.open(href, '_blank');
+    else {
+      history.pushState({}, '', href);
+      route();
+    }
   });
   if ('IntersectionObserver' in window) {
     new IntersectionObserver(([en]) => {
@@ -1482,8 +1495,42 @@ function startFan(box) {
   });
   fanFrame = requestAnimationFrame(fanTick);
 }
+/** La carta del hueco bajo el ratón: cada carta ocupa una franja vertical fija centrada donde queda en el abanico
+ *  abierto. La señalada conserva su franja 14 px más ancha por cada lado (sin saltos en la frontera). Solo enlaces. */
+function fanCardAt(box, x, y, ignoreSticky = false) {
+  const cards = [...box.querySelectorAll('a.show-card')];
+  if (!cards.length) return null;
+  const r = box.getBoundingClientRect();
+  if (y < r.top || y > r.bottom) return null;
+  const narrow = window.matchMedia('(max-width: 760px)').matches;
+  const step = narrow ? 26 : 58;
+  const half = (narrow ? 120 : 165) / 2;
+  const cx = r.left + r.width / 2;
+  const slotOf = (c) => fanState.get(c)?.i ?? (parseFloat(getComputedStyle(c).getPropertyValue('--i')) || 0);
+  if (!ignoreSticky && fanHover && cards.includes(fanHover) && Math.abs(x - (cx + slotOf(fanHover) * step)) <= step / 2 + 14) return fanHover;
+  const is = cards.map(slotOf);
+  const lo = Math.min(...is) * step - half;
+  const hi = Math.max(...is) * step + half;
+  if (x - cx < lo || x - cx > hi) return null;
+  let best = null;
+  let dist = Infinity;
+  cards.forEach((c, n) => {
+    const d = Math.abs(x - (cx + is[n] * step));
+    if (d < dist) {
+      dist = d;
+      best = c;
+    }
+  });
+  return best;
+}
+function setFanHover(box, card) {
+  fanHover = card;
+  box.querySelectorAll('.show-card.is-hot').forEach((c) => c !== card && c.classList.remove('is-hot'));
+  card?.classList.add('is-hot');
+  box.classList.toggle('has-hot', !!card);
+}
 /** Un muelle algo flojo: llega con un pequeño rebote, como algo que flota y se asienta. */
-function spring(st, key, target, dt, k = 120, c = 16) {
+function spring(st, key, target, dt, k = 95, c = 15) {
   const v = (st.v[key] || 0) + ((target - st[key]) * k - (st.v[key] || 0) * c) * dt;
   st.v[key] = v;
   st[key] += v * dt;
@@ -1528,8 +1575,8 @@ function fanTick(now) {
     spring(st, 'x', x, dt);
     spring(st, 'y', y, dt);
     spring(st, 'r', r, dt);
-    spring(st, 's', hot ? 1.4 : 1, dt, 150, 15);
-    spring(st, 'ly', hot ? 64 : 0, dt, 150, 15);
+    spring(st, 's', hot ? 1.4 : 1, dt, 120, 16);
+    spring(st, 'ly', hot ? 64 : 0, dt, 120, 16);
     // Flotar: vaivén lento y distinto en cada carta; la señalada casi quieta.
     const amp = hot ? 0.25 : 1;
     const fy = Math.sin(t * 1.05 + st.phase) * 5 * amp;
@@ -1907,7 +1954,7 @@ document.querySelectorAll('.segmented').forEach((seg) => {
       bg.style.setProperty('--py', `${Math.round(window.scrollY * -0.12)}px`);
       document.querySelectorAll('.section-num').forEach((n) => {
         const r = n.parentElement.getBoundingClientRect();
-        n.style.setProperty('--px', `${Math.max(-30, Math.min(30, (r.top - window.innerHeight / 2) * 0.08)).toFixed(1)}px`);
+        n.style.setProperty('--px', `${Math.max(-12, Math.min(12, (r.top - window.innerHeight / 2) * 0.04)).toFixed(1)}px`);
       });
       placeThread();
     });
@@ -2466,8 +2513,9 @@ function renderHistory() {
     listEl.innerHTML = renderGallery(visible, info);
     return;
   }
+  const sepBefore = new Map(byDay(visible).map(({ label, count, items }) => [items[0], daySep(label, count)]));
   listEl.innerHTML = visible
-    .map(({ root, lead: j, others }) => {
+    .map(({ root, lead: j, others }, gi) => {
       const id = encodeURIComponent(j.id);
       const when = new Date(j.createdAt).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' });
       const fam = info.get(j.id);
@@ -2518,7 +2566,7 @@ function renderHistory() {
             })
             .join('')}</ol>`
         : '';
-      return `<li class="job-row">
+      return `${sepBefore.get(gi) || ''}<li class="job-row">
           ${thumb}
           <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}${j.familyTitle ? `<span class="row-title">${escapeHtml(j.familyTitle)}</span>` : ''}</a>
           <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>
@@ -2536,6 +2584,35 @@ function renderHistory() {
  *  a la versión que representa la familia; las acciones (descargar, archivar…) siguen en la vista de lista.
  *  Desde 2026-09-30, una sola cuadrícula con la marca en cada tarjeta: agrupada por marca, con una o dos
  *  newsletters por marca salía una fila por tarjeta y mucho hueco. */
+/** Historial por días (2026-10-07): «Hoy», «Ayer», «Esta semana» y después por meses, según la última actividad de
+ *  cada newsletter (el mismo orden de la lista). Devuelve los tramos con los índices de sus grupos. */
+function dayBucket(iso, now = new Date()) {
+  const d = new Date(iso);
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+  if (diff <= 0) return 'Hoy';
+  if (diff === 1) return 'Ayer';
+  if (diff < 7) return 'Esta semana';
+  const month = d.toLocaleDateString('es-ES', { month: 'long' });
+  const label = month.charAt(0).toUpperCase() + month.slice(1);
+  return d.getFullYear() === now.getFullYear() ? label : `${label} ${d.getFullYear()}`;
+}
+function byDay(groups) {
+  const out = [];
+  groups.forEach((g, i) => {
+    const label = dayBucket(g.latest || g.lead.createdAt);
+    const last = out[out.length - 1];
+    if (last && last.label === label) {
+      last.items.push(i);
+      last.count++;
+    } else out.push({ label, count: 1, items: [i] });
+  });
+  return out;
+}
+function daySep(label, count) {
+  return `<li class="day-sep" role="presentation"><span class="day-label">${escapeHtml(label)}</span><span class="day-count">${count}</span></li>`;
+}
+
 /** Tarjeta de galería más rica (2026-10-07): un punto de color con el estado (lista, aprobada, con comentarios del
  *  cliente, en marcha, por revisar, fallida) y un anillo con la nota de calidad de la versión más reciente que la tenga.
  *  Así se ve de un vistazo qué falta por mirar. */
@@ -2593,9 +2670,11 @@ function renderGallery(groups, info) {
           ${approved ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (v${info.get(approved.id).number})` : ''}</span>` : ''}
           ${status}
         </a></li>`;
-    })
+    });
+  // Por días (2026-10-07): un separador fijo y una cuadrícula por tramo.
+  return byDay(groups)
+    .map(({ label, count, items }) => `${daySep(label, count)}<li class="g-all"><ul class="g-grid">${items.map((i) => cards[i]).join('')}</ul></li>`)
     .join('');
-  return `<li class="g-all"><ul class="g-grid">${cards}</ul></li>`;
 }
 
 document.querySelectorAll('[data-history-view]').forEach((b) =>
@@ -3814,6 +3893,12 @@ document.getElementById('sticky-more').addEventListener('click', () => {
 });
 
 document.getElementById('sticky-copy').addEventListener('click', () => document.getElementById('copy-html-btn').click());
+// Aprobar desde la barra fija (2026-10-07): abre la aprobación del lateral.
+document.getElementById('sticky-approve').addEventListener('click', () => {
+  const btn = document.getElementById('approve-btn');
+  if (!btn.hidden && btn.getAttribute('aria-expanded') !== 'true') btn.click();
+  jumpTo(document.getElementById('approve-box').hidden ? btn : document.getElementById('approve-box'), 'center');
+});
 document.getElementById('sticky-revise').addEventListener('click', () => {
   toggleRevise(true);
   jumpTo(reviseBox, 'center');
@@ -4923,6 +5008,7 @@ function renderApproval(job, versions) {
     banner.title = (job.approvalChecklist || []).length ? `Comprobado: ${job.approvalChecklist.join(' · ')}` : '';
   }
   approveBtn.hidden = !!job.approvedAt || job.status !== 'completed';
+  document.getElementById('sticky-approve').hidden = approveBtn.hidden;
   const other = versions.find((v) => v.approved && v.id !== job.id);
   const elsewhere = document.getElementById('approved-elsewhere');
   elsewhere.hidden = !other;
@@ -5262,6 +5348,7 @@ function showJobView(id) {
   approveBtn.setAttribute('aria-expanded', 'false');
   resetCancel();
   resetFrame(document.getElementById('preview-frame'));
+  resetFrame(document.getElementById('preview-frame-mobile'));
   resetCompare();
   document.getElementById('versions').hidden = true;
   document.getElementById('job-parent').hidden = true;
@@ -5855,6 +5942,7 @@ const artPctOf = (notes) => {
 function renderArtReview(a) {
   const box = document.getElementById('art-box');
   box.hidden = !a?.before;
+  renderArtCard(a);
   if (box.hidden) return;
   const fin = artFinal(a);
   const before = artPctOf(a.before);
@@ -5882,6 +5970,43 @@ function renderArtReview(a) {
   const list = (title, items) => (items?.length ? `<p class="art-notes-title">${title}</p><ul class="art-notes">${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : '');
   document.getElementById('art-notes').innerHTML = list('Problemas que vio', a.problemas) + list('Mejoras que propuso', a.mejoras);
 }
+
+/** Nota de arte en el lateral (2026-10-07): la nota final y sus cinco criterios en barras, siempre a la vista junto a
+ *  la pieza. «Ver detalle» abre la revisión completa (problemas y mejoras) en su pestaña. */
+let artCardFor = null;
+function renderArtCard(a) {
+  const card = document.getElementById('art-card');
+  if (!card) return;
+  card.hidden = !a?.before;
+  if (card.hidden) {
+    artCardFor = null;
+    return;
+  }
+  const fin = artFinal(a);
+  const pct = artPctOf(fin);
+  const tone = pct >= 76 ? 'high' : pct >= 60 ? 'mid' : 'low';
+  const key = `${currentJob}|${JSON.stringify(fin)}`;
+  const fresh = key !== artCardFor;
+  artCardFor = key;
+  card.className = `art-card is-${tone}${fresh && motionOk() ? ' is-drawing' : ''}`;
+  card.innerHTML =
+    `<div class="art-card-head"><span class="art-card-pct">${pct}<small> %</small></span><span class="art-card-title">Dirección de arte<small>${
+      a.after && a.kept !== false ? `mejorada desde ${artPctOf(a.before)} %` : a.backfill ? 'puntuada después' : 'nota de Hermes'
+    }</small></span><button type="button" class="link-btn" id="art-card-more">Ver detalle</button></div>` +
+    `<ul class="art-card-bars">${Object.keys(fin)
+      .map(
+        (k, i) =>
+          `<li style="--i:${i}"><span>${escapeHtml(artLabel(k))}</span><span class="art-card-bar${fin[k] < 4 ? ' is-low' : ''}"><i style="--w:${fin[k] * 20}%"></i></span><b>${fin[k]}</b></li>`
+      )
+      .join('')}</ul>`;
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#art-card-more')) return;
+  showJobTab('review');
+  const box = document.getElementById('art-box');
+  box.open = true;
+  jumpTo(box, 'start');
+});
 
 /** Gráfico pequeño de las notas por fecha (SVG, sin librerías). */
 function artSparkline(points) {
@@ -6067,6 +6192,7 @@ const PREVIEW_VIEWS = {
   desktop: { width: 800, label: 'Escritorio · 800 px' },
   mobile: { width: 375, label: 'Móvil · 375 px (iPhone)' },
   free: { width: null, label: 'Libre' },
+  both: { width: null, label: 'Escritorio 800 px y móvil 375 px' },
 };
 
 /** Sin vista elegida antes, en pantallas estrechas se abre en Móvil: Escritorio cabía al 33 %, ilegible
@@ -6075,7 +6201,7 @@ function readPreviewView() {
   const fallback = window.matchMedia('(max-width: 600px)').matches ? 'mobile' : 'desktop';
   try {
     const v = localStorage.getItem('previewView');
-    return v === 'mobile' || v === 'free' || v === 'desktop' ? v : fallback;
+    return v === 'mobile' || v === 'free' || v === 'desktop' || (v === 'both' && !fallback.startsWith('m')) ? v : fallback;
   } catch {
     return fallback;
   }
@@ -6118,12 +6244,17 @@ function applyPreviewView(view) {
   const stage = document.getElementById('preview-stage');
   const compare = stage.classList.contains('is-compare');
   document.querySelector(`input[name="previewView"][value="${view}"]`).checked = true;
+  // «Los dos» (2026-10-07): escritorio y móvil lado a lado (con «Antes y después» no: ya hay dos columnas).
+  const both = view === 'both' && !compare;
+  stage.classList.toggle('is-both', both);
+  document.getElementById('preview-col-mobile').hidden = !both;
   const cols = [['preview-col-after', 'preview-device']];
   if (compare) cols.unshift(['preview-col-before', 'preview-device-before']);
+  if (both) cols.push(['preview-col-mobile', 'preview-device-mobile']);
   for (const [colId, deviceId] of cols) {
     const device = document.getElementById(deviceId);
     const col = document.getElementById(colId);
-    device.classList.toggle('is-mobile', view === 'mobile');
+    if (deviceId !== 'preview-device-mobile') device.classList.toggle('is-mobile', view === 'mobile');
     device.style.transform = '';
     col.style.width = '';
     col.style.height = '';
@@ -6142,8 +6273,9 @@ function applyPreviewView(view) {
   // El relleno real del escenario (antes 32 fijo): en móvil va sin relleno para verse al 100 % (2026-10-05).
   const stageStyle = getComputedStyle(stage);
   const pad = parseFloat(stageStyle.paddingLeft) + parseFloat(stageStyle.paddingRight);
-  const available = (stage.clientWidth - pad - (compare ? gap : 0)) / (compare ? 2 : 1);
-  const needed = document.getElementById('preview-device').offsetWidth;
+  const mobileDevice = document.getElementById('preview-device-mobile');
+  const available = both ? stage.clientWidth - pad - 24 : (stage.clientWidth - pad - (compare ? gap : 0)) / (compare ? 2 : 1);
+  const needed = document.getElementById('preview-device').offsetWidth + (both ? mobileDevice.offsetWidth : 0);
   const scale = needed > available && available > 0 ? available / needed : 1;
   if (scale < 1) {
     for (const [colId, deviceId] of cols) {
@@ -6152,7 +6284,7 @@ function applyPreviewView(view) {
       const label = col.querySelector('.preview-label');
       const labelHeight = label && !label.hidden ? label.offsetHeight + 8 : 0;
       device.style.transform = `scale(${scale})`;
-      col.style.width = `${Math.floor(needed * scale)}px`;
+      col.style.width = `${Math.floor((both ? device.offsetWidth : needed) * scale)}px`;
       col.style.height = `${Math.ceil(device.offsetHeight * scale) + labelHeight}px`;
     }
   }
@@ -6476,6 +6608,7 @@ document.querySelectorAll('input[name="previewView"]').forEach((r) =>
       // sin almacenamiento: solo dura esta visita
     }
     applyPreviewView(r.value);
+    if (r.value === 'both') renderMobileFrame();
     // Al cambiar el ancho, el contenido se recoloca (media queries): se vuelve a medir la altura.
     requestAnimationFrame(() => requestAnimationFrame(fitFrames));
   })
@@ -6578,11 +6711,22 @@ function renderFrame(which) {
     }
   };
   frame.srcdoc = themedHtml(html, theme);
+  if (which !== 'before') renderMobileFrame();
+}
+
+/** La copia a 375 px de «Los dos»: solo se pinta con esa vista elegida. */
+function renderMobileFrame() {
+  const frame = document.getElementById('preview-frame-mobile');
+  if (readCheckedView() !== 'both' || !currentHtml) return;
+  const theme = currentTheme();
+  frame.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+  frame.onload = () => fitFrames();
+  frame.srcdoc = themedHtml(currentHtml, theme);
 }
 
 /** Alto de cada vista previa = alto real de la pieza a ese ancho. */
 function fitFrames() {
-  for (const id of ['preview-frame', 'preview-frame-before']) {
+  for (const id of ['preview-frame', 'preview-frame-before', 'preview-frame-mobile']) {
     const frame = document.getElementById(id);
     const doc = frame.getAttribute('srcdoc') ? frame.contentDocument : null;
     if (!doc || !doc.documentElement) continue;

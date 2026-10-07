@@ -429,6 +429,8 @@
               </div>
             </div>
           </div>
+          <!-- Nota de arte siempre a la vista (2026-10-07): antes solo dentro de la pestaña «Revisión». -->
+          <div class="art-card" id="art-card" hidden></div>
           <div class="action-cols">
             <section class="action-group" aria-labelledby="ag-send">
               <h3 class="action-title" id="ag-send">Llevarla a tu plataforma</h3>
@@ -584,6 +586,7 @@
             <div class="segmented view-toggle" role="radiogroup" aria-label="Tamaño de la vista previa">
               <label><input type="radio" name="previewView" value="desktop" checked /><span>Escritorio</span></label>
               <label><input type="radio" name="previewView" value="mobile" /><span>Móvil</span></label>
+              <label title="Escritorio y móvil lado a lado"><input type="radio" name="previewView" value="both" /><span>Los dos</span></label>
               <label title="Cualquier ancho entre 320 y 1000 px"><input type="radio" name="previewView" value="free" /><span>Libre</span></label>
             </div>
             <div class="segmented theme-toggle" role="radiogroup" aria-label="Modo de color de la vista previa">
@@ -636,6 +639,13 @@
               <p class="preview-label" id="preview-label-after" hidden></p>
               <div class="preview-device" id="preview-device">
                 <iframe id="preview-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Previsualización de la newsletter"></iframe>
+              </div>
+            </div>
+            <!-- «Los dos» (2026-10-07): la misma pieza a 375 px junto a la de escritorio, solo para mirar. -->
+            <div class="preview-col" id="preview-col-mobile" hidden>
+              <p class="preview-label">Móvil</p>
+              <div class="preview-device is-mobile" id="preview-device-mobile">
+                <iframe id="preview-frame-mobile" sandbox="allow-same-origin" title="La newsletter en móvil" tabindex="-1"></iframe>
               </div>
             </div>
           </div>
@@ -888,6 +898,7 @@
   <div id="sticky-actions" class="sticky-actions" hidden>
     <span id="sticky-title" class="sticky-title"></span>
     <a id="sticky-download" class="btn btn-primary btn-sm" href="#">Descargar</a>
+    <button id="sticky-approve" type="button" class="btn btn-secondary btn-sm" aria-label="Aprobar para envío"><span class="lbl-long">Aprobar</span><span class="lbl-short" aria-hidden="true">✓</span></button>
     <button id="sticky-copy" type="button" class="btn btn-secondary btn-sm" aria-label="Copiar HTML"><span class="lbl-long">Copiar HTML</span><span class="lbl-short" aria-hidden="true">Copiar</span></button>
     <button id="sticky-revise" type="button" class="btn btn-secondary btn-sm" aria-label="Pedir cambios"><span class="lbl-long">Pedir cambios</span><span class="lbl-short" aria-hidden="true">Cambios</span></button>
     <button id="sticky-top" type="button" class="btn btn-ghost btn-sm" aria-label="Volver arriba">↑</button>

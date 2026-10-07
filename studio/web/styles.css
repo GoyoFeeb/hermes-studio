@@ -1464,19 +1464,26 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 
 /* ---------------------------------------------------------------- Componentes de feebbodigital.com (2026-10-02) */
 /* Título de sección numerado: "01" grande en azul y el título en rosa encima, como "01 Growth Hacking". */
-.section-title { position: relative; margin: 40px 0 20px; padding: 36px 0 0 40px; }
+.section-title { position: relative; margin: 48px 0 20px; padding: 52px 0 0 44px; }
 .section-head .section-title { margin: 0; }
 /* El número va detrás y el título ocupa su sitio: así no se monta sobre lo que tenga al lado. */
+/* Marca de agua (2026-10-07): el título lo cortaba por la mitad y parecía un error. Ahora es más grande, se desvanece
+   hacia abajo (donde va el título) y lleva un contorno fino: se lee como fondo a propósito y el título queda limpio. */
 .section-num {
   position: absolute;
-  left: 0;
-  bottom: -4px;
-  font-size: 88px;
+  left: -6px;
+  bottom: -2px;
+  font-size: 112px;
   font-weight: 800;
   line-height: 0.8;
-  letter-spacing: -2px;
-  color: var(--section-num);
+  letter-spacing: -3px;
+  color: transparent;
+  background: linear-gradient(180deg, var(--section-num) 0%, var(--section-num) 35%, transparent 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--section-num) 70%, var(--pink));
   user-select: none;
+  pointer-events: none;
 }
 .section-title h2 {
   position: relative;
@@ -1529,7 +1536,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 
 @media (max-width: 640px) {
   .section-title { margin-top: 32px; padding: 26px 0 0 28px; }
-  .section-num { font-size: 64px; }
+  .section-num { font-size: 80px; }
   .section-title h2 { font-size: 22px; }
   .stats { gap: 8px; }
   .stat { padding: 12px 14px; }
@@ -2577,9 +2584,9 @@ input.is-shake, textarea.is-shake, select.is-shake { border-color: var(--pink) !
 /* El «02» se ilumina al llegar el hilo y vuelve despacio a su azul (rosa mezclado: en rosa pleno tapaba el título). */
 .section-num.is-lit { animation: num-lit 1.4s ease-out; }
 @keyframes num-lit {
-  0% { color: var(--section-num); text-shadow: none; }
-  15% { color: color-mix(in srgb, var(--pink) 38%, var(--section-num)); text-shadow: 0 0 28px rgba(251, 115, 255, 0.45); }
-  100% { color: var(--section-num); text-shadow: none; }
+  0% { -webkit-text-stroke-color: color-mix(in srgb, var(--section-num) 70%, var(--pink)); filter: none; }
+  15% { -webkit-text-stroke-color: var(--pink); filter: drop-shadow(0 0 14px rgba(251, 115, 255, 0.55)); }
+  100% { -webkit-text-stroke-color: color-mix(in srgb, var(--section-num) 70%, var(--pink)); filter: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .section-thread { display: none; }
@@ -2917,3 +2924,66 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 /* Con la pieza que se recorre (A), el anillo y el punto se quedan encima. */
 .g-card .thumb-scroll { z-index: 1; }
 @media (prefers-reduced-motion: reduce) { .g-dot.is-live, .is-cascade .g-score .g-score-arc { animation: none; } }
+
+/* ---------- historial por días (2026-10-07) ---------- */
+/* «Hoy», «Ayer», «Esta semana», «Septiembre»…: un separador que se queda fijo bajo la cabecera mientras se recorre su
+   tramo. Una píldora con fondo de cristal, para que se lea sobre las filas que pasan por debajo. */
+.day-sep {
+  position: sticky; top: 70px; z-index: 5;
+  display: flex; align-items: center; gap: 10px;
+  margin: 8px -8px -2px; padding: 8px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border-radius: 12px;
+  pointer-events: none;
+}
+.day-sep:first-child { margin-top: 0; }
+.day-sep::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-strong), transparent); }
+.day-label, .day-count { pointer-events: auto; }
+.day-label {
+  padding: 5px 12px; border-radius: 999px;
+  background: var(--topbar-bg); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--text);
+}
+.day-count { font-size: 12px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+#history-list.is-gallery .day-sep { margin-bottom: -8px; }
+
+/* ---------- «Los dos»: escritorio y móvil lado a lado (2026-10-07) ---------- */
+.preview-stage.is-both { gap: 24px; align-items: flex-start; }
+#preview-frame-mobile { display: block; width: 375px; height: 740px; border: 0; border-radius: 22px; background: #fff; }
+.preview-stage.is-both #preview-col-after::before { content: 'Escritorio'; display: block; margin: 0 0 8px; font-family: 'Barlow', sans-serif; font-size: var(--fs-small); font-weight: 600; letter-spacing: 4px; text-transform: uppercase; text-align: center; color: var(--pink-soft); }
+
+/* ---------- nota de arte en el lateral (2026-10-07) ---------- */
+.art-card { margin: 14px 0 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-row); }
+.art-card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.art-card-pct { font-size: 30px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--tone); }
+.art-card-pct small { font-size: 14px; font-weight: 600; }
+.art-card-title { display: flex; flex-direction: column; margin-right: auto; font-size: var(--fs-small); font-weight: 600; }
+.art-card-title small { font-weight: 400; color: var(--muted); }
+.art-card.is-high { --tone: #2fbf71; }
+.art-card.is-mid { --tone: #f4a524; }
+.art-card.is-low { --tone: #e5484d; }
+.art-card-bars { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.art-card-bars li { display: grid; grid-template-columns: 96px 1fr 18px; align-items: center; gap: 10px; font-size: var(--fs-small); }
+.art-card-bars li > span:first-child { color: var(--lilac); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.art-card-bars b { text-align: right; font-variant-numeric: tabular-nums; }
+.art-card-bar { position: relative; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.art-card-bar i { position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: inherit; background: linear-gradient(90deg, var(--purple, #b255c3), var(--pink)); }
+.art-card-bar.is-low i { background: linear-gradient(90deg, #c2410c, #f4a524); }
+.art-card.is-drawing .art-card-bar i { animation: art-card-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(0.1s + var(--i, 0) * 70ms); }
+@keyframes art-card-grow { from { width: 0; } }
+@media (prefers-reduced-motion: reduce) { .art-card.is-drawing .art-card-bar i { animation: none; } }
+
+/* ---------- abanico: la carta señalada por huecos fijos (2026-10-07) ---------- */
+/* Con el abanico vivo, las cartas no reciben el ratón: lo recibe la caja y app.js (fanCardAt) decide la carta por su
+   hueco. Así la carta que se mueve no se suelta sola en el borde. El brillo, la etiqueta y el apagado de las demás
+   siguen a la clase is-hot en vez de :hover. */
+.hero-showcase.is-live .show-card { pointer-events: none; }
+.hero-showcase.is-live.has-hot { cursor: pointer; }
+.hero-showcase.is-live .show-card.is-hot .show-face::after { opacity: 1; }
+.hero-showcase.is-live .show-card.is-hot .show-brand { opacity: 1; }
+.hero-showcase.is-live.has-hot .show-card:not(.is-hot) { opacity: 0.55; }
+.hero-showcase.is-live .show-face::after { transition: opacity 0.35s ease; }
+.hero-showcase.is-live .show-card { transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
