@@ -2044,45 +2044,77 @@ html { scroll-padding-top: 80px; }
 .hero-links { margin-top: 28px; }
 .hero-cta { text-decoration: none; }
 
-.hero-showcase { position: relative; height: 320px; }
+.hero-showcase {
+  position: relative; height: 320px;
+  /* Movimiento más fluido (2026-10-07): curva larga que frena suave para abrir y cerrar, y un leve rebote al levantar. */
+  --fan-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --lift-ease: cubic-bezier(0.34, 1.3, 0.64, 1);
+}
 .show-card {
   position: absolute;
   top: 34px;
   left: 50%;
+  display: block;
   width: 165px;
   height: 220px;
   margin-left: -82px;
-  border-radius: 10px;
-  overflow: hidden;
-  background: #ffffff;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
   transform-origin: 50% 120%;
   transform: translateX(calc(var(--i, 0) * 50px)) translateY(calc(var(--i, 0) * var(--i, 0) * 6px)) rotate(calc(var(--i, 0) * 6deg));
-  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  /* Las de fuera salen un poco después (--d); la capa (z-index) baja poco a poco al soltar, para que la carta que
+     se encoge no caiga detrás de golpe. */
+  transition: transform 0.6s var(--fan-ease) var(--d, 0ms), opacity 0.45s ease, z-index 0.45s linear;
+  will-change: transform;
 }
-.show-card img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
-.show-card:nth-child(1) { --i: -2; z-index: 1; }
-.show-card:nth-child(2) { --i: -1; z-index: 2; }
+/* La cara: lo que se ve y lo que crece. La sombra fuerte va en una capa aparte que solo cambia de opacidad (animar
+   box-shadow repinta en cada fotograma). */
+.show-face {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Las maquetas (sin piezas todavía) son la carta y la cara a la vez. */
+.show-face, .show-mock {
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+/* Sin ratón en la cara: la zona que responde es la carta en su sitio del abanico. Así, al pasar de una carta a la de al
+   lado, la grande no la tapa y el abanico se recorre seguido. */
+.show-face { transform-origin: 50% 120%; transition: transform 0.55s var(--lift-ease); pointer-events: none; }
+.show-face::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--pink);
+  opacity: 0; transition: opacity 0.4s ease;
+}
+.show-mock { overflow: hidden; }
+.show-card img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: inherit; }
+.show-card:nth-child(1) { --i: -2; --d: 40ms; z-index: 1; }
+.show-card:nth-child(2) { --i: -1; --d: 20ms; z-index: 2; }
 .show-card:nth-child(3) { --i: 0; z-index: 3; }
-.show-card:nth-child(4) { --i: 1; z-index: 2; }
-.show-card:nth-child(5) { --i: 2; z-index: 1; }
+.show-card:nth-child(4) { --i: 1; --d: 20ms; z-index: 2; }
+.show-card:nth-child(5) { --i: 2; --d: 40ms; z-index: 1; }
 /* Con tres, centradas. */
-.hero-showcase:has(> .show-card:nth-child(3):last-child) .show-card:nth-child(1) { --i: -1; }
-.hero-showcase:has(> .show-card:nth-child(3):last-child) .show-card:nth-child(2) { --i: 0; z-index: 3; }
-.hero-showcase:has(> .show-card:nth-child(3):last-child) .show-card:nth-child(3) { --i: 1; z-index: 2; }
+.hero-showcase:has(> .show-card:nth-child(3):last-child) .show-card:nth-child(1) { --i: -1; --d: 20ms; }
+.hero-showcase:has(> .show-card:nth-child(3):last-child) .show-card:nth-child(2) { --i: 0; --d: 0ms; z-index: 3; }
+.hero-showcase:has(> .show-card:nth-child(3):last-child) .show-card:nth-child(3) { --i: 1; --d: 20ms; z-index: 2; }
 .hero-showcase:hover .show-card { transform: translateX(calc(var(--i, 0) * 58px)) translateY(calc(var(--i, 0) * var(--i, 0) * 8px - 6px)) rotate(calc(var(--i, 0) * 8deg)); }
-/* La carta señalada se hace grande (2026-10-06, pedido del usuario: antes solo crecía un 4 %) y las demás se apagan.
-   Con .hero-showcase delante: la regla del abanico abierto (.hero-showcase:hover .show-card) pesaba más y la carta
-   señalada se quedaba inclinada y sin crecer. */
-.hero-showcase a.show-card:hover, .hero-showcase a.show-card:focus-visible { z-index: 6; transform: translateX(calc(var(--i, 0) * 58px)) translateY(64px) rotate(0deg) scale(1.4); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--pink); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1.1), box-shadow 0.4s ease; }
+/* La carta señalada se endereza y su cara se hace grande; las demás se apagan. Con .hero-showcase delante: la regla
+   del abanico abierto pesa más. La capa sube al instante (z-index sin transición) y baja poco a poco al soltar. */
+.hero-showcase a.show-card:hover, .hero-showcase a.show-card:focus-visible {
+  z-index: 7;
+  transform: translateX(calc(var(--i, 0) * 58px)) translateY(0) rotate(0deg);
+  transition: transform 0.55s var(--lift-ease), opacity 0.45s ease, z-index 0s;
+}
+a.show-card:hover .show-face, a.show-card:focus-visible .show-face { transform: translateY(64px) scale(1.4); }
+a.show-card:hover .show-face::after, a.show-card:focus-visible .show-face::after { opacity: 1; }
 .hero-showcase:has(a.show-card:hover) .show-card:not(:hover), .hero-showcase:has(a.show-card:focus-visible) .show-card:not(:focus-visible) { opacity: 0.55; }
-.show-card { transition: transform 0.35s ease, box-shadow 0.35s ease, opacity 0.3s ease; }
 .show-card .show-brand {
   position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px);
   padding: 3px 8px; border-radius: var(--pill);
   background: rgba(8, 17, 54, 0.82); color: #edf3fc;
   font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  opacity: 0; transition: opacity 0.2s;
+  opacity: 0; transition: opacity 0.25s ease 0.1s;
 }
 a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 1; }
 /* Maqueta mientras no hay miniaturas: cabecera de color, imagen, titular y dos líneas. */
@@ -2111,7 +2143,7 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
   .hero-steps li { letter-spacing: 2px; font-size: var(--fs-small); gap: 8px; }
   .step-num { font-size: 20px; }
 }
-@media (prefers-reduced-motion: reduce) { .show-card { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .show-card, .show-face, .show-face::after { transition: none; } }
 
 /* ---------- calidad (2026-10-06, punto 7) ---------- */
 .art-bar > span { background: linear-gradient(90deg, var(--purple), var(--pink)); }

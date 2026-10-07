@@ -1231,12 +1231,19 @@ function renderShowcase(jobs) {
   const shown = picks.length >= 5 ? picks : picks.slice(0, 3);
   // La más reciente en el centro del abanico.
   const order = shown.length === 5 ? [shown[3], shown[1], shown[0], shown[2], shown[4]] : [shown[1], shown[0], shown[2]];
+  // Solo si cambian las piezas (2026-10-07): el historial se refresca cada 20-30 s y repintar el abanico devolvía de
+  // golpe la carta señalada a su sitio y hacía parpadear las miniaturas.
+  const key = order.map((j) => j.id).join(',');
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
   box.removeAttribute('aria-hidden');
   box.setAttribute('aria-label', 'Últimas newsletters de Hermes');
+  // La carta (el enlace) se queda en su sitio del abanico y lo que crece es su cara: la zona que reacciona al ratón no
+  // se mueve con la animación.
   box.innerHTML = order
     .map(
       (j) =>
-        `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"><span class="show-brand">${escapeHtml(j.clientName || '')}</span></a>`
+        `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"><span class="show-face"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"><span class="show-brand">${escapeHtml(j.clientName || '')}</span></span></a>`
     )
     .join('');
   dealShowcase(box);
