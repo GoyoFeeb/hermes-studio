@@ -94,8 +94,6 @@ const EXT_KIND: Record<string, ImageKind> = { png: 'png', jpg: 'jpeg', jpeg: 'jp
 /** Logos, fotos y lo que es IA en brands/<marca>/design-input (las imágenes con metadatos C2PA de IA no son
  *  assets oficiales). Lo usa también el encargo del worker para decirle a Hermes qué puede usar: lo que no es
  *  una imagen (`broken`) ya no se le ofrece, y lo que tiene la extensión cambiada (`mismatched`) se le avisa. */
-const SCREENSHOT = /^(?:[a-z0-9]+-)*preview-|^hero-source-page-|^(?:render|captura|screenshot)[-_.]/i;
-
 export function brandAssets(
   root: string,
   slug: string
@@ -124,9 +122,7 @@ export function brandAssets(
   const base = (f: string): string => f.replace(/\.[^.]+$/, '').replace(/-(email|original|raw|crop|v\d+)$/i, '');
   const aiBases = new Set(detected.map(base));
   const ai = files.filter((f) => detected.includes(f) || aiBases.has(base(f)));
-  // Capturas, no fotos (orden del repo, 2026-10-07): las de webs que guarda generate-hero-image.ts por trazabilidad y
-  // las de newsletters antiguas. Antes salían a Hermes como «fotos de la marca».
-  const rest = files.filter((f) => !ai.includes(f) && !SCREENSHOT.test(f));
+  const rest = files.filter((f) => !ai.includes(f));
   return { dir, logos: rest.filter((f) => /logo/i.test(f)), photos: rest.filter((f) => !/logo/i.test(f)), ai, broken, mismatched };
 }
 

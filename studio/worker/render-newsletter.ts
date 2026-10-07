@@ -16,9 +16,7 @@ import { BROWSER_UA, isBlockedPage } from './productSheet';
 
 /** Ancho de cada columna en la hoja: se lee la composición, no la letra pequeña (para eso, las capturas sueltas). */
 const SHEET_COL = 420;
-/** Alto máximo de la hoja antes de reducirla. Si una columna lo pasa, se reducen las tres por igual: antes se recortaba
- *  lo que sobraba, y la de 375 px (ampliada al ancho común, la más alta) perdía su final, botón y pie incluidos (Nike y
- *  El Corte Inglés, 06-10: la revisión de arte puso un 2 en móvil por un corte que no estaba en la pieza). */
+/** Alto máximo antes de reducir: lo que pase se recorta (el final de una pieza muy larga es el pie legal). */
 const SHEET_MAX_H = 3000;
 /** Alto final de la hoja, en JPEG: el modelo de visión auxiliar de Hermes no pudo analizar la hoja de 1356×3000 en PNG
  *  (1,4 MB) y sí la de 2000 px de alto en JPEG (180 KB) — 2026-10-06. */
@@ -27,19 +25,6 @@ const SHEET_OUT_H = 2000;
 export interface RenderSheet {
   sheet: string;
   shots: string[];
-}
-
-/** Ancho común de las columnas de la hoja: SHEET_COL, o menos si la columna más alta (alturas a SHEET_COL de ancho) no
- *  cabría en SHEET_MAX_H con la etiqueta. */
-export function sheetColumnWidth(heightsAtCol: number[], head = 36): number {
-  const tallest = Math.max(1, ...heightsAtCol);
-  return Math.max(120, Math.floor(SHEET_COL * Math.min(1, (SHEET_MAX_H - head) / tallest)));
-}
-
-/** Alto de una captura escalada a `width` de ancho. */
-async function sheetHeightAt(file: string, width: number): Promise<number> {
-  const m = await sharp(file).metadata();
-  return m.width && m.height ? Math.ceil((m.height * width) / m.width) : 0;
 }
 
 export async function renderSheet(htmlPath: string, outDir = path.join(path.dirname(htmlPath), '_trabajo')): Promise<RenderSheet> {
@@ -60,28 +45,26 @@ export async function renderSheet(htmlPath: string, outDir = path.join(path.dirn
   } finally {
     await browser.close().catch(() => undefined);
   }
-  // Las tres columnas al mismo ancho, con su etiqueta encima; si la más alta no cabe, todas más estrechas (nunca se corta).
-  const gap = 24;
-  const head = 36;
-  const natural = await Promise.all(shots.map(async (s) => sheetHeightAt(s.file, SHEET_COL)));
-  const colW = sheetColumnWidth(natural, head);
+  // Las tres columnas al mismo ancho, con su etiqueta encima.
   const cols = await Promise.all(
     shots.map(async (s) => {
-      const buf = await sharp(s.file).resize({ width: colW }).png().toBuffer();
+      const buf = await sharp(s.file).resize({ width: SHEET_COL }).png().toBuffer();
       const h = (await sharp(buf).metadata()).height || 0;
       return { buf, h, label: s.label };
     })
   );
+  const gap = 24;
+  const head = 36;
   const height = Math.min(SHEET_MAX_H, head + Math.max(...cols.map((c) => c.h)));
-  const width = cols.length * colW + (cols.length + 1) * gap;
+  const width = cols.length * SHEET_COL + (cols.length + 1) * gap;
   const layers = cols.flatMap((c, i) => {
-    const left = gap + i * (colW + gap);
+    const left = gap + i * (SHEET_COL + gap);
     const label = Buffer.from(
-      `<svg width="${colW}" height="${head}"><text x="0" y="24" font-family="Arial" font-size="18" font-weight="bold" fill="#333">${c.label}</text></svg>`
+      `<svg width="${SHEET_COL}" height="${head}"><text x="0" y="24" font-family="Arial" font-size="18" font-weight="bold" fill="#333">${c.label}</text></svg>`
     );
     return [
       { input: label, left, top: 0 },
-      { input: c.h > height - head ? sharp(c.buf).extract({ left: 0, top: 0, width: colW, height: height - head }) : c.buf, left, top: head },
+      { input: c.h > height - head ? sharp(c.buf).extract({ left: 0, top: 0, width: SHEET_COL, height: height - head }) : c.buf, left, top: head },
     ];
   });
   const resolved = await Promise.all(layers.map(async (l) => ({ ...l, input: Buffer.isBuffer(l.input) ? l.input : await (l.input as sharp.Sharp).toBuffer() })));

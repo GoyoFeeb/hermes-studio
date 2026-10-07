@@ -2515,3 +2515,17 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   investigación que pide, unas 12 búsquedas o páginas, con fuente; descarga las fotos oficiales»). Criterio «hubo
   brief» = `briefPrompt` o `request` (brief aprobado por el equipo), también para las herramientas del borrador.
   Tests: 244. Pendiente: relanzar Prozis con el mismo prompt para comprobarlo antes de publicar.
+  Publicado en 5c3f148 (12:31) sin la prueba completa (el usuario prefirió tener Studio conectado).
+
+### 2026-10-07 — Vuelta atrás: la generación vuelve al estado del 06-10 18:18 (d8f11f5) (pedido por el usuario)
+- Motivo: tras el arreglo de 5c3f148, Digital Car (12:37) siguió saliendo genérica a juicio del usuario. En vez de
+  seguir parcheando, se vuelve a la generación de ayer y las mejoras se recuperarán una a una, midiendo cada una.
+- Vuelven a d8f11f5: `hermes-worker.ts`, `standalone.ts`, `requestCoverage.ts`, `qualityCheck.ts`, `inspect.ts`,
+  `renderChecks.ts`, `render-newsletter.ts`, `measureBrand.ts`, `brandCard.ts`, `agents.test.js` (229 tests).
+  Borrados: `brandMemory.ts`, `prepAssets.ts` (siguen en git: 42115a1, b02531f).
+- Se mantienen: web de Studio (sin cambios hoy), orden del repo (`_archive`, `.gitignore`) y `npm run tiempos`.
+- Se pierden también tres arreglos que no tocan el diseño (recuperables aparte): vigilante de cuelgues con tiempo
+  límite en `api()` (d27cb0e), hoja de capturas sin cortar la columna de 375 (7a9a896) y descartar un
+  `logo-medido.png` vacío (5345790; sin él, Inglesina falla hasta tener su logo oficial).
+- Candidatos a recuperar uno a uno: Q1 (oferta con su cifra), Q2 (foto antes del texto), Q3 (nota de arte con anclas),
+  punto 6 (imágenes preparadas), C2 (pieza de referencia: ojo, cogía piezas malas con ≥ 76 %), herramientas por fase.

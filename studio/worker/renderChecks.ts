@@ -370,15 +370,7 @@ export function photoFindings(html: string, widths: number[], tops: number[], ga
     .map((t, i) => ({ src: attr(t, 'src'), w: widths[i] || 0, top: tops[i] ?? Infinity, t }))
     .filter((p) => p.src && p.w >= 200 && !/\.svg([?#]|$)/i.test(p.src) && !/logo|mark/i.test(`${p.src} ${attr(p.t, 'alt')} ${attr(p.t, 'class')} ${attr(p.t, 'id')}`));
   const hero: Findings = { errors: [], warnings: [] };
-  if (!photos.length) {
-    // Ninguna foto (Prozis, 2026-10-07: «Prompt completo» sin fichas citadas, la pieza salió solo con el logo y la nota de
-    // arte bajó texto e imagen e identidad a 3). Error aunque la galería de Studio no traiga candidatas: hay que buscarla.
-    hero.errors.push(
-      'La pieza no tiene ninguna foto (solo el logo). Pon una imagen principal a todo el ancho tras el logo y, si hay más escenas, ' +
-        'una foto en cada una: oficiales de la marca (galería de Studio, assets de la marca o su web, con `npm run fetch-image`) ' +
-        'o generadas con IA si el encargo lo pide.'
-    );
-  } else if (!photos.some((p) => p.w >= HERO_MIN_PAINTED && p.top <= HERO_MAX_TOP)) {
+  if (!photos.some((p) => p.w >= HERO_MIN_PAINTED && p.top <= HERO_MAX_TOP)) {
     const msg =
       `Sin imagen principal: el primer bloque tras el logo tiene que ser una foto a todo el ancho (≥ ${HERO_MIN_PAINTED} px, empezando antes de ${HERO_MAX_TOP} px de alto)` +
       (gallery?.heroCandidates.length ? `; elige una de las candidatas de la galería: ${gallery.heroCandidates.join(', ')}.` : '.');

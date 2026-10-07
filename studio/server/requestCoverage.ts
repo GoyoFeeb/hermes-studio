@@ -124,33 +124,3 @@ export function joinLabels(terms: RequestTerm[]): string {
   const labels = terms.map((t) => t.label);
   return labels.length <= 1 ? labels.join('') : `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
 }
-
-// ---------------------------------------------------------------- la oferta con su cifra (Q1, 2026-10-07)
-// «Petición» era el criterio de arte más flojo tras «texto e imagen»: Lacoste (06-10) pedía rebajas y la pieza decía
-// «rebajas» sin ningún % ni precio, aunque el precio (100 € → 50 €) estaba en sus notas. La comprobación de arriba
-// daba por buena la palabra «rebajas».
-
-/** Ocasiones que son, en sí mismas, una oferta. */
-const OFFER_OCCASIONS = new Set(['rebajas', 'black-friday', 'cyber-monday', 'singles-day', 'prime-day']);
-
-/** ¿La petición (o el prompt) pide una oferta? */
-export function asksForOffer(text: string): boolean {
-  return requestTerms(text).some((t) => t.kind === 'offer' || OFFER_OCCASIONS.has(t.id));
-}
-
-/** Cifras de oferta en lo verificado: un descuento («-30 %», «hasta 50 %», «30 % de descuento») o un precio en euros. Un
- *  porcentaje suelto no cuenta («100 % algodón» no es una oferta). */
-const VERIFIED_FIGURE =
-  /(?:-|hasta (?:un |el )?)\d{1,2} ?%|\d{1,2} ?% (?:de )?(?:dto|descuento|menos|off|rebaja)|\d{1,5}(?:[.,]\d{1,2})? ?(?:€|eur\b|euros\b)|€ ?\d{1,5}(?:[.,]\d{1,2})?/gi;
-/** En la pieza basta con que se vea un % o un precio. */
-const PIECE_FIGURE = /\d{1,3} ?%|\d{1,5}(?:[.,]\d{1,2})? ?(?:€|eur\b|euros\b)|€ ?\d{1,5}(?:[.,]\d{1,2})?/i;
-
-/** Las cifras de oferta de lo verificado (como mucho 5, sin repetir). */
-export function offerFigures(text: string): string[] {
-  return [...new Set((text.match(VERIFIED_FIGURE) || []).map((f) => f.replace(/\s+/g, ' ').trim()))].slice(0, 5);
-}
-
-/** ¿La pieza muestra algún % o precio? */
-export function pieceShowsFigure(text: string): boolean {
-  return PIECE_FIGURE.test(text.replace(/&nbsp;|\u00a0/g, ' '));
-}

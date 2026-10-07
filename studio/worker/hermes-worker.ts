@@ -33,8 +33,6 @@ import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrl
 import { captureBrandWeb, renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
-import { hasVisiblePixels, prepareAssets, preparedNote } from './prepAssets';
-import { bestPreviousPiece, blockedInfo, blockedNote, markBlocked, markOpen, previousIdentity, previousIdentityNote, previousPieces, previousPiecesNote, referenceNote, rememberLogo } from './brandMemory';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
 
@@ -85,18 +83,13 @@ function stamp(): string {
   return new Date().toLocaleTimeString('es-ES');
 }
 
-const API_TIMEOUT_MS = 20_000;
 async function api(route: string, body?: unknown, attempts = 3): Promise<Response> {
   for (let i = 1; ; i++) {
     try {
-      // Con tiempo límite (auditoría, 2026-10-07): sin él, una llamada a Studio colgada (p. ej. en un despliegue de
-      // Railway) dejaba el latido ocupado para siempre y con él el vigilante de cuelgues (El Corte Inglés, 06-10:
-      // 16,5 min esperando al modelo sin que nadie cortara).
       const res = await fetch(`${BASE}${route}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body ?? {}),
-        signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
       // 409 en una ruta del trabajo en curso = lo han cancelado desde la web (ver standaloneJobForWorker).
       if (res.status === 409 && current && route.startsWith(`/api/worker/jobs/${current}/`)) markCancelled();
@@ -436,7 +429,7 @@ export const PREVIOUS_WORK_NOTE = [
  *  releyó 5 veces email-modulos.md, 3 veces encargo.md (que es su propio prompt) y 2 la base, con razonamientos de
  *  15-40 K caracteres del tipo «I'm going in circles, let me re-check», porque el brief le llegaba tres veces (prompt,
  *  brief.md y _trabajo/encargo.md). Aquí va todo dentro del mensaje y se le dice que no lea nada más. */
-export function selfContainedNote(outputDir: string, root = ROOT, briefDone = true): string {
+export function selfContainedNote(outputDir: string, root = ROOT): string {
   const read = (rel: string): string => {
     try {
       return fs.readFileSync(path.join(root, rel), 'utf8').trim();
@@ -449,36 +442,21 @@ export function selfContainedNote(outputDir: string, root = ROOT, briefDone = tr
   return [
     '',
     '## Cómo trabajar este encargo (Studio)',
-    ...(briefDone
-      ? [
-          '- TODO lo que necesitas está en este mensaje: el brief (arriba), la base técnica y los módulos (abajo, contenido',
-          `  completo) y, si las hay, la identidad medida y la ficha de producto. ${outputDir}/brief.md es una copia del brief:`,
-          '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
-          `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
-          '  write_file partiendo de la base, 3) `npm run check-newsletter` hasta que salga limpio, 4) `npm run',
-          '  render-newsletter` y vision_analyze UNA vez, corrige lo que veas, 5) notas.md una vez. No investigues lo que el',
-          '  brief deja pendiente: queda fuera de la pieza.',
-        ]
-      : [
-          // «Prompt completo» (2026-10-07): sin brief, la investigación que pide el prompt la hace esta sesión.
-          '- Este prompt NO ha pasado por un brief: la investigación que pide (datos, productos, precios, promoción, fotos y',
-          '  logo oficiales) la haces tú ahora, con fuente para cada dato, unas 12 búsquedas o páginas. La base técnica y los',
-          '  módulos están abajo (contenido completo): no los leas del disco, no listes el repo ni leas package.json o scripts.',
-          '- Orden: 1) investiga lo que pide el prompt y descarga las fotos oficiales (`npm run fetch-image`), 2) mira las fotos,',
-          `  3) escribe ${outputDir}/newsletter.html entero con write_file partiendo de la base, 4) \`npm run check-newsletter\``,
-          '  hasta que salga limpio, 5) `npm run render-newsletter` y vision_analyze UNA vez, corrige lo que veas, 6) notas.md',
-          '  una vez. Lo que no verifiques queda fuera de la pieza.',
-        ]),
+    '- TODO lo que necesitas está en este mensaje: el brief (arriba), la base técnica y los módulos (abajo, contenido',
+    `  completo) y, si las hay, la identidad medida y la ficha de producto. ${outputDir}/brief.md es una copia del brief:`,
+    '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
+    `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
+    '  write_file partiendo de la base, 3) `npm run check-newsletter` y `npm run render-newsletter`, 4) corrige,',
+    '  5) notas.md. No investigues lo que el brief deja pendiente: queda fuera de la pieza.',
     ...(base ? ['', '### Base técnica: studio/hermes/email-base.html (contenido completo)', '```html', base, '```'] : []),
     ...(modules ? ['', '### Módulos técnicos de ejemplo: studio/hermes/email-modulos.md (contenido completo)', modules] : []),
   ].join('\n');
 }
 
 /** El logo medido, ya en la carpeta del trabajo (Hermes tardaba minutos en copiarlo). Devuelve su nombre o null. */
-async function copyMeasuredLogo(slug: string, outAbs: string): Promise<string | null> {
+function copyMeasuredLogo(slug: string, outAbs: string): string | null {
   const src = path.join(ROOT, 'brands', slug, 'design-input', 'logo-medido.png');
-  // Un logo medido transparente del todo no se copia ni se da como «oficial» (Inglesina, 2026-10-07).
-  if (!slug || !fs.existsSync(src) || !(await hasVisiblePixels(src))) return null;
+  if (!slug || !fs.existsSync(src)) return null;
   try {
     fs.copyFileSync(src, path.join(outAbs, 'logo-medido.png'));
     return 'logo-medido.png';
@@ -561,14 +539,6 @@ export const MODELS = {
 export const DRAFT_REASONING = process.env.HERMES_REASONING_DRAFT ?? 'high';
 export const draftReasoningArgs = (isEdit: boolean): string[] =>
   !isEdit && /^(none|minimal|low|medium|high|xhigh)$/.test(DRAFT_REASONING) ? ['--reasoning', DRAFT_REASONING] : [];
-/** Razonamiento de la NOTA de arte (T2, 2026-10-07). Probado «low» en 8 piezas (_archive/prueba-nota-2026-10-07): 21 s
- *  en vez de 43, pero el 76 % de las notas volvían a ser 4 (dispersión de totales 1,6, como la escala antigua), ±3,3
- *  puntos frente a «medium» y una respuesta ilegible. Se queda el de la configuración; HERMES_REASONING_ART lo cambia. */
-export const ART_REASONING = process.env.HERMES_REASONING_ART ?? '';
-export const artScoreArgs = (): string[] => [
-  ...TOOLS_REVIEW,
-  ...(/^(none|minimal|low|medium|high|xhigh)$/.test(ART_REASONING) ? ['--reasoning', ART_REASONING] : []),
-];
 let modelFlag: string | null | undefined;
 
 function modelArgs(model?: string): string[] {
@@ -591,37 +561,6 @@ function modelArgs(model?: string): string[] {
  *  HERMES_KEEP_RULES=1 vuelve a cargarse todo. */
 const RULES_ARGS = process.env.HERMES_KEEP_RULES === '1' ? [] : ['--ignore-rules'];
 
-/** Herramientas por fase (auditoría de tiempo, 2026-10-07): antes cada sesión cargaba todas (navegador, búsqueda,
- *  voz, tareas programadas, control del ordenador…). El borrador de Lacoste volvió a navegar 21 veces aunque el encargo
- *  dice «no vuelve a navegar»; sin el navegador en su caja no puede. «Pedir cambios» y «Adaptar a móvil» siguen con
- *  todas (un cambio puede pedir buscar un dato). Con HERMES_ALL_TOOLS=1 vuelven todas en todas las fases. */
-const toolsets = (list: string): string[] => (process.env.HERMES_ALL_TOOLS === '1' ? [] : ['-t', list]);
-export const TOOLS_BRIEF = toolsets('web,browser,terminal,file,vision');
-export const TOOLS_REVIEW = toolsets('terminal,file,vision');
-/** Pieza nueva: maquetar, comprobar y mirar; con imágenes de IA, también generarlas. Sin fase de brief («Prompt
- *  completo») nadie ha investigado antes: la pieza conserva búsqueda y navegador (2026-10-07). */
-export const draftTools = (prompt: string, briefDone = true, blocked = false): string[] =>
-  toolsets([...(briefDone ? [] : ['web', ...(blocked ? [] : ['browser'])]), 'terminal', 'file', 'vision', ...(/GENÉRALAS CON IA/.test(prompt) ? ['image_gen'] : [])].join(','));
-/** Retoques (2026-10-07): «Adaptar a móvil» solo toca el HTML; «Pedir cambios» puede necesitar un dato o una foto nueva
- *  de la web oficial (su encargo lo permite), así que conserva búsqueda y navegador (sin navegador si la web bloquea a
- *  Studio) y, en piezas de IA, la generación de imágenes. Antes, los dos cargaban todas las herramientas. */
-export const editTools = (kind: 'mobile-fix' | 'revision', prompt: string, blocked = false): string[] =>
-  kind === 'mobile-fix'
-    ? toolsets('terminal,file,vision')
-    : toolsets(['web', ...(blocked ? [] : ['browser']), 'terminal', 'file', 'vision', ...(/generarla con IA/.test(prompt) ? ['image_gen'] : [])].join(','));
-/** Brief de una marca cuya web bloquea a Studio (punto 2, 2026-10-07): búsqueda sí, navegador no. */
-export const briefTools = (blocked: boolean): string[] => (blocked ? toolsets('web,terminal,file,vision') : TOOLS_BRIEF);
-
-/** Orientación (auditoría de tiempo, 2026-10-07): cada sesión nueva gastaba ~8 turnos (~1,5 min) leyendo AGENTS.md y
- *  CLAUDE.md, buscando carpetas y mirando git, aunque el encargo trae lo que necesita. Va al final de cada sesión nueva. */
-// Corregido el mismo día: decía además «Este encargo trae todo lo que necesitas: ve directo al trabajo», y en un «Prompt
-// completo» (sin brief: la investigación la hace el borrador) Hermes se saltó la investigación entera (Prozis, 10:38: 6
-// acciones, sin productos ni fotos). Ahora solo habla de orientarse en el repo, no del trabajo que pida el encargo.
-export const ORIENT_NOTE =
-  '\n\nPara orientarte en el repo no hace falta nada: NO leas AGENTS.md, CLAUDE.md, package.json ni README, no ejecutes ' +
-  'git status ni busques carpetas o archivos del proyecto. Las rutas que necesitas están en este encargo. Lo que el encargo ' +
-  'pida investigar, sí lo investigas.';
-
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
  *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
 function runHermesTurn(
@@ -633,7 +572,7 @@ function runHermesTurn(
 ): Promise<{ code: number | null; output: string; stderr: string }> {
   if (cancelled) return Promise.resolve({ code: null, output: '', stderr: 'Trabajo cancelado.' });
   if (loopStopped) return Promise.resolve({ code: null, output: '', stderr: `Hermes se quedó en bucle: ${loopStopped}.` });
-  const args = ['chat', '-q', resumeId ? query : query + ORIENT_NOTE, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...extraArgs];
+  const args = ['chat', '-q', query, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...extraArgs];
   const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: HERMES_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
   currentChild = child;
   let stdout = '';
@@ -654,24 +593,6 @@ function runHermesTurn(
       resolve({ code: -1, output: stdout, stderr: `${stderr}\n${err.message}` });
     });
   });
-}
-
-/** Tope por turno en la revisión de arte (auditoría, 2026-10-07): la nota suele tardar 1-2 min y la mejora 2-3; una
- *  llamada colgada (El Corte Inglés, 06-10: 990 s) se corta aquí aunque el latido falle. Al cortar, la nota sale
- *  ilegible (la pieza sigue sin nota) y la mejora pasa igualmente por la segunda nota y la red de seguridad. */
-export const ART_SCORE_CAP_MS = 5 * 60 * 1000;
-export const ART_IMPROVE_CAP_MS = 8 * 60 * 1000;
-async function cappedTurn<T>(ms: number, jobId: string, what: string, turn: () => Promise<T>): Promise<T> {
-  const timer = setTimeout(() => {
-    if (!currentChild) return;
-    console.log(`[${stamp()}] ${jobId}: ${what} sin terminar en ${Math.round(ms / 60000)} min — se corta`);
-    currentChild.kill('SIGTERM');
-  }, ms);
-  try {
-    return await turn();
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 /** Rondas de corrección (2026-10-05): móvil, espacios y calidad van JUNTOS en una sola ronda (antes, dos bucles
@@ -851,28 +772,17 @@ async function runBriefStep(
 ): Promise<{ prompt: string; seconds: number; actions: number } | { paused: true } | { error: string }> {
   const started = Date.now();
   const briefFile = path.join(outAbs, 'brief.md');
-  // Memoria de la marca (punto 2, 2026-10-07): web que bloquea y assets de piezas anteriores.
-  const memSlug = job.brand?.slug || job.outputDir.split(path.sep)[2] || '';
-  const blocked = blockedInfo(ROOT, memSlug);
-  // Identidad del brief anterior (T1, 2026-10-07): solo sin brand pack (con pack, el brief ya lo lee).
-  const prevIdentity = hasBrandPack(ROOT, memSlug) ? null : previousIdentity(ROOT, memSlug, job.outputDir);
-  const memoryNote =
-    blockedNote(job.brand?.name || memSlug, blocked) + previousIdentityNote(prevIdentity) + previousPiecesNote(previousPieces(ROOT, memSlug, job.outputDir));
-  const tools = briefTools(!!blocked);
   const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
   let sessionId: string | null = null;
   let busy = false;
-  let busySince = 0;
   let lastCount = -1;
   let lastChange = Date.now();
   let budgetHit = false;
   let firstTurn = true;
   const loops = newLoopState();
   const heartbeat = setInterval(async () => {
-    // Un latido atascado más de 2 min no bloquea los siguientes: el vigilante de cuelgues vive aquí (2026-10-07).
-    if (busy && Date.now() - busySince < 120_000) return;
+    if (busy) return;
     busy = true;
-    busySince = Date.now();
     const elapsed = (Date.now() - started) / 1000;
     let tools: ToolCall[] = [];
     try {
@@ -925,11 +835,10 @@ async function runBriefStep(
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
   let turn = await runHermesTurn(
-    job.briefPrompt! + identity + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + memoryNote + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
+    job.briefPrompt! + identity + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
     null,
     (id) => (sessionId = sessionId || id),
-    MODELS.brief,
-    tools
+    MODELS.brief
   );
   firstTurn = false;
   for (let i = 1; i <= 3 && !ready() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
@@ -939,7 +848,7 @@ async function runBriefStep(
         'Escríbelo AHORA con write_file, con lo que ya tengas (lo que no hayas podido verificar va a «Fuera de la pieza»; ' +
         'cita la URL exacta de la ficha del producto: Studio saca de ella precio, envío y fotos). Sin texto previo: llama a la herramienta.';
     loops.nudge = null;
-    turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief, tools);
+    turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief);
   }
   // Autocrítica del brief (2026-10-06, punto 3 de la auditoría): una vuelta en la misma sesión, sin navegar, que relee
   // el brief como director creativo y reescribe lo que no pase. Incluye lo que la petición pide y el brief no recoge
@@ -952,7 +861,7 @@ async function runBriefStep(
     }
     console.log(`[${stamp()}] Brief de ${job.id}: autocrítica`);
     void api(`/api/worker/jobs/${job.id}/progress`, { message: 'Hermes relee el brief como director creativo y corrige lo que no pasa.' }).catch(() => undefined);
-    await runHermesTurn(briefCritiqueQuery(job.outputDir, gaps, job.request), sessionId, () => undefined, MODELS.brief, tools);
+    await runHermesTurn(briefCritiqueQuery(job.outputDir, gaps, job.request), sessionId, () => undefined, MODELS.brief);
   }
   clearInterval(heartbeat);
   clearTimeout(killer);
@@ -998,61 +907,31 @@ async function imageSize(file: string): Promise<{ width: number; height: number 
 }
 
 /** Lo que puntúa la revisión de dirección de arte (1-5). */
-/** Criterios con anclas (Q3, 2026-10-07): con una escala común para todos, el 80 % de las notas de 10 piezas del 06-10
- *  eran 4 y la nota no distinguía piezas. Cada criterio dice lo que se VE en cada nota. */
 export const ART_CRITERIA: Record<string, string> = {
-  peticion:
-    'la ocasión, la oferta y el público de la petición. 5 = ocasión, oferta con su cifra (%, precio o fecha) y público ' +
-    'visibles en la primera pantalla; 4 = ocasión clara, pero la oferta sin cifra o más abajo; 3 = hay que leer el texto para ' +
-    'saber qué se ofrece; 2 = la pieza habla de otra cosa.',
-  texto_imagen:
-    'lo que dicen los textos frente a lo que muestran las fotos. 5 = cada titular habla de lo que se ve en su foto; 4 = un ' +
-    'titular vago respecto a su foto; 3 = un texto describe algo que la foto no muestra (color, uso, personas); 2 = varias ' +
-    'contradicciones o un producto distinto del que dice el texto.',
-  identidad:
-    'la marca sin mirar el logo. 5 = tipografía, colores y estilo de foto coinciden con su web; 4 = coinciden dos de los ' +
-    'tres; 3 = solo los colores o solo el logo dicen qué marca es; 2 = podría ser de otra marca.',
-  concepto:
-    'una idea que ordena la pieza. 5 = el concepto da el titular, las escenas y el cierre; 4 = está en el titular pero alguna ' +
-    'escena no lo sigue; 3 = escenas sueltas sin hilo; 2 = no hay concepto.',
-  jerarquia:
-    'lectura de un vistazo. 5 = en cada escena se ve primero el titular, luego el apoyo y luego el botón; 4 = en una escena ' +
-    'compiten dos elementos; 3 = dos titulares se pelean o un botón no se ve; 2 = no se sabe qué mirar, o un titular que el ' +
-    'cliente no entiende (un código de color).',
-  aire:
-    'aire y ritmo. 5 = márgenes y separaciones coherentes en toda la pieza; 4 = un sitio apretado o un hueco de más; 3 = varios; ' +
-    '2 = amontonado o con huecos que parecen errores.',
-  originalidad:
-    'lejos de la plantilla. 5 = al menos un módulo que solo tiene sentido con este concepto; 4 = composición propia con módulos ' +
-    'habituales; 3 = la misma fórmula foto + titular + botón repetida; 2 = una plantilla de email marketing.',
-  movil:
-    'la columna de 375 px. 5 = todo se lee (cuerpo de 14 px o más) y nada se corta ni toca el borde; 4 = solo el pie o el texto ' +
-    'legal se quedan pequeños; 3 = un texto de contenido pequeño o algo pegado al borde; 2 = algo se sale o se corta.',
-  oscuro:
-    'la columna en oscuro. 5 = todo se lee y el logo se ve; 4 = un texto secundario con poco contraste; 3 = un texto de ' +
-    'contenido o el logo cuesta de leer; 2 = algo desaparece (claro sobre claro u oscuro sobre oscuro).',
-  copy:
-    'los textos. 5 = cada titular nombra algo concreto (producto, beneficio, ocasión) y suena a la marca, y los botones dicen ' +
-    'verbo + objeto; 4 = un titular abstracto o un botón genérico; 3 = varios, o una muletilla de email marketing; 2 = ' +
-    'muletillas por toda la pieza.',
+  peticion: '¿la ocasión, la oferta y el público que pide la petición se notan a primera vista?',
+  texto_imagen: '¿lo que dicen los titulares (colores, uso, personas) es lo que se ve en las fotos?',
+  identidad: '¿se reconoce la marca sin ver el logo (tipografía, colores, foto)?',
+  concepto: '¿todo deriva de un concepto claro?',
+  jerarquia: '¿se lee de un vistazo? ¿algún titular que el cliente no entienda, como un código de color?',
+  aire: '¿aire y ritmo coherentes, nada pegado ni amontonado?',
+  originalidad: '¿evita parecer una plantilla de email marketing?',
+  movil: '¿a 375 px todo se lee y nada se sale ni queda diminuto?',
+  oscuro: '¿en oscuro todo se lee (nada blanco sobre blanco ni negro sobre negro)?',
+  copy: '¿cada titular nombra algo concreto (producto, beneficio, ocasión) y suena a la marca? ¿botones con verbo + objeto, sin muletillas de email marketing?',
 };
 
 export interface ArtReview {
   notas: Record<string, number>;
-  /** Lo que justifica cada nota (Q3, 2026-10-07); puede faltar en alguno. */
-  pruebas?: Record<string, string>;
   problemas: string[];
   /** Lo que subiría a 5 lo que tiene 4 (2026-10-06, punto 5): se corrige si es barato. */
   mejoras: string[];
 }
 
-/** Cómo se pone cada nota (Q3, 2026-10-07): se parte de 3 y se sube solo con prueba de lo que pide el 4 o el 5; antes,
- *  con «5 = lo firmaría el director de arte… 4 = correcto pero mejorable», el 4 era la nota por defecto. */
+/** Qué significa cada nota: sin escala, Luna ponía 4 a casi todo (Siroko, 2026-10-06: nueve 4 con el texto secundario
+ *  diminuto señalado) y con 4 no se tocaba nada. */
 export const ART_SCALE =
-  'Cómo puntuar: empieza cada criterio en 3 y súbelo a 4 o a 5 solo si se cumple su descripción, con una prueba de lo que ' +
-  'ves (qué y dónde: escena, columna). Bájalo a 2 o 1 si se cumple esa descripción. 1 = roto. Si dudas entre dos notas, la ' +
-  'más baja. Usa toda la escala: una pieza correcta pero corriente es un 3 en varios criterios. Un 5 solo si no tienes ' +
-  'NINGUNA mejora para ese criterio: Studio cuenta como 4 cualquier 5 con una mejora de su criterio o sin prueba.';
+  'Escala: 5 = lo firmaría el director de arte de la marca, nada que mejorar; 4 = correcto pero mejorable (di qué); ' +
+  '3 = se nota un fallo; 2 = fallo grave; 1 = roto. Un 5 se gana: si puedes nombrar una mejora concreta, es un 4.';
 
 /** Lo que se le pregunta a vision_analyze sobre la portada de la web de la marca. */
 export const ART_WEB_QUESTION =
@@ -1115,15 +994,13 @@ export function artReviewQuery(
     'Brief (resumen):',
     brief,
     '',
-    'Puntúa de 1 a 5 cada criterio según su descripción:',
+    'Puntúa de 1 a 5 cada criterio:',
     ...Object.entries(ART_CRITERIA).map(([k, v]) => `- ${k}: ${v}`),
     ART_SCALE,
     '',
-    'Formato exacto: {"notas": {"peticion": 3, "texto_imagen": 4, ...todos los criterios}, "pruebas": {"peticion": "qué ves y ' +
-      'dónde que justifica la nota", ...todos los criterios}, "problemas": ["lo que deja un criterio por debajo de 4: qué y ' +
-      'dónde"], "mejoras": ["criterio: por cada nota que no sea 5, el cambio concreto que la subiría, empezando por el nombre ' +
-      'del criterio (\\"aire: …\\"): qué, dónde y cómo (tamaño, espacio, orden, el texto de un titular, otra de las fotos ya ' +
-      'descargadas…), sin rehacer la pieza ni cambiar datos o enlaces"]}',
+    'Formato exacto: {"notas": {"peticion": 4, "texto_imagen": 4, ...todos los criterios}, "problemas": ["lo que baja una nota ' +
+      'de 4: qué y dónde"], "mejoras": ["por cada nota de 4, el cambio concreto que la subiría a 5: qué, dónde y cómo (tamaño, ' +
+      'espacio, orden, el texto de un titular…), sin rehacer la pieza ni cambiar datos, enlaces o fotos"]}',
   ].join('\n');
 }
 
@@ -1141,19 +1018,7 @@ export function parseArtReview(output: string): ArtReview | null {
       notas[k] = n;
     }
     const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((p): p is string => typeof p === 'string' && !!p.trim()).slice(0, 10) : []);
-    const pruebasRaw = (raw as { pruebas?: Record<string, unknown> }).pruebas || {};
-    const pruebas: Record<string, string> = {};
-    for (const k of Object.keys(ART_CRITERIA)) {
-      const p = pruebasRaw[k];
-      if (typeof p === 'string' && p.trim()) pruebas[k] = p.trim().slice(0, 400);
-    }
-    const mejoras = list((raw as { mejoras?: unknown }).mejoras);
-    // Un 5 se gana (Q3, 2026-10-07; la primera validación dio 21 cincos en 8 piezas): con una mejora de su mismo
-    // criterio o sin prueba, cuenta como 4.
-    for (const k of Object.keys(notas)) {
-      if (notas[k] === 5 && (!pruebas[k] || mejoras.some((m) => m.toLowerCase().replace(/^[\s*-]+/, '').startsWith(`${k}:`)))) notas[k] = 4;
-    }
-    return { notas, pruebas, problemas: list(raw.problemas), mejoras };
+    return { notas, problemas: list(raw.problemas), mejoras: list((raw as { mejoras?: unknown }).mejoras) };
   } catch {
     return null;
   }
@@ -1163,15 +1028,9 @@ export function lowScores(review: ArtReview): string[] {
   return Object.keys(review.notas).filter((k) => review.notas[k] < 4);
 }
 
-/** ¿Hay pasada de mejora? Solo con la nota baja (auditoría de tiempo, 2026-10-07): en las 8 piezas del 06-10 la
- *  pasada sobre piezas de ~39/50 dio −2, +2, 0, −2, −1, 0, 0, +2 (3 revertidas) a ~3 min cada una. Ahora, si el total
- *  baja del 72 % (36/50), algún criterio se queda en 2 o menos, o tres o más se quedan por debajo de 4. */
-export const IMPROVE_BELOW = 0.72;
+/** ¿Hay pasada de mejora? Siempre con notas por debajo de 4; con 4, si la revisión nombra mejoras concretas. */
 export function needsImprovement(review: ArtReview): boolean {
-  const notes = Object.values(review.notas);
-  if (!notes.length) return false;
-  // Tres o más criterios por debajo de 4 también (Prozis, 2026-10-07: 38/50 con texto_imagen, identidad y copy en 3).
-  return scoreTotal(review) < IMPROVE_BELOW * notes.length * 5 || notes.some((n) => n <= 2) || notes.filter((n) => n < 4).length >= 3;
+  return lowScores(review).length > 0 || (review.mejoras.length > 0 && Object.values(review.notas).some((n) => n < 5));
 }
 
 export const scoreTotal = (review: ArtReview): number => Object.values(review.notas).reduce((a, b) => a + b, 0);
@@ -1188,11 +1047,6 @@ function artReviewSummary(review: ArtReview): string {
   return (
     Object.entries(review.notas).map(([k, v]) => `${k} ${v}`).join(' · ') +
     ` (total ${scoreTotal(review)}/${Object.keys(review.notas).length * 5})` +
-    (review.pruebas
-      ? `\n\nPruebas:\n${Object.keys(review.notas)
-          .map((k) => `- ${k} ${review.notas[k]}: ${review.pruebas?.[k] || '(sin prueba)'}`)
-          .join('\n')}`
-      : '') +
     (review.problemas.length ? `\n\nProblemas:\n${review.problemas.map((p) => `- ${p}`).join('\n')}` : '') +
     (review.mejoras.length ? `\n\nMejoras propuestas:\n${review.mejoras.map((p) => `- ${p}`).join('\n')}` : '')
   );
@@ -1224,10 +1078,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // sin brand pack, y una vez cada 90 días. El brief y el encargo la reciben ya resuelta.
   let identity = '';
   if (!editKind && slug) {
-    const knownBlock = blockedInfo(ROOT, slug);
-    if (knownBlock) {
-      console.log(`[${stamp()}] ${claimed.id}: la web de la marca bloquea a Studio (desde ${knownBlock.blockedAt.slice(0, 10)}): no se mide; Hermes usará búsqueda y piezas anteriores.`);
-    } else if (needsMeasure(ROOT, slug)) {
+    if (needsMeasure(ROOT, slug)) {
       timeline.start('measure', 'Identidad medida en la web');
       await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Midiendo la identidad de la marca en su web (tipografía, colores, botones y logo)…' }).catch(() => undefined);
       try {
@@ -1295,9 +1146,6 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // segundos en vez de que Hermes vuelva a navegar (Paredes: 12 min). Con imágenes de IA, sin fotos.
   let productNote = '';
   let logoNote = '';
-  let prepNote = '';
-  let refNote = '';
-  let productPhotos: { file: string; ambient?: boolean }[] = [];
   if (!editKind) {
     const briefPart = prompt.split('## Instrucciones de entrega')[0];
     const urls = productUrls(briefPart);
@@ -1311,19 +1159,6 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       try {
         const sheet = await withTimeout(buildProductSheet(urls, outAbs, { photos, gallery }), PRODUCT_TIMEOUT_MS);
         productNote = sheet ? productSheetNote(sheet, claimed.outputDir) : '';
-        productPhotos = sheet?.photos || [];
-        // Memoria de bloqueos (punto 2): una página bloqueada se recuerda 30 días; una leída bien, lo olvida.
-        // Solo páginas de la propia marca (el dominio lleva su nombre): una prensa o un tercero que bloquee no cuenta.
-        const ownSite = (u: string): boolean => {
-          try {
-            return new URL(u).hostname.replace(/[^a-z0-9]/gi, '').toLowerCase().includes(slug.replace(/-/g, '').toLowerCase());
-          } catch {
-            return false;
-          }
-        };
-        const blockedPage = sheet?.pages.find((p) => p.blocked && ownSite(p.url));
-        if (blockedPage) markBlocked(ROOT, slug, blockedPage.url, 'ficha de producto');
-        else if (sheet?.pages.some((p) => !p.blocked && ownSite(p.url) && (p.price || p.title))) markOpen(ROOT, slug);
         const price = sheet?.pages.find((p) => p.price)?.price;
         const msg = sheet
           ? `Ficha de producto: ${urls.length ? (price ? `precio ${price.amount} ${price.currency}` : 'sin precio') : 'sin ficha'} · ${sheet.photos.length} foto(s) descargada(s), ${sheet.photos.filter((p) => p.hero).length} candidata(s) a imagen principal.${sheet.pages.some((p) => p.blocked) ? ' La web oficial bloquea a Studio: Hermes elegirá la imagen principal.' : ''}`
@@ -1335,33 +1170,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       }
       timeline.end();
     }
-    const logo = await copyMeasuredLogo(slug, outAbs);
+    const logo = copyMeasuredLogo(slug, outAbs);
     if (logo) logoNote = `\n- Logo oficial medido ya copiado en ${claimed.outputDir}/${logo}: úsalo tal cual (no lo copies ni lo busques).`;
-    // 2c. Imágenes preparadas (punto 6, 2026-10-07): logo en dos versiones, recortes y medidas, sin modelo.
-    try {
-      const prep = await withTimeout(prepareAssets(ROOT, slug, outAbs, productPhotos), 60000);
-      prepNote = prep ? preparedNote(prep, claimed.outputDir) : '';
-      if (prep) {
-        console.log(
-          `[${stamp()}] ${claimed.id}: imágenes preparadas — ${prep.logo ? `logo ${prep.logo.tone}${prep.logo.counterpart ? ` + versión ${prep.logo.counterpart.color === 'white' ? 'blanca' : 'negra'}` : ''}` : 'sin logo'} · ${prep.photos.filter((p) => p.crop).length} recorte(s) de ${prep.photos.length} foto(s)`
-        );
-      }
-    } catch (err) {
-      console.log(`[${stamp()}] ${claimed.id}: no se pudieron preparar las imágenes — ${(err as Error).message.slice(0, 200)}`);
-    }
-    // 2d. Referencia (C2, 2026-10-07): la mejor pieza anterior de la marca (≥ 38/50), como captura JPEG de ≤ 2000 px de
-    // alto (el modelo de visión no pudo con PNG de 3000 px, 2026-10-06).
-    try {
-      const ref = bestPreviousPiece(ROOT, slug, claimed.outputDir);
-      if (ref) {
-        const rel = path.join(claimed.outputDir, '_trabajo', 'referencia-marca.jpg');
-        await sharp(ref.render).resize({ height: 2000, withoutEnlargement: true }).jpeg({ quality: 80 }).toFile(path.join(ROOT, rel));
-        refNote = referenceNote(ref, claimed.brand?.name || slug, rel);
-        console.log(`[${stamp()}] ${claimed.id}: referencia de la marca — ${ref.dir} (${ref.total}/${ref.max})`);
-      }
-    } catch (err) {
-      console.log(`[${stamp()}] ${claimed.id}: sin referencia de la marca — ${(err as Error).message.slice(0, 200)}`);
-    }
   }
   if (cancelled) {
     setAsideFolder(outAbs, 'cancelado');
@@ -1398,7 +1208,6 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let lastCount = -1;
   let lastChange = Date.now();
   let busy = false;
-  let busySince = 0;
   let loops = newLoopState();
   // La barra nunca retrocede; tras la primera versión, todo es revisión (laterSessionProgress).
   let afterDraft = false;
@@ -1412,10 +1221,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     loops = newLoopState();
   };
   const heartbeat = setInterval(async () => {
-    // Un latido atascado más de 2 min no bloquea los siguientes: el vigilante de cuelgues vive aquí (2026-10-07).
-    if (busy && Date.now() - busySince < 120_000) return;
+    if (busy) return;
     busy = true;
-    busySince = Date.now();
     const elapsed = (Date.now() - started) / 1000;
     let tools: ToolCall[] = [];
     try {
@@ -1466,25 +1273,17 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     (isMobileFix
       ? ''
       : isRevision
-      ? brandAssetsNote(job.outputDir) + blockedNote(claimed.brand?.name || slug, blockedInfo(ROOT, slug)) + WEB_ACCESS_NOTE
+      ? brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE
       : identity +
         logoNote +
         productNote +
-        prepNote +
-        refNote +
         brandAssetsNote(job.outputDir) +
-        (claimed.briefPrompt || claimed.request ? '' : blockedNote(claimed.brand?.name || slug, blockedInfo(ROOT, slug))) +
-        previousPiecesNote(previousPieces(ROOT, slug, job.outputDir)) +
         WEB_ACCESS_NOTE +
-        selfContainedNote(job.outputDir, ROOT, !!claimed.briefPrompt || !!claimed.request) +
+        selfContainedNote(job.outputDir) +
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
-  const blockedNow = !!blockedInfo(ROOT, slug);
-  // Hubo brief: el de este trabajo o uno ya aprobado por el equipo (llega con la petición, sin el paso de brief).
-  const briefDone = !!claimed.briefPrompt || !!claimed.request;
-  const tools = editKind ? editTools(editKind, job.prompt, blockedNow) : draftTools(job.prompt, briefDone, blockedNow);
-  const reasoning = [...draftReasoningArgs(!!editKind), ...tools];
+  const reasoning = draftReasoningArgs(!!editKind);
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
   sessionId = sessionId || watched;
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
@@ -1497,8 +1296,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         ? loopNudge(nudge, `${job.outputDir}/newsletter.html`)
         : `Todavía no existe ${job.outputDir}/newsletter.html. Tu respuesta anterior anunció una acción pero ` +
             'no llamó a ninguna herramienta, y eso termina tu turno sin avanzar. Responde AHORA con llamadas a ' +
-            'herramientas, sin texto previo. Si te falta un dato, márcalo como pendiente; con lo que ya tengas, ' +
-            'escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
+            'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
+            'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
       sessionId,
       () => undefined,
       model,
@@ -1519,8 +1318,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         'origen de cada imagen, tipografía y colores con su origen, y las preguntas de autoauditoría. Si algo no cumple, corrige la newsletter.html antes.',
       sessionId,
       () => undefined,
-      model,
-      tools
+      model
     );
   }
   timeline.end(Math.max(0, lastCount));
@@ -1589,7 +1387,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
           ].join('\n')
         : `Siguen estos errores tras tu corrección:\n\n${describeErrors(fixable)}\n\nCorrígelos con el mismo alcance y vuelve a ejecutar \`${checkCmd}\`.\n\n${SCOPED_FIX}`;
-    await runHermesTurn(message, fixSession, (id) => (fixSession = fixSession || id), MODELS.fix, TOOLS_REVIEW);
+    await runHermesTurn(message, fixSession, (id) => (fixSession = fixSession || id), MODELS.fix);
     fixSession = fixSession || watched;
     timeline.end(Math.max(0, lastCount));
     if (cancelled) return finishCancelled();
@@ -1619,8 +1417,12 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       watchNewSession();
       const reviewOnce = async (ready?: string): Promise<{ review: ArtReview | null; output: string }> => {
         const s2 = ready ? { sheet: ready } : await renderSheet(finalPath, workDir);
-        const query = artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found);
-        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.draft, artScoreArgs()));
+        const look = await runHermesTurn(
+          artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found),
+          null,
+          () => undefined,
+          MODELS.draft
+        );
         return { review: parseArtReview(look.output), output: look.output };
       };
       const first = await reviewOnce(sheet.sheet);
@@ -1632,9 +1434,6 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       console.log(
         `[${stamp()}] ${job.id}: revisión visual ${review ? `— ${scoreTotal(review)}/${Object.keys(review.notas).length * 5}${low.length ? `, por debajo de 4: ${low.join(', ')}` : ''}, ${review.mejoras.length} mejora(s)` : '— respuesta sin notas legibles'}${web ? ' (con la web de la marca)' : ''}`
       );
-      if (review && !needsImprovement(review)) {
-        console.log(`[${stamp()}] ${job.id}: nota de arte suficiente (${scoreTotal(review)}/${Object.keys(review.notas).length * 5}): sin pasada de mejora`);
-      }
       if (review && needsImprovement(review) && !cancelled && Date.now() - started < TIMEOUT_MS) {
         const backup = path.join(workDir, 'antes-de-mejora.html');
         fs.copyFileSync(finalPath, backup);
@@ -1644,7 +1443,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             : `Revisión de dirección de arte: ${review.mejoras.length} mejora(s) para subir de 4 a 5 — Hermes las aplica.`
         );
         watchNewSession();
-        await cappedTurn(ART_IMPROVE_CAP_MS, job.id, 'mejora de arte', () => runHermesTurn(
+        await runHermesTurn(
           [
             `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
             `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg.${web ? ` Portada de la web de la marca: ${rel}/web-marca.jpg.` : ''} Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
@@ -1654,10 +1453,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             ...(review.problemas.length ? ['Problemas (OBLIGATORIO corregirlos: bajan una nota de 4):', ...review.problemas.map((p) => `- ${p}`)] : []),
             ...(review.mejoras.length ? ['Mejoras para subir de 4 a 5 (aplica las baratas; si una exige rehacer la pieza, sáltala y dilo):', ...review.mejoras.map((p) => `- ${p}`)] : []),
             '',
-            'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos ni enlaces. Si un texto ' +
-              'contradice su foto o se aparta de la petición: corrige el texto o cambia la foto por otra de las que ya están en la ' +
-              `carpeta (${job.outputDir}/, también sus copias «-recorte») que sí muestre lo que dice; no descargues fotos nuevas ` +
-              '(Q2, 2026-10-07). Studio guarda la versión anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
+            'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos, enlaces ni fotos. Si un texto ' +
+              'contradice las fotos o se aparta de la petición, el texto es lo que se corrige (las fotos son las oficiales). Studio ' +
+              'guarda la versión anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
             `Después: \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` hasta que salga sin errores y ` +
               `\`npm run render-newsletter -- ${job.outputDir}/newsletter.html\` para mirar la hoja UNA vez.`,
             `Añade al final de ${rel}/revision-visual.md lo que cambiaste y un resumen de dos líneas al final de notas.md.`,
@@ -1669,9 +1467,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           ].join('\n'),
           null,
           () => undefined,
-          MODELS.draft,
-          TOOLS_REVIEW
-        ));
+          MODELS.draft
+        );
         if (cancelled) return finishCancelled();
         // Segunda nota (una mirada) y red de seguridad: la mejora se queda solo si no empeora la pieza.
         watchNewSession();
@@ -1750,15 +1547,6 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   } else {
     if (!editKind) recordDuration(minutes);
     console.log(`[${stamp()}] ✓ ${job.id} en ${minutes} min`);
-    // Logo de la pieza guardado en la marca si esta no tenía ninguno (punto 2, 2026-10-07).
-    if (!editKind) {
-      try {
-        const kept = rememberLogo(ROOT, slug, outAbs);
-        if (kept) console.log(`[${stamp()}] ${job.id}: la marca no tenía logo guardado: se guarda el de la pieza en ${kept}`);
-      } catch {
-        // no es parte de la entrega
-      }
-    }
   }
   current = null;
 }
@@ -1819,7 +1607,7 @@ async function backfillArtReviews(): Promise<void> {
       const home = readMeasuredIdentity(ROOT, j.slug)?.url || brandHome(j.prompt.split('## Instrucciones de entrega')[0], j.slug);
       const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
       const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
-      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found), null, () => undefined, MODELS.draft, artScoreArgs());
+      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found), null, () => undefined, MODELS.draft);
       const review = parseArtReview(look.output);
       await api(
         `/api/worker/jobs/${j.id}/art-review`,

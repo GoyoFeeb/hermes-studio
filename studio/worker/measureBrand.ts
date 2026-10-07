@@ -16,9 +16,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Browser, Page } from 'playwright';
 import sharp from 'sharp';
-import { markBlocked } from './brandMemory';
-import { hasVisiblePixels } from './prepAssets';
-import { isBlockedPage } from './productSheet';
 import { launchBrowser } from './renderChecks';
 
 export interface MeasuredIdentity {
@@ -214,8 +211,7 @@ async function saveLogo(browser: Browser, page: Page, logo: NonNullable<Extracte
     // Si la web no deja descargarlo, una captura del propio elemento.
     if (!png) png = await page.locator('[data-studio-logo="1"]').first().screenshot({ omitBackground: true }).catch(() => null);
   }
-  // Un logo sin ningún píxel visible no es un logo (Inglesina, 2026-10-07): mejor ninguno.
-  if (!png || !(await hasVisiblePixels(png))) return false;
+  if (!png) return false;
   fs.mkdirSync(path.dirname(outAbs), { recursive: true });
   fs.writeFileSync(outAbs, png);
   return true;
@@ -239,8 +235,6 @@ export async function measureBrand(root: string, slug: string, name: string, giv
       const page = await context.newPage();
       try {
         const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT }).catch(() => null);
-        // Memoria de bloqueos (punto 2, 2026-10-07): solo con la web que da el equipo (las adivinadas pueden no ser suyas).
-        if (res && url === givenUrl && isBlockedPage(res.status(), await page.title().catch(() => ''))) markBlocked(root, slug, url, 'medición de identidad');
         if (!res || res.status() >= 400) continue;
         await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => undefined);
         await acceptCookies(page);
