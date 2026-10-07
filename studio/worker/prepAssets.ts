@@ -44,15 +44,28 @@ export interface PreparedAssets {
 
 const WHITE_NAME = (f: string): boolean => /white|blanc|negativ/i.test(f.replace(/on-white/i, ''));
 
-/** El logo de partida: el medido en la web o el mejor de design-input (nunca la versión blanca si hay otra). */
-export function logoSource(root: string, slug: string): string | null {
+/** ¿Tiene la imagen algún píxel visible? (Inglesina, 2026-10-07: la medición guardó un logo-medido.png transparente del
+ *  todo, y el worker lo copiaba a la pieza como «logo oficial: úsalo tal cual».) */
+export async function hasVisiblePixels(src: string | Buffer): Promise<boolean> {
+  try {
+    const { data, info } = await sharp(src).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (let i = 3; i < data.length; i += info.channels) if (data[i] >= 128) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** El logo de partida: el medido en la web (si se ve algo) o el mejor de design-input (nunca la versión blanca si hay otra). */
+export async function logoSource(root: string, slug: string): Promise<string | null> {
   if (!slug) return null;
   const measured = path.join(root, 'brands', slug, 'design-input', 'logo-medido.png');
-  if (fs.existsSync(measured)) return measured;
+  if (fs.existsSync(measured) && (await hasVisiblePixels(measured))) return measured;
   const { dir, logos } = brandAssets(root, slug);
+  const others = logos.filter((f) => f !== 'logo-medido.png');
   const score = (f: string): number =>
     (WHITE_NAME(f) ? 100 : 0) + (/email/i.test(f) ? -2 : 0) + (/black|negro|color|dark/i.test(f) ? -1 : 0) + (/\.(jpe?g|webp|gif)$/i.test(f) ? 1 : 0);
-  const best = [...logos].sort((a, b) => score(a) - score(b) || a.length - b.length)[0];
+  const best = [...others].sort((a, b) => score(a) - score(b) || a.length - b.length)[0];
   return best ? path.join(root, dir, best) : null;
 }
 
@@ -150,19 +163,21 @@ export async function prepareAssets(
   outAbs: string,
   photos: { file: string; ambient?: boolean }[]
 ): Promise<PreparedAssets> {
-  const src = logoSource(root, slug);
+  const src = await logoSource(root, slug);
   const logo = src ? await prepareLogo(src, outAbs).catch(() => null) : null;
   const out: PreparedPhoto[] = [];
   for (const p of photos) {
-    const abs = path.join(outAbs, p.file);
+    // En la ficha, `file` es la descripción de fetch-image («foto-1.jpg (1200×800, 245 KB)»): el nombre es lo primero.
+    const name = p.file.replace(/\s*\(.*$/, '').trim();
+    const abs = path.join(outAbs, name);
     const meta = await sharp(abs).metadata().catch(() => null);
     if (!meta?.width || !meta.height) continue;
-    const photo: PreparedPhoto = { file: p.file, width: meta.width, height: meta.height };
+    const photo: PreparedPhoto = { file: name, width: meta.width, height: meta.height };
     // Solo fotos de producto (las de ambiente se usan como son).
     const box = p.ambient ? null : await cropOnPlainBackground(abs).catch(() => null);
     if (box) {
-      const ext = path.extname(p.file);
-      const file = `${p.file.slice(0, -ext.length)}-recorte${ext}`;
+      const ext = path.extname(name);
+      const file = `${name.slice(0, -ext.length)}-recorte${ext}`;
       await sharp(abs).extract(box).toFile(path.join(outAbs, file));
       photo.crop = { file, width: box.width, height: box.height };
     }

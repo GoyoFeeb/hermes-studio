@@ -1033,10 +1033,11 @@ test('Punto 6 (2026-10-07): Studio prepara el logo en dos versiones, los recorte
     await sharp({ create: { width: 1000, height: 1200, channels: 3, background: '#ffffff' } }).composite([{ input: shoe, left: 300, top: 500 }]).jpeg().toFile(path.join(out, 'ambiente.jpg'));
     const noise = Buffer.alloc(200 * 100 * 3); for (let i = 0; i < noise.length; i++) noise[i] = (i * 97) % 256;
     await sharp(noise, { raw: { width: 200, height: 100, channels: 3 } }).png().toFile(path.join(out, 'calle.png'));
-    const prep = await p.prepareAssets(root, 'marca', out, [{ file: 'producto.jpg' }, { file: 'ambiente.jpg', ambient: true }, { file: 'calle.png' }]);
+    // Como llegan de la ficha: la descripción de fetch-image, no solo el nombre (Inglesina, 2026-10-07).
+    const prep = await p.prepareAssets(root, 'marca', out, [{ file: 'producto.jpg (1000×1200, 80 KB)' }, { file: 'ambiente.jpg (1000×1200, 80 KB)', ambient: true }, { file: 'calle.png' }]);
     const white = await sharp(path.join(out, 'logo-email-blanco.png')).raw().toBuffer({ resolveWithObject: true });
     const firstVisible = [...Array(white.data.length / 4).keys()].map((i) => i * 4).find((i) => white.data[i + 3] > 128);
-    process.stdout.write(JSON.stringify({ source: path.basename(p.logoSource(root, 'marca')), logo: prep.logo, photos: prep.photos, whitePx: [...white.data.slice(firstVisible, firstVisible + 3)], note: p.preparedNote(prep, 'newsletters/2026/marca/hermes/x') }));
+    process.stdout.write(JSON.stringify({ source: path.basename(await p.logoSource(root, 'marca')), logo: prep.logo, photos: prep.photos, whitePx: [...white.data.slice(firstVisible, firstVisible + 3)], note: p.preparedNote(prep, 'newsletters/2026/marca/hermes/x') }));
   `);
   assert.equal(r.source, 'logo-marca.png', 'nunca la versión blanca como base');
   assert.deepEqual([r.logo.width, r.logo.height, r.logo.tone, r.logo.transparent], [300, 80, 'dark', true], 'sin márgenes');
@@ -1146,4 +1147,21 @@ test('Imagen principal (2026-10-07): una pieza sin ninguna foto es error aunque 
   assert.match(r.none.errors[0], /no tiene ninguna foto/);
   // Con fotos pero sin imagen principal arriba y sin candidatas de Studio, sigue siendo aviso.
   assert.deepEqual([r.lowNoGallery.errors.length, r.lowNoGallery.warnings.length], [0, 1]);
+});
+
+test('Logo medido vacío (Inglesina, 2026-10-07): no se usa como logo oficial', () => {
+  const r = run(`
+    const fs = require('fs'), os = require('os'), path = require('path'), sharp = require('sharp');
+    const p = require(${mod('prepAssets.ts')});
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'blank-'));
+    const dir = path.join(root, 'brands', 'marca', 'design-input'); fs.mkdirSync(dir, { recursive: true });
+    await sharp({ create: { width: 280, height: 80, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toFile(path.join(dir, 'logo-medido.png'));
+    const onlyBlank = await p.logoSource(root, 'marca');
+    const ink = await sharp({ create: { width: 100, height: 40, channels: 4, background: '#222222ff' } }).png().toFile(path.join(dir, 'logo-marca.png'));
+    const withOther = await p.logoSource(root, 'marca');
+    process.stdout.write(JSON.stringify({ blank: await p.hasVisiblePixels(path.join(dir, 'logo-medido.png')), onlyBlank, withOther: withOther && path.basename(withOther) }));
+  `);
+  assert.equal(r.blank, false);
+  assert.equal(r.onlyBlank, null, 'sin otro logo, ninguno');
+  assert.equal(r.withOther, 'logo-marca.png', 'el vacío se salta y se usa otro de la marca');
 });

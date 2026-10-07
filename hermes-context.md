@@ -2490,3 +2490,16 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
 - `photoFindings` (renderChecks.ts): una pieza nueva sin ninguna foto (aparte del logo) es error aunque la galería de
   Studio no traiga candidatas (antes, aviso). Comprobado: la pieza de Prozis daría error.
 - `needsImprovement`: también con tres o más criterios por debajo de 4. Tests (242).
+
+### 2026-10-07 — Incidencia: Hermes sin sesión e Inglesina (3 intentos fallidos, 11:07-11:08)
+- Causa de los fallos: Hermes perdió su inicio de sesión en Nous Portal («No access token found for Nous Portal login.
+  Run `hermes model` to re-authenticate.»); cada borrador moría en 2-3 s con código 1. No viene de los cambios del día
+  (Prozis funcionó a las 10:38). Worker DETENIDO con `launchctl bootout gui/501/com.hermes-studio.worker` (plist
+  intacto) para que las piezas esperen en cola en vez de fallar. Reanudar tras `hermes model`: `studio/worker/service.sh install`.
+- Encontrados al investigar y corregidos:
+  - `prepareAssets` recibía de la ficha `file` = descripción de fetch-image («foto-1.jpg (1200×800, 245 KB)») y no
+    encontraba ninguna foto (Inglesina: «0 fotos» con 12 descargadas). Ahora toma el nombre.
+  - `brands/inglesina/design-input/logo-medido.png` está transparente del todo (la medición guardó un logo invisible) y
+    el worker lo copiaba a la pieza como «logo oficial: úsalo tal cual». `hasVisiblePixels`: la medición ya no guarda
+    logos vacíos, el worker no los copia y `logoSource` los salta. Solo Inglesina lo tenía; falta su logo oficial.
+- Tests: 243.

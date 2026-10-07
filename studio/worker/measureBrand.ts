@@ -17,6 +17,7 @@ import * as path from 'path';
 import type { Browser, Page } from 'playwright';
 import sharp from 'sharp';
 import { markBlocked } from './brandMemory';
+import { hasVisiblePixels } from './prepAssets';
 import { isBlockedPage } from './productSheet';
 import { launchBrowser } from './renderChecks';
 
@@ -213,7 +214,8 @@ async function saveLogo(browser: Browser, page: Page, logo: NonNullable<Extracte
     // Si la web no deja descargarlo, una captura del propio elemento.
     if (!png) png = await page.locator('[data-studio-logo="1"]').first().screenshot({ omitBackground: true }).catch(() => null);
   }
-  if (!png) return false;
+  // Un logo sin ningún píxel visible no es un logo (Inglesina, 2026-10-07): mejor ninguno.
+  if (!png || !(await hasVisiblePixels(png))) return false;
   fs.mkdirSync(path.dirname(outAbs), { recursive: true });
   fs.writeFileSync(outAbs, png);
   return true;

@@ -33,7 +33,7 @@ import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrl
 import { captureBrandWeb, renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
-import { prepareAssets, preparedNote } from './prepAssets';
+import { hasVisiblePixels, prepareAssets, preparedNote } from './prepAssets';
 import { bestPreviousPiece, blockedInfo, blockedNote, markBlocked, markOpen, previousIdentity, previousIdentityNote, previousPieces, previousPiecesNote, referenceNote, rememberLogo } from './brandMemory';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
@@ -462,9 +462,10 @@ export function selfContainedNote(outputDir: string, root = ROOT): string {
 }
 
 /** El logo medido, ya en la carpeta del trabajo (Hermes tardaba minutos en copiarlo). Devuelve su nombre o null. */
-function copyMeasuredLogo(slug: string, outAbs: string): string | null {
+async function copyMeasuredLogo(slug: string, outAbs: string): Promise<string | null> {
   const src = path.join(ROOT, 'brands', slug, 'design-input', 'logo-medido.png');
-  if (!slug || !fs.existsSync(src)) return null;
+  // Un logo medido transparente del todo no se copia ni se da como «oficial» (Inglesina, 2026-10-07).
+  if (!slug || !fs.existsSync(src) || !(await hasVisiblePixels(src))) return null;
   try {
     fs.copyFileSync(src, path.join(outAbs, 'logo-medido.png'));
     return 'logo-medido.png';
@@ -1317,7 +1318,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       }
       timeline.end();
     }
-    const logo = copyMeasuredLogo(slug, outAbs);
+    const logo = await copyMeasuredLogo(slug, outAbs);
     if (logo) logoNote = `\n- Logo oficial medido ya copiado en ${claimed.outputDir}/${logo}: úsalo tal cual (no lo copies ni lo busques).`;
     // 2c. Imágenes preparadas (punto 6, 2026-10-07): logo en dos versiones, recortes y medidas, sin modelo.
     try {
