@@ -2656,7 +2656,7 @@ function renderBrandHead(scoped) {
   const fresh = brandHeadFor !== brand;
   brandHeadFor = brand;
   box.hidden = false;
-  box.className = `brand-head${fresh && motionOk() ? ' is-in' : ''}`;
+  box.className = `hist-brand-head${fresh && motionOk() ? ' is-in' : ''}`;
   box.innerHTML =
     `<div class="bh-id">${logo}<div><p class="bh-name">${escapeHtml(name)}</p>` +
     (colors.length ? `<ul class="peek-colors bh-colors" aria-label="Colores de la marca">${colors.map((c, n) => `<li style="--n:${n};--c:${c.value}" title="${escapeHtml(`${c.labels.join(' · ')} ${c.value}`)}"><span>${escapeHtml(c.value)}</span></li>`).join('')}</ul>` : '') +
@@ -3185,9 +3185,25 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Cabecera fija (como la .navbar de la web): siempre a la vista; al bajar, un fondo translúcido para que se lea.
 const topbar = document.querySelector('.topbar');
-const markScrolled = () => topbar.classList.toggle('is-scrolled', window.scrollY > 8);
+// Cabecera compacta (2026-10-07): al bajar se estrecha y aparece «+ Nueva»; fuera de la portada (un trabajo, una
+// marca) «+ Nueva» está siempre. En la portada, solo cuando el formulario ya no se ve.
+const markScrolled = () => {
+  topbar.classList.toggle('is-scrolled', window.scrollY > 8);
+  const form = document.getElementById('brief-form');
+  const onHome = !viewForm.hidden;
+  const formSeen = onHome && form && form.getBoundingClientRect().bottom > 80 && form.getBoundingClientRect().top < window.innerHeight;
+  const show = !onHome || (window.scrollY > 240 && !formSeen);
+  topbar.classList.toggle('has-new', show);
+  document.getElementById('topbar-new').tabIndex = show ? 0 : -1;
+};
 window.addEventListener('scroll', markScrolled, { passive: true });
 markScrolled();
+// Al cambiar de vista (portada, trabajo, marca) también cambia si sale «+ Nueva».
+new MutationObserver(markScrolled).observe(viewForm, { attributes: true, attributeFilter: ['hidden'] });
+document.getElementById('topbar-new').addEventListener('click', () => {
+  sideMenu.querySelector('[data-menu="new"]').click();
+  setTimeout(() => clientNameInput.focus({ preventScroll: true }), 450);
+});
 
 // Entradas al hacer scroll (como las de la web), solo en la portada: títulos de sección, cifras y «Ahora mismo».
 // Nunca en la vista previa ni en formularios; con menos movimiento o sin IntersectionObserver, todo quieto.
@@ -3473,10 +3489,18 @@ function renderBrandView(slug, data) {
     ? `<img src="${escapeHtml(card.logo)}" alt="Logo de ${escapeHtml(name)}" />`
     : `<span>${escapeHtml(initials)}</span>`;
   const when = (iso) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-  const head = `<div class="brand-head">
+  // Portada de marca (2026-10-07): cabecera grande con el color principal de la marca, sus cifras y, debajo, paleta en
+  // fichas, muestra de tipografía y todas sus newsletters en galería.
+  const accent = brandAccent(card?.colors || []);
+  const nCount = (data?.newsletters || []).length;
+  const qPts = data?.quality?.points || [];
+  const qAvg = qPts.length ? Math.round(qPts.reduce((n, p) => n + p.pct, 0) / qPts.length) : null;
+  const head = `<div class="brand-head bv-hero"${accent ? ` style="--brand:${accent}"` : ''}>
       <div class="brand-logo${card?.logoOnDark ? ' is-dark' : ''}">${logo}</div>
-      <div>
+      <div class="bv-id">
+        <p class="eyebrow">Ficha de marca</p>
         <h2 id="brand-title" tabindex="-1">${escapeHtml(name)}</h2>
+        <p class="bv-stats">${nCount ? `<span><b>${nCount}${nCount === 12 ? '+' : ''}</b> newsletter${nCount === 1 ? '' : 's'}</span>` : ''}${qAvg !== null ? `<span><b>${qAvg} %</b> calidad media</span>` : ''}</p>
         <p class="hint">${
           !card
             ? 'Sin ficha todavía'
@@ -3497,9 +3521,10 @@ function renderBrandView(slug, data) {
   } else if (!card.hasPack) {
     content = `<p class="brand-empty">Esta marca no tiene brand pack medido. Hermes investiga su web en cada newsletter: lo que encontró (colores, tono, fuentes) está en el brief y en la autoauditoría de cada una.</p>`;
   } else {
+    // Paleta en fichas: el color grande arriba y su nombre y código debajo; al pulsar, se copia el código.
     const colors = card.colors
       .filter((c) => SAFE_COLOR.test(c.value))
-      .map((c, n) => `<li style="--n:${n}"><span class="swatch" style="background:${c.value}"></span><span class="swatch-label">${escapeHtml(c.labels.join(' · '))}</span><code>${escapeHtml(c.value)}</code></li>`)
+      .map((c, n) => `<li style="--n:${n}"><button type="button" class="bv-chip" data-copy-color="${escapeHtml(c.value)}" title="Copiar ${escapeHtml(c.value)}"><span class="bv-chip-color" style="background:${c.value}"></span><span class="bv-chip-label">${escapeHtml(c.labels.join(' · '))}</span><code>${escapeHtml(c.value)}</code></button></li>`)
       .join('');
     const ty = card.typography;
     const cta = card.cta;
@@ -3518,11 +3543,12 @@ function renderBrandView(slug, data) {
     content = [
       // Solo «en <web> el <fecha>»: el paréntesis técnico (getComputedStyle…) no le dice nada al equipo.
       card.measuredFrom ? `<p class="hint brand-source">Medido ${escapeHtml(card.measuredFrom.replace(/^observado\s+/i, '').split(' (')[0])}</p>` : '',
-      brandSection('Colores', colors ? `<ul class="swatches">${colors}</ul>` : ''),
+      brandSection('Colores', colors ? `<ul class="bv-palette">${colors}</ul>` : ''),
       brandSection(
         'Tipografía',
         ty
-          ? brandDl([
+          ? `<div class="bv-type"${accent ? ` style="--brand:${accent}"` : ''}><span class="bv-type-big" style="font-family:${escapeHtml(cssFamily(ty.display || ty.family))}">Aa</span><span class="bv-type-line" style="font-family:${escapeHtml(cssFamily(ty.family))}">${escapeHtml(name)} · El siguiente paso empieza aquí</span></div>` +
+            brandDl([
               ['Texto', ty.family],
               ['Titulares', ty.display],
               ['Fuente web', ty.webFont],
@@ -3580,11 +3606,15 @@ function renderBrandView(slug, data) {
         }`
       )
     : '';
+  // Sus newsletters en galería (antes, una lista de enlaces).
   const list = (data?.newsletters || [])
-    .map((n) => {
+    .map((n, i) => {
       const label = n.title || n.subject || new Date(n.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
       const versions = n.versions > 1 ? ` · ${n.versions} versiones` : '';
-      return `<li><a href="?job=${encodeURIComponent(n.id)}">${escapeHtml(label)}</a> <span class="hint">· ${escapeHtml(new Date(n.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))} · ${escapeHtml(STATUS_LABELS[n.status] || n.status)}${versions}</span></li>`;
+      const thumb = n.hasThumb
+        ? `<span class="bv-thumb"><img src="/api/jobs/${encodeURIComponent(n.id)}/thumb" alt="" loading="lazy" width="150" height="200"></span>`
+        : `<span class="bv-thumb"><span class="thumb-initials" style="--h:${brandHue(slug)}">${escapeHtml(initials)}</span></span>`;
+      return `<li style="--i:${i}"><a class="bv-card" href="?job=${encodeURIComponent(n.id)}">${thumb}<span class="bv-card-title">${escapeHtml(label)}</span><span class="hint">${escapeHtml(new Date(n.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }))} · ${escapeHtml(STATUS_LABELS[n.status] || n.status)}${versions}</span></a></li>`;
     })
     .join('');
   const q = data?.quality;
@@ -3602,8 +3632,51 @@ function renderBrandView(slug, data) {
       })()
     : brandSection('Calidad', '<p class="hint">Todavía sin notas: salen de la revisión de dirección de arte de cada newsletter nueva.</p>');
   const readonly = `<p class="brand-readonly">Solo lectura. El brand pack lo mide el agente de marca en la web real (cada valor con su procedencia). Si algo está mal, pide en una newsletter que Hermes lo vuelva a medir, o avisa a quien mantiene el sistema.</p>`;
-  body.innerHTML = head + readonly + content + assets + quality + brandSection('Newsletters de esta marca', list ? `<ul class="brand-newsletters">${list}</ul>` : '<p class="hint">Todavía ninguna.</p>');
+  body.innerHTML = head + readonly + content + assets + quality + brandSection('Newsletters de esta marca', list ? `<ul class="bv-gallery">${list}</ul>` : '<p class="hint">Todavía ninguna.</p>');
+  if (motionOk()) body.classList.add('is-in');
 }
+
+/** El color de la marca que mejor la representa: el más saturado que no sea casi blanco ni casi negro. Para el brillo
+ *  de su ficha y el toque de color de sus piezas abiertas (2026-10-07). null si no hay ninguno así. */
+function brandAccent(colors) {
+  let best = null;
+  let score = 0;
+  (colors || []).forEach((c, idx) => {
+    const m = String(c.value || '').match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (!m) return;
+    const hex = m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1];
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const light = (max + min) / 2;
+    const sat = max === min ? 0 : (max - min) / (1 - Math.abs(2 * light - 1));
+    if (light < 0.12 || light > 0.9 || sat < 0.25) return;
+    // La ficha lista primero los colores principales: cada puesto más abajo pesa un 12 % menos.
+    const sc = sat * (1 - Math.abs(light - 0.5)) * Math.max(0.3, 1 - idx * 0.12);
+    if (sc > score) {
+      score = sc;
+      best = `#${hex}`;
+    }
+  });
+  return best;
+}
+/** Nombre de fuente seguro para un style (solo letras, números, espacios y guiones) con su alternativa. */
+function cssFamily(name) {
+  const clean = String(name || '').split(',')[0].replace(/["']/g, '').replace(/[^\w \-]/g, '').trim();
+  return clean ? `'${clean}', Arial, sans-serif` : 'inherit';
+}
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest?.('[data-copy-color]');
+  if (!chip) return;
+  const hex = chip.dataset.copyColor;
+  navigator.clipboard?.writeText(hex).then(
+    () => showToast(`Copiado: ${hex}`),
+    () => showToast(`No se pudo copiar ${hex}.`, 'error')
+  );
+  chip.classList.remove('is-copied');
+  void chip.offsetWidth;
+  chip.classList.add('is-copied');
+});
 
 async function showBrandView(slug) {
   if (!confirmLeaveJob()) return;
@@ -5703,6 +5776,7 @@ async function poll(id) {
   if (justDone) celebrateJobDone(job);
   else if (job.status !== 'completed' || doneSummaryFor !== job.id) hideDoneSummary();
   renderJobName(familyTitle, meta);
+  applyJobAccent(job.input.clientSlug);
   renderVersions(job, versions || []);
   currentJobData = job;
   currentVersions = versions || [];
@@ -7136,6 +7210,33 @@ function rollText(el, text) {
 function plainText(el, text) {
   delete el.dataset.roll;
   el.textContent = text;
+}
+
+/** Tema de marca en la pieza abierta (2026-10-07): la página del trabajo toma un toque del color principal de su marca
+ *  (una franja arriba, un brillo suave, la línea de las pestañas y las píldoras activas). Sin ficha o sin un color
+ *  claro, se queda como siempre. */
+let jobAccentFor = null;
+function applyJobAccent(slug) {
+  if (slug === jobAccentFor) return;
+  jobAccentFor = slug;
+  const set = (accent) => {
+    if (jobAccentFor !== slug) return;
+    viewJob.classList.toggle('has-accent', !!accent);
+    if (accent) viewJob.style.setProperty('--job-accent', accent);
+    else viewJob.style.removeProperty('--job-accent');
+  };
+  set(null);
+  if (!slug) return;
+  const cached = brandSummaries.get(slug);
+  if (cached) return set(brandAccent(cached.card?.colors || []));
+  apiFetch(`/api/brands/${encodeURIComponent(slug)}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (!d) return;
+      brandSummaries.set(slug, d);
+      set(brandAccent(d.card?.colors || []));
+    })
+    .catch(() => undefined);
 }
 
 /** Pieza recién terminada (2026-10-07): la maqueta que se estaba construyendo vuela y crece hasta la vista previa y se

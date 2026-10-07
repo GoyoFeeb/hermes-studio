@@ -615,6 +615,8 @@ app.get('/api/brands/:slug', (req: Request, res: Response) => {
       title: root.title || null,
       subject: cachedSubject(latest),
       versions: count,
+      // Para la galería de la ficha de marca (2026-10-07).
+      hasThumb: !!latest.thumbRelPath,
     }));
   const stored = readBrandCard(slug);
   // Calidad (2026-10-06, punto 7): la nota de cada pieza con revisión de arte, por fecha, y los criterios más flojos.
