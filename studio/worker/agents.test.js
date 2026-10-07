@@ -1112,3 +1112,21 @@ test('brandAssets (2026-10-07): las capturas no se ofrecen como fotos de la marc
   assert.deepEqual(r.logos, ['logo.png']);
   assert.deepEqual(r.photos, ['hero.jpg', 'previewer-campaign.jpg']);
 });
+
+test('Retoques (2026-10-07): herramientas de «Adaptar a móvil» y «Pedir cambios»', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    const s = require(${JSON.stringify(path.join(__dirname, '../server/standalone.ts'))});
+    const job = (imageMode) => ({ id: 'x', createdAt: '2026-10-07T10:00:00Z', input: { clientName: 'Nike', clientSlug: 'nike', briefText: '# Brief', imageMode, changeRequest: 'cambia el titular' } });
+    process.stdout.write(JSON.stringify({
+      mobile: w.editTools('mobile-fix', 'cualquier cosa'),
+      revision: w.editTools('revision', s.buildRevisionPrompt(job('official'))),
+      revisionAi: w.editTools('revision', s.buildRevisionPrompt(job('ai'))),
+      revisionBlocked: w.editTools('revision', s.buildRevisionPrompt(job('official')), true),
+    }));
+  `);
+  assert.deepEqual(r.mobile, ['-t', 'terminal,file,vision']);
+  assert.deepEqual(r.revision, ['-t', 'web,browser,terminal,file,vision']);
+  assert.deepEqual(r.revisionAi, ['-t', 'web,browser,terminal,file,vision,image_gen']);
+  assert.deepEqual(r.revisionBlocked, ['-t', 'web,terminal,file,vision']);
+});

@@ -2475,3 +2475,10 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   IA y las notas `.txt`, ni `brands/mazda/` ni la plantilla de Paraycompara.
   `brandAssets` (brandCard.ts) ya no ofrece capturas como fotos (`SCREENSHOT`: `*preview-*`, `hero-source-page-*`,
   `render-*`, `captura-*`, `screenshot-*`). Test nuevo (240).
+
+### 2026-10-07 — Retoques con herramientas por fase (pedido por el usuario)
+- `editTools` (hermes-worker.ts): «Adaptar a móvil» → terminal,file,vision; «Pedir cambios» → web,browser,terminal,file,
+  vision (+image_gen si la pieza es de IA; sin browser si la web de la marca está marcada como bloqueada, y con
+  `blockedNote`). Antes cargaban todas las herramientas. Conservan búsqueda/navegador porque su encargo permite un dato o
+  una foto nueva de la web oficial. No se les da memoria de marca, imágenes preparadas ni referencia: parten de una pieza
+  hecha. Ganancia esperada pequeña (los cambios ya duran 1-3 min). Test nuevo (241).

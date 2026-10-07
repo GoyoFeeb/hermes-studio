@@ -588,6 +588,13 @@ export const TOOLS_REVIEW = toolsets('terminal,file,vision');
  *  completo») nadie ha investigado antes: la pieza conserva búsqueda y navegador (2026-10-07). */
 export const draftTools = (prompt: string, briefDone = true, blocked = false): string[] =>
   toolsets([...(briefDone ? [] : ['web', ...(blocked ? [] : ['browser'])]), 'terminal', 'file', 'vision', ...(/GENÉRALAS CON IA/.test(prompt) ? ['image_gen'] : [])].join(','));
+/** Retoques (2026-10-07): «Adaptar a móvil» solo toca el HTML; «Pedir cambios» puede necesitar un dato o una foto nueva
+ *  de la web oficial (su encargo lo permite), así que conserva búsqueda y navegador (sin navegador si la web bloquea a
+ *  Studio) y, en piezas de IA, la generación de imágenes. Antes, los dos cargaban todas las herramientas. */
+export const editTools = (kind: 'mobile-fix' | 'revision', prompt: string, blocked = false): string[] =>
+  kind === 'mobile-fix'
+    ? toolsets('terminal,file,vision')
+    : toolsets(['web', ...(blocked ? [] : ['browser']), 'terminal', 'file', 'vision', ...(/generarla con IA/.test(prompt) ? ['image_gen'] : [])].join(','));
 /** Brief de una marca cuya web bloquea a Studio (punto 2, 2026-10-07): búsqueda sí, navegador no. */
 export const briefTools = (blocked: boolean): string[] => (blocked ? toolsets('web,terminal,file,vision') : TOOLS_BRIEF);
 
@@ -1440,7 +1447,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     (isMobileFix
       ? ''
       : isRevision
-      ? brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE
+      ? brandAssetsNote(job.outputDir) + blockedNote(claimed.brand?.name || slug, blockedInfo(ROOT, slug)) + WEB_ACCESS_NOTE
       : identity +
         logoNote +
         productNote +
@@ -1454,7 +1461,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
-  const reasoning = [...draftReasoningArgs(!!editKind), ...(editKind ? [] : draftTools(job.prompt, !!claimed.briefPrompt, !!blockedInfo(ROOT, slug)))];
+  const blockedNow = !!blockedInfo(ROOT, slug);
+  const tools = editKind ? editTools(editKind, job.prompt, blockedNow) : draftTools(job.prompt, !!claimed.briefPrompt, blockedNow);
+  const reasoning = [...draftReasoningArgs(!!editKind), ...tools];
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
   sessionId = sessionId || watched;
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
@@ -1490,7 +1499,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       sessionId,
       () => undefined,
       model,
-      editKind ? [] : draftTools(job.prompt, !!claimed.briefPrompt, !!blockedInfo(ROOT, slug))
+      tools
     );
   }
   timeline.end(Math.max(0, lastCount));
