@@ -16,6 +16,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Browser, Page } from 'playwright';
 import sharp from 'sharp';
+import { markBlocked } from './brandMemory';
+import { isBlockedPage } from './productSheet';
 import { launchBrowser } from './renderChecks';
 
 export interface MeasuredIdentity {
@@ -235,6 +237,8 @@ export async function measureBrand(root: string, slug: string, name: string, giv
       const page = await context.newPage();
       try {
         const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT }).catch(() => null);
+        // Memoria de bloqueos (punto 2, 2026-10-07): solo con la web que da el equipo (las adivinadas pueden no ser suyas).
+        if (res && url === givenUrl && isBlockedPage(res.status(), await page.title().catch(() => ''))) markBlocked(root, slug, url, 'medición de identidad');
         if (!res || res.status() >= 400) continue;
         await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => undefined);
         await acceptCookies(page);

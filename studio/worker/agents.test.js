@@ -869,3 +869,54 @@ test('Auditoría de tiempo (2026-10-07): herramientas por fase, orientación y t
   assert.deepEqual(r.caps, [5 * 60 * 1000, 8 * 60 * 1000]);
   assert.equal(r.below, 0.72);
 });
+
+test('Memoria de marca (punto 2, 2026-10-07): webs que bloquean, assets de piezas anteriores y logo recordado', () => {
+  const r = run(`
+    const fs = require('fs'), os = require('os'), path = require('path');
+    const m = require(${mod('brandMemory.ts')});
+    const w = require(${mod('hermes-worker.ts')});
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'brandmem-'));
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    const piece = (rel, files, notes) => {
+      const d = path.join(root, rel); fs.mkdirSync(d, { recursive: true });
+      fs.writeFileSync(path.join(d, 'newsletter.html'), '<html></html>');
+      for (const f of files) fs.writeFileSync(path.join(d, f), f.includes('ia') ? Buffer.concat([png, Buffer.from('trainedAlgorithmicMedia')]) : png);
+      if (notes) fs.writeFileSync(path.join(d, 'notas.md'), notes);
+    };
+    piece('newsletters/2026/lacoste/hermes/2026-10-02-aaa', ['lacoste-logo.png', 'polo.jpg', 'render-600.png'], '# Notas\\n## 3. Origen de cada imagen\\n- polo.jpg: https://www.lacoste.com/es/polo\\n## 4. Otra cosa\\n- nada.png suelto');
+    piece('newsletters/2026/lacoste/hermes/2026-10-06-bbb', ['lacoste-logo-white.png', 'lacoste-logo.png', 'hero-ia.png']);
+    piece('newsletters/2026/lacoste/hermes/_fallido-2026-10-05-ccc', ['otra.png']);
+    piece('newsletters/2026/lacoste/hermes/2026-10-07-ddd', ['actual.png']);
+    const t0 = new Date('2026-10-07T10:00:00Z');
+    const before = m.blockedInfo(root, 'lacoste', t0.getTime());
+    m.markBlocked(root, 'lacoste', 'https://www.lacoste.com/es/', 'ficha de producto', t0);
+    const fresh = m.blockedInfo(root, 'lacoste', t0.getTime() + 5 * 86400000);
+    const old = m.blockedInfo(root, 'lacoste', t0.getTime() + 31 * 86400000);
+    const note = m.blockedNote('Lacoste', fresh);
+    const pieces = m.previousPieces(root, 'lacoste', 'newsletters/2026/lacoste/hermes/2026-10-07-ddd');
+    const pnote = m.previousPiecesNote(pieces);
+    const logo = m.rememberLogo(root, 'lacoste', path.join(root, 'newsletters/2026/lacoste/hermes/2026-10-06-bbb'));
+    const logoAgain = m.rememberLogo(root, 'lacoste', path.join(root, 'newsletters/2026/lacoste/hermes/2026-10-06-bbb'));
+    m.markOpen(root, 'lacoste');
+    const opened = m.blockedInfo(root, 'lacoste', t0.getTime());
+    process.stdout.write(JSON.stringify({ before, fresh: !!fresh, old, note, pieces, pnote, logo, logoAgain, opened,
+      brief: [w.briefTools(false), w.briefTools(true)], draftBlocked: w.draftTools('x', false, true) }));
+  `);
+  assert.equal(r.before, null);
+  assert.equal(r.fresh, true);
+  assert.equal(r.old, null, 'a los 30 días se olvida');
+  assert.match(r.note, /bloquea a Studio/);
+  assert.match(r.note, /No la abras con el navegador/);
+  // La más reciente primero, sin la actual ni los fallidos, sin renders ni fotos de IA.
+  assert.deepEqual(r.pieces.map((p) => p.dir.split('/').pop()), ['2026-10-06-bbb', '2026-10-02-aaa']);
+  assert.deepEqual(r.pieces[0].photos, []);
+  assert.deepEqual(r.pieces[1].photos, ['polo.jpg']);
+  assert.deepEqual(r.pieces[1].origins, ['polo.jpg: https://www.lacoste.com/es/polo']);
+  assert.match(r.pnote, /cópialos a la carpeta de este encargo/);
+  // La marca no tenía logo: se guarda el de la pieza (la versión para fondo claro), y solo una vez.
+  assert.equal(r.logo, 'brands/lacoste/design-input/logo-pieza.png');
+  assert.equal(r.logoAgain, null);
+  assert.equal(r.opened, null);
+  assert.deepEqual(r.brief, [['-t', 'web,browser,terminal,file,vision'], ['-t', 'web,terminal,file,vision']]);
+  assert.deepEqual(r.draftBlocked, ['-t', 'web,terminal,file,vision']);
+});

@@ -33,6 +33,7 @@ import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrl
 import { captureBrandWeb, renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
+import { blockedInfo, blockedNote, markBlocked, markOpen, previousPieces, previousPiecesNote, rememberLogo } from './brandMemory';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
 
@@ -576,8 +577,10 @@ export const TOOLS_BRIEF = toolsets('web,browser,terminal,file,vision');
 export const TOOLS_REVIEW = toolsets('terminal,file,vision');
 /** Pieza nueva: maquetar, comprobar y mirar; con imágenes de IA, también generarlas. Sin fase de brief («Prompt
  *  completo») nadie ha investigado antes: la pieza conserva búsqueda y navegador (2026-10-07). */
-export const draftTools = (prompt: string, briefDone = true): string[] =>
-  toolsets([...(briefDone ? [] : ['web', 'browser']), 'terminal', 'file', 'vision', ...(/GENÉRALAS CON IA/.test(prompt) ? ['image_gen'] : [])].join(','));
+export const draftTools = (prompt: string, briefDone = true, blocked = false): string[] =>
+  toolsets([...(briefDone ? [] : ['web', ...(blocked ? [] : ['browser'])]), 'terminal', 'file', 'vision', ...(/GENÉRALAS CON IA/.test(prompt) ? ['image_gen'] : [])].join(','));
+/** Brief de una marca cuya web bloquea a Studio (punto 2, 2026-10-07): búsqueda sí, navegador no. */
+export const briefTools = (blocked: boolean): string[] => (blocked ? toolsets('web,terminal,file,vision') : TOOLS_BRIEF);
 
 /** Orientación (auditoría de tiempo, 2026-10-07): cada sesión nueva gastaba ~8 turnos (~1,5 min) leyendo AGENTS.md y
  *  CLAUDE.md, buscando carpetas y mirando git, aunque el encargo trae lo que necesita. Va al final de cada sesión nueva. */
@@ -814,6 +817,11 @@ async function runBriefStep(
 ): Promise<{ prompt: string; seconds: number; actions: number } | { paused: true } | { error: string }> {
   const started = Date.now();
   const briefFile = path.join(outAbs, 'brief.md');
+  // Memoria de la marca (punto 2, 2026-10-07): web que bloquea y assets de piezas anteriores.
+  const memSlug = job.brand?.slug || job.outputDir.split(path.sep)[2] || '';
+  const blocked = blockedInfo(ROOT, memSlug);
+  const memoryNote = blockedNote(job.brand?.name || memSlug, blocked) + previousPiecesNote(previousPieces(ROOT, memSlug, job.outputDir));
+  const tools = briefTools(!!blocked);
   const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
   let sessionId: string | null = null;
   let busy = false;
@@ -880,11 +888,11 @@ async function runBriefStep(
   const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
 
   let turn = await runHermesTurn(
-    job.briefPrompt! + identity + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
+    job.briefPrompt! + identity + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + memoryNote + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
     null,
     (id) => (sessionId = sessionId || id),
     MODELS.brief,
-    TOOLS_BRIEF
+    tools
   );
   firstTurn = false;
   for (let i = 1; i <= 3 && !ready() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
@@ -894,7 +902,7 @@ async function runBriefStep(
         'Escríbelo AHORA con write_file, con lo que ya tengas (lo que no hayas podido verificar va a «Fuera de la pieza»; ' +
         'cita la URL exacta de la ficha del producto: Studio saca de ella precio, envío y fotos). Sin texto previo: llama a la herramienta.';
     loops.nudge = null;
-    turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief, TOOLS_BRIEF);
+    turn = await runHermesTurn(message, sessionId, () => undefined, MODELS.brief, tools);
   }
   // Autocrítica del brief (2026-10-06, punto 3 de la auditoría): una vuelta en la misma sesión, sin navegar, que relee
   // el brief como director creativo y reescribe lo que no pase. Incluye lo que la petición pide y el brief no recoge
@@ -907,7 +915,7 @@ async function runBriefStep(
     }
     console.log(`[${stamp()}] Brief de ${job.id}: autocrítica`);
     void api(`/api/worker/jobs/${job.id}/progress`, { message: 'Hermes relee el brief como director creativo y corrige lo que no pasa.' }).catch(() => undefined);
-    await runHermesTurn(briefCritiqueQuery(job.outputDir, gaps, job.request), sessionId, () => undefined, MODELS.brief, TOOLS_BRIEF);
+    await runHermesTurn(briefCritiqueQuery(job.outputDir, gaps, job.request), sessionId, () => undefined, MODELS.brief, tools);
   }
   clearInterval(heartbeat);
   clearTimeout(killer);
@@ -1129,7 +1137,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // sin brand pack, y una vez cada 90 días. El brief y el encargo la reciben ya resuelta.
   let identity = '';
   if (!editKind && slug) {
-    if (needsMeasure(ROOT, slug)) {
+    const knownBlock = blockedInfo(ROOT, slug);
+    if (knownBlock) {
+      console.log(`[${stamp()}] ${claimed.id}: la web de la marca bloquea a Studio (desde ${knownBlock.blockedAt.slice(0, 10)}): no se mide; Hermes usará búsqueda y piezas anteriores.`);
+    } else if (needsMeasure(ROOT, slug)) {
       timeline.start('measure', 'Identidad medida en la web');
       await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Midiendo la identidad de la marca en su web (tipografía, colores, botones y logo)…' }).catch(() => undefined);
       try {
@@ -1210,6 +1221,18 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       try {
         const sheet = await withTimeout(buildProductSheet(urls, outAbs, { photos, gallery }), PRODUCT_TIMEOUT_MS);
         productNote = sheet ? productSheetNote(sheet, claimed.outputDir) : '';
+        // Memoria de bloqueos (punto 2): una página bloqueada se recuerda 30 días; una leída bien, lo olvida.
+        // Solo páginas de la propia marca (el dominio lleva su nombre): una prensa o un tercero que bloquee no cuenta.
+        const ownSite = (u: string): boolean => {
+          try {
+            return new URL(u).hostname.replace(/[^a-z0-9]/gi, '').toLowerCase().includes(slug.replace(/-/g, '').toLowerCase());
+          } catch {
+            return false;
+          }
+        };
+        const blockedPage = sheet?.pages.find((p) => p.blocked && ownSite(p.url));
+        if (blockedPage) markBlocked(ROOT, slug, blockedPage.url, 'ficha de producto');
+        else if (sheet?.pages.some((p) => !p.blocked && ownSite(p.url) && (p.price || p.title))) markOpen(ROOT, slug);
         const price = sheet?.pages.find((p) => p.price)?.price;
         const msg = sheet
           ? `Ficha de producto: ${urls.length ? (price ? `precio ${price.amount} ${price.currency}` : 'sin precio') : 'sin ficha'} · ${sheet.photos.length} foto(s) descargada(s), ${sheet.photos.filter((p) => p.hero).length} candidata(s) a imagen principal.${sheet.pages.some((p) => p.blocked) ? ' La web oficial bloquea a Studio: Hermes elegirá la imagen principal.' : ''}`
@@ -1332,12 +1355,14 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         logoNote +
         productNote +
         brandAssetsNote(job.outputDir) +
+        (claimed.briefPrompt ? '' : blockedNote(claimed.brand?.name || slug, blockedInfo(ROOT, slug))) +
+        previousPiecesNote(previousPieces(ROOT, slug, job.outputDir)) +
         WEB_ACCESS_NOTE +
         selfContainedNote(job.outputDir) +
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
-  const reasoning = [...draftReasoningArgs(!!editKind), ...(editKind ? [] : draftTools(job.prompt, !!claimed.briefPrompt))];
+  const reasoning = [...draftReasoningArgs(!!editKind), ...(editKind ? [] : draftTools(job.prompt, !!claimed.briefPrompt, !!blockedInfo(ROOT, slug)))];
   let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
   sessionId = sessionId || watched;
   for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
@@ -1373,7 +1398,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       sessionId,
       () => undefined,
       model,
-      editKind ? [] : draftTools(job.prompt, !!claimed.briefPrompt)
+      editKind ? [] : draftTools(job.prompt, !!claimed.briefPrompt, !!blockedInfo(ROOT, slug))
     );
   }
   timeline.end(Math.max(0, lastCount));
@@ -1602,6 +1627,15 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   } else {
     if (!editKind) recordDuration(minutes);
     console.log(`[${stamp()}] ✓ ${job.id} en ${minutes} min`);
+    // Logo de la pieza guardado en la marca si esta no tenía ninguno (punto 2, 2026-10-07).
+    if (!editKind) {
+      try {
+        const kept = rememberLogo(ROOT, slug, outAbs);
+        if (kept) console.log(`[${stamp()}] ${job.id}: la marca no tenía logo guardado: se guarda el de la pieza en ${kept}`);
+      } catch {
+        // no es parte de la entrega
+      }
+    }
   }
   current = null;
 }

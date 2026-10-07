@@ -2386,3 +2386,17 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
 - Corrección (mismo día, antes de reiniciar el worker): las piezas con «Prompt completo» no tienen fase de brief y su
   borrador es quien investiga; `draftTools(prompt, briefDone)` les deja web y browser. Solo pierde el navegador el
   borrador que viene de un brief.
+
+### 2026-10-07 — Punto 2 de la auditoría de tiempo: webs que bloquean y memoria de marca (pedido por el usuario)
+- Nuevo `studio/worker/brandMemory.ts`:
+  - Memoria de bloqueos en `brands/<marca>/tokens/acceso-web.json` (30 días). La escribe la ficha de producto cuando
+    una página del propio dominio de la marca sale bloqueada (403/429/503, «Un momento…») y la medición de identidad
+    solo con la web que da el equipo; una página de la marca leída bien la borra (`markOpen`).
+  - Con la marca bloqueada: no se mide la identidad; el brief va sin navegador (`briefTools`: web,terminal,file,vision)
+    y con `blockedNote` («no la abras, usa web_search y piezas anteriores»); el borrador de «Prompt completo» igual.
+  - `previousPieces`/`previousPiecesNote`: las 2-3 últimas piezas terminadas de la marca (sin _fallido/_cancelado ni la
+    actual), con logo, fotos (sin renders ni imágenes con C2PA de IA) y las líneas de notas.md sobre su origen. Van al
+    brief y al borrador de toda pieza nueva.
+  - `rememberLogo`: al terminar una pieza, si la marca no tiene logo en design-input, se guarda el de la pieza como
+    `logo-pieza.png` (Lacoste no tenía carpeta de marca).
+- Test nuevo en agents.test.js (231). Pendientes de la auditoría: 6 y Q1-Q3.
