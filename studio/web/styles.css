@@ -2813,3 +2813,107 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 @keyframes peek-logo { from { opacity: 0; transform: scale(0.7); filter: blur(6px); } }
 @keyframes peek-drop { 0% { opacity: 0; transform: translateY(-34px) rotate(-14deg); } 60% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .brand-peek.is-in, .brand-peek.is-in .peek-logo, .brand-peek.is-in .peek-colors li { animation: none; } }
+
+/* ---------- portada más ancha y formulario a dos columnas (2026-10-07) ---------- */
+/* En escritorio la portada usaba una columna de 880 px con márgenes enormes. Ahora 1240 px: el formulario se abre en
+   dos columnas (lo que se escribe | la marca y las opciones) y la galería gana columnas. */
+.brand-side { display: none; }
+@media (min-width: 1180px) {
+  body:has(#view-form:not([hidden])) #app { max-width: 1240px; }
+  .hero-grid { margin-right: 0; grid-template-columns: minmax(0, 1fr) 520px; }
+  /* La fila de abajo (el botón) se pega a lo escrito: el alto que sobra del panel lateral va debajo, no encima. */
+  #brief-form { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; column-gap: 40px; align-items: start; }
+  .form-main { grid-column: 1; grid-row: 1; min-width: 0; }
+  .form-end { grid-column: 1; grid-row: 2; min-width: 0; }
+  .form-side { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 96px; min-width: 0; padding-left: 32px; border-left: 1px solid var(--border); }
+  #brand-peek { display: none !important; }
+  .brand-side { display: block; margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .form-main textarea { min-height: 300px; }
+}
+.side-kicker { margin: 0 0 12px; font-family: 'Barlow', sans-serif; font-size: var(--fs-caption, 12px); font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--pink); }
+.side-logo { display: flex; align-items: center; justify-content: center; height: 96px; padding: 16px 24px; border-radius: var(--radius-md); background: #ffffff; box-shadow: -2px 8px 14px rgba(20, 24, 63, 0.22); }
+.side-logo.is-dark { background: #14183f; }
+.side-logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.side-name { margin: 0; font-size: 26px; font-weight: 700; line-height: 1.15; }
+.side-status { margin: 12px 0 0; font-size: var(--fs-small); color: var(--muted); }
+.side-colors { margin-top: 16px; }
+.side-type { margin: 14px 0 0; font-size: var(--fs-small); }
+.side-sub { margin: 18px 0 8px; font-size: var(--fs-small); font-weight: 600; color: var(--lilac); }
+.side-recent { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.side-recent a { display: block; aspect-ratio: 3 / 4; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--border); background: #ffffff; transition: transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1), border-color 0.2s; }
+.side-recent a:hover { transform: translateY(-3px) rotate(-1.5deg); border-color: var(--pink); }
+.side-recent img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.side-empty { display: flex; align-items: center; gap: 16px; }
+.side-empty p { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+.side-empty-art { position: relative; flex: none; width: 64px; height: 64px; }
+.side-empty-art i { position: absolute; left: 18px; top: 6px; width: 30px; height: 40px; border-radius: 5px; background: linear-gradient(160deg, var(--thumb-a, #1a2168), var(--thumb-b, #b255c3)); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3); transform-origin: 50% 120%; }
+.side-empty-art i:nth-child(1) { transform: rotate(-14deg); opacity: 0.55; }
+.side-empty-art i:nth-child(2) { transform: rotate(14deg); opacity: 0.55; }
+.side-empty-art i:nth-child(3) { background: #f4f5fb; }
+.brand-side.is-in > * { animation: peek-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.brand-side.is-in > *:nth-child(2) { animation-delay: 0.06s; }
+.brand-side.is-in > *:nth-child(3) { animation-delay: 0.12s; }
+.brand-side.is-in > *:nth-child(n + 4) { animation-delay: 0.18s; }
+.brand-side.is-in .side-logo { animation: peek-logo 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) 0.05s both; }
+.brand-side.is-in .peek-colors li { animation: peek-drop 0.7s cubic-bezier(0.34, 1.5, 0.64, 1) both; animation-delay: calc(0.2s + var(--n, 0) * 70ms); }
+.brand-side.is-in .side-recent li { animation: deal-in-card 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(0.35s + var(--n, 0) * 80ms); }
+@media (prefers-reduced-motion: reduce) { .brand-side.is-in *, .brand-side.is-in > * { animation: none !important; } }
+
+/* ---------- miniaturas vacías con carácter (2026-10-07) ---------- */
+.job-row .thumb, .g-card .thumb, .now-thumb { position: relative; }
+/* Solo iniciales: un tono propio de la marca (--h, de su nombre) en vez del blanco liso. */
+.thumb-initials {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(120% 90% at 30% 15%, hsl(var(--h, 240) 70% 96%), hsl(var(--h, 240) 55% 84%));
+  color: hsl(var(--h, 240) 50% 28%);
+  font-family: 'Barlow', sans-serif; font-weight: 800; letter-spacing: 1px;
+}
+.g-card .thumb-initials { font-size: 34px; }
+/* Canceladas y fallidas: rayado tenue, logo o iniciales apagados y el estado escrito. */
+.thumb-empty.is-stopped { background: repeating-linear-gradient(135deg, #f3f4f9 0 9px, #e7e9f3 9px 18px) !important; }
+.thumb-empty.is-stopped > img, .thumb-empty.is-stopped > .thumb-initials { opacity: 0.4; filter: grayscale(1); }
+.thumb-empty.is-stopped > .thumb-initials { background: transparent; }
+.thumb-empty.is-stopped.is-on-dark { background: repeating-linear-gradient(135deg, #1b2050 0 9px, #232864 9px 18px) !important; }
+.thumb-state {
+  position: absolute; left: 50%; bottom: 10%; translate: -50% 0;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(20, 24, 63, 0.82); color: #ffffff;
+  font-style: normal; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; white-space: nowrap;
+}
+.job-row .thumb-state, .now-thumb .thumb-state { display: none; }
+
+/* ---------- tarjeta de galería más rica (2026-10-07) ---------- */
+.g-dot {
+  position: absolute; top: 8px; left: 8px; z-index: 2;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--dot, #8f96c9);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.g-dot.is-ok { --dot: #2fbf71; }
+.g-dot.is-warn { --dot: #f4a524; }
+.g-dot.is-live { --dot: var(--pink); animation: g-dot-live 1.6s ease-out infinite; }
+.g-dot.is-bad { --dot: #e5484d; }
+.g-dot.is-ready { --dot: #5b8cff; }
+@keyframes g-dot-live { 0% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(251, 115, 255, 0.6); } 100% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 0 11px rgba(251, 115, 255, 0); } }
+.g-score {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(8, 13, 46, 0.82);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
+.g-score svg { position: absolute; inset: 2px; width: 30px; height: 30px; transform: rotate(-90deg); }
+.g-score circle { fill: none; stroke: rgba(255, 255, 255, 0.16); stroke-width: 3; }
+.g-score .g-score-arc { stroke: var(--arc); stroke-linecap: round; stroke-dasharray: var(--p) 100; }
+.g-score.is-high { --arc: #2fbf71; }
+.g-score.is-mid { --arc: #f4a524; }
+.g-score.is-low { --arc: #e5484d; }
+.g-score b { position: relative; font-size: 11px; font-weight: 700; color: #ffffff; font-variant-numeric: tabular-nums; }
+/* El arco se dibuja con la entrada en cascada de la galería (no en cada refresco). */
+.is-cascade .g-score .g-score-arc { animation: g-score-draw 1s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both; }
+@keyframes g-score-draw { from { stroke-dasharray: 0 100; } }
+/* Con la pieza que se recorre (A), el anillo y el punto se quedan encima. */
+.g-card .thumb-scroll { z-index: 1; }
+@media (prefers-reduced-motion: reduce) { .g-dot.is-live, .is-cascade .g-score .g-score-arc { animation: none; } }

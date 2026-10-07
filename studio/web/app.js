@@ -139,6 +139,62 @@ function updateBrandMatch() {
   document.getElementById('brand-url-field').hidden = !name || !!match;
   if (match) describeKnownBrand(match);
   else renderBrandPeek(null);
+  renderBrandSide();
+}
+
+/** Panel lateral de marca (2026-10-07, formulario a dos columnas en escritorio): la identidad de la marca elegida
+ *  (logo, colores, tipografía) y sus últimas newsletters. Sin marca, qué saldrá aquí; con una marca nueva, lo que hará
+ *  Studio. Se anima solo al cambiar de marca. */
+let brandSideKey = null;
+function renderBrandSide() {
+  const box = document.getElementById('brand-side');
+  if (!box) return;
+  const name = clientNameInput.value.trim();
+  const slug = existingBrandInput.value || (name ? slugify(name) : '');
+  const card = existingBrandInput.value ? brandSummaries.get(slug)?.card : null;
+  const recent = slug
+    ? historyState.jobs
+        .filter((j) => j.clientSlug === slug && j.hasThumb && j.status === 'completed' && !j.archivedAt)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, 3)
+    : [];
+  const key = `${slug}|${card ? 1 : 0}|${recent.map((j) => j.id).join(',')}`;
+  if (key === brandSideKey) return;
+  const changed = !brandSideKey || brandSideKey.split('|')[0] !== slug;
+  brandSideKey = key;
+  if (!name) {
+    box.innerHTML = `<p class="side-kicker">Marca</p><div class="side-empty"><span class="side-empty-art" aria-hidden="true"><i></i><i></i><i></i></span><p>Elige una marca y aquí verás su logo, sus colores y sus últimas newsletters.</p></div>`;
+  } else {
+    const logo = card?.logo && /^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(card.logo) ? card.logo : '';
+    const colors = (card?.colors || []).filter((c) => SAFE_COLOR.test(c.value)).slice(0, 8);
+    const family = card?.typography?.family;
+    const display = existingBrandInput.value ? brandDisplayName(slug) : name;
+    const status = !existingBrandInput.value
+      ? 'Marca nueva: Studio medirá su identidad en su web antes de empezar.'
+      : card?.hasPack
+      ? 'Con brand pack: Hermes usará sus colores, tipografías y logos.'
+      : 'Marca conocida: Hermes investigará lo que falte.';
+    box.innerHTML =
+      `<p class="side-kicker">Marca</p>` +
+      (logo ? `<span class="side-logo${card.logoOnDark ? ' is-dark' : ''}"><img src="${escapeHtml(logo)}" alt="Logo de ${escapeHtml(display)}"></span>` : `<p class="side-name">${escapeHtml(display)}</p>`) +
+      `<p class="side-status">${escapeHtml(status)}</p>` +
+      (colors.length
+        ? `<ul class="peek-colors side-colors" aria-label="Colores de la marca">${colors
+            .map((c, n) => `<li style="--n:${n};--c:${c.value}" title="${escapeHtml(`${c.labels.join(' · ')} ${c.value}`)}"><span>${escapeHtml(c.value)}</span></li>`)
+            .join('')}</ul>`
+        : '') +
+      (family ? `<p class="side-type"><span class="hint">Tipografía</span> ${escapeHtml(family)}</p>` : '') +
+      (recent.length
+        ? `<p class="side-sub">Últimas newsletters</p><ul class="side-recent">${recent
+            .map((j, n) => `<li style="--n:${n}"><a href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.familyTitle || j.clientName || '')}"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb" alt="" loading="lazy" width="150" height="200"></a></li>`)
+            .join('')}</ul>`
+        : '');
+  }
+  if (changed && motionOk()) {
+    box.classList.remove('is-in');
+    void box.offsetWidth;
+    box.classList.add('is-in');
+  }
 }
 
 /** Panel de marca (2026-10-07, F): al elegir una marca conocida aparece su logo y sus colores caen como fichas. Solo se
@@ -311,6 +367,7 @@ async function describeKnownBrand(slug) {
       : 'Marca conocida, sin brand pack ni logos: Hermes la investigará como nueva.';
     hint.innerHTML = `${escapeHtml(text)} <a href="?brand=${encodeURIComponent(slug)}" target="_blank" rel="noopener">Ver ficha</a>`;
     renderBrandPeek(slug, card);
+    renderBrandSide();
   };
   if (brandSummaries.has(slug)) return render(brandSummaries.get(slug));
   try {
@@ -960,6 +1017,7 @@ async function loadHistory() {
     renderHistoryJump(jobs);
     renderNowStrip(jobs);
     renderShowcase(jobs);
+    renderBrandSide();
     renderLiveSteps(jobs);
     animateBars();
     if (justDone.length) celebrateDone(justDone);
@@ -1700,6 +1758,11 @@ function countUp(box) {
       if (k < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
+    // Siempre acaba en su valor (2026-10-07): sin fotogramas (pestaña en segundo plano, captura de página entera) la
+    // cifra se quedaba a medio contar (19 en vez de 39, 36 % en vez de 75 %) hasta el siguiente refresco.
+    setTimeout(() => {
+      if (el.isConnected) el.textContent = `${end}${m[2]}`;
+    }, 1000);
   });
 }
 if ('IntersectionObserver' in window) {
@@ -2299,16 +2362,58 @@ function buildThumbInner(j) {
     (j.status === 'running' ? '<i class="tb-scan"></i>' : '')
   );
 }
+// Miniaturas vacías con carácter (2026-10-07): las canceladas y fallidas, rayadas y apagadas con su estado; las que
+// solo tienen iniciales, sobre un tono propio de la marca (sacado de su nombre: el historial no trae sus colores).
+const STOPPED = { failed: 'Fallida', cancelled: 'Cancelada' };
+function brandHue(name) {
+  let h = 0;
+  for (const ch of String(name || '')) h = (h * 31 + ch.codePointAt(0)) % 360;
+  return h;
+}
 function emptyThumbClass(j) {
   if (isBuilding(j)) return `thumb-build${j.status === 'queued' ? ' is-queued' : ''}`;
-  return j.brandLogo ? `thumb-empty thumb-logo${j.brandLogo === 'dark' ? ' is-on-dark' : ''}` : 'thumb-empty';
+  const stopped = STOPPED[j.status] ? ' is-stopped' : '';
+  return (j.brandLogo ? `thumb-empty thumb-logo${j.brandLogo === 'dark' ? ' is-on-dark' : ''}` : 'thumb-empty') + stopped;
 }
 function emptyThumbInner(j, initials) {
   if (isBuilding(j)) return buildThumbInner(j);
-  return j.brandLogo
-    ? `<img src="/api/brands/${encodeURIComponent(j.clientSlug)}/logo" alt="" loading="lazy" data-initials="${escapeHtml(initials)}">`
-    : escapeHtml(initials);
+  const state = STOPPED[j.status] ? `<em class="thumb-state">${STOPPED[j.status]}</em>` : '';
+  return (
+    (j.brandLogo
+      ? `<img src="/api/brands/${encodeURIComponent(j.clientSlug)}/logo" alt="" loading="lazy" data-initials="${escapeHtml(initials)}">`
+      : `<span class="thumb-initials" style="--h:${brandHue(j.clientSlug || j.clientName)}">${escapeHtml(initials)}</span>`) + state
+  );
 }
+/** Logo blanco sobre la miniatura blanca (Prozis, 2026-10-07: la miniatura parecía vacía): si sus píxeles visibles son
+ *  casi todos claros, la miniatura pasa a fondo oscuro. */
+document.addEventListener(
+  'load',
+  (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || !img.src.includes('/api/brands/')) return;
+    const box = img.closest('.thumb-logo, .now-thumb');
+    if (!box || box.classList.contains('is-on-dark')) return;
+    try {
+      const c = document.createElement('canvas');
+      c.width = 48;
+      c.height = Math.max(1, Math.round((48 * img.naturalHeight) / Math.max(1, img.naturalWidth)));
+      const ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      let lum = 0;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 128) continue;
+        lum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+        n++;
+      }
+      if (n && lum / n > 0.86) box.classList.add('is-on-dark');
+    } catch {
+      // imagen de otro origen: se queda como está
+    }
+  },
+  true
+);
 
 function renderHistory() {
   renderMineChip();
@@ -2431,6 +2536,32 @@ function renderHistory() {
  *  a la versión que representa la familia; las acciones (descargar, archivar…) siguen en la vista de lista.
  *  Desde 2026-09-30, una sola cuadrícula con la marca en cada tarjeta: agrupada por marca, con una o dos
  *  newsletters por marca salía una fila por tarjeta y mucho hueco. */
+/** Tarjeta de galería más rica (2026-10-07): un punto de color con el estado (lista, aprobada, con comentarios del
+ *  cliente, en marcha, por revisar, fallida) y un anillo con la nota de calidad de la versión más reciente que la tenga.
+ *  Así se ve de un vistazo qué falta por mirar. */
+function galleryOverlay(j, members) {
+  const approved = members.some((x) => x.approvedAt);
+  const [tone, label] = approved
+    ? ['ok', 'Aprobada']
+    : j.client?.open
+    ? ['warn', `${j.client.open} comentario${j.client.open === 1 ? '' : 's'} del cliente`]
+    : j.client?.decision === 'changes'
+    ? ['warn', 'El cliente pide cambios']
+    : j.status === 'review'
+    ? ['warn', 'Brief por revisar']
+    : j.status === 'running' || j.status === 'queued'
+    ? ['live', j.status === 'queued' ? 'En cola' : 'En marcha']
+    : STOPPED[j.status]
+    ? ['bad', STOPPED[j.status]]
+    : ['ready', 'Lista para revisar'];
+  const scored = [...members].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).find((x) => x.art);
+  const pct = scored ? Math.max(0, Math.min(100, Math.round(scored.art.pct))) : null;
+  const ring =
+    pct === null
+      ? ''
+      : `<span class="g-score is-${pct >= 76 ? 'high' : pct >= 60 ? 'mid' : 'low'}" title="Calidad: ${pct} %"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" pathLength="100"/><circle class="g-score-arc" cx="18" cy="18" r="15.5" pathLength="100" style="--p:${pct}"/></svg><b>${pct}</b></span>`;
+  return `<span class="g-dot is-${tone}" title="${escapeHtml(label)}"><span class="sr-only">${escapeHtml(label)}</span></span>${ring}`;
+}
 function renderGallery(groups, info) {
   const cards = groups
     .map(({ lead: j, others }) => {
@@ -2446,6 +2577,7 @@ function renderGallery(groups, info) {
       const thumb = withThumb
         ? `<span class="thumb"><img src="/api/jobs/${encodeURIComponent(withThumb.id)}/thumb" alt="" loading="lazy" width="150" height="200" data-initials="${escapeHtml(initials)}"></span>`
         : `<span class="thumb ${emptyThumbClass(j)}">${emptyThumbInner(j, initials)}</span>`;
+      const thumbRich = thumb.replace(/<\/span>$/, `${galleryOverlay(j, [j, ...others])}</span>`);
       const approved = [j, ...others].find((x) => x.approvedAt);
       const when = new Date(j.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
       const bits = [
@@ -2455,7 +2587,7 @@ function renderGallery(groups, info) {
       ].filter(Boolean);
       const status = j.status === 'completed' ? '' : `<span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>`;
       return `<li><a class="g-card" href="?job=${id}" title="${escapeHtml(`${j.clientName} · ${new Date(j.createdAt).toLocaleString('es-ES')}`)}">
-          ${thumb}
+          ${thumbRich}
           <span class="g-name">${escapeHtml(j.clientName)}</span>${j.familyTitle ? `<span class="g-title">${escapeHtml(j.familyTitle)}</span>` : ''}
           <span class="g-meta">${escapeHtml(bits.join(' · '))}</span>
           ${approved ? `<span class="approved-tag">✓ Aprobada${fam.size > 1 ? ` (v${info.get(approved.id).number})` : ''}</span>` : ''}
