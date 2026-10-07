@@ -1,0 +1,872 @@
+[
+  {
+    "pieza": "newsletters/2026/tienda-animal/hermes/2026-10-07-pnbnxs",
+    "escala": "antigua",
+    "vuelta": 1,
+    "sec": 27,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 3,
+      "originalidad": 3,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": null,
+    "problemas": [
+      "En la columna de 600 px, varios textos secundarios y los precios se ven muy pequeños; la comparativa pierde legibilidad a primera vista.",
+      "La pieza se apoya en bloques apilados de color, módulos de producto y botones redondeados habituales en plantillas de email; tiene poca composición distintiva.",
+      "En las tres columnas, las fotos inferiores muestran surtidos de productos de distintas categorías, no solo Criadores Renal. El texto las presenta como ofertas adicionales, pero compiten con el foco de la promoción principal."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/tienda-animal/hermes/2026-10-07-pnbnxs",
+    "escala": "nueva",
+    "vuelta": 1,
+    "sec": 39,
+    "notas": {
+      "peticion": 5,
+      "texto_imagen": 5,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 5,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 5
+    },
+    "pruebas": {
+      "peticion": "En la primera escena, el titular nombra Criadores Renal y el 20 aniversario; el texto visible concreta el 30% en la segunda unidad con MEGA30 y que es para perros.",
+      "texto_imagen": "La lata Renal aparece sola sobre fondo claro junto al contenido de formatos y precios; más abajo, el collage de productos acompaña el titular de más ofertas para el peludo. No se ven personas.",
+      "identidad": "El sans de peso marcado y el verde con blanco recuerdan la portada y sus botones. La web muestra escenas coloridas con animales, mientras que la newsletter usa sobre todo fotos aisladas de producto y collages; la coincidencia visual es parcial.",
+      "concepto": "El aniversario, MEGA30 y Criadores Renal organizan la apertura y la comparación; el cierre amplía el foco a otras ofertas para el peludo.",
+      "jerarquia": "En móvil se distinguen el titular, el texto de apoyo y el botón de la apertura; después, titulares verdes separan formatos, comparación y ofertas adicionales.",
+      "aire": "Hay separación clara entre módulos y márgenes regulares; el listado de precios y su explicación forman la zona más compacta.",
+      "originalidad": "La comparación de cuatro formatos y precios aporta un módulo específico para esta oferta; el resto utiliza estructuras habituales de newsletter, como hero, CTA y bloques de producto.",
+      "movil": "La columna de 375 px mantiene titulares, precios y CTA dentro del ancho, sin cortes visibles. El texto del pie se ve mucho más pequeño que el contenido.",
+      "oscuro": "El logo sigue visible sobre la cabecera clara y el contenido principal conserva contraste sobre fondos oscuros o verdes. Algunas líneas secundarias y el pie se perciben pequeños.",
+      "copy": "Los titulares nombran el producto, los formatos y la ocasión; «Añade Criadores Renal al carrito» y «Ver formatos y precios» indican acciones concretas."
+    },
+    "problemas": []
+  },
+  {
+    "pieza": "newsletters/2026/el-corte-ingles/hermes/2026-10-06-vxvm7f",
+    "escala": "antigua",
+    "vuelta": 1,
+    "sec": 25,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 2,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": null,
+    "problemas": [
+      "Móvil: la pieza queda cortada en la parte inferior; solo se alcanza a ver el inicio del bloque verde «Elige tu árbol Arosa para Navidad», sin el resto del contenido ni el pie.",
+      "En las tres columnas, los textos auxiliares —especialmente la cuadrícula de funciones y el pie legal— son muy pequeños y pierden legibilidad frente a los titulares."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/el-corte-ingles/hermes/2026-10-06-vxvm7f",
+    "escala": "nueva",
+    "vuelta": 1,
+    "sec": 34,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 5,
+      "concepto": 5,
+      "jerarquia": 5,
+      "aire": 4,
+      "originalidad": 3,
+      "movil": 2,
+      "oscuro": 4,
+      "copy": 5
+    },
+    "pruebas": {
+      "peticion": "En la primera escena se lee «La Navidad empieza con el árbol Arosa» y el apoyo menciona 110 luces cálidas; no aparece una oferta comercial con precio, descuento o fecha ni un público concreto.",
+      "texto_imagen": "El árbol verde de la primera foto coincide con el titular del Arosa; la foto de ramas acompaña el detalle del árbol y la foto del árbol nevado coincide con «verde o con efecto nevado». El titular de las ocho funciones se apoya en un primer plano de ramas, no en una imagen que muestre las funciones.",
+      "identidad": "En las tres columnas se mantiene el verde corporativo, los botones negros rectangulares, la marca tipográfica de El Corte Inglés y fotos de producto con aspecto de catálogo.",
+      "concepto": "La idea de que la Navidad empieza con el árbol Arosa conecta la escena de luces, el detalle del producto, la variante nevada y el cierre de compra.",
+      "jerarquia": "En cada escena el titular se distingue del texto de apoyo y del botón; en el bloque de funciones, el titular verde encabeza el apoyo y la tabla.",
+      "aire": "Hay márgenes y separaciones consistentes entre módulos; el bloque verde de funciones concentra texto y una tabla pequeña y se percibe más apretado que el resto.",
+      "originalidad": "La tabla de funciones aporta un módulo ligado al producto, pero predominan escenas habituales de foto de producto seguidas de titular, apoyo y botón.",
+      "movil": "En la columna de 375 px, el render termina a mitad del módulo verde «Elige tu árbol Arosa para Navidad»: se ve el titular, pero no el resto del cierre ni el pie.",
+      "oscuro": "En la columna oscura se distinguen el logo blanco, los titulares, las fotos y los botones. El texto secundario del pie y algunos apoyos son pequeños y tienen menos contraste que los titulares.",
+      "copy": "Los titulares nombran el árbol Arosa, sus funciones o sus variantes; los botones usan acciones y objetos concretos, como «Ver el árbol Arosa» y «Compra tu árbol Arosa»."
+    },
+    "problemas": [
+      "Originalidad (3): se repite la fórmula de foto de producto, titular, apoyo y botón en varios módulos.",
+      "Móvil (2): el cierre queda cortado en el borde inferior del render de 375 px; no se alcanza a ver el resto del módulo ni el pie."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/lacoste/hermes/2026-10-06-idyg6t",
+    "escala": "antigua",
+    "vuelta": 1,
+    "sec": 22,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 5,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 5,
+      "oscuro": 3,
+      "copy": 4
+    },
+    "pruebas": null,
+    "problemas": [
+      "En modo oscuro, el pequeño titular «EL POLO LACOSTE, CON COCODRILO BORDADO» tiene muy poco contraste con el fondo y cuesta leerlo.",
+      "En la versión de 600 px, el texto secundario y algunos titulares de sección quedan pequeños frente al titular principal."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/lacoste/hermes/2026-10-06-idyg6t",
+    "escala": "nueva",
+    "vuelta": 1,
+    "sec": 31,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 5,
+      "originalidad": 3,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la primera escena aparecen «Rebajas de septiembre» y el precio del polo verde, de 100 € a 50 €. El público no se concreta más allá de quienes buscan polos Lacoste.",
+      "texto_imagen": "La foto muestra un polo verde aislado, coherente con el color y producto descritos. El cocodrilo bordado se menciona en la siguiente escena, pero el detalle apenas se distingue en la foto.",
+      "identidad": "Sin contar el logo, el verde oscuro, los fondos claros y la presentación limpia del polo resultan coherentes con una estética Lacoste; la pieza no depende solo de la marca visible en el encabezado.",
+      "concepto": "La rebaja del polo emblemático aparece en el hero y el texto sobre volver a mirar el icono; el cierre vuelve al polo Lacoste. La escena del bordado desarrolla el producto, aunque se conecta menos claramente con la idea de rebaja.",
+      "jerarquia": "En móvil destaca primero «Polos Lacoste, ahora en rebajas», seguido del precio y el botón. Las escenas posteriores separan el detalle del polo, la frase sobre el clásico y el cierre de compra.",
+      "aire": "Las tres columnas mantienen márgenes y separaciones regulares. En móvil, las escenas respiran y no se aprecian elementos pegados al borde.",
+      "originalidad": "La frase centrada sobre volver a mirar el icono aporta un matiz propio, pero la estructura general sigue una secuencia habitual de imagen de producto, texto promocional y botones.",
+      "movil": "La columna de 375 px muestra los titulares, el precio y los botones sin cortes ni desbordes aparentes. «Darse de baja» en el pie es mucho más pequeño que el texto de contenido.",
+      "oscuro": "En la columna oscura, el logo se ve y el texto principal mantiene contraste. El encabezado pequeño de la escena del bordado tiene poco contraste sobre el fondo oscuro.",
+      "copy": "Los textos nombran el polo y la ocasión, y los botones incluyen acciones y destino. «No hace falta cambiar el icono para volver a mirarlo de otra forma» es más abstracto que el resto."
+    },
+    "problemas": [
+      "texto_imagen: la foto no permite apreciar claramente el bordado que destaca el texto de la escena siguiente.",
+      "movil: el enlace «Darse de baja» queda diminuto frente al contenido.",
+      "oscuro: el encabezado pequeño de la escena del bordado se distingue con dificultad.",
+      "originalidad: salvo la frase centrada sobre el icono, la composición recurre a módulos promocionales habituales.",
+      "peticion: no se identifica explícitamente a quién se dirige la oferta."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/feebbo/hermes/2026-10-06-y07dqw",
+    "escala": "antigua",
+    "vuelta": 1,
+    "sec": 28,
+    "notas": {
+      "peticion": 3,
+      "texto_imagen": 3,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": null,
+    "problemas": [
+      "En la apertura, «Feebbo Digital convierte la estrategia en acción» no deja claro de inmediato que se ofrece consultoría estratégica; esa información aparece más abajo.",
+      "La ilustración del personaje marcando una casilla transmite encuestas u opinión, no el trabajo de consultoría y campañas multicanal que cuenta el texto. Además, no se ven las fotos de equipo descritas en el brief."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/feebbo/hermes/2026-10-06-y07dqw",
+    "escala": "nueva",
+    "vuelta": 1,
+    "sec": 37,
+    "notas": {
+      "peticion": 3,
+      "texto_imagen": 3,
+      "identidad": 5,
+      "concepto": 5,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 5,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la apertura, «Feebbo Digital convierte la estrategia en acción» no aclara por sí solo que se ofrece consultoría; eso aparece más abajo en «La consultoría Feebbo empieza por tu reto». El público de negocio y marketing está en el texto de apoyo, pero no hay una oferta con cifra.",
+      "texto_imagen": "La ilustración de la apertura muestra a una persona marcando casillas con un lápiz, lo que evoca una encuesta más que la consultoría estratégica. En la columna móvil tampoco se ve la escena de un equipo alrededor de una mesa: el módulo de consultoría es solo texto.",
+      "identidad": "En las tres columnas coinciden con la web la sans serif gruesa, el navy y el fucsia; la ilustración de la persona y las casillas también mantiene el estilo gráfico de la portada. El logo se ve en la cabecera.",
+      "concepto": "La idea de avanzar de la observación a la conclusión enlaza la apertura, la secuencia RAID de seis fases y el cierre que invita a hablar de estrategia.",
+      "jerarquia": "En móvil se distingue el titular del apoyo y del botón. En la apertura de 600 px y en modo oscuro la ilustración compite por la atención con el titular, aunque los bloques mantienen un orden reconocible.",
+      "aire": "Hay separaciones claras entre módulos y espacio en la versión móvil. La lista RAID se percibe más densa en la columna de 600 px y en modo oscuro.",
+      "originalidad": "La secuencia RAID de seis pasos numerados es un módulo propio y específico de esta pieza, no una fórmula genérica de foto, titular y botón.",
+      "movil": "La columna de 375 px no muestra texto cortado ni elementos que se salgan o toquen el borde. El pie y el texto legal se ven pequeños.",
+      "oscuro": "El logo y el texto principal se distinguen en la columna oscura. El texto secundario y el pie se ven pequeños y con menos legibilidad que los titulares.",
+      "copy": "Los titulares nombran estrategia, consultoría y fases RAID, pero «La consultoría Feebbo empieza por tu reto» es algo abstracto y «Contacta con el equipo» es un botón genérico."
+    },
+    "problemas": [
+      "peticion: la oferta de consultoría y el público no quedan claros en la primera pantalla; no hay cifra de oferta.",
+      "texto_imagen: la ilustración de encuesta de la apertura no representa directamente la consultoría estratégica; no aparece la escena de equipo descrita en el brief."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/helly-hansen/hermes/2026-10-06-1xvav7",
+    "escala": "antigua",
+    "vuelta": 1,
+    "sec": 30,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 3,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 3,
+      "movil": 3,
+      "oscuro": 4,
+      "copy": 3
+    },
+    "pruebas": null,
+    "problemas": [
+      "identidad: la pieza usa el logo y códigos visuales coherentes con actividad outdoor, pero la imagen de referencia de la web muestra una página de dominio aparcado, no la portada de Helly Hansen; no permite verificar la identidad frente a la marca.",
+      "originalidad: la repetición de módulos rectangulares, bloques de producto y botones hace que la pieza se acerque a una plantilla convencional de email.",
+      "movil: en la columna de 375 px, los textos secundarios y el pie quedan muy pequeños; además, la última escena aparece cortada por el borde inferior del render.",
+      "copy: «Comprar temporada» no concreta qué se compra y «Ver protección para lluvia» suena poco natural; varias frases de apoyo son genéricas frente a los titulares más específicos. "
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/helly-hansen/hermes/2026-10-06-1xvav7",
+    "escala": "nueva",
+    "vuelta": 1,
+    "sec": 26,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 2,
+      "concepto": 4,
+      "jerarquia": 3,
+      "aire": 4,
+      "originalidad": 3,
+      "movil": 2,
+      "oscuro": 5,
+      "copy": 3
+    },
+    "pruebas": {
+      "peticion": "La escena de apertura sitúa la temporada y la ruta; la oferta de la chaqueta y el precio de 180 € aparecen más abajo, no en la primera pantalla.",
+      "texto_imagen": "La foto de apertura muestra a una persona frente a un paisaje montañoso y acompaña la idea de seguir la ruta; la chaqueta negra se muestra sola sobre fondo claro, sin mostrar lluvia ni uso; después aparecen una persona con capucha y dos personas caminando al aire libre, coherentes con las capas y el tiempo cambiante.",
+      "identidad": "La imagen de referencia de la web muestra una página de dominio aparcado, no la portada de Helly Hansen; no permite comparar de forma fiable tipografía, colores ni estilo fotográfico de la marca.",
+      "concepto": "«Cuando cambia el tiempo, sigue la ruta» organiza las escenas de lluvia, capas y actividad al aire libre; el cierre «Capas para seguir fuera» continúa esa idea, aunque abre una formulación secundaria.",
+      "jerarquia": "En móvil el titular de apertura destaca, pero hay varias escenas con titulares de peso similar y el último titular queda cortado en el borde inferior de la imagen; no se aprecia el final de esa escena.",
+      "aire": "Las columnas mantienen márgenes y separaciones regulares entre las fotos y los bloques de texto; no se ven elementos pegados a los bordes.",
+      "originalidad": "La secuencia usa varias fotos y bloques de texto propios, pero repite la fórmula habitual de foto, titular, cuerpo y botón, sin un módulo visual distintivo del concepto.",
+      "movil": "La columna de 375 px muestra texto pequeño en varios bloques y el contenido final queda cortado por el borde inferior de la imagen; no se puede confirmar que toda la pieza termine sin recortes.",
+      "oscuro": "En la columna oscura se leen titulares, cuerpo, botones y logo; el logo rojo y blanco destaca sobre la franja blanca y los textos claros contrastan con los fondos azul marino.",
+      "copy": "Hay titulares concretos sobre lluvia y capas, pero «Capas para seguir fuera, haga el tiempo que haga» es amplio y el botón «Comprar temporada» no nombra un producto concreto."
+    },
+    "problemas": [
+      "peticion: el precio y la oferta aparecen más abajo, no en la primera pantalla.",
+      "texto_imagen: la chaqueta se muestra sola sobre fondo claro, sin que la foto evidencie lluvia o uso.",
+      "identidad: la imagen facilitada para comparar es una página de dominio aparcado, no la web oficial de la marca.",
+      "concepto: el cierre formula una variante amplia del concepto en vez de rematarlo con una escena más específica.",
+      "jerarquia: varios titulares compiten en la secuencia y el último queda cortado en la vista móvil.",
+      "originalidad: se repite la estructura foto, titular, texto y botón, sin un módulo singular.",
+      "movil: texto de cuerpo pequeño y escena final cortada en la captura."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/nike/hermes/2026-10-06-jcpy0x",
+    "escala": "antigua",
+    "vuelta": 1,
+    "sec": 22,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 3,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": null,
+    "problemas": [
+      "Originalidad: la estructura de bloques repetidos de foto, titular, párrafo y botón se parece a una plantilla de email marketing, especialmente en la versión de 600 px."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/nike/hermes/2026-10-06-jcpy0x",
+    "escala": "nueva",
+    "vuelta": 1,
+    "sec": 33,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 5,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 5,
+      "movil": 3,
+      "oscuro": 3,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la primera escena se ve el Pegasus 42 y el texto anuncia al menos un 15 % más de retorno de energía que el Pegasus 41; el público runner se entiende por el producto y las escenas de carrera, aunque no se nombra directamente.",
+      "texto_imagen": "El titular del Air Zoom acompaña el producto aislado; las escenas de carrera acompañan los textos sobre respuesta y zancada, y la sección de la curva muestra tanto el producto como el gesto de correr.",
+      "identidad": "Sin depender del logo, la sans, el contraste negro y blanco, los botones negros redondeados y la fotografía deportiva acercan la pieza a la portada Nike. La portada está parcialmente tapada, así que la comparación visual es limitada.",
+      "concepto": "La idea de impulso enlaza el titular principal con la respuesta bajo el pie y la curva del Air Zoom; la escena de ligereza cierra la secuencia, aunque se vincula menos directamente con esa idea.",
+      "jerarquia": "Los titulares destacan sobre el texto de apoyo y los botones se distinguen. En algunas escenas, el titular y la imagen tienen un peso parecido y no todas las secciones tienen botón propio.",
+      "aire": "Hay márgenes y separaciones regulares entre bloques; la versión móvil conserva espacio alrededor del texto y las imágenes.",
+      "originalidad": "La sección que separa «Al apoyar» y «Al despegar» convierte la curva del Air Zoom en un módulo propio del concepto, no solo en una repetición de foto, titular y botón.",
+      "movil": "La columna de 375 px mantiene el contenido dentro de los márgenes y no muestra cortes, pero el texto de apoyo se ve pequeño para leerse con comodidad.",
+      "oscuro": "El logo blanco sobre negro se distingue. Algunos textos secundarios grises sobre fondos oscuros tienen poco contraste y se ven difíciles de leer.",
+      "copy": "«El aire que te impulsa» es un titular abstracto; los botones «Ver unidad Air Zoom» y «Comprar Pegasus 42» sí indican acción y objeto."
+    },
+    "problemas": [
+      "Móvil: el texto de apoyo se ve pequeño en varias escenas.",
+      "Modo oscuro: los textos secundarios grises pierden contraste sobre fondos oscuros."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/stockx/hermes/2026-10-06-641bhj",
+    "escala": "antigua",
+    "vuelta": 1,
+    "sec": 30,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 2,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 3,
+      "aire": 3,
+      "originalidad": 4,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": null,
+    "problemas": [
+      "La foto principal muestra un Jordan 1 Travis Scott, pero el titular destaca las ventas del Yeezy 350 V2; además, no se ve ninguna foto del Yeezy. La imagen contradice el foco del titular y de la petición.",
+      "En la columna de 600 px, textos auxiliares, rótulos y notas quedan muy pequeños y apretados; cuesta distinguirlos de un vistazo.",
+      "La cabecera de StockX ocupa mucho espacio en móvil y compite con el titular principal. La jerarquía también se resiente por la discrepancia entre ese titular y la foto."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/stockx/hermes/2026-10-06-641bhj",
+    "escala": "nueva",
+    "vuelta": 1,
+    "sec": 42,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 3,
+      "identidad": 5,
+      "concepto": 5,
+      "jerarquia": 4,
+      "aire": 5,
+      "originalidad": 5,
+      "movil": 4,
+      "oscuro": 5,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "La apertura sitúa la retrospectiva en 2019 y nombra el Yeezy 350 V2 y el Jordan 1 Travis Scott; las cifras aparecen más abajo, en el módulo de métricas.",
+      "texto_imagen": "En la columna de 600 px, la foto principal muestra un Jordan 1 Travis Scott, como confirma su pie, pero el titular de apertura destaca las ventas del Yeezy 350 V2. La imagen no muestra el producto protagonista de esa parte del titular.",
+      "identidad": "En las tres columnas predominan el fondo blanco, la tipografía sans y los acentos verdes; las fotos son de producto aislado. Coinciden con la portada, que usa sans, blanco y verde, y muestra productos recortados sobre fondo claro.",
+      "concepto": "La idea de dos marcadores de 2019 conecta la apertura, la comparación de ventas frente a cuota de mercado y el cierre sobre el Swoosh del Jordan.",
+      "jerarquia": "La lectura de titulares, apoyos y CTA es clara, pero en la apertura la foto grande se ve antes que el titular y compite por la primera atención.",
+      "aire": "Las columnas mantienen márgenes y separaciones consistentes; los módulos de cifras y el cierre tienen espacio propio, sin elementos que parezcan pegados.",
+      "originalidad": "La comparación separa ventas y cuota de mercado con rótulos, periodos y cifras propios de este concepto; no repite solo el patrón foto-titular-botón.",
+      "movil": "En la columna de 375 px el contenido cabe y los titulares y cuerpos se leen; el texto del pie verde se ve considerablemente más pequeño que el resto.",
+      "oscuro": "La columna oscura conserva texto legible sobre fondo oscuro, contraste en las cifras y el logo claramente visible sobre su recuadro claro.",
+      "copy": "Los titulares nombran Yeezy y Jordan y el botón dice «Consulta el Jordan 1 Travis Scott»; «Dos marcadores, dos métricas distintas» es un encabezado más abstracto."
+    },
+    "problemas": [
+      "La foto principal de la columna de 600 px muestra el Jordan, mientras que el titular de apertura centra la afirmación en el Yeezy."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/siroko/hermes/2026-10-06-xfla8l",
+    "escala": "antigua",
+    "vuelta": 1,
+    "sec": 26,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": null,
+    "problemas": []
+  },
+  {
+    "pieza": "newsletters/2026/siroko/hermes/2026-10-06-xfla8l",
+    "escala": "nueva",
+    "vuelta": 1,
+    "sec": 40,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 3,
+      "identidad": 5,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 3,
+      "originalidad": 4,
+      "movil": 3,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la apertura se ven la chaqueta de nieve, la referencia a esquí y snowboard y el precio de 99,95 €. Que es específicamente una chaqueta de hombre se aclara más abajo.",
+      "texto_imagen": "En las tres columnas, el módulo «Fuera, softshell. Dentro, micropolar» acompaña una foto exterior de la chaqueta cerrada: no muestra el micropolar. La foto de detalle junto a «Ventila cuando lo necesitas» tampoco deja ver las aberturas de las axilas descritas en el texto.",
+      "identidad": "Las tres columnas combinan tipografía sans serif, blanco y negro con acentos rojos, y fotos de producto de estudio; el logo Siroko se reconoce en la cabecera.",
+      "concepto": "La apertura de tres capas se desarrolla con los módulos de softshell, micropolar y ventilación. La idea de «invierno en movimiento» contrasta algo con las fotos de estudio, sin acción en la nieve.",
+      "jerarquia": "Los titulares destacan sobre el texto de apoyo y las llamadas a la acción se distinguen. En la columna móvil se leen con claridad; en las de 600 px y modo oscuro, los textos de apoyo tienen mucho menos peso visual.",
+      "aire": "La apertura tiene separación clara, pero el panel rojo de características concentra titular, etiquetas y explicaciones con poco espacio, especialmente en las columnas de 600 px y modo oscuro.",
+      "originalidad": "El panel rojo con «EXTERIOR / INTERIOR» aporta una composición propia; el resto recurre principalmente a módulos habituales de foto y texto.",
+      "movil": "Los titulares y la estructura se leen, pero el texto explicativo del panel rojo y algunos apoyos quedan pequeños frente a la columna móvil.",
+      "oscuro": "El logo y los titulares se distinguen; el texto secundario tiene menos presencia que los titulares, aunque mantiene contraste suficiente.",
+      "copy": "Los textos nombran la prenda, sus características y el uso en esquí o snowboard; «Tres capas. Un invierno en movimiento» es más abstracto que los demás titulares."
+    },
+    "problemas": [
+      "Las fotos no muestran el micropolar interior ni las aberturas de ventilación que describen los módulos correspondientes.",
+      "El panel rojo de características queda denso y su texto de apoyo es pequeño en las columnas de 600 px y móvil.",
+      "En móvil, el texto explicativo del panel rojo resulta pequeño frente a los titulares."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/lacoste/hermes/2026-10-06-idyg6t",
+    "escala": "nueva",
+    "vuelta": 2,
+    "sec": 37,
+    "notas": {
+      "peticion": 5,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 3,
+      "movil": 4,
+      "oscuro": 3,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la primera pantalla de las tres columnas aparecen «Rebajas de septiembre», el polo Lacoste y el precio rebajado de 100 € a 50 €; el producto y la llamada a la tienda hacen reconocible a quién va dirigida.",
+      "texto_imagen": "La única foto muestra un polo verde solo, sobre fondo claro. Coincide con el texto que identifica el polo L.12.12 verde S86; los textos sobre el clásico y hacerle sitio no describen detalles visibles nuevos de la foto.",
+      "identidad": "Sin contar el logo, el verde oscuro, los fondos claros y la fotografía limpia del polo dan una impresión coherente con una marca de moda clásica. La maquetación y la tipografía son más convencionales que distintivas.",
+      "concepto": "El titular de rebajas y el polo protagonista sostienen la idea del icono a precio rebajado. El cierre invita a comprar ese mismo polo; la reflexión sobre el clásico acompaña la idea, aunque no la desarrolla visualmente.",
+      "jerarquia": "En móvil, el titular «Polos Lacoste, ahora en rebajas.» destaca sobre el texto de apoyo y el botón. Las secciones posteriores se distinguen por sus titulares; en escritorio la primera jerarquía se percibe más compacta.",
+      "aire": "Las tres columnas mantienen márgenes y bloques separados. En móvil hay espacio entre secciones; el bloque de producto y el texto de apoyo de escritorio se perciben algo más apretados.",
+      "originalidad": "La pieza encadena módulos habituales de email: producto, bloque de oferta, descripción, frase destacada y cierre con CTA. El polo y el cocodrilo vinculan los módulos, pero no hay una composición que parezca exclusiva de este concepto.",
+      "movil": "En la columna de 375 px se leen el titular, precio, apoyo y botones; no se aprecian cortes ni elementos pegados al borde. El enlace «Darse de baja» queda pequeño, pero es texto de pie.",
+      "oscuro": "El logo y los textos principales se distinguen. En cambio, los rótulos pequeños de las secciones sobre el cocodrilo bordado y el clásico tienen poco contraste sobre el fondo oscuro.",
+      "copy": "Los titulares nombran las rebajas o el polo y las CTA invitan a ver polos o comprar. «No hace falta cambiar el icono para volver a mirarlo de otra forma» es más abstracto que el resto."
+    },
+    "problemas": [
+      "En la columna oscura, los rótulos de sección en verde oscuro sobre fondo oscuro pierden contraste.",
+      "La estructura de módulos y el cierre convencional hacen que la pieza se acerque a una plantilla de email marketing."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/nike/hermes/2026-10-06-jcpy0x",
+    "escala": "nueva",
+    "vuelta": 2,
+    "sec": 41,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 5,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 5,
+      "movil": 2,
+      "oscuro": 4,
+      "copy": 3
+    },
+    "pruebas": {
+      "peticion": "La primera pantalla presenta las Pegasus 42 y explica el retorno de energía; el dato de al menos un 15 % aparece en el texto de apoyo, junto con el contexto de carrera, pero no destaca como oferta principal.",
+      "texto_imagen": "El titular inicial acompaña una zapatilla verde lima sobre fondo claro. Las escenas muestran personas corriendo con calzado rosa/coral y aparecen recortes de zapatillas rosas para explicar la curva; encajan con running y amortiguación, aunque cambian los colores del producto entre módulos.",
+      "identidad": "Sin contar el logo, coinciden la sans serif, el uso dominante de blanco y negro y la fotografía deportiva con la estética de la portada de Nike. La composición es limpia y centrada.",
+      "concepto": "El impulso conecta «El aire que te impulsa», la respuesta bajo el pie y la curva Air Zoom; las escenas de corredores y el módulo explicativo apoyan la idea, aunque el cierre sobre ligereza amplía el foco.",
+      "jerarquia": "Los titulares, los textos de apoyo y los botones se distinguen en general. En la columna de 600 px, el texto pequeño pierde prioridad visual frente a las fotos; en móvil, los titulares sí destacan.",
+      "aire": "Hay separación entre módulos y márgenes regulares. En la columna de 600 px, el texto de apoyo queda visualmente apretado bajo las imágenes.",
+      "originalidad": "El módulo de la zapatilla recortada con las etapas «Al apoyar» y «Al despegar» explica específicamente la curva Air Zoom; no es solo una sucesión de foto, titular y botón.",
+      "movil": "La columna de 375 px queda cortada en el borde inferior de la imagen: el último módulo termina a mitad de su texto y no se ve el cierre completo. Los párrafos también se perciben pequeños.",
+      "oscuro": "El logo blanco sobre negro se ve y los textos principales mantienen contraste. Algunos textos secundarios grises sobre fondos oscuros se leen con menos claridad.",
+      "copy": "«El aire que te impulsa» y «La respuesta sigue bajo el pie» son titulares poco concretos; «La curva del Air Zoom impulsa cada zancada» sí nombra la tecnología y el beneficio. Los botones «Ver unidad Air Zoom» y «Comprar Pegasus 42» son claros."
+    },
+    "problemas": [
+      "Móvil: el contenido queda cortado al final de la columna y no se ve completo el último módulo.",
+      "Copy: dos titulares son vagos y no nombran directamente el producto o la tecnología."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/tienda-animal/hermes/2026-10-07-pnbnxs",
+    "escala": "nueva2",
+    "vuelta": 1,
+    "sec": 39,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 3,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 3,
+      "oscuro": 4,
+      "copy": 3
+    },
+    "pruebas": {
+      "peticion": "La primera escena muestra «Criadores Renal, oferta del 20 aniversario» y el 30% en la segunda unidad con MEGA30. La audiencia de perros no queda explícita en esa primera pantalla.",
+      "texto_imagen": "La lata de la apertura coincide con Criadores Renal, pero en el módulo de comparación aparecen collages de productos de distintas marcas mientras el titular habla de packs Criadores Renal.",
+      "identidad": "La tipografía sans de peso marcado y el verde coinciden con la web. Las fotos de producto sobre blanco y los collages se alejan de sus banners de campaña con mascotas y composiciones más coloridas.",
+      "concepto": "El aniversario organiza el titular, la oferta y el cierre; la comparación de formatos y precios desarrolla la promoción concreta.",
+      "jerarquia": "En móvil, titular, texto de apoyo y botón de la apertura se distinguen con claridad. En escritorio, la foto de la lata ocupa mucho espacio antes de que aparezca el titular.",
+      "aire": "Hay márgenes y separación consistentes; la lista de formatos y precios en la columna de 600 px queda más compacta que el resto.",
+      "originalidad": "La comparativa verde de formatos y precios aporta un módulo propio, aunque el resto usa una estructura habitual de email con foto, titular y botón.",
+      "movil": "La columna de 375 px no muestra cortes ni elementos pegados al borde, pero algunos textos secundarios de la comparativa y del cierre se ven pequeños.",
+      "oscuro": "El logo y los textos principales se distinguen sobre el fondo oscuro; algunas líneas secundarias tienen menos contraste y tamaño reducido.",
+      "copy": "Los titulares principales concretan producto y oferta, y «Añade Criadores Renal al carrito» indica la acción. «Más ofertas de aniversario para tu peludo» es más genérico y «Ver formatos y precios» no concreta el producto."
+    },
+    "problemas": [
+      "texto_imagen: el collage del módulo de comparación muestra productos variados, no los packs Criadores Renal que anuncia el titular.",
+      "movil: algunos textos secundarios de la comparativa y el cierre se ven pequeños.",
+      "copy: el titular «Más ofertas de aniversario para tu peludo» es genérico y el botón «Ver formatos y precios» no nombra Criadores Renal."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/el-corte-ingles/hermes/2026-10-06-vxvm7f",
+    "escala": "nueva2",
+    "vuelta": 1,
+    "sec": 45,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 5,
+      "identidad": 4,
+      "concepto": 5,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 5,
+      "movil": 2,
+      "oscuro": 4,
+      "copy": 5
+    },
+    "pruebas": {
+      "peticion": "La ocasión navideña y el producto se entienden en la primera escena: árbol Arosa, 110 luces cálidas y maceta de ratán. No aparece una oferta con precio, descuento o fecha.",
+      "texto_imagen": "Las fotos muestran un árbol verde iluminado, un detalle de sus ramas y la versión nevada; los titulares hablan del árbol, sus luces y sus variantes. No se ven personas ni contradicciones de color.",
+      "identidad": "En las tres columnas aparece el logo de El Corte Inglés; el verde, el blanco, el negro de los botones y las fotos de producto encajan con la identidad descrita en el brief.",
+      "concepto": "La idea de encender la Navidad con el árbol Arosa enlaza la foto principal, el módulo sobre sus funciones y la comparación de las versiones verde y nevada; el cierre invita a elegirlo.",
+      "jerarquia": "En general se lee foto, titular, apoyo y botón. En el módulo de las ocho funciones, las etiquetas pequeñas y juntas compiten con el titular, especialmente en la columna de 600 px.",
+      "aire": "Los márgenes y separaciones se mantienen bastante regulares; el bloque de ocho funciones es el punto más apretado.",
+      "originalidad": "El módulo dedicado a las ocho funciones y las luces del árbol aporta una escena específica del producto, más propia que repetir solo foto, titular y botón.",
+      "movil": "La columna de 375 px se corta en el borde inferior del render: se alcanza a ver el cierre verde, pero no su contenido completo ni el pie. Lo visible no parece pegado a los bordes.",
+      "oscuro": "El logo blanco se distingue y los textos principales contrastan con los fondos oscuros y verdes. Algunos textos de apoyo se ven pequeños.",
+      "copy": "Los titulares nombran el árbol Arosa, sus funciones o sus variantes, y los botones indican acciones concretas: «Ver el árbol Arosa», «Compara los árboles Arosa» y «Compra tu árbol Arosa»."
+    },
+    "problemas": [
+      "movil: el módulo de cierre queda cortado por el borde inferior del render y no se ve completo."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/lacoste/hermes/2026-10-06-idyg6t",
+    "escala": "nueva2",
+    "vuelta": 1,
+    "sec": 35,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 3,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 3,
+      "movil": 4,
+      "oscuro": 2,
+      "copy": 3
+    },
+    "pruebas": {
+      "peticion": "En la primera pantalla se lee «Rebajas de septiembre» y el precio del polo L.12.12 verde S86: de 100 € a 50 €. No se identifica un público concreto.",
+      "texto_imagen": "La foto muestra un polo verde solo, sobre fondo claro; coincide con el producto y el color mencionados. El cocodrilo bordado se aprecia poco por su tamaño.",
+      "identidad": "El verde, la prenda emblemática y el logotipo visible apuntan a Lacoste. Sin el logo, la tipografía y la composición resultan menos distintivas.",
+      "concepto": "Las rebajas y el polo conectan las escenas, y aparece la idea del icono, pero el titular principal «Polos Lacoste, ahora en rebajas» no desarrolla «El icono a precio de rebaja» como hilo conductor.",
+      "jerarquia": "En móvil destaca el titular, después el precio y luego el botón. En 600 px el titular y el CTA se distinguen, aunque el precio queda en texto secundario pequeño.",
+      "aire": "Las escenas tienen separaciones y márgenes regulares. La versión de 600 px concentra más el texto y el pie se ve pequeño.",
+      "originalidad": "La foto de producto con titular, texto y botón, seguida de bloques descriptivos y cierre comercial, usa módulos habituales; no aparece una composición claramente propia del concepto.",
+      "movil": "La columna de 375 px muestra el contenido completo sin cortes ni elementos pegados al borde. El texto de baja del pie es pequeño.",
+      "oscuro": "En la columna oscura, el texto de la escena «El polo Lacoste, con cocodrilo bordado» y el bloque «El polo Lacoste, un clásico» queda oscuro sobre fondo oscuro y cuesta mucho leerlo. El logo sí se ve.",
+      "copy": "El titular principal nombra el producto y las rebajas, y los botones indican acciones. «No hace falta cambiar el icono para volver a mirarlo de otra forma» y «Haz sitio al polo Lacoste» son más abstractos y no precisan tanto la oferta."
+    },
+    "problemas": [
+      "concepto: El titular principal anuncia rebajas, pero no expresa la idea del icono a precio de rebaja; el hilo conceptual queda repartido entre escenas.",
+      "originalidad: La estructura de foto de producto, texto y CTA se apoya en módulos comunes de email marketing.",
+      "oscuro: El texto de dos escenas secundarias pierde contraste y legibilidad en la columna oscura.",
+      "copy: Dos titulares son abstractos frente a la oferta concreta y al polo mostrado."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/feebbo/hermes/2026-10-06-y07dqw",
+    "escala": "nueva2",
+    "vuelta": 1,
+    "sec": 46,
+    "notas": {
+      "peticion": 3,
+      "texto_imagen": 3,
+      "identidad": 5,
+      "concepto": 5,
+      "jerarquia": 5,
+      "aire": 4,
+      "originalidad": 5,
+      "movil": 4,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la apertura se lee «Feebbo Digital convierte la estrategia en acción» y se menciona la implementación de campañas multicanal, pero la oferta de consultoría estratégica aparece más abajo y no hay ocasión ni cifra visible.",
+      "texto_imagen": "La apertura muestra una ilustración de una persona marcando casillas, no una foto de equipo trabajando. Sirve como metáfora de pasos, pero no muestra al equipo que asesora ni la consultoría descrita en el texto.",
+      "identidad": "En las tres columnas se repiten el sans pesado, el navy y el fucsia de la web oficial; la ilustración de la persona con lápiz y casillas coincide con la de la portada. El logo también se ve.",
+      "concepto": "El titular de estrategia que pasa a la acción conecta con la secuencia RAID de seis fases y el cierre invita a hablar de estrategia.",
+      "jerarquia": "En móvil y escritorio, la apertura ordena titular, texto y botón; la sección RAID introduce su explicación antes de las seis fases y el cierre destaca el contacto.",
+      "aire": "Hay márgenes y pausas entre módulos; la secuencia de seis fases queda más compacta en las columnas de 600 px y oscuro que en móvil.",
+      "originalidad": "El módulo propio de RAID presenta seis pasos numerados y nombrados, ligados al contenido específico de la newsletter.",
+      "movil": "La columna de 375 px muestra el contenido completo, sin cortes ni elementos pegados al borde; el pie con contacto y baja es muy pequeño.",
+      "oscuro": "El logo se distingue en la cabecera y los titulares y textos principales contrastan con el fondo navy; el texto secundario del pie resulta pequeño y de contraste más débil.",
+      "copy": "Los textos explican consultoría y RAID y los botones usan verbos, pero «empieza por tu reto» es abstracto y «Contacta con el equipo» no concreta el objeto del contacto."
+    },
+    "problemas": [
+      "peticion: la consultoría estratégica y el público objetivo no quedan concretados como oferta desde la primera pantalla, y no hay ocasión ni cifra.",
+      "texto_imagen: la ilustración de la apertura no muestra el equipo ni el trabajo de consultoría que describe el texto."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/helly-hansen/hermes/2026-10-06-1xvav7",
+    "escala": "nueva2",
+    "vuelta": 1,
+    "sec": 47,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 3,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 3,
+      "movil": 3,
+      "oscuro": 4,
+      "copy": 3
+    },
+    "pruebas": {
+      "peticion": "La temporada Otoño/Invierno 2026 aparece en la columna móvil y la pieza presenta ropa para lluvia y frío; el precio de 180 € aparece más abajo, junto a la chaqueta, no en la primera pantalla.",
+      "texto_imagen": "Las fotos muestran una persona en una costa montañosa, una chaqueta negra aislada sobre fondo claro, un detalle de una persona con capucha azul y dos personas en un paisaje costero. Los textos hablan de lluvia, capas y seguir fuera; encajan en general, aunque la chaqueta aislada no muestra su uso bajo la lluvia.",
+      "identidad": "La newsletter usa azul marino, blanco y rojo en el logo visible. La imagen de referencia de la web muestra una página de dominio aparcado («Comprar este dominio»), no la web oficial; no permite comparar su tipografía, botones o estilo fotográfico.",
+      "concepto": "«Cuando cambia el tiempo, sigue la ruta» se prolonga en los textos sobre lluvia, capas y seguir fuera; las escenas comparten el tema de salir con mal tiempo.",
+      "jerarquia": "En las tres columnas destacan primero las fotos y los titulares; después aparecen los textos de apoyo y los botones. En móvil, el nombre y el precio del producto quedan más abajo que la apertura.",
+      "aire": "Las imágenes y los bloques tienen separaciones y márgenes bastante regulares; los textos de apoyo y el pie se ven apretados frente a las fotos y titulares.",
+      "originalidad": "Hay fotos y bloques de color propios, pero se repite la secuencia de imagen, titular y texto en varios módulos; la estructura se acerca a una newsletter modular habitual.",
+      "movil": "La columna de 375 px mantiene el contenido dentro de los márgenes y no parece cortado. El texto de apoyo y algunos botones se ven pequeños, posiblemente por debajo de 14 px.",
+      "oscuro": "En la columna oscura se leen los titulares y el texto blanco sobre azul marino, y el logo rojo y blanco se distingue. El pie legal es muy pequeño.",
+      "copy": "Los textos sostienen el tema de la ruta y el tiempo, pero «Una capa para cuando cambia el cielo» es poco concreto y «Comprar ropa de temporada» resulta genérico."
+    },
+    "problemas": [
+      "identidad: la imagen de referencia es una página aparcada, así que no se puede comprobar la identidad de la web oficial.",
+      "originalidad: se repite el patrón de foto, titular y texto en varios módulos.",
+      "movil: el texto de apoyo y algunos botones parecen demasiado pequeños.",
+      "copy: hay un titular vago y un botón genérico."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/nike/hermes/2026-10-06-jcpy0x",
+    "escala": "nueva2",
+    "vuelta": 1,
+    "sec": 44,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 2,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la primera escena se ve el Pegasus 42 y el texto menciona el 15 % más de retorno de energía; la carrera se entiende como contexto, aunque el público no se nombra de forma explícita y el texto es pequeño en 600 px.",
+      "texto_imagen": "La zapatilla verde acompaña el titular sobre Air Zoom; las escenas de carrera corresponden a la respuesta bajo el pie y a seguir avanzando; la zapatilla rosa acompaña la sección sobre la curva.",
+      "identidad": "La pieza usa sans, negro y blanco, botones negros redondeados y fotografía deportiva, en línea con lo que se alcanza a ver de la web; la portada está mayormente tapada por el aviso de cookies, así que la comparación es limitada.",
+      "concepto": "Los titulares y escenas sostienen la idea de impulso en la zancada: aire, respuesta bajo el pie, curva y avance. El cierre de compra es funcional, pero no remata especialmente esa idea.",
+      "jerarquia": "En las tres columnas los titulares destacan sobre el texto de apoyo y los botones se distinguen; en 600 px el cuerpo pequeño resta claridad a la lectura de un vistazo.",
+      "aire": "Hay márgenes y separación entre bloques; la secuencia alterna fotografía y fondo claro u oscuro sin que se vea un amontonamiento claro.",
+      "originalidad": "El módulo de la zapatilla con las etiquetas «Al apoyar» y «Al despegar» es específico del concepto; el resto recurre a la secuencia habitual de foto, titular y texto.",
+      "movil": "La columna de 375 px se corta al final del último texto: no se ve el botón de compra ni el pie que sí aparecen en las otras columnas.",
+      "oscuro": "El logo blanco sobre la cabecera negra se ve y el texto principal mantiene contraste; el cuerpo pequeño de algunas escenas exige más esfuerzo de lectura.",
+      "copy": "Los titulares nombran el aire, la respuesta y la curva; «Ligera para seguir avanzando» es más abstracto, y «Ver unidad Air Zoom» y «Comprar Pegasus 42» son botones claros."
+    },
+    "problemas": [
+      "movil: el render termina en mitad del contenido final, sin mostrar el botón de compra ni el pie."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/stockx/hermes/2026-10-06-641bhj",
+    "escala": "nueva2",
+    "vuelta": 1,
+    "sec": 39,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 3,
+      "identidad": 5,
+      "concepto": 5,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 5,
+      "movil": 4,
+      "oscuro": 5,
+      "copy": 5
+    },
+    "pruebas": {
+      "peticion": "En la apertura se leen «2019 · ventas y cuota de mercado» y los dos productos, pero las cifras aparecen más abajo, no en la primera pantalla.",
+      "texto_imagen": "En la apertura, la foto muestra el Jordan 1 Travis Scott, mientras el titular también atribuye el liderazgo de ventas al Yeezy 350 V2, que no aparece en esa foto. La foto de detalle sí corresponde al texto sobre el Swoosh invertido.",
+      "identidad": "La pieza usa tipografía sans, fondos claros, acentos verdes y fotografías de producto aislado sobre blanco; coincide con esos rasgos de la portada. El logo StockX también es visible.",
+      "concepto": "Las escenas desarrollan la idea de dos métricas de 2019 y terminan con un detalle propio del Jordan 1 Travis Scott.",
+      "jerarquia": "En las columnas, el titular principal precede al apoyo y al CTA; en el bloque de métricas, los rótulos y cifras se distinguen. La secuencia de apertura y el encabezado «Dos marcadores, dos métricas» comparten protagonismo en la lectura.",
+      "aire": "Hay márgenes y separaciones consistentes; el bloque informativo de 600 px, con varios rótulos, cifras y aclaración, resulta más apretado que la apertura y el cierre.",
+      "originalidad": "La comparativa separa ventas de verano y cuota de mercado anual, un módulo ligado al concepto y no una repetición de foto, titular y botón.",
+      "movil": "La columna móvil no muestra cortes ni elementos pegados al borde; el pie editorial y «Darse de baja» se ven notablemente más pequeños que el contenido.",
+      "oscuro": "En la columna oscura se leen los titulares y el texto claro sobre fondo oscuro; el logo se distingue dentro de su recuadro claro.",
+      "copy": "Los titulares nombran los modelos y el detalle; el botón «Consulta el Jordan 1 Travis Scott» indica una acción y su objeto."
+    },
+    "problemas": [
+      "texto_imagen: la apertura combina una foto del Jordan con un titular que también destaca las ventas del Yeezy, que no se muestra en esa imagen."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/siroko/hermes/2026-10-06-xfla8l",
+    "escala": "nueva2",
+    "vuelta": 1,
+    "sec": 49,
+    "notas": {
+      "peticion": 5,
+      "texto_imagen": 3,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 3,
+      "oscuro": 3,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la apertura de las tres columnas aparecen la chaqueta W3 Shiga, el contexto de invierno y esquí/snowboard, y el precio de 99,95 €; el público se identifica como quien practica esos deportes.",
+      "texto_imagen": "La foto de apertura muestra a una persona con la chaqueta y la vista siguiente enseña la espalda. Sin embargo, «Dentro, micropolar» no se ve en esa foto exterior; la imagen de ventilación es un primer plano de la capucha y el rostro, no de las aberturas de las axilas.",
+      "identidad": "El rojo de acento, el fondo claro y las fotos de estudio del producto encajan con la identidad descrita. La tipografía se ve sans serif, pero en la imagen no se distingue con claridad si es la Work Sans de la marca.",
+      "concepto": "«Tres capas. Un invierno en movimiento.» introduce el producto; después aparecen construcción, ventilación y un cierre para equiparse. Las fotos son de estudio, así que no muestran el movimiento que sugiere el concepto.",
+      "jerarquia": "Los titulares y el texto de apoyo están ordenados en cada módulo; la imagen domina la apertura. En la columna de 600 px el enlace «Ver W3 Shiga» tiene poca presencia frente a la foto y al texto.",
+      "aire": "Hay separaciones claras entre módulos y las imágenes no parecen pegadas a los bordes. El bloque rojo de características concentra varios datos y queda más apretado que el resto.",
+      "originalidad": "El bloque rojo que organiza los datos como EXTERIOR e INTERIOR se adapta al concepto de capas; el resto sigue una secuencia habitual de foto de producto, texto y CTA.",
+      "movil": "La columna móvil mantiene el contenido dentro del ancho y los titulares se leen, pero el texto de apoyo y las letras pequeñas de los bloques se ven diminutos; al final de la imagen asoma el inicio de otra foto.",
+      "oscuro": "El logo se ve y los titulares principales contrastan. El texto secundario en los módulos oscuros es muy pequeño y cuesta leerlo en la columna oscura.",
+      "copy": "Los titulares nombran producto, construcción y ventilación; «Ver W3 Shiga» y «Elegir mi talla» indican acciones. «Un invierno en movimiento» es más abstracto que los demás."
+    },
+    "problemas": [
+      "texto_imagen: «Dentro, micropolar» no se representa en la foto de la espalda; la imagen de ventilación muestra la capucha y el rostro, no las aberturas de las axilas.",
+      "movil: el texto de apoyo y los detalles de los bloques se ven demasiado pequeños; al borde inferior empieza otra foto.",
+      "oscuro: el texto secundario de los módulos oscuros cuesta de leer por su tamaño."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/lacoste/hermes/2026-10-06-idyg6t",
+    "escala": "nueva2",
+    "vuelta": 2,
+    "sec": 33,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 4,
+      "oscuro": 3,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la parte superior de las tres columnas aparecen «Rebajas de septiembre», «Polos Lacoste, ahora en rebajas» y el precio del polo L.12.12 verde S86, de 100 € a 50 €. El público se infiere, pero no se concreta más allá de quienes buscan polos Lacoste.",
+      "texto_imagen": "La foto muestra un polo verde solo, sobre fondo claro, y el texto identifica el polo L.12.12 verde S86 y el cocodrilo bordado en el pecho. El color coincide; no aparecen personas.",
+      "identidad": "El cocodrilo y la palabra LACOSTE se ven en la cabecera. La paleta verde y crema y la presentación limpia del polo sostienen la identidad, aunque la foto de producto aislado es convencional.",
+      "concepto": "El precio de rebaja del polo abre la pieza; el módulo «El polo Lacoste, un clásico» y el cierre «Haz sitio al polo Lacoste» retoman el icono. La escena central sobre el cocodrilo bordado aporta producto, pero desarrolla menos la idea del icono a precio de rebaja.",
+      "jerarquia": "En móvil se distingue el titular principal, su texto de apoyo y el botón «Ver polos en Lacoste»; luego se separan los módulos y el CTA de compra final. En 600 px esos textos quedan más comprimidos, aunque se mantiene el orden visual.",
+      "aire": "La columna móvil deja separaciones claras entre el producto, los bloques de texto y el cierre. En 600 px los mismos módulos se ven más apretados y el texto secundario queda pequeño.",
+      "originalidad": "La banda «El polo Lacoste, un clásico» y el cierre editorial aportan una estructura más propia que una secuencia de tarjetas, aunque la foto aislada de producto y los CTA son recursos habituales.",
+      "movil": "En 375 px se leen los titulares, los textos de producto y los botones; no se aprecia contenido cortado ni pegado al borde. «Darse de baja» queda pequeño en el pie.",
+      "oscuro": "El logo y los titulares principales se distinguen. En el módulo del cocodrilo bordado, el rótulo pequeño y oscuro sobre el fondo verde oscuro tiene poco contraste y cuesta leerlo.",
+      "copy": "Los textos nombran el polo Lacoste, el modelo, el color y la rebaja; los botones usan verbos y objeto. «El polo Lacoste, un clásico» es más general que los otros titulares."
+    },
+    "problemas": [
+      "oscuro: el rótulo «EL POLO LACOSTE, CON COCODRILO BORDADO» pierde contraste en el módulo oscuro y cuesta leerlo."
+    ]
+  },
+  {
+    "pieza": "newsletters/2026/nike/hermes/2026-10-06-jcpy0x",
+    "escala": "nueva2",
+    "vuelta": 2,
+    "sec": 37,
+    "notas": {
+      "peticion": 4,
+      "texto_imagen": 4,
+      "identidad": 4,
+      "concepto": 4,
+      "jerarquia": 4,
+      "aire": 4,
+      "originalidad": 4,
+      "movil": 3,
+      "oscuro": 4,
+      "copy": 4
+    },
+    "pruebas": {
+      "peticion": "En la primera escena se presentan las Pegasus 42 y el beneficio Air Zoom; el texto menciona un 15 % más de retorno de energía que Pegasus 41. La ocasión de running se entiende por el producto y las escenas, aunque no se concreta una situación de uso en la primera pantalla.",
+      "texto_imagen": "El zapato verde aparece aislado junto al texto sobre Air Zoom; después se ven corredores y una zapatilla rosa junto a los textos sobre respuesta y curva. La corredora lleva zapatillas rosas en la escena de «Ligera para seguir avanzando». Las imágenes acompañan el tema, aunque no demuestran por sí solas beneficios como la ligereza.",
+      "identidad": "La pieza usa sans serif, titulares negros contundentes, fondos blancos y botones negros, con fotografía deportiva y color en las zapatillas. Coincide con la identidad visible en la portada, aunque el aviso de cookies tapa buena parte de esa referencia.",
+      "concepto": "El impulso recorre los titulares sobre el aire, la respuesta bajo el pie y la curva de la zancada. Las escenas de producto y running sostienen esa idea; el cierre sobre ligereza la desplaza parcialmente.",
+      "jerarquia": "En las escenas principales destacan los titulares, seguidos del texto y, en la primera y la última, del botón. En móvil la primera explicación y su botón quedan antes de la siguiente foto; la lectura se vuelve más continua en la columna larga.",
+      "aire": "Los márgenes y separaciones se mantienen bastante consistentes. Hay pausas claras entre foto, titular y texto, aunque algunos bloques de texto de apoyo quedan compactos frente a las imágenes.",
+      "originalidad": "La secuencia integra una zapatilla rosa con la curva y las etiquetas «Al apoyar» y «Al despegar», un módulo específico del producto. El resto recurre a módulos habituales de fotografía, titular y texto.",
+      "movil": "En la columna de 375 px se ven los titulares, las imágenes y los botones, sin cortes evidentes ni elementos pegados al borde. El texto explicativo, especialmente bajo «El aire que te impulsa», se ve pequeño y denso para móvil.",
+      "oscuro": "El logo blanco se distingue sobre la franja negra y los titulares y textos principales se leen sobre sus fondos. Algunos textos secundarios grises y pequeños tienen menos contraste que los titulares.",
+      "copy": "Los titulares nombran beneficios o partes del producto y los botones dicen «Ver unidad Air Zoom» y «Comprar Pegasus 42». «Ligera para seguir avanzando» es menos específico y podría pertenecer a otras campañas."
+    },
+    "problemas": [
+      "movil: el texto explicativo de la primera escena se ve pequeño y denso en la columna de 375 px."
+    ]
+  }
+]

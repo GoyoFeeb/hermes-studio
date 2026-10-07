@@ -13,7 +13,7 @@ import { renderChecks, resolveLocal, type RenderReport } from './renderChecks';
 import { runQualityCheck, visibleText, type QualityReport, type Fetcher } from './qualityCheck';
 import { buildBrandCard } from './brandCard';
 import { readMeasuredIdentity } from './measureBrand';
-import { missingInPiece } from '../server/requestCoverage';
+import { asksForOffer, missingInPiece, offerFigures, pieceShowsFigure } from '../server/requestCoverage';
 import { VERIFIED_FILE } from './claims';
 
 /** Petición del equipo, en `_trabajo/` junto a la pieza (la escribe el worker al recibir el encargo). */
@@ -89,7 +89,18 @@ export async function inspectNewsletter(htmlPath: string, root: string, opts: In
   } catch {
     // pieza suelta o anterior a esta comprobación
   }
+  // La oferta con su cifra (Q1, 2026-10-07): lo pide la petición o, con «Prompt completo» (sin petición), el prompt.
+  let offerAsk = request;
+  if (opts.design && !offerAsk) {
+    try {
+      offerAsk = fs.readFileSync(path.join(dir, '_trabajo', 'encargo.md'), 'utf8').split('## Instrucciones de entrega')[0].slice(0, 2000);
+    } catch {
+      // sin encargo: pieza suelta
+    }
+  }
+  const pieceText = `${html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || ''} ${visibleText(html)}`;
   const report = await runQualityCheck(html, {
+    offer: opts.design && offerAsk ? { asked: asksForOffer(offerAsk), verifiedFigures: offerFigures(verified || ''), pieceHasFigure: pieceShowsFigure(pieceText) } : undefined,
     verified,
     requestMissing: request ? missingInPiece(request, `${html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || ''} ${visibleText(html)}`).map((t) => t.label) : undefined,
     missingLocal: missingLocalImages(html, dir, root),

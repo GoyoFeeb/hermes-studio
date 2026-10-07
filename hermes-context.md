@@ -2400,3 +2400,29 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   - `rememberLogo`: al terminar una pieza, si la marca no tiene logo en design-input, se guarda el de la pieza como
     `logo-pieza.png` (Lacoste no tenía carpeta de marca).
 - Test nuevo en agents.test.js (231). Pendientes de la auditoría: 6 y Q1-Q3.
+
+### 2026-10-07 — A (medidor de tiempos) y Q1 (la oferta con su cifra) (pedido por el usuario)
+- A. `studio/worker/tiempos.ts` + `npm run tiempos [-- --desde "AAAA-MM-DD HH:MM"]`: mediana y máximo por fase (brief,
+  identidad, ficha, primera versión, comprobación, revisión visual, total) de las piezas nuevas, antes (7 días) y después
+  del corte. Fecha sacada de la carpeta del trabajo. Línea base antes de los cambios de hoy (corte 07-10 09:35, 15
+  piezas): primera versión 10:53, revisión visual 3:02, total 15:00 de mediana (máx 44:00 con brief).
+- Q1. `requestCoverage.ts`: `asksForOffer`, `offerFigures` (en lo verificado: descuentos «-30 %», «hasta 50 %», «30 % de
+  descuento» y precios en €/EUR; un «100 % algodón» no cuenta) y `pieceShowsFigure`. Punto nuevo en la comprobación
+  («Oferta con su cifra», `offer` en qualityCheck.ts, desde inspect.ts en piezas nuevas): error si se pide una oferta,
+  lo verificado trae cifra y la pieza no muestra ningún % ni precio (vuelve a Hermes en la ronda de correcciones);
+  aviso si no hay cifra verificada (no se empuja a inventarla). Sin petición («Prompt completo»), se mira el prompt de
+  `_trabajo/encargo.md`. Brief: en «3. Datos verificados», primera línea «Oferta: …» o «Oferta: sin cifra verificada».
+  Comprobado con piezas reales: Lacoste antes de la mejora (sin cifra, verificado «hasta 50 %») habría dado error.
+
+### 2026-10-07 — Q3 (nota de arte con anclas), hoja de capturas sin cortes y T1 (identidad del brief anterior) (pedido por el usuario)
+- Q3. `ART_CRITERIA` con anclas por criterio (qué se VE en 5/4/3/2); `ART_SCALE`: se parte de 3 y se sube solo con
+  prueba; JSON con `pruebas` por criterio (se guardan en revision-visual.md) y mejoras con el nombre del criterio
+  delante. `parseArtReview`: un 5 con una mejora de su criterio o sin prueba cuenta como 4. Validado en
+  `_archive/prueba-nota-2026-10-07/` (8 piezas × 3 escalas): 4s del 80 % al 59 %, dispersión de totales de 1,6 a 3,0,
+  ruido ±1 en 3-5 criterios al repetir. OJO: las notas desde hoy no son comparables 1:1 con las anteriores (media
+  similar, ~39/50, pero repartida distinta).
+- Hoja de capturas (`renderSheet`, `sheetColumnWidth`): si una columna no cabe en 3000 px, se estrechan las tres en vez
+  de cortar; la de 375 px perdía su final (botón y pie) y la revisión de arte ponía 2 en móvil por ello. La C1 tal como
+  se propuso (endurecer el texto pequeño) se descartó: en 6 piezas no había texto de contenido < 14 px a 375 px.
+- T1. `previousIdentity`/`previousIdentityNote` (brandMemory.ts): sin brand pack, el brief recibe la sección «2.
+  Identidad de marca» del brief más reciente de la marca (≤ 90 días) y no la vuelve a investigar.

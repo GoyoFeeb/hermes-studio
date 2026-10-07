@@ -33,7 +33,7 @@ import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrl
 import { captureBrandWeb, renderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
-import { blockedInfo, blockedNote, markBlocked, markOpen, previousPieces, previousPiecesNote, rememberLogo } from './brandMemory';
+import { blockedInfo, blockedNote, markBlocked, markOpen, previousIdentity, previousIdentityNote, previousPieces, previousPiecesNote, rememberLogo } from './brandMemory';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
 
@@ -820,7 +820,10 @@ async function runBriefStep(
   // Memoria de la marca (punto 2, 2026-10-07): web que bloquea y assets de piezas anteriores.
   const memSlug = job.brand?.slug || job.outputDir.split(path.sep)[2] || '';
   const blocked = blockedInfo(ROOT, memSlug);
-  const memoryNote = blockedNote(job.brand?.name || memSlug, blocked) + previousPiecesNote(previousPieces(ROOT, memSlug, job.outputDir));
+  // Identidad del brief anterior (T1, 2026-10-07): solo sin brand pack (con pack, el brief ya lo lee).
+  const prevIdentity = hasBrandPack(ROOT, memSlug) ? null : previousIdentity(ROOT, memSlug, job.outputDir);
+  const memoryNote =
+    blockedNote(job.brand?.name || memSlug, blocked) + previousIdentityNote(prevIdentity) + previousPiecesNote(previousPieces(ROOT, memSlug, job.outputDir));
   const tools = briefTools(!!blocked);
   const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
   let sessionId: string | null = null;
@@ -961,31 +964,61 @@ async function imageSize(file: string): Promise<{ width: number; height: number 
 }
 
 /** Lo que puntúa la revisión de dirección de arte (1-5). */
+/** Criterios con anclas (Q3, 2026-10-07): con una escala común para todos, el 80 % de las notas de 10 piezas del 06-10
+ *  eran 4 y la nota no distinguía piezas. Cada criterio dice lo que se VE en cada nota. */
 export const ART_CRITERIA: Record<string, string> = {
-  peticion: '¿la ocasión, la oferta y el público que pide la petición se notan a primera vista?',
-  texto_imagen: '¿lo que dicen los titulares (colores, uso, personas) es lo que se ve en las fotos?',
-  identidad: '¿se reconoce la marca sin ver el logo (tipografía, colores, foto)?',
-  concepto: '¿todo deriva de un concepto claro?',
-  jerarquia: '¿se lee de un vistazo? ¿algún titular que el cliente no entienda, como un código de color?',
-  aire: '¿aire y ritmo coherentes, nada pegado ni amontonado?',
-  originalidad: '¿evita parecer una plantilla de email marketing?',
-  movil: '¿a 375 px todo se lee y nada se sale ni queda diminuto?',
-  oscuro: '¿en oscuro todo se lee (nada blanco sobre blanco ni negro sobre negro)?',
-  copy: '¿cada titular nombra algo concreto (producto, beneficio, ocasión) y suena a la marca? ¿botones con verbo + objeto, sin muletillas de email marketing?',
+  peticion:
+    'la ocasión, la oferta y el público de la petición. 5 = ocasión, oferta con su cifra (%, precio o fecha) y público ' +
+    'visibles en la primera pantalla; 4 = ocasión clara, pero la oferta sin cifra o más abajo; 3 = hay que leer el texto para ' +
+    'saber qué se ofrece; 2 = la pieza habla de otra cosa.',
+  texto_imagen:
+    'lo que dicen los textos frente a lo que muestran las fotos. 5 = cada titular habla de lo que se ve en su foto; 4 = un ' +
+    'titular vago respecto a su foto; 3 = un texto describe algo que la foto no muestra (color, uso, personas); 2 = varias ' +
+    'contradicciones o un producto distinto del que dice el texto.',
+  identidad:
+    'la marca sin mirar el logo. 5 = tipografía, colores y estilo de foto coinciden con su web; 4 = coinciden dos de los ' +
+    'tres; 3 = solo los colores o solo el logo dicen qué marca es; 2 = podría ser de otra marca.',
+  concepto:
+    'una idea que ordena la pieza. 5 = el concepto da el titular, las escenas y el cierre; 4 = está en el titular pero alguna ' +
+    'escena no lo sigue; 3 = escenas sueltas sin hilo; 2 = no hay concepto.',
+  jerarquia:
+    'lectura de un vistazo. 5 = en cada escena se ve primero el titular, luego el apoyo y luego el botón; 4 = en una escena ' +
+    'compiten dos elementos; 3 = dos titulares se pelean o un botón no se ve; 2 = no se sabe qué mirar, o un titular que el ' +
+    'cliente no entiende (un código de color).',
+  aire:
+    'aire y ritmo. 5 = márgenes y separaciones coherentes en toda la pieza; 4 = un sitio apretado o un hueco de más; 3 = varios; ' +
+    '2 = amontonado o con huecos que parecen errores.',
+  originalidad:
+    'lejos de la plantilla. 5 = al menos un módulo que solo tiene sentido con este concepto; 4 = composición propia con módulos ' +
+    'habituales; 3 = la misma fórmula foto + titular + botón repetida; 2 = una plantilla de email marketing.',
+  movil:
+    'la columna de 375 px. 5 = todo se lee (cuerpo de 14 px o más) y nada se corta ni toca el borde; 4 = solo el pie o el texto ' +
+    'legal se quedan pequeños; 3 = un texto de contenido pequeño o algo pegado al borde; 2 = algo se sale o se corta.',
+  oscuro:
+    'la columna en oscuro. 5 = todo se lee y el logo se ve; 4 = un texto secundario con poco contraste; 3 = un texto de ' +
+    'contenido o el logo cuesta de leer; 2 = algo desaparece (claro sobre claro u oscuro sobre oscuro).',
+  copy:
+    'los textos. 5 = cada titular nombra algo concreto (producto, beneficio, ocasión) y suena a la marca, y los botones dicen ' +
+    'verbo + objeto; 4 = un titular abstracto o un botón genérico; 3 = varios, o una muletilla de email marketing; 2 = ' +
+    'muletillas por toda la pieza.',
 };
 
 export interface ArtReview {
   notas: Record<string, number>;
+  /** Lo que justifica cada nota (Q3, 2026-10-07); puede faltar en alguno. */
+  pruebas?: Record<string, string>;
   problemas: string[];
   /** Lo que subiría a 5 lo que tiene 4 (2026-10-06, punto 5): se corrige si es barato. */
   mejoras: string[];
 }
 
-/** Qué significa cada nota: sin escala, Luna ponía 4 a casi todo (Siroko, 2026-10-06: nueve 4 con el texto secundario
- *  diminuto señalado) y con 4 no se tocaba nada. */
+/** Cómo se pone cada nota (Q3, 2026-10-07): se parte de 3 y se sube solo con prueba de lo que pide el 4 o el 5; antes,
+ *  con «5 = lo firmaría el director de arte… 4 = correcto pero mejorable», el 4 era la nota por defecto. */
 export const ART_SCALE =
-  'Escala: 5 = lo firmaría el director de arte de la marca, nada que mejorar; 4 = correcto pero mejorable (di qué); ' +
-  '3 = se nota un fallo; 2 = fallo grave; 1 = roto. Un 5 se gana: si puedes nombrar una mejora concreta, es un 4.';
+  'Cómo puntuar: empieza cada criterio en 3 y súbelo a 4 o a 5 solo si se cumple su descripción, con una prueba de lo que ' +
+  'ves (qué y dónde: escena, columna). Bájalo a 2 o 1 si se cumple esa descripción. 1 = roto. Si dudas entre dos notas, la ' +
+  'más baja. Usa toda la escala: una pieza correcta pero corriente es un 3 en varios criterios. Un 5 solo si no tienes ' +
+  'NINGUNA mejora para ese criterio: Studio cuenta como 4 cualquier 5 con una mejora de su criterio o sin prueba.';
 
 /** Lo que se le pregunta a vision_analyze sobre la portada de la web de la marca. */
 export const ART_WEB_QUESTION =
@@ -1048,13 +1081,15 @@ export function artReviewQuery(
     'Brief (resumen):',
     brief,
     '',
-    'Puntúa de 1 a 5 cada criterio:',
+    'Puntúa de 1 a 5 cada criterio según su descripción:',
     ...Object.entries(ART_CRITERIA).map(([k, v]) => `- ${k}: ${v}`),
     ART_SCALE,
     '',
-    'Formato exacto: {"notas": {"peticion": 4, "texto_imagen": 4, ...todos los criterios}, "problemas": ["lo que baja una nota ' +
-      'de 4: qué y dónde"], "mejoras": ["por cada nota de 4, el cambio concreto que la subiría a 5: qué, dónde y cómo (tamaño, ' +
-      'espacio, orden, el texto de un titular…), sin rehacer la pieza ni cambiar datos, enlaces o fotos"]}',
+    'Formato exacto: {"notas": {"peticion": 3, "texto_imagen": 4, ...todos los criterios}, "pruebas": {"peticion": "qué ves y ' +
+      'dónde que justifica la nota", ...todos los criterios}, "problemas": ["lo que deja un criterio por debajo de 4: qué y ' +
+      'dónde"], "mejoras": ["criterio: por cada nota que no sea 5, el cambio concreto que la subiría, empezando por el nombre ' +
+      'del criterio (\\"aire: …\\"): qué, dónde y cómo (tamaño, espacio, orden, el texto de un titular…), sin rehacer la pieza ' +
+      'ni cambiar datos, enlaces o fotos"]}',
   ].join('\n');
 }
 
@@ -1072,7 +1107,19 @@ export function parseArtReview(output: string): ArtReview | null {
       notas[k] = n;
     }
     const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((p): p is string => typeof p === 'string' && !!p.trim()).slice(0, 10) : []);
-    return { notas, problemas: list(raw.problemas), mejoras: list((raw as { mejoras?: unknown }).mejoras) };
+    const pruebasRaw = (raw as { pruebas?: Record<string, unknown> }).pruebas || {};
+    const pruebas: Record<string, string> = {};
+    for (const k of Object.keys(ART_CRITERIA)) {
+      const p = pruebasRaw[k];
+      if (typeof p === 'string' && p.trim()) pruebas[k] = p.trim().slice(0, 400);
+    }
+    const mejoras = list((raw as { mejoras?: unknown }).mejoras);
+    // Un 5 se gana (Q3, 2026-10-07; la primera validación dio 21 cincos en 8 piezas): con una mejora de su mismo
+    // criterio o sin prueba, cuenta como 4.
+    for (const k of Object.keys(notas)) {
+      if (notas[k] === 5 && (!pruebas[k] || mejoras.some((m) => m.toLowerCase().replace(/^[\s*-]+/, '').startsWith(`${k}:`)))) notas[k] = 4;
+    }
+    return { notas, pruebas, problemas: list(raw.problemas), mejoras };
   } catch {
     return null;
   }
@@ -1106,6 +1153,11 @@ function artReviewSummary(review: ArtReview): string {
   return (
     Object.entries(review.notas).map(([k, v]) => `${k} ${v}`).join(' · ') +
     ` (total ${scoreTotal(review)}/${Object.keys(review.notas).length * 5})` +
+    (review.pruebas
+      ? `\n\nPruebas:\n${Object.keys(review.notas)
+          .map((k) => `- ${k} ${review.notas[k]}: ${review.pruebas?.[k] || '(sin prueba)'}`)
+          .join('\n')}`
+      : '') +
     (review.problemas.length ? `\n\nProblemas:\n${review.problemas.map((p) => `- ${p}`).join('\n')}` : '') +
     (review.mejoras.length ? `\n\nMejoras propuestas:\n${review.mejoras.map((p) => `- ${p}`).join('\n')}` : '')
   );

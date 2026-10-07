@@ -363,6 +363,9 @@ test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y re
     const foursNoIdeas = w.parseArtReview(JSON.stringify({ notas: all(4), problemas: [] }));
     const threes = w.parseArtReview(JSON.stringify({ notas: all(3), problemas: [], mejoras: ['Más aire'] }));
     const oneTwo = w.parseArtReview(JSON.stringify({ notas: { ...all(4), copy: 2 }, problemas: ['titular genérico'], mejoras: [] }));
+    const proofs = Object.fromEntries(Object.keys(w.ART_CRITERIA).map((k) => [k, 'se ve bien en las tres columnas']));
+    const capped = w.parseArtReview(JSON.stringify({ notas: all(5), pruebas: { ...proofs, copy: '' }, problemas: [], mejoras: ['aire: 8 px más entre la escena 2 y la 3', '- jerarquia: titular de la escena 3 más grande'] }));
+    const withProof = w.parseArtReview(JSON.stringify({ notas: all(3), pruebas: { peticion: 'Sin cifra de descuento en la primera pantalla', aire: '  ', otro: 'x' }, problemas: [] }));
     const better = w.parseArtReview(JSON.stringify({ notas: { ...all(4), jerarquia: 5, aire: 5 }, problemas: [], mejoras: [] }));
     const worse = w.parseArtReview(JSON.stringify({ notas: { ...all(5), oscuro: 3 }, problemas: [], mejoras: [] }));
     const q = w.artReviewQuery(undefined, '# Brief', '<p>Hola</p>', '/tmp/hoja.jpg', { width: 1246, height: 2000 }, { path: '/tmp/web-marca.jpg', size: { width: 1280, height: 900 } });
@@ -371,7 +374,7 @@ test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y re
       mejoras: fours.mejoras, legacy: foursNoIdeas.mejoras,
       improve: [w.needsImprovement(fours), w.needsImprovement(fives), w.needsImprovement(foursNoIdeas), w.needsImprovement(threes), w.needsImprovement(oneTwo)],
       keep: [w.keepImproved(fours, better), w.keepImproved(fours, worse), w.keepImproved(fours, null), w.keepImproved(fours, fours)],
-      total: w.scoreTotal(fours), q, qNoWeb,
+      total: w.scoreTotal(fours), q, qNoWeb, withProof, capped: capped.notas,
     }));
   `);
   assert.deepEqual(r.mejoras, ['Texto secundario de 13 a 16 px en la apertura']);
@@ -381,7 +384,13 @@ test('Revisión de arte exigente: escala, mejoras de 4 a 5, web de la marca y re
   // Peor: más total (48 > 40) pero oscuro cae a 3 desde 4 → se descarta.
   assert.deepEqual(r.keep, [true, false, true, true]);
   assert.equal(r.total, 40);
-  assert.match(r.q, /5 = lo firmaría el director de arte de la marca/);
+  // Q3 (2026-10-07): anclas por criterio, se parte de 3 y cada nota lleva su prueba.
+  assert.match(r.q, /empieza cada criterio en 3/);
+  assert.match(r.q, /oferta con su cifra \(%, precio o fecha\)/);
+  assert.match(r.q, /"pruebas"/);
+  assert.deepEqual(r.withProof.pruebas, { peticion: 'Sin cifra de descuento en la primera pantalla' });
+  // Un 5 con una mejora de su criterio, o sin prueba, cuenta como 4; los demás 5 se quedan.
+  assert.deepEqual([r.capped.aire, r.capped.jerarquia, r.capped.copy, r.capped.oscuro, r.capped.concepto], [4, 4, 4, 5, 5]);
   assert.match(r.q, /"mejoras"/);
   assert.match(r.q, /2\. Llama a vision_analyze con image_url \/tmp\/web-marca\.jpg y region \[0, 0, 1280, 900\]/);
   assert.match(r.q, /3\. Con lo que te devuelvan, responde SOLO con un JSON/);
@@ -919,4 +928,88 @@ test('Memoria de marca (punto 2, 2026-10-07): webs que bloquean, assets de pieza
   assert.equal(r.opened, null);
   assert.deepEqual(r.brief, [['-t', 'web,browser,terminal,file,vision'], ['-t', 'web,terminal,file,vision']]);
   assert.deepEqual(r.draftBlocked, ['-t', 'web,terminal,file,vision']);
+});
+
+test('tiempos.ts (2026-10-07): fases por pieza con la fecha de su carpeta', () => {
+  const log = [
+    '[20:00:01] Trabajo aa-x1 → newsletters/2026/nike/hermes/2026-10-06-x1 (desde instrucción: primero el brief)',
+    '[20:06:00] Brief de aa-x1 listo en 6 min',
+    '[20:20:00] aa-x1: ficha de producto 0:06 · primera versión 10:30 · comprobación de studio 0:02 · revisión visual 3:00 · comprobación de studio 0:03 — total 13:41',
+    '[9:01:00] Trabajo bb-y2 → newsletters/2026/nike/hermes/2026-10-07-y2',
+    '[9:05:00] bb-y2: cambios pedidos 2:49 · comprobación de studio 0:03 — total 2:52',
+  ].join('\n');
+  const r = run(`
+    const t = require(${mod('tiempos.ts')});
+    const jobs = t.parseLog(${JSON.stringify(log)});
+    process.stdout.write(JSON.stringify(jobs.map((j) => ({ id: j.id, at: j.at.toISOString().slice(0, 10), phases: j.phases, total: j.total, brief: j.briefSec, edit: j.edit }))));
+  `);
+  assert.equal(r.length, 2);
+  assert.deepEqual(r[0], { id: 'aa-x1', at: '2026-10-06', phases: { 'ficha de producto': 6, 'primera versión': 630, 'comprobación de studio': 5, 'revisión visual': 180 }, total: 821, brief: 360, edit: false });
+  assert.equal(r[1].edit, true);
+});
+
+test('Q1 (2026-10-07): la oferta con su cifra', () => {
+  const r = run(`
+    const rc = require(${JSON.stringify(path.join(__dirname, '../server/requestCoverage.ts'))});
+    const { runQualityCheck } = require(${mod('qualityCheck.ts')});
+    const html = '<html><head><title>Rebajas Lacoste</title></head><body><h1>Rebajas en polos</h1></body></html>';
+    const check = async (offer) => (await runQualityCheck(html, { offer })).checks.find((c) => c.id === 'offer');
+    const verified = '## 3. Datos verificados\\nOferta: hasta un 50 % en polos (https://www.lacoste.com/es/rebajas). Polo L.12.12 100% algodón, 100,00 € → 50,00 €.';
+    process.stdout.write(JSON.stringify({
+      asks: [rc.asksForOffer('newsletter de rebajas de Lacoste'), rc.asksForOffer('newsletter de Navidad de El Corte Inglés'), rc.asksForOffer('con un descuento para jóvenes')],
+      figures: rc.offerFigures(verified), cotton: rc.offerFigures('Polo 100% algodón'),
+      shows: [rc.pieceShowsFigure('Polos al 50 %'), rc.pieceShowsFigure('Ahora 49,95&nbsp;€'), rc.pieceShowsFigure('Rebajas en polos')],
+      err: await check({ asked: true, verifiedFigures: rc.offerFigures(verified), pieceHasFigure: false }),
+      warn: await check({ asked: true, verifiedFigures: [], pieceHasFigure: false }),
+      ok: await check({ asked: true, verifiedFigures: ['hasta un 50 %'], pieceHasFigure: true }),
+      none: await check({ asked: false, verifiedFigures: [], pieceHasFigure: false }),
+    }));
+  `);
+  assert.deepEqual(r.asks, [true, false, true]);
+  assert.deepEqual(r.figures, ['hasta un 50 %', '100,00 €', '50,00 €']);
+  assert.deepEqual(r.cotton, [], '«100 % algodón» no es una oferta');
+  assert.deepEqual(r.shows, [true, true, false]);
+  assert.equal(r.err.status, 'error');
+  assert.match(r.err.details[0], /hasta un 50 %/);
+  assert.equal(r.warn.status, 'warning');
+  assert.match(r.warn.details[0], /no la inventes/);
+  assert.equal(r.ok.status, 'ok');
+  assert.equal(r.none, undefined);
+});
+
+test('Hoja de capturas (2026-10-07): si una columna no cabe, se estrechan todas en vez de cortarla', () => {
+  const r = run(`
+    const h = require(${mod('render-newsletter.ts')});
+    // Nike (06-10): a 420 px de ancho, 600 px → 2316, 375 px → 3206 (más alta que el máximo de 3000).
+    process.stdout.write(JSON.stringify({ fits: h.sheetColumnWidth([2316, 1800, 2316]), nike: h.sheetColumnWidth([2316, 3206, 2316]) }));
+  `);
+  assert.equal(r.fits, 420);
+  assert.ok(r.nike < 420 && Math.ceil((3206 * r.nike) / 420) + 36 <= 3000, 'la columna móvil entera cabe');
+});
+
+test('T1 (2026-10-07): identidad de marca del brief anterior (≤ 90 días)', () => {
+  const r = run(`
+    const fs = require('fs'), os = require('os'), path = require('path');
+    const m = require(${mod('brandMemory.ts')});
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'brandid-'));
+    const brief = (rel, identity) => {
+      const d = path.join(root, rel); fs.mkdirSync(d, { recursive: true });
+      fs.writeFileSync(path.join(d, 'brief.md'), '# Brief\\n## 1. Concepto\\nAlgo.\\n## 2. Identidad de marca — tipografía…\\n' + identity + '\\n## 3. Datos verificados\\n- 50 €');
+    };
+    const id = 'Titulares: Work Sans 500 (Google Fonts, medida en https://www.siroko.com/). Fondo #ffffff, acento #cf0a2c, botón con radio 800 px. Tono directo.';
+    brief('newsletters/2026/siroko/hermes/2026-06-01-old', 'Identidad antigua de hace tiempo, más de noventa días, con tipografías y colores de otra temporada.');
+    brief('newsletters/2026/siroko/hermes/2026-10-06-aaa', id);
+    brief('newsletters/2026/siroko/hermes/_fallido-2026-10-07-bbb', 'no debe usarse esta identidad de un intento fallido de la marca, aunque sea más reciente');
+    const now = Date.parse('2026-10-07T12:00:00Z');
+    const prev = m.previousIdentity(root, 'siroko', 'newsletters/2026/siroko/hermes/2026-10-07-ccc', now);
+    const tooOld = m.previousIdentity(root, 'siroko', 'newsletters/2026/siroko/hermes/2026-10-06-aaa', now);
+    process.stdout.write(JSON.stringify({ prev, tooOld, note: m.previousIdentityNote(prev), none: m.previousIdentityNote(null) }));
+  `);
+  assert.equal(r.prev.dir, 'newsletters/2026/siroko/hermes/2026-10-06-aaa');
+  assert.equal(r.prev.date, '2026-10-06');
+  assert.match(r.prev.text, /^Titulares: Work Sans 500/);
+  assert.doesNotMatch(r.prev.text, /Datos verificados/);
+  assert.equal(r.tooOld, null, 'sin contar la pieza actual, solo queda el de junio: más de 90 días');
+  assert.match(r.note, /no vuelvas a investigar tipografías/);
+  assert.equal(r.none, '');
 });

@@ -175,3 +175,53 @@ function imageOrigins(notesAbs: string): string[] {
     .filter((l) => l && /\.(png|jpe?g|webp|gif|svg)\b/i.test(l));
   return picked.slice(0, 8).map((l) => (l.length > 220 ? `${l.slice(0, 217)}…` : l));
 }
+
+// ---------------------------------------------------------------- identidad del brief anterior (T1, 2026-10-07)
+// Repetimos mucho las mismas marcas y cada brief volvía a investigar su identidad (tipografías, paleta, botón, tono). Si
+// un brief de los últimos 90 días ya la tiene, el nuevo parte de ella. Con brand pack no hace falta: se usa el pack.
+
+const IDENTITY_MAX_AGE_DAYS = 90;
+
+export interface PreviousIdentity {
+  /** Carpeta de la pieza cuyo brief la trae. */
+  dir: string;
+  /** Fecha del brief (AAAA-MM-DD). */
+  date: string;
+  text: string;
+}
+
+/** La sección «2. Identidad de marca» del brief más reciente de la marca (≤ 90 días), sin la línea de instrucciones que a
+ *  veces se cuela en el título. */
+export function previousIdentity(root: string, slug: string, currentDir = '', now = Date.now()): PreviousIdentity | null {
+  if (!slug) return null;
+  for (const year of listDirs(path.join(root, 'newsletters')).sort().reverse()) {
+    const base = path.join(root, 'newsletters', year, slug, 'hermes');
+    for (const name of listDirs(base).filter((d) => !d.startsWith('_')).sort().reverse()) {
+      const rel = path.relative(root, path.join(base, name));
+      const file = path.join(base, name, 'brief.md');
+      if (rel === currentDir || !fs.existsSync(file)) continue;
+      const date = name.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+      if (!date || now - Date.parse(date) > IDENTITY_MAX_AGE_DAYS * 86400000) return null;
+      const lines = fs.readFileSync(file, 'utf8').split('\n');
+      const start = lines.findIndex((l) => /^##\s*2\.\s*Identidad/i.test(l));
+      if (start < 0) continue;
+      const end = lines.findIndex((l, i) => i > start && /^##\s/.test(l));
+      const text = lines.slice(start + 1, end < 0 ? undefined : end).join('\n').trim();
+      if (text.length < 80) continue;
+      return { dir: rel, date, text: text.length > 2500 ? `${text.slice(0, 2497)}…` : text };
+    }
+  }
+  return null;
+}
+
+export function previousIdentityNote(prev: PreviousIdentity | null): string {
+  if (!prev) return '';
+  return [
+    '',
+    `## Nota de entorno: identidad de marca ya investigada (brief del ${prev.date}, ${prev.dir})`,
+    '- Parte de ella para la sección «2. Identidad de marca»: no vuelvas a investigar tipografías, paleta, botón ni tono.',
+    '  Solo comprueba lo que no cuadre con esta petición (otra línea de producto, otra submarca) y dilo si cambias algo.',
+    '',
+    prev.text,
+  ].join('\n');
+}
