@@ -7660,7 +7660,10 @@ function renderProgress(job, queue, hermesOnline) {
   } else {
     // Sin estimación en una fase temprana: la fase se alarga más de lo habitual. Antes decía "recta
     // final" también aquí (Nike · cambios, 2026-09-28: "recta final" al 14 %).
-    plainText(eta, 'esta fase va más lenta de lo habitual');
+    // «Prompt completo» (2026-10-08): sin brief, Hermes investiga dentro de la pieza y esta fase es la larga (Jordan:
+    // 13 min); el aviso de «más lenta» comparaba con las piezas con brief.
+    const fullPrompt = p.stage === 'investigando' && !job.input.instruction && !job.input.revisionOf && !job.input.mobileFixOf && !job.input.textEditOf;
+    plainText(eta, fullPrompt ? 'investigando lo que pide el prompt: sin brief, es la fase larga' : 'esta fase va más lenta de lo habitual');
   }
   // Sin acciones no es lo mismo que colgado: el modelo puede estar escribiendo una respuesta larga
   // (Talaria, 2026-09-25: 5 min generando). Gris a partir de 3 min, amarillo a partir de 10.

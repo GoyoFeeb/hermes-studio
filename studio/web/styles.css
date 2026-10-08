@@ -1801,7 +1801,8 @@ body::after {
 
 /* Fases del trabajo como pasos numerados (2026-10-05): número en rosa como las listas de feebbodigital.com; lo hecho
    con ✓, la fase actual resaltada y lo que falta en gris. En móvil, uno debajo de otro. */
-.progress-steps { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+/* Todos los pasos en una fila (2026-10-08): con auto-fit, el 05 caía solo en una segunda fila. */
+.progress-steps { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
 .progress-steps li { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); color: var(--muted); font-size: var(--fs-small); line-height: 1.35; }
 .progress-steps .step-num { font-size: var(--fs-body); font-weight: 600; color: var(--muted); }
 .progress-steps li.is-done .step-num { color: var(--accent-text); }
@@ -1810,7 +1811,7 @@ body::after {
 .progress-steps li.is-current .step-num { color: var(--accent-text); }
 .progress-steps li.is-current .step-label { font-weight: 600; }
 @media (max-width: 640px) {
-  .progress-steps { grid-template-columns: 1fr; }
+  .progress-steps { grid-auto-flow: row; grid-template-columns: 1fr; }
   .progress-steps li { flex-direction: row; align-items: baseline; gap: 12px; padding: 10px 12px; }
 }
 
@@ -3038,6 +3039,28 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
   .live-feed-box { grid-column: 1 / -1; }
 }
 @media (prefers-reduced-motion: reduce) { .thumb.live-build, .live-feed li.is-new { animation: none; } }
+/* Pieza en marcha al ancho de todo lo demás (2026-10-08): en una columna de 880 centrada, la cabecera y el logo iban
+   a 1440 y la tarjeta quedaba en medio. En pantalla ancha, la maqueta grande al lado de la fase y los pasos. */
+@media (min-width: 1200px) {
+  body:has(#view-job:not([hidden]) #job-progress:not([hidden])) #app { max-width: 1440px; }
+  body:has(#view-job:not([hidden]) #job-progress:not([hidden])) .foot-inner { max-width: 1392px; }
+  #job-progress.has-build { grid-template-columns: 220px minmax(0, 1fr); gap: 24px 40px; }
+  #job-progress.has-build .thumb.live-build { width: 220px; }
+}
+/* Las últimas acciones, en su propia columna solo si caben los cinco pasos con holgura (a 1280 quedaban en 80 px). */
+@media (min-width: 1600px) {
+  #job-progress.has-build { grid-template-columns: 240px minmax(0, 1fr) minmax(300px, 380px); }
+  #job-progress.has-build .thumb.live-build { width: 240px; }
+  #job-progress.has-build .live-feed-box { grid-column: 3; grid-row: 1 / span 2; }
+}
+@media (min-width: 1800px) {
+  body:has(#view-job:not([hidden]) #job-progress:not([hidden])) #app { max-width: 1600px; }
+  body:has(#view-job:not([hidden]) #job-progress:not([hidden])) .foot-inner { max-width: 1552px; }
+}
+@media (min-width: 2400px) {
+  body:has(#view-job:not([hidden]) #job-progress:not([hidden])) #app { max-width: 1760px; }
+  body:has(#view-job:not([hidden]) #job-progress:not([hidden])) .foot-inner { max-width: 1712px; }
+}
 
 /* ---------- cabecera de marca en el historial (2026-10-07) ---------- */
 /* hist-brand-head, no brand-head: esa clase es la de la cabecera de la ficha de marca (se le colaban estos estilos). */
