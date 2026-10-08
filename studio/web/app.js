@@ -1914,9 +1914,11 @@ document.querySelectorAll('.segmented').forEach((seg) => {
 
   // Hilo que conecta (2026-10-06): en el margen, una línea se dibuja del «01» al «02» según se baja; al llegar,
   // el «02» se ilumina. Ligado al scroll: si se sube, se recoge.
+  // Quitado (2026-10-07): competía con el raíl de la izquierda (dos líneas verticales decorativas). Queda el raíl, que
+  // ya marca el progreso y la sección. El código se conserva por si se recupera: basta con quitar la clase is-off.
   const formView = document.getElementById('view-form');
   const thread = document.createElement('div');
-  thread.className = 'section-thread';
+  thread.className = 'section-thread is-off';
   thread.setAttribute('aria-hidden', 'true');
   thread.innerHTML = '<span class="section-thread-line"></span><span class="section-thread-dot"></span>';
   formView.prepend(thread);
