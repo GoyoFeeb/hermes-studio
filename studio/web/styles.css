@@ -899,7 +899,7 @@ a.menu-item { text-decoration: none; box-sizing: border-box; }
   border-top: 1px solid var(--border);
   color: var(--text);
 }
-.foot-inner { max-width: 880px; margin: 0 auto; }
+.foot-inner { max-width: 832px; margin: 0 auto; } /* el ancho útil de #app (su máximo menos 2 × 24 px de relleno) */
 .foot-cta { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 32px 48px; padding-bottom: 40px; }
 .foot-cta-copy { max-width: 440px; }
 .foot-title { margin: 12px 0 8px; font-size: clamp(28px, 4vw, 40px); font-weight: 600; line-height: 1.1; color: var(--text); }
@@ -1704,6 +1704,7 @@ body::after {
    las acciones a la derecha, fijas al bajar, con su propio scroll si no caben. La página se ensancha solo ahí. */
 @media (min-width: 1200px) {
   body:has(#view-job:not([hidden]) #job-result:not([hidden])) #app { max-width: 1440px; }
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) .foot-inner { max-width: 1392px; }
   /* La cabecera, igual de ancha en todas las páginas (2026-10-05): solo se ensanchaba aquí y el logo saltaba
      unos 200 px al entrar o salir de una newsletter terminada. Como en la web, logo arriba a la izquierda. */
   .topbar { max-width: 1440px; }
@@ -2827,6 +2828,8 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .brand-side { display: none; }
 @media (min-width: 1180px) {
   body:has(#view-form:not([hidden])) #app { max-width: 1240px; }
+  /* El pie, con el mismo ancho y los mismos bordes que el contenido (2026-10-08). */
+  body:has(#view-form:not([hidden])) .foot-inner { max-width: 1192px; }
   .hero-grid { margin-right: 0; grid-template-columns: minmax(0, 1fr) 520px; }
   /* La fila de abajo (el botón) se pega a lo escrito: el alto que sobra del panel lateral va debajo, no encima. */
   #brief-form { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; column-gap: 40px; align-items: start; }
@@ -3348,6 +3351,7 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 @media (min-width: 1800px) {
   :root { --fs-caption: 13px; --fs-small: 14px; --fs-ui: 15px; --fs-body: 17px; --fs-lead: 20px; --fs-prose: 19px; --fs-title: 30px; }
   body:has(#view-form:not([hidden])) #app { max-width: 1440px; }
+  body:has(#view-form:not([hidden])) .foot-inner { max-width: 1392px; }
   .topbar { max-width: 1600px; }
   .hero h1 { font-size: 58px; }
   .hero .lead { max-width: 600px; font-size: 19px; }
@@ -3360,6 +3364,7 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 @media (min-width: 2400px) {
   :root { --fs-caption: 14px; --fs-small: 15px; --fs-ui: 16px; --fs-body: 18px; --fs-lead: 21px; --fs-prose: 20px; --fs-title: 32px; }
   body:has(#view-form:not([hidden])) #app { max-width: 1600px; }
+  body:has(#view-form:not([hidden])) .foot-inner { max-width: 1552px; }
   .topbar { max-width: 1760px; }
   .hero h1 { font-size: 66px; }
   .g-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
