@@ -903,3 +903,14 @@ test('Q1 (2026-10-07): la oferta con su cifra', () => {
   assert.equal(r.ok.status, 'ok');
   assert.equal(r.none, undefined);
 });
+
+test('Q2 (2026-10-07, recuperada el 08-10): la foto de cada escena se elige antes de escribir su texto', () => {
+  const r = run(`
+    const s = require(${JSON.stringify(path.join(__dirname, '../server/standalone.ts'))});
+    const job = { id: 'x', createdAt: '2026-10-07T10:00:00Z', input: { clientName: 'Nike', clientSlug: 'nike', briefText: '# Brief', imageMode: 'official' } };
+    process.stdout.write(JSON.stringify({ prompt: s.buildHermesPrompt(job), brief: s.buildBriefPrompt({ ...job, input: { ...job.input, instruction: 'newsletter de Nike' } }) }));
+  `);
+  assert.match(r.prompt, /elige la foto de cada escena ANTES de escribir su texto/);
+  assert.match(r.prompt, /la escena donde va y qué se ve en ella/);
+  assert.match(r.brief, /escritos sobre lo que muestra ESA foto/);
+});

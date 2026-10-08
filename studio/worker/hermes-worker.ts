@@ -1027,7 +1027,7 @@ export function artReviewQuery(
     '',
     'Formato exacto: {"notas": {"peticion": 4, "texto_imagen": 4, ...todos los criterios}, "problemas": ["lo que baja una nota ' +
       'de 4: qué y dónde"], "mejoras": ["por cada nota de 4, el cambio concreto que la subiría a 5: qué, dónde y cómo (tamaño, ' +
-      'espacio, orden, el texto de un titular…), sin rehacer la pieza ni cambiar datos, enlaces o fotos"]}',
+      'espacio, orden, el texto de un titular, otra de las fotos ya descargadas…), sin rehacer la pieza ni cambiar datos o enlaces"]}',
   ].join('\n');
 }
 
@@ -1479,9 +1479,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             ...(review.problemas.length ? ['Problemas (OBLIGATORIO corregirlos: bajan una nota de 4):', ...review.problemas.map((p) => `- ${p}`)] : []),
             ...(review.mejoras.length ? ['Mejoras para subir de 4 a 5 (aplica las baratas; si una exige rehacer la pieza, sáltala y dilo):', ...review.mejoras.map((p) => `- ${p}`)] : []),
             '',
-            'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos, enlaces ni fotos. Si un texto ' +
-              'contradice las fotos o se aparta de la petición, el texto es lo que se corrige (las fotos son las oficiales). Studio ' +
-              'guarda la versión anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
+            'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos ni enlaces. Si un texto ' +
+              'contradice su foto o se aparta de la petición: corrige el texto o cambia la foto por otra de las que ya están en la ' +
+              `carpeta (${job.outputDir}/) que sí muestre lo que dice; no descargues fotos nuevas (Q2). Studio guarda la versión ` +
+              'anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
             `Después: \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` hasta que salga sin errores y ` +
               `\`npm run render-newsletter -- ${job.outputDir}/newsletter.html\` para mirar la hoja UNA vez.`,
             `Añade al final de ${rel}/revision-visual.md lo que cambiaste y un resumen de dos líneas al final de notas.md.`,

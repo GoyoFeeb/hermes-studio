@@ -2549,3 +2549,11 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
 - Comprobado con la pieza de Prozis del 07-10 («10 % de descuento»): pide oferta → sí; la pieza muestra cifra → sí;
   quitando la cifra → no (daría error si lo verificado la trae).
 - Tests: 234. Medir en las próximas piezas con oferta si sube el criterio «petición» de la nota de arte.
+
+### 2026-10-08 — Recuperada la Q2 (la foto de cada escena antes de su texto) sobre d8f11f5 (pedido por el usuario)
+- Brief «5. Escenas»: imagen (foto concreta de «6. Imágenes» y qué se ve) antes de titular y texto, escritos sobre ESA foto.
+- Encargo del borrador: regla «Texto e imagen (Q2)»; notas.md dice de cada imagen su origen, escena y qué se ve.
+- Nota y pasada de mejora de arte: pueden proponer/cambiar una foto por otra ya descargada en la carpeta (sin descargar
+  nuevas) en vez de solo el texto. Sin la mención a «-recorte» del 07-10 (prepAssets no existe en esta versión).
+- Sin C2 ni T2. Tests: 235. Vigilar en las próximas 2-3 piezas: «texto_imagen» (media 3,6-3,9) y que el texto no se
+  vuelva genérico o descriptivo de la foto (la Q2 estaba activa el 07-10 cuando Digital Car salió genérica).
