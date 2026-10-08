@@ -843,3 +843,33 @@ test('Brief e encargo piden la imagen principal y la URL de cada página de imá
   assert.match(r.brief, /URL completa de la página oficial/);
   assert.match(h.hermes, /imagen principal, a todo el ancho tras el logo/);
 });
+
+test('Hoja de capturas sin cortes (2026-10-07, recuperado el 08-10): si la columna móvil no cabe, se estrechan las tres', () => {
+  const r = run(`
+    const h = require(${mod('render-newsletter.ts')});
+    // Nike (06-10): a 420 px de ancho, 600 px → 2316, 375 px → 3206 (más alta que el máximo de 3000).
+    process.stdout.write(JSON.stringify({ fits: h.sheetColumnWidth([2316, 1800, 2316]), nike: h.sheetColumnWidth([2316, 3206, 2316]) }));
+  `);
+  assert.equal(r.fits, 420);
+  assert.ok(r.nike < 420 && Math.ceil((3206 * r.nike) / 420) + 36 <= 3000, 'la columna móvil entera cabe');
+});
+
+test('Logo medido vacío (Inglesina, 2026-10-07, recuperado el 08-10): no cuenta como logo', () => {
+  const r = run(`
+    const sharp = require('sharp');
+    const m = require(${mod('measureBrand.ts')});
+    const blank = await sharp({ create: { width: 280, height: 80, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();
+    const ink = await sharp({ create: { width: 100, height: 40, channels: 4, background: '#222222ff' } }).png().toBuffer();
+    const jpg = await sharp({ create: { width: 100, height: 40, channels: 3, background: '#ffffff' } }).jpeg().toBuffer();
+    process.stdout.write(JSON.stringify({ blank: await m.hasVisiblePixels(blank), ink: await m.hasVisiblePixels(ink), jpg: await m.hasVisiblePixels(jpg), broken: await m.hasVisiblePixels(Buffer.from('x')) }));
+  `);
+  assert.deepEqual([r.blank, r.ink, r.jpg, r.broken], [false, true, true, false]);
+});
+
+test('Vigilante de cuelgues (2026-10-07, recuperado el 08-10): topes de la revisión de arte', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    process.stdout.write(JSON.stringify({ score: w.ART_SCORE_CAP_MS, improve: w.ART_IMPROVE_CAP_MS }));
+  `);
+  assert.deepEqual([r.score, r.improve], [5 * 60 * 1000, 8 * 60 * 1000]);
+});

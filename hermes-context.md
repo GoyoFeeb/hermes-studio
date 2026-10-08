@@ -2529,3 +2529,15 @@ Datos: log del worker (15 piezas del 06-10) + `~/.hermes/state.db` (sesiones y m
   `logo-medido.png` vacío (5345790; sin él, Inglesina falla hasta tener su logo oficial).
 - Candidatos a recuperar uno a uno: Q1 (oferta con su cifra), Q2 (foto antes del texto), Q3 (nota de arte con anclas),
   punto 6 (imágenes preparadas), C2 (pieza de referencia: ojo, cogía piezas malas con ≥ 76 %), herramientas por fase.
+
+### 2026-10-08 — Recuperados tres arreglos de robustez tras la vuelta atrás a d8f11f5 (pedido por el usuario)
+Solo robustez; nada de lo que cambia la generación (encargo, herramientas por fase, umbral de mejora, Q1-Q3…).
+- Vigilante de cuelgues (de d27cb0e): `api()` con `AbortSignal.timeout(20 s)`; el latido de brief y pieza no se
+  bloquea si una vuelta lleva más de 2 min atascada (`busySince`); `cappedTurn` corta la nota de arte a los 5 min y la
+  mejora de arte a los 8 (`ART_SCORE_CAP_MS`, `ART_IMPROVE_CAP_MS`).
+- Hoja de capturas sin cortes (de 7a9a896): `sheetColumnWidth` en render-newsletter.ts; si una columna no cabe en
+  3000 px se estrechan las tres en vez de cortar la de 375 px.
+- Logo medido vacío (de 5345790, sin la parte de prepAssets, que no existe en esta versión): `hasVisiblePixels` en
+  measureBrand.ts; la medición no guarda logos transparentes y `copyMeasuredLogo` no los copia a la pieza.
+  Comprobado: Inglesina → false (sigue faltando su logo oficial); Prozis, Digital Car, Cola Cao → true.
+- Tests: 233.

@@ -18,6 +18,18 @@ import type { Browser, Page } from 'playwright';
 import sharp from 'sharp';
 import { launchBrowser } from './renderChecks';
 
+/** ¿Tiene la imagen algún píxel visible? (Inglesina, 2026-10-07: la medición guardó un logo-medido.png transparente del
+ *  todo, y el worker lo copiaba a la pieza como «logo oficial: úsalo tal cual».) */
+export async function hasVisiblePixels(src: string | Buffer): Promise<boolean> {
+  try {
+    const { data, info } = await sharp(src).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    for (let i = 3; i < data.length; i += info.channels) if (data[i] >= 128) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export interface MeasuredIdentity {
   version: 1;
   measuredAt: string;
@@ -211,7 +223,8 @@ async function saveLogo(browser: Browser, page: Page, logo: NonNullable<Extracte
     // Si la web no deja descargarlo, una captura del propio elemento.
     if (!png) png = await page.locator('[data-studio-logo="1"]').first().screenshot({ omitBackground: true }).catch(() => null);
   }
-  if (!png) return false;
+  // Un logo sin ningún píxel visible no es un logo (Inglesina, 2026-10-07): mejor ninguno.
+  if (!png || !(await hasVisiblePixels(png))) return false;
   fs.mkdirSync(path.dirname(outAbs), { recursive: true });
   fs.writeFileSync(outAbs, png);
   return true;

@@ -23,7 +23,7 @@ import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 import { describeErrors, staticChecks, type QualityReport } from './qualityCheck';
 import { REQUEST_FILE, inspectNewsletter } from './inspect';
-import { measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote } from './measureBrand';
+import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote } from './measureBrand';
 import { Timeline, summarize, type JobTimings } from './timeline';
 import { renderThumbnail } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
@@ -83,13 +83,18 @@ function stamp(): string {
   return new Date().toLocaleTimeString('es-ES');
 }
 
+const API_TIMEOUT_MS = 20_000;
 async function api(route: string, body?: unknown, attempts = 3): Promise<Response> {
   for (let i = 1; ; i++) {
     try {
+      // Con tiempo límite (2026-10-07, recuperado el 08-10): sin él, una llamada a Studio colgada (p. ej. en un despliegue
+      // de Railway) dejaba el latido ocupado para siempre y con él el vigilante de cuelgues (El Corte Inglés, 06-10:
+      // 16,5 min esperando al modelo sin que nadie cortara).
       const res = await fetch(`${BASE}${route}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body ?? {}),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
       // 409 en una ruta del trabajo en curso = lo han cancelado desde la web (ver standaloneJobForWorker).
       if (res.status === 409 && current && route.startsWith(`/api/worker/jobs/${current}/`)) markCancelled();
@@ -454,9 +459,10 @@ export function selfContainedNote(outputDir: string, root = ROOT): string {
 }
 
 /** El logo medido, ya en la carpeta del trabajo (Hermes tardaba minutos en copiarlo). Devuelve su nombre o null. */
-function copyMeasuredLogo(slug: string, outAbs: string): string | null {
+async function copyMeasuredLogo(slug: string, outAbs: string): Promise<string | null> {
   const src = path.join(ROOT, 'brands', slug, 'design-input', 'logo-medido.png');
-  if (!slug || !fs.existsSync(src)) return null;
+  // Un logo medido transparente del todo no se copia ni se da como «oficial» (Inglesina, 2026-10-07).
+  if (!slug || !fs.existsSync(src) || !(await hasVisiblePixels(src))) return null;
   try {
     fs.copyFileSync(src, path.join(outAbs, 'logo-medido.png'));
     return 'logo-medido.png';
@@ -593,6 +599,24 @@ function runHermesTurn(
       resolve({ code: -1, output: stdout, stderr: `${stderr}\n${err.message}` });
     });
   });
+}
+
+/** Tope por turno en la revisión de arte (2026-10-07, recuperado el 08-10): la nota suele tardar 1-2 min y la mejora
+ *  2-3; una llamada colgada (El Corte Inglés, 06-10: 990 s) se corta aquí aunque el latido falle. Al cortar, la nota
+ *  sale ilegible (la pieza sigue sin nota) y la mejora pasa igualmente por la segunda nota y la red de seguridad. */
+export const ART_SCORE_CAP_MS = 5 * 60 * 1000;
+export const ART_IMPROVE_CAP_MS = 8 * 60 * 1000;
+async function cappedTurn<T>(ms: number, jobId: string, what: string, turn: () => Promise<T>): Promise<T> {
+  const timer = setTimeout(() => {
+    if (!currentChild) return;
+    console.log(`[${stamp()}] ${jobId}: ${what} sin terminar en ${Math.round(ms / 60000)} min — se corta`);
+    currentChild.kill('SIGTERM');
+  }, ms);
+  try {
+    return await turn();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Rondas de corrección (2026-10-05): móvil, espacios y calidad van JUNTOS en una sola ronda (antes, dos bucles
@@ -775,14 +799,17 @@ async function runBriefStep(
   const ready = (): boolean => fs.existsSync(briefFile) && fs.statSync(briefFile).mtimeMs >= started && fs.statSync(briefFile).size > 200;
   let sessionId: string | null = null;
   let busy = false;
+  let busySince = 0;
   let lastCount = -1;
   let lastChange = Date.now();
   let budgetHit = false;
   let firstTurn = true;
   const loops = newLoopState();
   const heartbeat = setInterval(async () => {
-    if (busy) return;
+    // Un latido atascado más de 2 min no bloquea los siguientes: el vigilante de cuelgues vive aquí (2026-10-07).
+    if (busy && Date.now() - busySince < 120_000) return;
     busy = true;
+    busySince = Date.now();
     const elapsed = (Date.now() - started) / 1000;
     let tools: ToolCall[] = [];
     try {
@@ -1170,7 +1197,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       }
       timeline.end();
     }
-    const logo = copyMeasuredLogo(slug, outAbs);
+    const logo = await copyMeasuredLogo(slug, outAbs);
     if (logo) logoNote = `\n- Logo oficial medido ya copiado en ${claimed.outputDir}/${logo}: úsalo tal cual (no lo copies ni lo busques).`;
   }
   if (cancelled) {
@@ -1208,6 +1235,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let lastCount = -1;
   let lastChange = Date.now();
   let busy = false;
+  let busySince = 0;
   let loops = newLoopState();
   // La barra nunca retrocede; tras la primera versión, todo es revisión (laterSessionProgress).
   let afterDraft = false;
@@ -1221,8 +1249,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     loops = newLoopState();
   };
   const heartbeat = setInterval(async () => {
-    if (busy) return;
+    // Un latido atascado más de 2 min no bloquea los siguientes: el vigilante de cuelgues vive aquí (2026-10-07).
+    if (busy && Date.now() - busySince < 120_000) return;
     busy = true;
+    busySince = Date.now();
     const elapsed = (Date.now() - started) / 1000;
     let tools: ToolCall[] = [];
     try {
@@ -1417,12 +1447,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       watchNewSession();
       const reviewOnce = async (ready?: string): Promise<{ review: ArtReview | null; output: string }> => {
         const s2 = ready ? { sheet: ready } : await renderSheet(finalPath, workDir);
-        const look = await runHermesTurn(
-          artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found),
-          null,
-          () => undefined,
-          MODELS.draft
-        );
+        const query = artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found);
+        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.draft));
         return { review: parseArtReview(look.output), output: look.output };
       };
       const first = await reviewOnce(sheet.sheet);
@@ -1443,7 +1469,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             : `Revisión de dirección de arte: ${review.mejoras.length} mejora(s) para subir de 4 a 5 — Hermes las aplica.`
         );
         watchNewSession();
-        await runHermesTurn(
+        await cappedTurn(ART_IMPROVE_CAP_MS, job.id, 'mejora de arte', () => runHermesTurn(
           [
             `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
             `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg.${web ? ` Portada de la web de la marca: ${rel}/web-marca.jpg.` : ''} Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
@@ -1468,7 +1494,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           null,
           () => undefined,
           MODELS.draft
-        );
+        ));
         if (cancelled) return finishCancelled();
         // Segunda nota (una mirada) y red de seguridad: la mejora se queda solo si no empeora la pieza.
         watchNewSession();
