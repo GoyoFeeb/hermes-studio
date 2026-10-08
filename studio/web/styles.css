@@ -3261,14 +3261,13 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 #view-job.has-accent { --job-ui: color-mix(in srgb, var(--job-accent) 70%, #ffffff); position: relative; isolation: isolate; overflow: clip; border-color: color-mix(in srgb, var(--job-accent) 30%, var(--card-border)); }
 :root[data-theme="light"] #view-job.has-accent { --job-ui: var(--job-accent); }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) #view-job.has-accent { --job-ui: var(--job-accent); } }
-#view-job.has-accent::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(90deg, var(--job-accent), color-mix(in srgb, var(--job-accent) 30%, transparent) 70%, transparent); pointer-events: none; animation: accent-in 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: left; }
+/* Sin la franja de color en el borde de arriba (2026-10-08): no gustaba. Queda el tinte del borde y el halo. */
 #view-job.has-accent::after { content: ''; position: absolute; left: -120px; top: -160px; width: 420px; height: 320px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--job-accent) 22%, transparent), transparent 70%); pointer-events: none; z-index: -1; animation: accent-glow 1.2s ease both; }
 #view-job.has-accent .tab-ink { background: linear-gradient(90deg, var(--job-ui), color-mix(in srgb, var(--job-ui) 60%, var(--pink))); }
 #view-job.has-accent .seg-pill { background: color-mix(in srgb, var(--job-accent) 32%, var(--selected-bg)); }
 #view-job.has-accent .job-tab[aria-selected="true"] { color: var(--text); }
-@keyframes accent-in { from { transform: scaleX(0); } }
 @keyframes accent-glow { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #view-job.has-accent::before, #view-job.has-accent::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #view-job.has-accent::after { animation: none; } }
 
 /* ---------- cabecera compacta y «+ Nueva» (2026-10-07) ---------- */
 .topbar { transition: padding 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
