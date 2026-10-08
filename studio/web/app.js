@@ -2540,6 +2540,11 @@ function renderHistory() {
   document.getElementById('history-empty').hidden = groups.length > 0;
   if (!groups.length) renderHistoryEmpty();
   document.getElementById('history-more').hidden = groups.length <= visible.length;
+  // Total real de cada tramo (2026-10-08): el contador decía las piezas cargadas antes de «Ver más» (20), no las del tramo.
+  dayTotals = {
+    fine: new Map(byDay(groups).map(({ label, count }) => [label, count])),
+    coarse: new Map(byDay(groups, true).map(({ label, count }) => [label, count])),
+  };
 
   const listEl = document.getElementById('history-list');
   listEl.classList.toggle('is-gallery', historyState.view === 'gallery');
@@ -2548,7 +2553,7 @@ function renderHistory() {
     listEl.innerHTML = renderGallery(visible, info);
     return;
   }
-  const sepBefore = new Map(byDay(visible).map(({ label, count, items }) => [items[0], daySep(label, count)]));
+  const sepBefore = new Map(byDay(visible).map(({ label, count, items }) => [items[0], daySep(label, count, dayTotals.fine.get(label))]));
   listEl.innerHTML = visible
     .map(({ root, lead: j, others }, gi) => {
       const id = encodeURIComponent(j.id);
@@ -2739,8 +2744,10 @@ function byDay(groups, coarse = false) {
   });
   return out;
 }
-function daySep(label, count) {
-  return `<li class="day-sep" role="presentation"><span class="day-label">${escapeHtml(label)}</span><span class="day-count">${count}</span></li>`;
+let dayTotals = { fine: new Map(), coarse: new Map() };
+function daySep(label, count, total = count) {
+  const n = total > count ? `${count} de ${total}` : String(count);
+  return `<li class="day-sep" role="presentation"><span class="day-label">${escapeHtml(label)}</span><span class="day-count" title="${total} newsletter${total === 1 ? '' : 's'} en este tramo">${n}</span></li>`;
 }
 
 /** Tarjeta de galería más rica (2026-10-07): un punto de color con el estado (lista, aprobada, con comentarios del
@@ -2814,7 +2821,7 @@ function renderGallery(groups, info) {
     });
   // Por días (2026-10-07): un separador fijo y una cuadrícula por tramo.
   return byDay(groups, true)
-    .map(({ label, count, items }) => `${daySep(label, count)}<li class="g-all"><ul class="g-grid">${items.map((i) => cards[i]).join('')}</ul></li>`)
+    .map(({ label, count, items }) => `${daySep(label, count, dayTotals.coarse.get(label))}<li class="g-all"><ul class="g-grid">${items.map((i) => cards[i]).join('')}</ul></li>`)
     .join('');
 }
 
@@ -3323,11 +3330,9 @@ window.addEventListener('DOMContentLoaded', () => {
       mountLogo(box, true);
       const footBox = document.getElementById('foot-anim');
       if (footBox) {
-        const footLogo = mountLogo(footBox, false);
-        // Se anima cada vez que el pie entra entero en pantalla (sin depender del historial ni del raíl).
-        new IntersectionObserver((entries) => {
-          if (entries.some((e) => e.isIntersecting) && footLogo.isLoaded && footLogo.isPaused) footLogo.playSegments([0, FULL], true);
-        }, { threshold: 1 }).observe(footBox.parentElement);
+        // Entero y quieto (2026-10-08): al animarse al entrar en pantalla, una captura o una pestaña en segundo plano lo
+        // dejaban en el primer fotograma, que solo tiene la «F». Se anima solo al pasar el ratón, como el de arriba.
+        mountLogo(footBox, false);
       }
     }
     const mbox = document.getElementById('menu-anim');

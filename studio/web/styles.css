@@ -3341,6 +3341,18 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 .stats > .stat.is-zero .stat-num { font-size: 20px; }
 .stats > .stat.is-zero:hover, .stats > .stat.is-zero.is-active { opacity: 1; }
 .stats > .stat-quality { flex: 1 1 100%; }
+/* Cuatro cifras iguales en una fila (2026-10-08): «0 aprobadas» quedaba pequeña y suelta y la calidad ocupaba una fila
+   entera. Las que están a cero siguen apagadas, pero del mismo tamaño; la gráfica de calidad va dentro de su tarjeta. */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stats > .stat, .stats > .stat.is-zero { flex: none; flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px 20px; align-self: stretch; }
+.stats > .stat.is-zero .stat-num { font-size: 36px; }
+.stats > .stat.stat-quality { grid-column: auto; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; }
+.stats > .stat-quality .q-spark { max-width: 140px; align-self: center; }
+@media (max-width: 760px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats > .stat, .stats > .stat.is-zero { padding: 12px 14px; }
+  .stats > .stat.is-zero .stat-num, .stats > .stat .stat-num { font-size: 28px; }
+}
 
 /* ---------- «Ahora mismo» compacto en la cabecera (2026-10-07) ---------- */
 .now-compact { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; margin-top: 16px; padding: 9px 14px 9px 12px; border: 1px solid color-mix(in srgb, #f4a524 45%, var(--border)); border-radius: 999px; background: color-mix(in srgb, #f4a524 10%, var(--surface-row)); color: var(--text); font-size: var(--fs-small); text-decoration: none; transition: border-color 0.2s, transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1); animation: peek-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
