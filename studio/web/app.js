@@ -1063,7 +1063,7 @@ async function loadHistory() {
 
     renderHistory();
     // Después de pintar la lista: antes, la página aún era demasiado corta para llegar al historial.
-    if (scrollToHistory && jobs.length) document.getElementById('history').scrollIntoView({ block: 'start' });
+    if (scrollToHistory && jobs.length) glideToEl(document.getElementById('history'), 'start');
     scrollToHistory = false;
     // Mientras haya trabajos en curso, el historial se refresca solo.
     if (jobs.some((j) => j.status === 'running' || j.status === 'queued')) {
@@ -1706,21 +1706,78 @@ document.addEventListener('click', (e) => {
 });
 
 /** Salto con destello: desplaza como siempre y, al llegar, el destino da un aro rosa que se abre y se apaga. */
+// ---------------------------------------------------------------- desplazamiento suave propio (2026-10-08)
+// El «smooth» del navegador va casi a velocidad fija: en saltos largos (al historial, ~1.700 px) arrancaba y frenaba de
+// golpe, y los enlaces a #secciones saltaban sin animación. Ahora todo pasa por aquí: arranque y frenada suaves, duración
+// según la distancia (0,5-1 s) y se para si la persona mueve la rueda, toca la pantalla o pulsa una tecla.
+let glideRaf = 0;
+let glideStop = null;
+const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+function glideTo(y, done) {
+  cancelAnimationFrame(glideRaf);
+  glideStop?.();
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  const to = Math.max(0, Math.min(max, Math.round(y)));
+  const from = window.scrollY;
+  const dist = to - from;
+  // En una pestaña en segundo plano no hay fotogramas: directo, o se quedaría a medias.
+  if (!motionOk() || document.hidden || Math.abs(dist) < 2) {
+    window.scrollTo(0, to);
+    done?.();
+    return;
+  }
+  const dur = Math.min(1000, Math.max(500, 320 + Math.abs(dist) * 0.3));
+  const events = ['wheel', 'touchstart', 'keydown'];
+  const stop = () => {
+    cancelAnimationFrame(glideRaf);
+    off();
+  };
+  const off = () => {
+    events.forEach((ev) => window.removeEventListener(ev, stop));
+    glideStop = null;
+  };
+  events.forEach((ev) => window.addEventListener(ev, stop, { passive: true }));
+  glideStop = off;
+  const t0 = performance.now();
+  const step = (now) => {
+    const p = Math.min(1, (now - t0) / dur);
+    window.scrollTo(0, from + dist * easeInOutCubic(p));
+    if (p < 1) glideRaf = requestAnimationFrame(step);
+    else {
+      off();
+      done?.();
+    }
+  };
+  glideRaf = requestAnimationFrame(step);
+}
+/** A un elemento, dejando sitio a la cabecera fija (su scroll-margin-top o el alto de la cabecera + 16 px). */
+function glideToEl(el, block = 'start', done) {
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-h')) || 64) + 16;
+  const y = block === 'center' ? window.scrollY + r.top - Math.max(margin, (window.innerHeight - r.height) / 2) : window.scrollY + r.top - margin;
+  glideTo(y, done);
+}
+// Enlaces a una sección de la página (#view-form, #history…): con el mismo desplazamiento, sin cambiar la dirección.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest?.('a[href^="#"]');
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+  const id = a.getAttribute('href').slice(1);
+  const target = id && document.getElementById(id);
+  if (!target || target.closest('[hidden]')) return;
+  e.preventDefault();
+  glideToEl(target, 'start');
+});
+
 function jumpTo(el, block = 'start') {
   if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block });
-  if (!motionOk()) return;
-  let done = false;
-  const flash = () => {
-    if (done) return;
-    done = true;
+  glideToEl(el, block, () => {
+    if (!motionOk()) return;
     el.classList.remove('is-flash');
     void el.offsetWidth;
     el.classList.add('is-flash');
     setTimeout(() => el.classList.remove('is-flash'), 1000);
-  };
-  if ('onscrollend' in window) window.addEventListener('scrollend', flash, { once: true });
-  setTimeout(flash, 700); // sin desplazamiento (ya estaba a la vista) o sin `scrollend`
+  });
 }
 
 /** Avisos con sacudida: cualquier aviso (role="alert") que aparece o cambia de texto se sacude y entra deslizándose;
@@ -3282,7 +3339,7 @@ sideMenu.addEventListener('click', (e) => {
     if (how.hidden) document.getElementById('how-btn').click();
     jumpTo(how, 'center');
   } else {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    glideTo(0);
     form.querySelector('textarea, input[type="text"]')?.focus({ preventScroll: true });
   }
 });
@@ -3424,12 +3481,14 @@ function showFormView() {
   currentJob = null;
   setFaviconStatus(null);
   history.pushState({}, '', location.pathname);
-  viewJob.hidden = true;
-  viewBrand.hidden = true;
-  viewForm.hidden = false;
-  hero.hidden = false;
-  document.title = BASE_TITLE;
-  updateSticky();
+  withViewTransition(() => {
+    viewJob.hidden = true;
+    viewBrand.hidden = true;
+    viewForm.hidden = false;
+    hero.hidden = false;
+    document.title = BASE_TITLE;
+    updateSticky();
+  });
   loadHistory();
 }
 
@@ -3437,7 +3496,7 @@ document.getElementById('new-job-btn').addEventListener('click', () => {
   if (showFormView() === false) return;
   form.reset();
   restoreDraft();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  glideTo(0);
 });
 document.getElementById('reuse-btn').addEventListener('click', () => {
   if (currentJob) reuseJob(currentJob);
@@ -4331,7 +4390,7 @@ document.getElementById('sticky-revise').addEventListener('click', () => {
   toggleRevise(true);
   jumpTo(reviseBox, 'center');
 });
-document.getElementById('sticky-top').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+document.getElementById('sticky-top').addEventListener('click', () => glideTo(0));
 
 // ---------------------------------------------------------------- revisar el brief (2026-10-01)
 
@@ -5760,7 +5819,7 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('result-errors-link').addEventListener('click', (e) => {
   e.preventDefault();
   showJobTab('review');
-  document.querySelector('.job-tabs').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  glideToEl(document.querySelector('.job-tabs'), 'start');
 });
 
 // ---------------------------------------------------------------- pestañas del resultado (2026-09-30)
@@ -7109,7 +7168,7 @@ function flashInPreview(el) {
   const scale = t && t !== 'none' ? new DOMMatrix(t).a : 1;
   const r = el.getBoundingClientRect();
   const top = frame.getBoundingClientRect().top + window.scrollY + r.top * scale;
-  window.scrollTo({ top: Math.max(0, top - Math.max(80, (window.innerHeight - r.height * scale) / 2)), behavior: 'smooth' });
+  glideTo(Math.max(0, top - Math.max(80, (window.innerHeight - r.height * scale) / 2)));
   ensureStudioStyle(el.ownerDocument);
   el.setAttribute('data-studio-flash', '');
   setTimeout(() => el.removeAttribute('data-studio-flash'), 3000);
@@ -7143,7 +7202,7 @@ async function goToLocation(loc, side) {
   const r = el.getBoundingClientRect();
   const top = frame.getBoundingClientRect().top + window.scrollY + r.top * scale;
   const height = r.height * scale;
-  window.scrollTo({ top: Math.max(0, top - Math.max(80, (window.innerHeight - height) / 2)), behavior: 'smooth' });
+  glideTo(Math.max(0, top - Math.max(80, (window.innerHeight - height) / 2)));
   frameDoc(side)?.querySelectorAll('[data-studio-flash]').forEach((x) => x.removeAttribute('data-studio-flash'));
   ensureStudioStyle(el.ownerDocument);
   el.setAttribute('data-studio-flash', '');
@@ -7841,7 +7900,24 @@ function escapeHtml(str) {
   return div.innerHTML.replace(/"/g, '&quot;');
 }
 
+/** Cambio de página con transición (2026-10-08): la portada, una pieza, una marca o «Marcas» cambiaban de golpe (y el
+ *  salto arriba se veía). Con la API View Transitions, la página que se va se desvanece subiendo un poco y la nueva entra
+ *  desde abajo; la cabecera no se mueve. Sin la API, con «reducir movimiento», en la primera carga o mientras vuela una
+ *  carta de la galería (tiene su propia animación), cambia como antes. */
+let routedOnce = false;
+function withViewTransition(fn) {
+  if (!routedOnce || !document.startViewTransition || !motionOk() || document.hidden || document.querySelector('.card-fly')) return fn();
+  // Si el navegador la aborta (p. ej. la pestaña se oculta), el cambio se hace igual: solo se calla el aviso.
+  const t = document.startViewTransition(fn);
+  t.ready?.catch(() => undefined);
+  t.finished?.catch(() => undefined);
+}
 function route() {
+  const first = !routedOnce;
+  withViewTransition(routeNow);
+  if (first) routedOnce = true;
+}
+function routeNow() {
   // Studio ya decide la vista: fuera la silueta del enlace directo (ver <head> de index.html).
   document.documentElement.classList.remove('deep-link');
   const params = new URLSearchParams(location.search);
