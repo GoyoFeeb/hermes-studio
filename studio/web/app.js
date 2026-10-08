@@ -2041,42 +2041,9 @@ document.querySelectorAll('.segmented').forEach((seg) => {
   }
   document.addEventListener('pointerleave', () => document.querySelectorAll('.is-tilting').forEach(resetTilt));
 
-  // Botones magnéticos: se acercan al cursor (hasta 6 px) y, al pulsar, una onda rosa sale del punto del clic.
+  // Sin botones magnéticos (2026-10-08): se acercaban al cursor (hasta 6 px) y el equipo los quiere quietos en su sitio.
+  // Queda la onda rosa que sale del punto del clic.
   const MAG = '.hero-cta, #brief-form button[type="submit"], .row-view, .history-jump';
-  // Solo los botones a la vista (IntersectionObserver) y un cálculo por fotograma: antes se medían todos los «Ver» del
-  // historial con cada movimiento del ratón.
-  const visibleMag = new Set();
-  const magIO = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => entries.forEach((en) => (en.isIntersecting ? visibleMag.add(en.target) : visibleMag.delete(en.target)))) : null;
-  const watchMag = () => document.querySelectorAll(MAG).forEach((b) => {
-    if (!b.dataset.magWatched) {
-      b.dataset.magWatched = '1';
-      magIO?.observe(b);
-    }
-  });
-  watchMag();
-  new MutationObserver(watchMag).observe(document.body, { childList: true, subtree: true });
-  let magEvt = null;
-  document.addEventListener('pointermove', (e) => {
-    if (!magEvt) requestAnimationFrame(() => {
-      const ev = magEvt;
-      magEvt = null;
-      magnetAt(ev);
-    });
-    magEvt = e;
-  });
-  function magnetAt(e) {
-    visibleMag.forEach((b) => {
-      if (!b.isConnected) return visibleMag.delete(b);
-      const r = b.getBoundingClientRect();
-      if (!r.width) return;
-      const dx = e.clientX - (r.left + r.width / 2);
-      const dy = e.clientY - (r.top + r.height / 2);
-      const near = Math.abs(dx) < r.width / 2 + 40 && Math.abs(dy) < r.height / 2 + 30;
-      b.style.setProperty('--mx', near ? `${(dx * 0.15).toFixed(1)}px` : '0px');
-      b.style.setProperty('--my', near ? `${(dy * 0.25).toFixed(1)}px` : '0px');
-      b.classList.add('is-magnetic');
-    });
-  }
   document.addEventListener('pointerdown', (e) => {
     const b = e.target.closest?.(`${MAG}, .btn`);
     if (!b) return;

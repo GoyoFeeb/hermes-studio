@@ -2326,7 +2326,6 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 }
 
 /* Botones magnéticos y onda al pulsar. */
-.is-magnetic { translate: var(--mx, 0px) var(--my, 0px); transition: translate 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .has-ripple { position: relative; overflow: hidden; }
 .click-ripple {
   position: absolute;
@@ -2375,7 +2374,7 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 
 @media (prefers-reduced-motion: reduce) {
   .bg-float { display: none; }
-  .is-tilting, .is-magnetic, .job-row:hover { transform: none !important; translate: none !important; }
+  .is-tilting, .job-row:hover { transform: none !important; translate: none !important; }
   .job-row:hover .status-badge::after, .click-ripple { animation: none; display: none; }
   .section-num { transform: none; }
 }
