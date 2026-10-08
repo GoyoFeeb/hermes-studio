@@ -3351,37 +3351,6 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 .now-compact:hover .now-compact-go { transform: translateX(3px); }
 @media (prefers-reduced-motion: reduce) { .now-compact { animation: none; } }
 
-/* ---------- formulario (2026-10-08): botón claro, marca e imágenes en una fila, opciones cortas ---------- */
-/* A. El botón principal, relleno: es la acción más importante de la página. */
-.btn-generate { padding: 14px 26px; background: var(--pink); border-color: var(--pink); color: var(--on-accent); font-weight: 700; box-shadow: 0 8px 22px rgba(251, 115, 255, 0.28); }
-.btn-generate:hover { background: color-mix(in srgb, var(--pink) 88%, #ffffff); color: var(--on-accent); }
-.kbd-hint { margin-left: 10px; padding: 2px 7px; border-radius: 6px; background: rgba(8, 17, 54, 0.16); font-family: inherit; font-size: 12px; font-weight: 600; color: inherit; opacity: 0.75; }
-@media (hover: none) { .kbd-hint { display: none; } }
-/* B. Marca e imágenes lado a lado; las imágenes como dos opciones compactas. */
-@media (min-width: 900px) {
-  .form-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; align-items: start; }
-  .form-main > * { grid-column: 1 / -1; }
-  .form-main > .brand-field { grid-column: 1; order: 2; }
-  .form-main > .images-field { grid-column: 2; order: 2; }
-  .form-main > .kind { order: 1; }
-  .form-main > label, .form-main > .examples, .form-main > .prompt-coach, .form-main > #requester-field { order: 3; }
-}
-.images-field .choices { gap: 8px; }
-.images-field .choice { padding: 10px 12px; }
-.images-field .choice small { font-size: var(--fs-caption, 12px); }
-/* D. Opciones con una línea; el detalle al pulsar «más». Casillas alineadas con la primera línea. */
-.form-side .toggle { align-items: flex-start; }
-.form-side .toggle input { margin-top: 3px; flex: none; }
-.opt-more { margin: 4px 0 0 24px; }
-.opt-more summary { list-style: none; cursor: pointer; }
-.opt-more summary::-webkit-details-marker { display: none; }
-.opt-more-btn { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
-.opt-more[open] .opt-more-btn { display: none; }
-.opt-more[open] summary { margin-bottom: 4px; }
-/* E. Sin marca, el panel no ocupa sitio; al escribir, se enseña la marca conocida que empieza así. */
-.brand-side[hidden] { display: none !important; }
-.side-use { margin: 4px 0 12px; }
-
 /* ---------- cabecera: estado en una tarjeta y abanico alineado (2026-10-08) ---------- */
 /* «con Hermes» no se parte: «con» se quedaba solo al final de la primera línea. */
 .hero h1 .accent { white-space: nowrap; }

@@ -208,7 +208,7 @@
           </div>
           <!-- Formulario guiado (2026-10-07): mientras se escribe, lo que suele hacer buena una pieza y si ya está. -->
           <div class="prompt-coach" id="prompt-coach" aria-live="polite" hidden></div>
-          <fieldset class="images-field" id="images-field">
+          <fieldset>
             <legend class="label">¿De dónde salen las imágenes?</legend>
             <div class="choices">
               <label class="choice">
@@ -232,12 +232,11 @@
           <div class="brand-side" id="brand-side" aria-live="polite"></div>
           <div class="review-brief-field" id="review-brief-field">
             <label class="toggle"><input type="checkbox" name="reviewBrief" value="true" id="review-brief-input" /><span>Revisar el brief antes de que haga la newsletter</span></label>
-            <!-- Opciones resumidas (2026-10-08): una línea y el detalle al pulsar «más». -->
-            <details class="opt-more hint"><summary>Hermes se para tras el brief para que lo apruebes. <span class="opt-more-btn">más</span></summary>Escribe el brief (unos minutos) y espera a que lo apruebes tal cual o lo corrijas antes de hacer la newsletter. Se recuerda.</details>
+            <p class="hint">Hermes se para tras escribir el brief (unos minutos) para que lo apruebes o lo corrijas. Se recuerda.</p>
           </div>
           <div class="review-brief-field">
             <label class="toggle"><input type="checkbox" name="artReview" value="true" id="art-review-input" checked /><span>Revisión de dirección de arte al final</span></label>
-            <details class="opt-more hint"><summary>Mira la pieza terminada y retoca lo flojo. <span class="opt-more-btn">más</span></summary>Activada por defecto. Hermes mira las capturas, comprueba que la pieza cumple tu petición y que los textos casan con las fotos, puntúa identidad, concepto, jerarquía, aire y originalidad, y retoca lo que baje de 4. Unos minutos más. Si la quitas, se recuerda.</details>
+            <p class="hint">Activada por defecto. Hermes mira las capturas, comprueba que la pieza cumple tu petición y que los textos casan con las fotos, puntúa identidad, concepto, jerarquía, aire y originalidad, y retoca lo que baje de 4. Unos minutos más. Si la quitas, se recuerda.</p>
           </div>
 
         </aside>
@@ -260,9 +259,8 @@
           <p id="form-error" class="form-error" role="alert" hidden></p>
 
           <div class="actions">
-            <!-- Botón principal relleno (2026-10-08): con el borde rosa se confundía con los secundarios. ⌘/Ctrl + Intro envía. -->
-            <button type="submit" class="btn btn-primary btn-generate">Generar newsletter <kbd class="kbd-hint" aria-hidden="true">⌘ ↵</kbd></button>
-            <p class="hint" title="Puedes cerrar esta página y volver con el enlace del trabajo."><span id="eta-hint"></span></p>
+            <button type="submit" class="btn btn-primary">Generar newsletter</button>
+            <p class="hint"><span id="eta-hint"></span>Puedes cerrar esta página y volver con el enlace del trabajo.</p>
           </div>
         </div>
       </form>
