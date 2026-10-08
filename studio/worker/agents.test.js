@@ -964,7 +964,7 @@ test('Fotos repetidas (Nike, 2026-10-08): la misma foto con otro nombre es error
     }));
   `);
   assert.equal(r.renamed.length, 1);
-  assert.match(r.renamed[0], /suela\.jpg, suela-crop\.jpg\), con nombres distintos pero idéntica/);
+  assert.match(r.renamed[0], /suela\.jpg, suela-crop\.jpg\), con otro nombre o recortada/);
   assert.equal(r.same.length, 1);
   assert.deepEqual([r.logo, r.small], [[], []]);
 });
@@ -1031,4 +1031,34 @@ test('Columnas que se apilan en escritorio (Spotify y Jordan, 2026-10-08): autoF
   assert.match(r.html, /<table role="presentation" width="520">/, 'los comentarios de Outlook conservan sus espacios');
   assert.ok(r.applied.some((a) => /columnas lado a lado/.test(a)));
   assert.ok(!r.again.some((a) => /columnas lado a lado/.test(a)), 'una segunda pasada no cambia nada');
+});
+
+test('Foto repetida recortada (Tarífalo, 2026-10-08): un recorte cuenta como la misma foto; dos fotos parecidas, no', () => {
+  const r = run(`
+    const fs = require('fs'), os = require('os'), path = require('path'), sharp = require('sharp');
+    const { imageFindings, samePhoto } = require(${mod('renderChecks.ts')});
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'crop-'));
+    // Una «foto» con detalle: degradado y bloques de color.
+    const w = 708, h = 800, px = Buffer.alloc(w * h * 3);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 3; px[i] = (x * 255) / w; px[i + 1] = (y * 255) / h; px[i + 2] = ((x >> 5) + (y >> 5)) % 2 ? 200 : 40; }
+    await sharp(px, { raw: { width: w, height: h, channels: 3 } }).jpeg().toFile(path.join(dir, 'hero.jpg'));
+    await sharp(path.join(dir, 'hero.jpg')).extract({ left: 0, top: 200, width: 708, height: 480 }).jpeg({ quality: 70 }).toFile(path.join(dir, 'recorte.jpg'));
+    // Variante de color sobre el mismo fondo (como dos frascos de perfume): no es la misma foto.
+    const bottle = async (name, color) => sharp({ create: { width: 600, height: 600, channels: 3, background: '#eeeeee' } })
+      .composite([{ input: await sharp({ create: { width: 220, height: 320, channels: 3, background: color } }).png().toBuffer(), left: 190, top: 140 }]).jpeg().toFile(path.join(dir, name));
+    await bottle('violeta.jpg', '#6b2fa0'); await bottle('rojo.jpg', '#c4204f');
+    const img = (src) => '<img src="' + src + '" width="600">';
+    const errs = async (html) => (await imageFindings(html, dir, dir)).errors.filter((e) => e.startsWith('Foto repetida'));
+    process.stdout.write(JSON.stringify({
+      crop: await samePhoto(path.join(dir, 'hero.jpg'), path.join(dir, 'recorte.jpg')),
+      variants: await samePhoto(path.join(dir, 'violeta.jpg'), path.join(dir, 'rojo.jpg')),
+      piece: await errs(img('hero.jpg') + img('recorte.jpg')),
+      ok: await errs(img('violeta.jpg') + img('rojo.jpg')),
+    }));
+  `);
+  assert.equal(r.crop, true);
+  assert.equal(r.variants, false);
+  assert.equal(r.piece.length, 1);
+  assert.match(r.piece[0], /con otro nombre o recortada/);
+  assert.deepEqual(r.ok, []);
 });

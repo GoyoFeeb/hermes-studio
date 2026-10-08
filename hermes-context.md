@@ -2625,3 +2625,16 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   márgenes» si una columna baja de línea habiendo cabido al lado; nota en email-modulos.md (dejar ≥ 20 px libres).
   Barrido: 2 de 63 piezas (estas dos), las dos arregladas por el autoFix. Tests: 240.
 - OJO: desde ahora la nota de arte mira el escritorio real; puede cambiar alguna nota.
+
+### 2026-10-08 — Tarífalo (muznx5w9-wfyj86): foto repetida como recorte, metida por la pasada de mejora (pedido por el usuario)
+- Síntoma: la madre y la hija del horno salen dos veces (`hero-dual-check.jpg` y `hero-cocina.jpg`, recorte de la
+  primera). El borrador tenía dos fotos distintas; la pasada de mejora (Q2: puede cambiar una foto por otra ya
+  descargada) cambió la segunda por el recorte. La segunda nota lo vio («la misma foto vuelve a aparecer») pero subió
+  37 → 39 y se quedó; tras la mejora no hay ronda de corrección. La comprobación (md5) no ve recortes.
+- Arreglo: `samePhoto` (renderChecks.ts): idénticas, redimensionadas o una recorte de la otra (48 px, búsqueda a 7
+  tamaños, diferencia media en color + fracción de píxeles muy distintos; corte 25, calibrado: repeticiones reales
+  0-7, fotos distintas parecidas ≥ 69). Barrido: 4 de 69 piezas, las 4 reales (Nike, Tarífalo, El Corte Inglés 28-09
+  hero/scene2, Calvin Klein 05-10). Pasada de mejora: nunca una foto que ya esté ni un recorte suyo. Red de
+  seguridad: si la versión mejorada trae un error de la comprobación que la anterior no tenía, se recupera la anterior
+  aunque la nota suba. Tests: 241.
+- Tiempo: 29 min (borrador 24:07 investigando).

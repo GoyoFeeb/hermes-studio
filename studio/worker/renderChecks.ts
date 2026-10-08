@@ -16,7 +16,6 @@
  *   fondos: texto blanco sobre blanco.
  * Sin JavaScript de la pieza: el HTML lo escribe un modelo que ha leído webs de terceros.
  */
-import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { chromium, type Browser } from 'playwright';
@@ -598,6 +597,46 @@ export function resolveLocal(ref: string, htmlDir: string, root: string): string
   return candidates.find((c) => fs.existsSync(c) && fs.statSync(c).isFile()) || null;
 }
 
+/** ¿Son la misma foto? Idénticas, redimensionadas o una recortada de la otra (2026-10-08, Tarífalo). Se reducen a 48 px
+ *  de ancho y se busca la pequeña dentro de la grande a varios tamaños (del 100 % al 40 % de su ancho). Cuenta como
+ *  la misma si la diferencia media en color es baja y casi ningún píxel difiere mucho. Calibrado con las 64 piezas del
+ *  08-10: las repeticiones reales puntúan 0-7 y las fotos distintas pero parecidas (variantes de color de un frasco o
+ *  de una chaqueta sobre fondo blanco) 69 o más; el corte está en 25. */
+export async function samePhoto(fa: string, fb: string): Promise<boolean> {
+  if (fa === fb) return true;
+  const W = 48;
+  const rgb = async (file: string, w: number) => {
+    const { data, info } = await sharp(file).flatten({ background: '#ffffff' }).removeAlpha().resize({ width: w }).raw().toBuffer({ resolveWithObject: true });
+    return { data, w: info.width, h: info.height };
+  };
+  const [ma, mb] = await Promise.all([sharp(fa).metadata(), sharp(fb).metadata()]);
+  if (!ma.width || !ma.height || !mb.width || !mb.height) return false;
+  const [A, B] = ma.width * ma.height >= mb.width * mb.height ? [fa, fb] : [fb, fa];
+  const a = await rgb(A, W);
+  let best = Infinity;
+  for (let r = 1; r >= 0.39; r -= 0.1) {
+    const b = await rgb(B, Math.max(8, Math.round(W * r)));
+    if (b.w > a.w || b.h > a.h) continue;
+    for (let y = 0; y <= a.h - b.h; y++) {
+      for (let x = 0; x <= a.w - b.w; x++) {
+        let sum = 0;
+        let big = 0;
+        for (let j = 0; j < b.h; j++) {
+          for (let i = 0; i < b.w; i++) {
+            let d = 0;
+            for (let c = 0; c < 3; c++) d += Math.abs(a.data[((y + j) * a.w + x + i) * 3 + c] - b.data[(j * b.w + i) * 3 + c]);
+            sum += d;
+            if (d / 3 > 40) big++;
+          }
+        }
+        const n = b.w * b.h;
+        best = Math.min(best, sum / (n * 3) + (big / n) * 1000);
+      }
+    }
+  }
+  return best < 25;
+}
+
 export const IMAGE_MAX_BYTES = 600 * 1024;
 export const IMAGES_TOTAL_MAX_BYTES = 2.5 * 1024 * 1024;
 
@@ -608,23 +647,35 @@ export async function imageFindings(html: string, htmlDir: string, root: string,
   const warnings: string[] = [];
   const tags = [...html.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
   const seen = new Set<string>();
-  // Fotos repetidas por su contenido (Nike, 2026-10-08: «alphafly3-suela.jpg» y «_trabajo/suela-crop.jpg» eran el mismo
-  // archivo y la pieza enseñaba la misma foto dos veces; ni la comprobación ni la nota de arte lo vieron). Solo las que
-  // se pintan a 200 px o más y no son el logo (repetirlo en cabecera y pie, o claro/oscuro, es correcto).
-  const byContent = new Map<string, string[]>();
+  // Fotos repetidas (Nike y Tarífalo, 2026-10-08): el mismo archivo con otro nombre («suela-crop.jpg») o un recorte de
+  // otra foto de la pieza («hero-cocina.jpg», recorte de la de apertura). Solo las que se pintan a 200 px o más y no son
+  // el logo (repetirlo en cabecera y pie, o claro/oscuro, es correcto).
+  const shown: { src: string; file: string }[] = [];
   for (let i = 0; i < tags.length; i++) {
     const src = tags[i].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || '';
     const file = resolveLocal(src, htmlDir, root);
     const painted = widths[i] || Number(tags[i].match(/\bwidth\s*=\s*["']?(\d+)/i)?.[1] || 0);
     if (!file || painted < 200 || /logo|swoosh/i.test(path.basename(file))) continue;
-    const hash = createHash('md5').update(fs.readFileSync(file)).digest('hex');
-    byContent.set(hash, [...(byContent.get(hash) || []), src]);
+    shown.push({ src, file });
   }
-  for (const srcs of byContent.values()) {
+  const parent = shown.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const files = [...new Set(shown.map((x) => x.file))].slice(0, 14);
+  const same = new Map<string, string>();
+  for (let i = 0; i < files.length; i++) {
+    for (let k = i + 1; k < files.length; k++) {
+      if (await samePhoto(files[i], files[k]).catch(() => false)) same.set(files[k], same.get(files[i]) || files[i]);
+    }
+  }
+  const key = (f: string): string => same.get(f) || f;
+  shown.forEach((x, i) => shown.forEach((y, k) => k > i && key(x.file) === key(y.file) && (parent[find(k)] = find(i))));
+  const groups = new Map<number, string[]>();
+  shown.forEach((x, i) => groups.set(find(i), [...(groups.get(find(i)) || []), x.src]));
+  for (const srcs of groups.values()) {
     if (srcs.length < 2) continue;
     const names = [...new Set(srcs.map((s) => path.basename(s)))];
     errors.push(
-      `Foto repetida: la misma imagen sale ${srcs.length} veces (${names.join(', ')})${names.length > 1 ? ', con nombres distintos pero idéntica' : ''}. ` +
+      `Foto repetida: la misma imagen sale ${srcs.length} veces (${names.join(', ')})${names.length > 1 ? ', con otro nombre o recortada' : ''}. ` +
         'Cada escena lleva una foto distinta: usa otra de las fotos oficiales o quita una.'
     );
   }

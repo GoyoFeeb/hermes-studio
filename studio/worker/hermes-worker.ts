@@ -1545,7 +1545,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             '',
             'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos ni enlaces. Si un texto ' +
               'contradice su foto o se aparta de la petición: corrige el texto o cambia la foto por otra de las que ya están en la ' +
-              `carpeta (${job.outputDir}/) que sí muestre lo que dice; no descargues fotos nuevas (Q2). Studio guarda la versión ` +
+              `carpeta (${job.outputDir}/) que sí muestre lo que dice y que NO esté ya en la pieza (tampoco un recorte de una que ya ` +
+              'sale: Studio lo detecta como foto repetida); no descargues fotos nuevas (Q2). Studio guarda la versión ' +
               'anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
             // Nike (2026-10-08): la mejora escribió en la portada «Pieza de marca para corredores que preparan…».
             'Todo texto que añadas es de la marca para su cliente: nunca escribas en la pieza nada que hable de la propia pieza, ' +
@@ -1568,11 +1569,25 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         // Segunda nota (una mirada) y red de seguridad: la mejora se queda solo si no empeora la pieza.
         watchNewSession();
         const second = Date.now() - started < TIMEOUT_MS ? await reviewOnce().catch(() => ({ review: null, output: '' })) : { review: null, output: '' };
-        const keep = keepImproved(review, second.review);
+        let keep = keepImproved(review, second.review);
+        // Red de seguridad de Studio (2026-10-08, Tarífalo): la mejora cambió una foto por un recorte de la de apertura;
+        // la nota subió (37 → 39) y se quedó. Si la versión mejorada trae un error de la comprobación que la anterior no
+        // tenía, se descarta aunque la nota suba.
+        let newErrors: string[] = [];
+        if (keep) {
+          const before = new Set((quality?.checks || []).filter((c) => c.status === 'error').map((c) => c.id));
+          // Sin tocar el medidor de tiempos (seguimos dentro de la fase de revisión visual).
+          const improvedPath = htmlReady();
+          const afterReport = improvedPath ? (await inspectNewsletter(improvedPath, ROOT, { fix: true, design: !editKind, brandSlug: slug }).catch(() => null))?.report : null;
+          newErrors = (afterReport?.checks || []).filter((c) => c.status === 'error' && !before.has(c.id)).map((c) => c.label.toLowerCase());
+          if (newErrors.length) keep = false;
+        }
         if (!keep) fs.copyFileSync(backup, finalPath);
         if (artResult) artResult = { ...artResult, ...(second.review ? { after: second.review.notas } : {}), kept: keep };
         const verdict = second.review
-          ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}${keep ? '' : ': empeoraba, se recupera la versión anterior'}`
+          ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}${keep ? '' : newErrors.length ? `: añadía errores (${newErrors.join(', ')}), se recupera la versión anterior` : ': empeoraba, se recupera la versión anterior'}`
+          : newErrors.length
+          ? `sin segunda nota legible y con errores nuevos (${newErrors.join(', ')}): se recupera la versión anterior`
           : 'sin segunda nota legible: se queda la versión corregida';
         fs.appendFileSync(reviewFile, `\n## Tras la mejora\n\n${second.review ? artReviewSummary(second.review) : '(sin notas legibles)'}\n\nResultado: ${verdict}.\n`);
         console.log(`[${stamp()}] ${job.id}: revisión visual tras la mejora — ${verdict}`);
