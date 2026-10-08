@@ -3326,15 +3326,19 @@ window.addEventListener('DOMContentLoaded', () => {
   try {
     if (!reduceMotion.matches) {
       const box = document.getElementById('brand-anim');
-      // Una vez al cargar y quieto en el último fotograma (el logo entero); otra vez al pasar el ratón (2026-10-07).
-      // En bucle, una captura podía pillarlo a medias («FEEB 0»).
-      const logo = window.lottie.loadAnimation({ container: box, renderer: 'svg', loop: false, autoplay: true, path: '/feebbo-logo.json' });
+      // Una vez al cargar y quieto con el logo entero; otra vez al pasar el ratón (2026-10-07). En bucle, una captura
+      // podía pillarlo a medias («FEEB 0»). Ojo: la animación oficial (257 fotogramas) acaba desvaneciendo las letras y
+      // en el último solo queda la «F». El logo está entero y quieto entre el 40 y el 180 (medido): se para en el 90.
+      const FULL = 90;
+      const logo = window.lottie.loadAnimation({ container: box, renderer: 'svg', loop: false, autoplay: false, path: '/feebbo-logo.json' });
       logo.addEventListener('DOMLoaded', () => {
         box.hidden = false;
         box.parentElement.querySelector('img').hidden = true;
+        logo.playSegments([0, FULL], true);
       });
+      logo.addEventListener('complete', () => logo.goToAndStop(FULL, true));
       box.parentElement.addEventListener('mouseenter', () => {
-        if (logo.isPaused) logo.goToAndPlay(0, true);
+        if (logo.isPaused) logo.playSegments([0, FULL], true);
       });
     }
     const mbox = document.getElementById('menu-anim');
