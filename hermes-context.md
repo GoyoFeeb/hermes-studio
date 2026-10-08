@@ -2557,3 +2557,12 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   nuevas) en vez de solo el texto. Sin la mención a «-recorte» del 07-10 (prepAssets no existe en esta versión).
 - Sin C2 ni T2. Tests: 235. Vigilar en las próximas 2-3 piezas: «texto_imagen» (media 3,6-3,9) y que el texto no se
   vuelva genérico o descriptivo de la foto (la Q2 estaba activa el 07-10 cuando Digital Car salió genérica).
+
+### 2026-10-08 — Recuperada la Q3 (nota de arte con anclas y pruebas) sobre d8f11f5 (pedido por el usuario)
+- Igual que el 07-10: `ART_CRITERIA` con anclas 5/4/3/2 por criterio, `ART_SCALE` (se parte de 3, se sube con prueba),
+  JSON con `pruebas` y mejoras con el criterio delante (conserva lo de la Q2: «otra de las fotos ya descargadas»),
+  `parseArtReview` cuenta como 4 un 5 sin prueba o con mejora de su criterio, pruebas en revision-visual.md/notas.md.
+- NO se recupera el umbral de la pasada de mejora (`IMPROVE_BELOW`, d27cb0e/6ecf307): `needsImprovement` sigue como en
+  d8f11f5 (casi siempre hay pasada). Es un cambio de tiempo; queda como candidato aparte.
+- Desde hoy las notas no son comparables 1:1 con las anteriores (gráfica de calidad y galería mezclan escalas unos días).
+- Tests: 235.
