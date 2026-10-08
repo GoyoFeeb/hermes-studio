@@ -3372,8 +3372,15 @@ window.addEventListener('DOMContentLoaded', () => {
 const topbar = document.querySelector('.topbar');
 // Cabecera compacta (2026-10-07): al bajar se estrecha y aparece «+ Nueva»; fuera de la portada (un trabajo, una
 // marca) «+ Nueva» está siempre. En la portada, solo cuando el formulario ya no se ve.
+// El rótulo de tramo del historial («ESTA SEMANA») se pega justo debajo de la cabecera (2026-10-08): con un «top»
+// fijo de 70 px quedaba una franja entre los dos por la que asomaba lo de arriba de las tarjetas (logo y nota).
+const syncTopbarH = () => document.documentElement.style.setProperty('--topbar-h', `${Math.round(topbar.getBoundingClientRect().height)}px`);
+// La cabecera cambia de alto al bajar (con transición): al cambiar de tamaño y, por si acaso, en cada scroll.
+new ResizeObserver(syncTopbarH).observe(topbar);
+syncTopbarH();
 const markScrolled = () => {
   topbar.classList.toggle('is-scrolled', window.scrollY > 8);
+  requestAnimationFrame(syncTopbarH);
   const form = document.getElementById('brief-form');
   const onHome = !viewForm.hidden;
   const formSeen = onHome && form && form.getBoundingClientRect().bottom > 80 && form.getBoundingClientRect().top < window.innerHeight;
@@ -6048,6 +6055,7 @@ async function poll(id) {
       renderReview(job.quality, notes, matrix);
       unfoldPreview(id);
       renderTimings(job.timings, job.briefWaitSec);
+      renderTimeCard(job.timings);
       renderArtReview(job.artReview);
       renderReportShare(job.reportShare);
       renderShare(job.share, versions || []);
@@ -6557,6 +6565,42 @@ function renderArtCard(a) {
       )
       .join('')}</ul>`;
 }
+/** Tiempo de la pieza a la vista (2026-10-08): una barra con cada fase en su tramo, junto a la nota de arte. El
+ *  detalle (con acciones y esperas) sigue en «Revisión» → «Tiempo por fase». */
+const TIME_GROUPS = [
+  { key: 'prep', label: 'Investigación', test: (id) => /^(measure|brief|product)$/.test(id) },
+  { key: 'draft', label: 'Pieza', test: (id) => id === 'draft' },
+  { key: 'fix', label: 'Correcciones', test: (id) => /^(check|fix-\d+)$/.test(id) },
+  { key: 'art', label: 'Revisión de arte', test: (id) => id === 'art' },
+];
+function renderTimeCard(t) {
+  const card = document.getElementById('time-card');
+  if (!card) return;
+  const phases = t?.phases || [];
+  card.hidden = !phases.length;
+  if (card.hidden) return;
+  const groups = TIME_GROUPS.map((g) => ({ ...g, sec: phases.filter((p) => g.test(p.id)).reduce((a, p) => a + p.sec, 0) })).filter((g) => g.sec >= 1);
+  const other = phases.filter((p) => !TIME_GROUPS.some((g) => g.test(p.id))).reduce((a, p) => a + p.sec, 0);
+  if (other >= 1) groups.push({ key: 'other', label: 'Otros', sec: other });
+  const total = t.totalSec || groups.reduce((a, g) => a + g.sec, 0);
+  const longest = groups.reduce((a, g) => (g.sec > a.sec ? g : a), groups[0]);
+  card.className = `time-card${motionOk() ? ' is-drawing' : ''}`;
+  card.innerHTML =
+    `<div class="art-card-head"><span class="time-card-total">${Math.max(1, Math.round(total / 60))}<small> min</small></span>` +
+    `<span class="art-card-title">Tiempo de Hermes<small>lo más largo: ${escapeHtml(longest.label.toLowerCase())} (${mmss(longest.sec)})</small></span>` +
+    `<button type="button" class="link-btn" id="time-card-more">Ver detalle</button></div>` +
+    `<div class="time-bar" role="img" aria-label="${escapeHtml(groups.map((g) => `${g.label} ${mmss(g.sec)}`).join(', '))}">${groups
+      .map((g, i) => `<span class="tb-${g.key}" style="flex-grow:${Math.round(g.sec)};--i:${i}" title="${escapeHtml(g.label)}: ${mmss(g.sec)}"></span>`)
+      .join('')}</div>` +
+    `<ul class="time-legend">${groups.map((g) => `<li class="tb-${g.key}"><i aria-hidden="true"></i>${escapeHtml(g.label)} <b>${mmss(g.sec)}</b></li>`).join('')}</ul>`;
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#time-card-more')) return;
+  showJobTab('review');
+  const box = document.getElementById('timings-box');
+  box.open = true;
+  jumpTo(box, 'start');
+});
 document.addEventListener('click', (e) => {
   if (!e.target.closest('#art-card-more')) return;
   showJobTab('review');

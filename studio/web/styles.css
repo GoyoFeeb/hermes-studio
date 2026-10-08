@@ -2933,12 +2933,13 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 /* «Hoy», «Ayer», «Esta semana», «Septiembre»…: un separador que se queda fijo bajo la cabecera mientras se recorre su
    tramo. Una píldora con fondo de cristal, para que se lea sobre las filas que pasan por debajo. */
 .day-sep {
-  position: sticky; top: 70px; z-index: 5;
+  position: sticky; top: var(--topbar-h, 70px); z-index: 5;
   display: flex; align-items: center; gap: 10px;
   margin: 8px -8px -2px; padding: 8px;
-  background: color-mix(in srgb, var(--bg) 94%, transparent);
-  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
-  border-radius: 12px;
+  /* El mismo cristal que la cabecera: pegado a ella, se lee como su continuación y tapa del todo lo que pasa debajo. */
+  background: var(--topbar-bg);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border-radius: 0 0 12px 12px;
   pointer-events: none;
 }
 .day-sep:first-child { margin-top: 0; }
@@ -2979,6 +2980,25 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .art-card.is-drawing .art-card-bar i { animation: art-card-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(0.1s + var(--i, 0) * 70ms); }
 @keyframes art-card-grow { from { width: 0; } }
 @media (prefers-reduced-motion: reduce) { .art-card.is-drawing .art-card-bar i { animation: none; } }
+
+/* ---------- tiempo de la pieza (2026-10-08) ---------- */
+.time-card { margin: 10px 0 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-row); }
+.time-card-total { font-size: 30px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
+.time-card-total small { font-size: 14px; font-weight: 600; color: var(--muted); }
+.time-bar { display: flex; gap: 3px; height: 10px; margin: 2px 0 12px; }
+.time-bar span { flex-basis: 0; min-width: 4px; border-radius: 5px; background: var(--seg); }
+.time-card.is-drawing .time-bar span { animation: time-seg 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: calc(0.1s + var(--i, 0) * 120ms); transform-origin: left center; }
+@keyframes time-seg { from { transform: scaleX(0); opacity: 0; } }
+.time-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: var(--fs-small); color: var(--lilac); }
+.time-legend li { display: flex; align-items: center; gap: 6px; }
+.time-legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--seg); }
+.time-legend b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.tb-prep { --seg: #5b8cff; }
+.tb-draft { --seg: var(--pink); }
+.tb-fix { --seg: #f4a524; }
+.tb-art { --seg: #2fbf71; }
+.tb-other { --seg: #8f96c9; }
+@media (prefers-reduced-motion: reduce) { .time-card.is-drawing .time-bar span { animation: none; } }
 
 /* ---------- abanico: la carta señalada por huecos fijos (2026-10-07) ---------- */
 /* Con el abanico vivo, las cartas no reciben el ratón: lo recibe la caja y app.js (fanCardAt) decide la carta por su
