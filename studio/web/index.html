@@ -886,7 +886,12 @@
         <dl class="foot-stats" id="foot-stats" hidden></dl>
       </div>
       <div class="foot-bar">
-        <span class="foot-logo-wrap"><img class="foot-logo" src="/feebbo-logo.svg" alt="Feebbo Digital" width="78" height="28" /></span>
+        <!-- El mismo logo que la cabecera (2026-10-08): imagen fija y, al cargar el reproductor, el Lottie oficial, que se
+             anima al llegar al pie y al pasar el ratón. -->
+        <a class="brand foot-brand" href="/" aria-label="Hermes Studio — inicio">
+          <img src="/feebbo-logo-anim.svg" alt="Feebbo Digital" width="99" height="40" />
+          <span class="brand-anim" id="foot-anim" aria-hidden="true" hidden></span>
+        </a>
         <p class="foot-copy">© Feebbo Digital · Hermes Studio</p>
         <p class="foot-links"><a href="mailto:info@feebbodigital.com">info@feebbodigital.com</a><span aria-hidden="true"> · </span><a href="https://www.feebbodigital.com/" target="_blank" rel="noopener">feebbodigital.com</a></p>
       </div>

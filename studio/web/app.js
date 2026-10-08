@@ -3332,16 +3332,30 @@ window.addEventListener('DOMContentLoaded', () => {
       // podía pillarlo a medias («FEEB 0»). Ojo: la animación oficial (257 fotogramas) acaba desvaneciendo las letras y
       // en el último solo queda la «F». El logo está entero y quieto entre el 40 y el 180 (medido): se para en el 90.
       const FULL = 90;
-      const logo = window.lottie.loadAnimation({ container: box, renderer: 'svg', loop: false, autoplay: false, path: '/feebbo-logo.json' });
-      logo.addEventListener('DOMLoaded', () => {
-        box.hidden = false;
-        box.parentElement.querySelector('img').hidden = true;
-        logo.playSegments([0, FULL], true);
-      });
-      logo.addEventListener('complete', () => logo.goToAndStop(FULL, true));
-      box.parentElement.addEventListener('mouseenter', () => {
-        if (logo.isPaused) logo.playSegments([0, FULL], true);
-      });
+      // El del pie (2026-10-08) es el mismo: quieto con el logo entero hasta que se llega al pie o se pasa el ratón.
+      const mountLogo = (box, playNow) => {
+        const logo = window.lottie.loadAnimation({ container: box, renderer: 'svg', loop: false, autoplay: false, path: '/feebbo-logo.json' });
+        logo.addEventListener('DOMLoaded', () => {
+          box.hidden = false;
+          box.parentElement.querySelector('img').hidden = true;
+          if (playNow) logo.playSegments([0, FULL], true);
+          else logo.goToAndStop(FULL, true);
+        });
+        logo.addEventListener('complete', () => logo.goToAndStop(FULL, true));
+        box.parentElement.addEventListener('mouseenter', () => {
+          if (logo.isPaused) logo.playSegments([0, FULL], true);
+        });
+        return logo;
+      };
+      mountLogo(box, true);
+      const footBox = document.getElementById('foot-anim');
+      if (footBox) {
+        const footLogo = mountLogo(footBox, false);
+        // Se anima cada vez que el pie entra entero en pantalla (sin depender del historial ni del raíl).
+        new IntersectionObserver((entries) => {
+          if (entries.some((e) => e.isIntersecting) && footLogo.isLoaded && footLogo.isPaused) footLogo.playSegments([0, FULL], true);
+        }, { threshold: 1 }).observe(footBox.parentElement);
+      }
     }
     const mbox = document.getElementById('menu-anim');
     menuAnim = window.lottie.loadAnimation({ container: mbox, renderer: 'svg', loop: false, autoplay: false, path: '/menu-icon.json' });

@@ -909,9 +909,7 @@ a.menu-item { text-decoration: none; box-sizing: border-box; }
 .foot-stats dt { font-size: 44px; font-weight: 600; line-height: 1; color: var(--text); }
 .foot-stats dd { margin: 6px 0 0; font-size: var(--fs-small); color: var(--muted); }
 .foot-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 24px; border-top: 1px solid var(--border); }
-.foot-logo { display: block; width: 78px; height: auto; }
-@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .foot-logo { filter: brightness(0) opacity(0.88); } }
-:root[data-theme="light"] .foot-logo { filter: brightness(0) opacity(0.88); }
+.foot-brand { display: block; flex: none; }
 .foot-copy { margin: 0; font-size: var(--fs-caption); line-height: 20px; color: var(--muted); }
 .foot-links { margin: 0 0 0 auto; font-size: var(--fs-small); color: var(--muted); }
 .foot a:not(.btn) { color: var(--text); text-decoration: none; }
@@ -2655,28 +2653,13 @@ input.is-shake, textarea.is-shake, select.is-shake { border-color: var(--pink) !
 .brand-logo { animation: brand-logo-in 0.6s ease-out both; }
 @keyframes brand-logo-in { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
 
-/* Pie que se ilumina: un brillo rosa cruza el logo (máscara con su forma) y el texto se enciende un momento. */
-.foot-logo-wrap { position: relative; display: inline-block; }
-.foot-logo-wrap::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(100deg, transparent 35%, var(--pink) 50%, transparent 65%) no-repeat;
-  background-size: 300% 100%;
-  background-position: 150% 0;
-  -webkit-mask: url(/feebbo-logo.svg) center / contain no-repeat;
-  mask: url(/feebbo-logo.svg) center / contain no-repeat;
-  opacity: 0;
-}
-.foot.is-lit .foot-logo-wrap::after { animation: foot-sweep 1.3s ease-out; }
-@keyframes foot-sweep { 0% { opacity: 1; background-position: 150% 0; } 85% { opacity: 1; } 100% { opacity: 0; background-position: -50% 0; } }
+/* Pie que se ilumina: el logo animado se reproduce al entrar en pantalla (app.js) y el texto se enciende un momento. */
 .foot.is-lit .foot-copy { animation: foot-copy 1.6s ease-out; }
 @keyframes foot-copy { 20% { color: var(--pink); } }
 
 @media (prefers-reduced-motion: reduce) {
   .intro-word, .swatches li, .brand-logo { animation: none !important; }
-  .preview-device.is-revealing::after, .foot-logo-wrap::after { display: none; }
+  .preview-device.is-revealing::after { display: none; }
   .foot.is-lit .foot-copy { animation: none; }
 }
 
@@ -2827,9 +2810,11 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
    dos columnas (lo que se escribe | la marca y las opciones) y la galería gana columnas. */
 .brand-side { display: none; }
 @media (min-width: 1180px) {
-  body:has(#view-form:not([hidden])) #app { max-width: 1240px; }
-  /* El pie, con el mismo ancho y los mismos bordes que el contenido (2026-10-08). */
-  body:has(#view-form:not([hidden])) .foot-inner { max-width: 1192px; }
+  /* Un solo ancho (2026-10-08): la portada, la pieza terminada, la cabecera y el pie comparten bordes (1440 aquí, 1600 y
+     1760 en pantallas muy grandes), así el logo de arriba y el del pie caen en la misma línea que el contenido. */
+  body:has(#view-form:not([hidden])) #app { max-width: 1440px; }
+  body:has(#view-form:not([hidden])) .foot-inner { max-width: 1392px; }
+  .topbar { max-width: 1440px; }
   .hero-grid { margin-right: 0; grid-template-columns: minmax(0, 1fr) 520px; }
   /* La fila de abajo (el botón) se pega a lo escrito: el alto que sobra del panel lateral va debajo, no encima. */
   #brief-form { display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; column-gap: 40px; align-items: start; }
@@ -3350,8 +3335,10 @@ span.bf-quote { display: block; margin: 0 0 10px; }
    píxeles de pantalla (la carta que vuela, el abanico, la vista previa al pasar) y con zoom se descolocaban. */
 @media (min-width: 1800px) {
   :root { --fs-caption: 13px; --fs-small: 14px; --fs-ui: 15px; --fs-body: 17px; --fs-lead: 20px; --fs-prose: 19px; --fs-title: 30px; }
-  body:has(#view-form:not([hidden])) #app { max-width: 1440px; }
-  body:has(#view-form:not([hidden])) .foot-inner { max-width: 1392px; }
+  body:has(#view-form:not([hidden])) #app,
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) #app { max-width: 1600px; }
+  body:has(#view-form:not([hidden])) .foot-inner,
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) .foot-inner { max-width: 1552px; }
   .topbar { max-width: 1600px; }
   .hero h1 { font-size: 58px; }
   .hero .lead { max-width: 600px; font-size: 19px; }
@@ -3363,8 +3350,10 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 }
 @media (min-width: 2400px) {
   :root { --fs-caption: 14px; --fs-small: 15px; --fs-ui: 16px; --fs-body: 18px; --fs-lead: 21px; --fs-prose: 20px; --fs-title: 32px; }
-  body:has(#view-form:not([hidden])) #app { max-width: 1600px; }
-  body:has(#view-form:not([hidden])) .foot-inner { max-width: 1552px; }
+  body:has(#view-form:not([hidden])) #app,
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) #app { max-width: 1760px; }
+  body:has(#view-form:not([hidden])) .foot-inner,
+  body:has(#view-job:not([hidden]) #job-result:not([hidden])) .foot-inner { max-width: 1712px; }
   .topbar { max-width: 1760px; }
   .hero h1 { font-size: 66px; }
   .g-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
