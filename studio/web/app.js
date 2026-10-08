@@ -1540,8 +1540,10 @@ function fanCardAt(box, x, y, ignoreSticky = false) {
   const r = box.getBoundingClientRect();
   if (y < r.top || y > r.bottom) return null;
   const narrow = window.matchMedia('(max-width: 760px)').matches;
-  const step = narrow ? 26 : 58;
-  const half = (narrow ? 120 : 165) / 2;
+  // Abanico más grande en pantalla ancha (2026-10-08): las cartas y sus huecos crecen por --fan-k (styles.css).
+  const k = narrow ? 1 : fanK(box);
+  const step = narrow ? 26 : 58 * k;
+  const half = (narrow ? 120 : 165 * k) / 2;
   const cx = r.left + r.width / 2;
   const slotOf = (c) => fanState.get(c)?.i ?? (parseFloat(getComputedStyle(c).getPropertyValue('--i')) || 0);
   if (!ignoreSticky && fanHover && cards.includes(fanHover) && Math.abs(x - (cx + slotOf(fanHover) * step)) <= step / 2 + 14) return fanHover;
@@ -1559,6 +1561,9 @@ function fanCardAt(box, x, y, ignoreSticky = false) {
     }
   });
   return best;
+}
+function fanK(box) {
+  return parseFloat(getComputedStyle(box).getPropertyValue('--fan-k')) || 1;
 }
 function setFanHover(box, card) {
   fanHover = card;
@@ -1586,6 +1591,7 @@ function fanTick(now) {
   const narrow = window.matchMedia('(max-width: 760px)').matches;
   const open = !narrow && box.matches(':hover');
   const cards = [...box.querySelectorAll('.show-card')];
+  const k = narrow ? 1 : fanK(box);
   if (fanHover && !cards.includes(fanHover)) fanHover = null;
   cards.forEach((card, n) => {
     let st = fanState.get(card);
@@ -1597,12 +1603,12 @@ function fanTick(now) {
     const i = st.i;
     const hot = card === fanHover && !narrow;
     // Destino: cerrado, abierto o señalada (los mismos valores que el CSS).
-    let x = narrow ? i * 26 : i * 50;
-    let y = narrow ? 0 : i * i * 6;
+    let x = narrow ? i * 26 : i * 50 * k;
+    let y = narrow ? 0 : i * i * 6 * k;
     let r = i * 6;
     if (open) {
-      x = i * 58 + fanPointer * 6;
-      y = i * i * 8 - 6;
+      x = (i * 58 + fanPointer * 6) * k;
+      y = (i * i * 8 - 6) * k;
       r = i * 8 + fanPointer * 2.5;
     }
     if (hot) {
@@ -1613,7 +1619,7 @@ function fanTick(now) {
     spring(st, 'y', y, dt);
     spring(st, 'r', r, dt);
     spring(st, 's', hot ? 1.4 : 1, dt, 120, 16);
-    spring(st, 'ly', hot ? 64 : 0, dt, 120, 16);
+    spring(st, 'ly', hot ? 64 * k : 0, dt, 120, 16);
     // Flotar: vaivén lento y distinto en cada carta; la señalada casi quieta.
     const amp = hot ? 0.25 : 1;
     const fy = Math.sin(t * 1.05 + st.phase) * 5 * amp;

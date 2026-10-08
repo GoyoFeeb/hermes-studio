@@ -3351,6 +3351,41 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 .now-compact:hover .now-compact-go { transform: translateX(3px); }
 @media (prefers-reduced-motion: reduce) { .now-compact { animation: none; } }
 
+/* ---------- cabecera: estado en una tarjeta y abanico alineado (2026-10-08) ---------- */
+/* «con Hermes» no se parte: «con» se quedaba solo al final de la primera línea. */
+.hero h1 .accent { white-space: nowrap; }
+.hero-status { margin-top: 36px; }
+.hero-status .hero-steps { margin: 0; }
+/* Con algo en marcha o esperando, los pasos, la línea «Ahora» y el aviso van juntos en una tarjeta. */
+.hero-status:has(#hero-steps-live:not([hidden])), .hero-status:has(#now-compact:not([hidden])) {
+  display: inline-block; max-width: 100%; padding: 18px 22px; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-row) 70%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.hero-status .hero-steps-live { display: block; margin: 14px 0 0; }
+.hero-status .hero-steps-live .live-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
+.hero-status .now-compact {
+  display: flex; margin: 12px 0 0; padding: 12px 0 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: none;
+}
+.hero-status .now-compact:hover { transform: none; }
+.hero-status .now-compact:hover strong { color: #f4a524; }
+@media (min-width: 761px) {
+  .hero-status .hero-steps { flex-wrap: nowrap; }
+  .hero-status .hero-steps li + li::before { width: 28px; margin: 0 12px 0 4px; }
+}
+/* El abanico arriba, a la altura del titular, y más cerca del texto: antes iba centrado en vertical y a la derecha. */
+.hero-grid { align-items: start; }
+.hero-showcase { --fan-k: 1; }
+@media (min-width: 1180px) {
+  .hero-grid { grid-template-columns: minmax(0, 720px) minmax(0, 1fr); gap: 40px; }
+  .hero-showcase { --fan-k: 1.2; height: 390px; margin-top: 8px; }
+  .hero-showcase .show-card { width: 198px; height: 264px; margin-left: -99px; }
+}
+@media (min-width: 1800px) {
+  .hero-grid { grid-template-columns: minmax(0, 820px) minmax(0, 1fr); }
+  .hero-showcase { --fan-k: 1.32; height: 430px; }
+  .hero-showcase .show-card { width: 218px; height: 290px; margin-left: -109px; }
+}
+
 /* ---------- una sola línea decorativa (2026-10-07) ---------- */
 /* El hilo rosa con puntos de las secciones competía con el raíl de la izquierda: fuera. */
 .section-thread.is-off { display: none !important; }
@@ -3368,7 +3403,6 @@ span.bf-quote { display: block; margin: 0 0 10px; }
   .topbar { max-width: 1600px; }
   .hero h1 { font-size: 58px; }
   .hero .lead { max-width: 600px; font-size: 19px; }
-  .hero-grid { grid-template-columns: minmax(0, 1fr) 600px; }
   #brief-form { grid-template-columns: minmax(0, 1fr) 380px; }
   .section-title h2 { font-size: 34px; }
   .g-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
