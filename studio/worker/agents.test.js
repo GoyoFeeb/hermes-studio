@@ -293,9 +293,11 @@ test('Encargo: no comprueba enlaces con el navegador, revisa con render-newslett
   const r = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '# Brief', imageMode: 'official', mode: 'standalone' });
   assert.doesNotMatch(r.hermes, /compruébalo con el navegador/);
   assert.match(r.hermes, /npm run render-newsletter -- newsletters\/2026\/paredes\/hermes\/2026-10-05-abc123\/newsletter\.html/);
-  assert.match(r.hermes, /NO se investiga aquí y NO entra en la pieza/);
+  // Sin instrucción es un «Prompt completo»: investiga él (Nike, 2026-10-08). Con instrucción hubo brief: no investiga.
+  assert.match(r.hermes, /haz tú la investigación que pide/);
   assert.match(r.hermes, /no los leas del disco/);
   const b = prompts({ clientSlug: 'paredes', clientName: 'Paredes', brandMode: 'new', briefText: '', instruction: 'Newsletter de la Eden', imageMode: 'official', mode: 'standalone' });
+  assert.match(b.hermes, /NO se investiga aquí y NO entra en la pieza/);
   assert.match(b.brief, /URL EXACTA de la ficha/);
   assert.match(b.brief, /Fuera de la pieza/);
 });
@@ -922,4 +924,24 @@ test('Q2 (2026-10-07, recuperada el 08-10): la foto de cada escena se elige ante
   assert.match(r.prompt, /elige la foto de cada escena ANTES de escribir su texto/);
   assert.match(r.prompt, /la escena donde va y qué se ve en ella/);
   assert.match(r.brief, /escritos sobre lo que muestra ESA foto/);
+});
+
+test('Prompt completo (Nike, 2026-10-08): sin brief, el borrador investiga; con brief, no navega', () => {
+  const r = run(`
+    const s = require(${JSON.stringify(path.join(__dirname, '../server/standalone.ts'))});
+    const w = require(${mod('hermes-worker.ts')});
+    const job = { id: 'x', createdAt: '2026-10-08T10:00:00Z', input: { clientName: 'Nike', clientSlug: 'nike', briefText: '# Prompt', imageMode: 'official' } };
+    process.stdout.write(JSON.stringify({
+      full: s.buildHermesPrompt(job), withBrief: s.buildHermesPrompt({ ...job, input: { ...job.input, instruction: 'newsletter de Nike' } }),
+      noteFull: w.selfContainedNote('newsletters/2026/nike/hermes/x', process.cwd(), false), noteBrief: w.selfContainedNote('newsletters/2026/nike/hermes/x'),
+      peticion: w.ART_CRITERIA.peticion,
+    }));
+  `);
+  assert.match(r.full, /haz tú la investigación que pide/);
+  assert.doesNotMatch(r.full, /no vuelve a navegar la web/);
+  assert.match(r.withBrief, /no vuelve a navegar la web/);
+  assert.match(r.noteFull, /la haces tú ahora/);
+  assert.doesNotMatch(r.noteFull, /No investigues/);
+  assert.match(r.noteBrief, /No investigues lo que el brief deja pendiente/);
+  assert.match(r.peticion, /Si la petición no pide una oferta, la oferta no cuenta/);
 });

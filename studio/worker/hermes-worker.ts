@@ -434,7 +434,7 @@ export const PREVIOUS_WORK_NOTE = [
  *  releyó 5 veces email-modulos.md, 3 veces encargo.md (que es su propio prompt) y 2 la base, con razonamientos de
  *  15-40 K caracteres del tipo «I'm going in circles, let me re-check», porque el brief le llegaba tres veces (prompt,
  *  brief.md y _trabajo/encargo.md). Aquí va todo dentro del mensaje y se le dice que no lea nada más. */
-export function selfContainedNote(outputDir: string, root = ROOT): string {
+export function selfContainedNote(outputDir: string, root = ROOT, briefDone = true): string {
   const read = (rel: string): string => {
     try {
       return fs.readFileSync(path.join(root, rel), 'utf8').trim();
@@ -447,12 +447,25 @@ export function selfContainedNote(outputDir: string, root = ROOT): string {
   return [
     '',
     '## Cómo trabajar este encargo (Studio)',
-    '- TODO lo que necesitas está en este mensaje: el brief (arriba), la base técnica y los módulos (abajo, contenido',
-    `  completo) y, si las hay, la identidad medida y la ficha de producto. ${outputDir}/brief.md es una copia del brief:`,
-    '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
-    `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
-    '  write_file partiendo de la base, 3) `npm run check-newsletter` y `npm run render-newsletter`, 4) corrige,',
-    '  5) notas.md. No investigues lo que el brief deja pendiente: queda fuera de la pieza.',
+    ...(briefDone
+      ? [
+          '- TODO lo que necesitas está en este mensaje: el brief (arriba), la base técnica y los módulos (abajo, contenido',
+          `  completo) y, si las hay, la identidad medida y la ficha de producto. ${outputDir}/brief.md es una copia del brief:`,
+          '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
+          `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
+          '  write_file partiendo de la base, 3) `npm run check-newsletter` y `npm run render-newsletter`, 4) corrige,',
+          '  5) notas.md. No investigues lo que el brief deja pendiente: queda fuera de la pieza.',
+        ]
+      : [
+          // «Prompt completo» (2026-10-07, recuperado el 08-10): sin brief, la investigación que pide el prompt la hace
+          // esta sesión (Nike, 08-10: «esta ejecución no debía volver a investigar» → sin datos ni fotos del producto).
+          '- Este prompt NO ha pasado por un brief: la investigación que pide (datos, productos, precios, promoción, fotos y',
+          '  logo oficiales) la haces tú ahora, con fuente para cada dato, unas 12 búsquedas o páginas. La base técnica y los',
+          '  módulos están abajo (contenido completo): no los leas del disco, no listes el repo ni leas package.json o scripts.',
+          '- Orden: 1) investiga lo que pide el prompt y descarga las fotos oficiales (`npm run fetch-image`), 2) mira las fotos,',
+          `  3) escribe ${outputDir}/newsletter.html entero con write_file partiendo de la base, 4) \`npm run check-newsletter\``,
+          '  y `npm run render-newsletter`, 5) corrige, 6) notas.md. Lo que no verifiques queda fuera de la pieza.',
+        ]),
     ...(base ? ['', '### Base técnica: studio/hermes/email-base.html (contenido completo)', '```html', base, '```'] : []),
     ...(modules ? ['', '### Módulos técnicos de ejemplo: studio/hermes/email-modulos.md (contenido completo)', modules] : []),
   ].join('\n');
@@ -940,7 +953,8 @@ export const ART_CRITERIA: Record<string, string> = {
   peticion:
     'la ocasión, la oferta y el público de la petición. 5 = ocasión, oferta con su cifra (%, precio o fecha) y público ' +
     'visibles en la primera pantalla; 4 = ocasión clara, pero la oferta sin cifra o más abajo; 3 = hay que leer el texto para ' +
-    'saber qué se ofrece; 2 = la pieza habla de otra cosa.',
+    'saber qué se ofrece; 2 = la pieza habla de otra cosa. Si la petición no pide una oferta, la oferta no cuenta. El público ' +
+    'se nota por el producto, las fotos y el tono, nunca por una frase que lo nombre («para corredores que…»).',
   texto_imagen:
     'lo que dicen los textos frente a lo que muestran las fotos. 5 = cada titular habla de lo que se ve en su foto; 4 = un ' +
     'titular vago respecto a su foto; 3 = un texto describe algo que la foto no muestra (color, uso, personas); 2 = varias ' +
@@ -1358,7 +1372,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         productNote +
         brandAssetsNote(job.outputDir) +
         WEB_ACCESS_NOTE +
-        selfContainedNote(job.outputDir) +
+        // Hubo brief: el de este trabajo o uno ya aprobado por el equipo (llega con la petición, sin el paso de brief).
+        selfContainedNote(job.outputDir, ROOT, !!claimed.briefPrompt || !!claimed.request) +
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
@@ -1532,6 +1547,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
               'contradice su foto o se aparta de la petición: corrige el texto o cambia la foto por otra de las que ya están en la ' +
               `carpeta (${job.outputDir}/) que sí muestre lo que dice; no descargues fotos nuevas (Q2). Studio guarda la versión ` +
               'anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
+            // Nike (2026-10-08): la mejora escribió en la portada «Pieza de marca para corredores que preparan…».
+            'Todo texto que añadas es de la marca para su cliente: nunca escribas en la pieza nada que hable de la propia pieza, ' +
+              'su público o su objetivo («pieza de marca para…», «newsletter para…», «dirigida a…»). Si una mejora solo se ' +
+              'cumple así, sáltala.',
             `Después: \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` hasta que salga sin errores y ` +
               `\`npm run render-newsletter -- ${job.outputDir}/newsletter.html\` para mirar la hoja UNA vez.`,
             `Añade al final de ${rel}/revision-visual.md lo que cambiaste y un resumen de dos líneas al final de notas.md.`,

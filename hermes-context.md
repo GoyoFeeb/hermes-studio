@@ -2566,3 +2566,17 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   d8f11f5 (casi siempre hay pasada). Es un cambio de tiempo; queda como candidato aparte.
 - Desde hoy las notas no son comparables 1:1 con las anteriores (gráfica de calidad y galería mezclan escalas unos días).
 - Tests: 235.
+
+### 2026-10-08 — Nike (muz83dmo-ndizjn) genérica: «Prompt completo» sin investigar y meta-texto de la mejora (pedido por el usuario)
+- Síntoma: Alphafly 3 sin un dato ni una foto del producto (solo el Swoosh), copy vacío y en portada «Pieza de marca
+  para corredores que preparan una media o un maratón».
+- Causa 1 (ya estaba en d8f11f5; el arreglo 5c3f148 se perdió con la vuelta atrás): en «Prompt completo» no hay brief
+  y el encargo decía «Esta fase maqueta; no vuelve a navegar la web» y «No investigues lo que el brief deja pendiente».
+  Hermes obedeció (notas.md: «esta ejecución no debía volver a investigar»). Arreglo: `buildHermesPrompt` (sin
+  `instruction`) y `selfContainedNote(…, briefDone=false)` piden investigar (~12 búsquedas/páginas, con fuente, fotos
+  con fetch-image). «Hubo brief» = `briefPrompt` o `request`. Con brief, sin cambios.
+- Causa 2 (efecto de la Q3): el ancla de «peticion» pedía oferta y público en la primera pantalla; sin oferta, la nota
+  sugirió «hacer explícito que es una pieza de marca» y la mejora lo escribió. Arreglo: el ancla dice que sin oferta
+  pedida la oferta no cuenta y que el público se nota por producto, fotos y tono, nunca por una frase que lo nombre; la
+  pasada de mejora prohíbe texto que hable de la pieza, su público o su objetivo.
+- Tests: 236. Pendiente: relanzar el prompt de Nike para comprobarlo.
