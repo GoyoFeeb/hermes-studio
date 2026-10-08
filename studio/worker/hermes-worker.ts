@@ -1427,7 +1427,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     isRevision && claimed.sourceHtml
       ? [
           ...staticChecks(claimed.sourceHtml, [], verifiedSource(prompt))
-            .filter((c) => c.status === 'error' && ['dark-mode', 'dark-legibility', 'outlook', 'typography', 'logo-present', 'email-images', 'claims'].includes(c.id))
+            .filter((c) => c.status === 'error' && ['dark-mode', 'dark-legibility', 'outlook', 'typography', 'logo-present', 'email-images', 'claims', 'voice'].includes(c.id))
             .map((c) => c.id),
           'image-quality',
         ]
@@ -1549,8 +1549,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
               'anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
             // Nike (2026-10-08): la mejora escribió en la portada «Pieza de marca para corredores que preparan…».
             'Todo texto que añadas es de la marca para su cliente: nunca escribas en la pieza nada que hable de la propia pieza, ' +
-              'su público o su objetivo («pieza de marca para…», «newsletter para…», «dirigida a…»). Si una mejora solo se ' +
-              'cumple así, sáltala.',
+              'su público o su objetivo («pieza de marca para…», «newsletter para…», «dirigida a…») ni de la investigación ' +
+              '(«la web anuncia», «según su ficha», «pendiente de confirmación»). Si una mejora solo se cumple así, sáltala.',
             `Después: \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` hasta que salga sin errores y ` +
               `\`npm run render-newsletter -- ${job.outputDir}/newsletter.html\` para mirar la hoja UNA vez.`,
             `Añade al final de ${rel}/revision-visual.md lo que cambiaste y un resumen de dos líneas al final de notas.md.`,

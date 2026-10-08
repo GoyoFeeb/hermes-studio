@@ -28,7 +28,7 @@
  * funcionan.
  */
 import { claimFindings } from './claims';
-import { copyFindings } from './copyCheck';
+import { copyFindings, researchVoiceFindings } from './copyCheck';
 
 export type CheckStatus = 'ok' | 'warning' | 'error';
 
@@ -165,6 +165,10 @@ export function staticChecks(html: string, missingLocal: string[] = [], verified
   const copyItem = item('copy', 'Copy concreto', [], copy.warnings);
   if (copyItem.status === 'ok') copyItem.details.push('Sin muletillas de email marketing ni botones genéricos.');
   checks.push(copyItem);
+  // Voz de la marca (2026-10-08): contar la investigación o hablar de la pieza es error (Digital Car, Nike).
+  const voiceItem = item('voice', 'Voz de la marca', researchVoiceFindings(html));
+  if (voiceItem.status === 'ok') voiceItem.details.push('Habla la marca: sin fuentes, pendientes ni frases sobre la propia pieza.');
+  checks.push(voiceItem);
 
   // Marcadores de la base técnica (studio/hermes/email-base.html) que se quedaron sin rellenar.
   const leftovers = [...new Set([...html.replace(/<!--(?!\[if)[\s\S]*?-->/g, '').matchAll(/\[(?:[A-ZÁÉÍÓÚÑ0-9][A-ZÁÉÍÓÚÑ0-9 .:,/-]{2,60}|[a-z0-9_-]+\.(?:png|jpe?g))\]/g)].map((m) => m[0]))];

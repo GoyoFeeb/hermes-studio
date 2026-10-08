@@ -16,6 +16,9 @@ salen del brief y de la marca.
 
 ## Dos columnas que se apilan en móvil
 
+Los `max-width` de las columnas deben sumar al menos 20 px menos que su contenedor (aquí 250 + 250 = 500 en 520): si
+suman justo el hueco, el espacio en blanco entre los dos `<div>` las apila también en escritorio.
+
 ```html
 <tr><td class="px" style="padding:0 40px 40px;">
   <!--[if mso]><table role="presentation" width="520"><tr><td width="250" valign="top"><![endif]-->

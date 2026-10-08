@@ -42,13 +42,44 @@ export const GENERIC_CTA = /^(?:descubr(?:e|ir)(?: m[aá]s)?|saber m[aá]s|s[aá
 /** Las muletillas, para citarlas en los encargos. */
 export const GENERIC_PHRASES_LIST = GENERIC_PHRASES.map((p) => `«${p.label}»`).join(', ');
 
+/** Texto de investigación o de encargo dentro de la pieza (2026-10-08): Digital Car decía «La portada de DigitalCar
+ *  anuncia un descuento…» y «No se han localizado las bases… pendientes de confirmación»; Nike, «Pieza de marca para
+ *  corredores que preparan…». La pieza habla con la voz de la marca a su cliente; lo pendiente va a notas.md. */
+export const RESEARCH_VOICE: { re: RegExp; label: string }[] = [
+  { re: /\b(?:la|su) (?:web|portada|p[aá]gina|landing|ficha|nota de prensa)\b(?:\s+\S+){0,3}?\s+(?:anuncia|indica|muestra|publica|recoge|menciona|no detalla|no especifica|no indica)\b/i, label: 'la web/portada anuncia…' },
+  { re: /\bseg[uú]n (?:la|su) (?:web|portada|p[aá]gina|ficha|nota de prensa|landing)\b/i, label: 'según la web…' },
+  { re: /\bno se ha(?:n)? (?:localizado|encontrado|verificado|confirmado|podido (?:verificar|confirmar|localizar))\b/i, label: 'no se ha localizado…' },
+  { re: /\bpendientes? de (?:confirmaci[oó]n|confirmar|verificar|verificaci[oó]n)\b/i, label: 'pendiente de confirmación' },
+  { re: /\bno (?:se )?detalla(?:n)? aqu[ií]\b/i, label: 'no detalla aquí' },
+  { re: /\b(?:pieza|newsletter) (?:de marca )?(?:para|dirigida a)\b/i, label: 'pieza/newsletter para…' },
+  { re: /\bdirigid[ao]s? a (?:corredores|clientes|quienes|personas|un p[uú]blico|lectores)\b/i, label: 'dirigida a…' },
+];
+
 /** Reglas de copy del brief y del encargo de la pieza. */
 export const COPY_RULES = [
   '- Copy (Studio lo revisa): cada titular nombra algo concreto (el producto, un beneficio que se pueda comprobar o la',
   '  ocasión) y suena a esta marca: usa el tono de voz de su brand pack o de su web, no el de una plantilla. Los botones',
   '  dicen qué pasa al pulsarlos, verbo + objeto («Calcula tu precio», «Elige tu talla»), nunca «Descubre más», «Saber',
   `  más» ni «Ver más». Sin muletillas de email marketing: ${GENERIC_PHRASES_LIST}.`,
+  '- Voz (Studio lo revisa: es error): la pieza habla con la voz de la marca a su cliente. Nunca cuenta la investigación',
+  '  ni sus fuentes («la web anuncia», «según su portada», «no se ha localizado», «pendiente de confirmación») ni habla',
+  '  de sí misma o de su público («pieza de marca para…», «dirigida a…»). Lo pendiente va SOLO a notas.md: si un dato',
+  '  no está confirmado, la pieza no lo nombra.',
 ];
+
+/** Frases de investigación o de encargo en el texto visible (errores: vuelven a Hermes en la corrección). */
+export function researchVoiceFindings(html: string): string[] {
+  const body = textOf(strip(html).replace(/<v:[a-z]+\b[\s\S]*?<\/v:[a-z]+>/gi, ' '));
+  const out: string[] = [];
+  for (const { re, label } of RESEARCH_VOICE) {
+    const m = body.match(re);
+    if (!m) continue;
+    const i = m.index || 0;
+    const ctx = body.slice(Math.max(0, i - 40), i + m[0].length + 40).trim();
+    out.push(`Texto de investigación en la pieza («${label}»): …${ctx}… — la pieza habla con la voz de la marca a su cliente; quita la frase o di el dato como lo diría la marca. Lo pendiente va solo a notas.md.`);
+  }
+  return out;
+}
 
 const strip = (html: string): string =>
   html

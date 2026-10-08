@@ -24,6 +24,9 @@ const SHEET_MAX_H = 3000;
  *  (1,4 MB) y sí la de 2000 px de alto en JPEG (180 KB) — 2026-10-06. */
 const SHEET_OUT_H = 2000;
 
+/** Ventana de las capturas de escritorio: por encima de la media query de móvil (620 px). */
+const DESKTOP_SHOT = 640;
+
 export interface RenderSheet {
   sheet: string;
   shots: string[];
@@ -45,6 +48,9 @@ async function sheetHeightAt(file: string, width: number): Promise<number> {
 export async function renderSheet(htmlPath: string, outDir = path.join(path.dirname(htmlPath), '_trabajo')): Promise<RenderSheet> {
   fs.mkdirSync(outDir, { recursive: true });
   const shots = [
+    // Escritorio de verdad (2026-10-08): con una ventana de 600 px la pieza entraba en su versión móvil (la media query
+    // es de 620) y la hoja nunca enseñaba el escritorio (Spotify y Jordan: columnas apiladas que nadie vio). Ventana de
+    // 640 y recorte de los 600 px del centro.
     { file: path.join(outDir, 'render-600.png'), width: 600, dark: false, label: '600 px' },
     { file: path.join(outDir, `render-${MOBILE_WIDTH}.png`), width: MOBILE_WIDTH, dark: false, label: `${MOBILE_WIDTH} px` },
     { file: path.join(outDir, 'render-oscuro.png'), width: 600, dark: true, label: 'Oscuro' },
@@ -52,9 +58,13 @@ export async function renderSheet(htmlPath: string, outDir = path.join(path.dirn
   const browser = await launchBrowser();
   try {
     for (const s of shots) {
-      const page = await browser.newPage({ viewport: { width: s.width, height: 900 }, javaScriptEnabled: false, colorScheme: s.dark ? 'dark' : 'light' });
+      const desktop = s.width === 600;
+      const page = await browser.newPage({ viewport: { width: desktop ? DESKTOP_SHOT : s.width, height: 900 }, javaScriptEnabled: false, colorScheme: s.dark ? 'dark' : 'light' });
       await page.goto(`file://${path.resolve(htmlPath)}`, { waitUntil: 'load', timeout: 30000 });
-      await page.screenshot({ path: s.file, fullPage: true });
+      if (desktop) {
+        const height = (await page.evaluate('document.documentElement.scrollHeight')) as number;
+        await page.screenshot({ path: s.file, fullPage: true, clip: { x: (DESKTOP_SHOT - 600) / 2, y: 0, width: 600, height } });
+      } else await page.screenshot({ path: s.file, fullPage: true });
       await page.close();
     }
   } finally {

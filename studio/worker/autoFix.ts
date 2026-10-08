@@ -14,6 +14,8 @@
  *   salen en móvil: El Corte Inglés, Calvin Klein).
  * - Enlace de baja: si hay un enlace cuyo texto es «baja»/«unsubscribe», su href pasa a {{unsubscribe_url}}.
  * - Imágenes locales de más de 600 KB: se reducen a 1200 px de ancho y se comprimen (compressLocalImages).
+ * - Espacio en blanco entre columnas inline-block («stack»): con anchos que suman justo el hueco (256 + 264 = 520), el
+ *   espacio de ~4 px las empujaba a apilarse en escritorio (Spotify y Jordan, 2026-10-08).
  */
 import * as fs from 'fs';
 import sharp from 'sharp';
@@ -68,6 +70,20 @@ export function autoFix(input: string, imgWidths: number[] = []): FixResult {
       return extra ? `<html${attrs}${extra}>` : tag;
     });
   }
+
+  // Columnas lado a lado: sin espacio en blanco entre el cierre de una y la apertura de la siguiente «stack» (los
+  // comentarios condicionales de Outlook se conservan tal cual, con sus espacios dentro).
+  let joined = 0;
+  html = html.replace(
+    /<\/div>((?:\s|<!--\[if [^\]]*\]>[\s\S]*?<!\[endif\]-->)*)(<div\b[^>]*\bclass\s*=\s*["'][^"']*\bstack\b)/gi,
+    (m, mid: string, open: string) => {
+      const kept = (mid.match(/<!--\[if [^\]]*\]>[\s\S]*?<!\[endif\]-->/gi) || []).join('');
+      if (kept === mid) return m;
+      joined++;
+      return `</div>${kept}${open}`;
+    }
+  );
+  if (joined) applied.push(`Quitado el espacio en blanco entre columnas lado a lado (${joined}): las empujaba a apilarse en escritorio.`);
 
   // width en las imágenes (el orden de imgWidths es el de las <img> del documento).
   let index = -1;

@@ -2602,3 +2602,26 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
 - Arreglo: errata tolerada desde 6 letras; «Oferta con su cifra» solo con petición del equipo (inspect.ts ya no lee
   encargo.md); el error pide la cifra en una frase con verbo y en la voz de la marca. Tests: 238.
 - Vigilar: líneas de relleno en el pie («Consulta la disponibilidad…», «Zapatillas de competición…»): 2 de 2 piezas.
+
+### 2026-10-08 — Digital Car (muzdks1j-02ym6v): texto de investigación en la pieza (pedido por el usuario)
+- Síntoma: «La portada de DigitalCar anuncia un descuento de 15.000 €…», «La promoción no detalla aquí…» y en el pie
+  «No se han localizado las bases… quedan pendientes de confirmación». Nota 36/50 (concepto, originalidad, copy < 4).
+- Causa: el prompt pide «márcalo como pendiente de confirmación en vez de omitirlo» (para las notas) y nada impedía
+  narrar la investigación en la pieza. Misma familia que el «Pieza de marca para corredores…» de Nike.
+- Arreglo: `RESEARCH_VOICE` + `researchVoiceFindings` (copyCheck.ts) → punto «Voz de la marca» (error) en
+  qualityCheck.ts, que vuelve a Hermes en la corrección; regla «Voz» en `COPY_RULES` (brief y borrador) y en la pasada
+  de mejora. En «Pedir cambios» no se fuerza si ya lo traía la original. Barrido: 5 de 62 piezas, todas reales
+  (Digital Car, Nike ndizjn, Siroko «según la ficha del producto», Tienda Animal ×2). Tests: 239.
+
+### 2026-10-08 — Spotify (muzep50d-8kupdq) y Jordan: columnas apiladas en escritorio que nadie veía (pedido por el usuario)
+- Síntoma: módulos a dos columnas que en escritorio salen una debajo de otra, con rellenos de lado a lado (desalineadas).
+- Causa: `max-width` de las dos columnas sumando justo el hueco (256 + 264 = 520; 268 + 268 = 536) y el espacio en
+  blanco entre los `<div class="stack">` (~4 px) las empuja a otra línea. No se veía porque la hoja capturaba «600 px»
+  con una ventana de 600 y la media query de móvil es de 620: la hoja (Hermes y la nota de arte) nunca vio el
+  escritorio. Las miniaturas (ventana de 800) sí lo enseñaban.
+- Arreglo: `renderSheet` captura escritorio y oscuro con ventana de 640 y recorta los 600 px del centro;
+  `autoFix` quita el espacio en blanco entre columnas «stack» (conserva los comentarios de Outlook);
+  `stackedColumnsWith` (renderChecks.ts, a 700 px) da error «Columnas que se apilan en escritorio» en «Espacios y
+  márgenes» si una columna baja de línea habiendo cabido al lado; nota en email-modulos.md (dejar ≥ 20 px libres).
+  Barrido: 2 de 63 piezas (estas dos), las dos arregladas por el autoFix. Tests: 240.
+- OJO: desde ahora la nota de arte mira el escritorio real; puede cambiar alguna nota.

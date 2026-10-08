@@ -984,3 +984,51 @@ test('Q1 (Jordan y Nike, 2026-10-08): «saltes» no es «sales» y un prompt que
   assert.deepEqual(r.typo, ['black-friday']);
   assert.equal(r.rebajas, true, 'las palabras largas siguen tolerando una errata');
 });
+
+test('Voz de la marca (Digital Car y Nike, 2026-10-08): contar la investigación o hablar de la pieza es error', () => {
+  const r = run(`
+    const { researchVoiceFindings, COPY_RULES } = require(${mod('copyCheck.ts')});
+    const { runQualityCheck } = require(${mod('qualityCheck.ts')});
+    const page = (t) => '<html><head><title>x</title></head><body><p>' + t + '</p></body></html>';
+    const bad = [
+      'La portada de DigitalCar anuncia un descuento de 15.000 € para coches de ocasión.',
+      'No se han localizado las bases ni el periodo de validez.',
+      'Condiciones finales pendientes de confirmación.',
+      'Pieza de marca para corredores que preparan una media o un maratón.',
+      'Hasta 10.000 mm de resistencia al agua, según la ficha del producto.',
+    ];
+    const good = [
+      'Hasta 15.000 € menos en coches de ocasión. Consulta modelos y condiciones en cada ficha.',
+      'La chaqueta resiste 10.000 mm de columna de agua.',
+      'Una newsletter cada mes con lo nuevo.',
+      'Elige tu talla en la web.',
+    ];
+    const check = (await runQualityCheck(page(bad[0]))).checks.find((c) => c.id === 'voice');
+    process.stdout.write(JSON.stringify({
+      bad: bad.map((t) => researchVoiceFindings(page(t)).length),
+      good: good.map((t) => researchVoiceFindings(page(t)).length),
+      status: check.status, rules: COPY_RULES.join(' '),
+    }));
+  `);
+  assert.deepEqual(r.bad, [1, 1, 1, 1, 1]);
+  assert.deepEqual(r.good, [0, 0, 0, 0]);
+  assert.equal(r.status, 'error');
+  assert.match(r.rules, /Lo pendiente va SOLO a notas\.md/);
+});
+
+test('Columnas que se apilan en escritorio (Spotify y Jordan, 2026-10-08): autoFix quita el espacio entre columnas', () => {
+  const r = run(`
+    const { autoFix } = require(${mod('autoFix.ts')});
+    const html = '<table><tr><td style="padding:0 40px">\\n  <!--[if mso]><table role="presentation" width="520"><tr><td width="256"><![endif]-->\\n' +
+      '  <div class="stack" style="display:inline-block; max-width:256px;"><img src="a.jpg" width="256"></div>\\n' +
+      '  <!--[if mso]></td><td width="264"><![endif]-->\\n  <div class="stack stack-gap" style="display:inline-block; max-width:264px;"><p>Texto</p></div>\\n' +
+      '  <!--[if mso]></td></tr></table><![endif]-->\\n</td></tr></table>';
+    const out = autoFix(html);
+    const again = autoFix(out.html);
+    process.stdout.write(JSON.stringify({ html: out.html, applied: out.applied, again: again.applied }));
+  `);
+  assert.match(r.html, /<\/div><!--\[if mso\]><\/td><td width="264"><!\[endif\]--><div class="stack stack-gap"/);
+  assert.match(r.html, /<table role="presentation" width="520">/, 'los comentarios de Outlook conservan sus espacios');
+  assert.ok(r.applied.some((a) => /columnas lado a lado/.test(a)));
+  assert.ok(!r.again.some((a) => /columnas lado a lado/.test(a)), 'una segunda pasada no cambia nada');
+});

@@ -413,6 +413,36 @@ export async function mobileOverflow(htmlPath: string): Promise<string | null> {
   }
 }
 
+/** Columnas lado a lado que, en escritorio, caen una debajo de otra (2026-10-08, Spotify y Jordan): hermanos con clase
+ *  «stack» e inline-block en el mismo contenedor, el segundo empezando debajo del primero. Devuelve los textos de error. */
+export async function stackedColumnsWith(browser: Browser, htmlPath: string): Promise<string[]> {
+  const page = await browser.newPage({ viewport: { width: DESKTOP_WIDTH, height: 900 }, javaScriptEnabled: true });
+  try {
+    await page.goto(`file://${htmlPath}`, { waitUntil: 'load', timeout: 30000 });
+    const n = (await page.evaluate(`(() => {
+      let bad = 0;
+      const parents = new Set([...document.querySelectorAll('.stack')].map((e) => e.parentElement));
+      for (const p of parents) {
+        const cols = [...p.children].filter((c) => c.classList.contains('stack') && getComputedStyle(c).display === 'inline-block' && c.getBoundingClientRect().width > 0);
+        // Apilada = la siguiente baja de línea aunque habría cabido al lado (le faltan menos de 30 px). Así no cuenta una
+        // segunda pareja de columnas que empieza su propia fila.
+        const cs = getComputedStyle(p);
+        const right = p.getBoundingClientRect().right - parseFloat(cs.paddingRight);
+        for (let i = 1; i < cols.length; i++) {
+          const a = cols[i - 1].getBoundingClientRect(), b = cols[i].getBoundingClientRect();
+          if (b.top >= a.bottom - 2 && a.right + b.width <= right + 30) { bad++; break; }
+        }
+      }
+      return bad;
+    })()`)) as number;
+    return n
+      ? [`Columnas que se apilan en escritorio (${n} módulo${n > 1 ? 's' : ''}): las columnas lado a lado caen una debajo de otra a 600 px. La suma de sus anchos (max-width) debe dejar al menos 20 px libres en su contenedor; o quita el espacio en blanco entre los <div class="stack">.`]
+      : [];
+  } finally {
+    await page.close();
+  }
+}
+
 async function measure(browser: Browser, htmlPath: string, width: number, dark = false): Promise<PageMetrics> {
   const page = await browser.newPage({ viewport: { width, height: 900 }, colorScheme: dark ? 'dark' : 'light' });
   try {
@@ -652,7 +682,7 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
     return {
       dark,
       mobile,
-      layout: layoutFindings({ touching: desktop.touching, mobileLeft: small.left }),
+      layout: [...layoutFindings({ touching: desktop.touching, mobileLeft: small.left }), ...(await stackedColumnsWith(browser, htmlPath).catch(() => []))],
       design: designFindings(desktop, small.fonts, palette),
       images: await imageFindings(html, path.dirname(htmlPath), root, desktop.imgWidths),
       imgWidths: desktop.imgWidths,
