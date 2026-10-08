@@ -2541,3 +2541,11 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   measureBrand.ts; la medición no guarda logos transparentes y `copyMeasuredLogo` no los copia a la pieza.
   Comprobado: Inglesina → false (sigue faltando su logo oficial); Prozis, Digital Car, Cola Cao → true.
 - Tests: 233.
+
+### 2026-10-08 — Recuperada la Q1 (la oferta con su cifra) sobre d8f11f5 (pedido por el usuario)
+- Igual que el 07-10 (ver «A (medidor de tiempos) y Q1»): `asksForOffer`, `offerFigures`, `pieceShowsFigure`
+  (requestCoverage.ts), punto «Oferta con su cifra» en qualityCheck.ts desde inspect.ts (piezas nuevas; sin petición,
+  el prompt de `_trabajo/encargo.md`) y línea «Oferta: …» en «3. Datos verificados» del prompt del brief.
+- Comprobado con la pieza de Prozis del 07-10 («10 % de descuento»): pide oferta → sí; la pieza muestra cifra → sí;
+  quitando la cifra → no (daría error si lo verificado la trae).
+- Tests: 234. Medir en las próximas piezas con oferta si sube el criterio «petición» de la nota de arte.

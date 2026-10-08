@@ -554,6 +554,8 @@ export interface QualityOptions {
   imageFindings?: { errors: string[]; warnings: string[] };
   /** Lo que pidió el equipo y la pieza no nombra (requestCoverage.ts); sin definir = no se comprobó. */
   requestMissing?: string[];
+  /** La oferta con su cifra (Q1, 2026-10-07): si se pidió una oferta, las cifras verificadas y si la pieza muestra alguna. */
+  offer?: { asked: boolean; verifiedFigures: string[]; pieceHasFigure: boolean };
   /** Datos verificados del encargo (claims.ts); sin definir, los claims solo avisan. */
   verified?: string;
   fetcher?: Fetcher;
@@ -610,6 +612,21 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
     );
     if (d.status === 'ok') d.details.push('La pieza nombra la ocasión y la oferta que pedía el equipo.');
     checks.push(d);
+  }
+  if (opts.offer?.asked) {
+    const { verifiedFigures, pieceHasFigure } = opts.offer;
+    const o = item(
+      'offer',
+      'Oferta con su cifra',
+      !pieceHasFigure && verifiedFigures.length
+        ? [`Se pide una oferta y lo verificado trae su cifra (${verifiedFigures.join(', ')}), pero la pieza no muestra ningún % ni precio: ponla en la primera escena, junto al titular.`]
+        : [],
+      !pieceHasFigure && !verifiedFigures.length
+        ? ['Se pide una oferta y la pieza no muestra ningún % ni precio. Si existe una cifra verificada, ponla en la primera escena; si no, no la inventes.']
+        : []
+    );
+    if (o.status === 'ok') o.details.push('La oferta se ve con su cifra.');
+    checks.push(o);
   }
   return {
     checkedAt: new Date().toISOString(),

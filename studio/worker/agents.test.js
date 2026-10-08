@@ -873,3 +873,33 @@ test('Vigilante de cuelgues (2026-10-07, recuperado el 08-10): topes de la revis
   `);
   assert.deepEqual([r.score, r.improve], [5 * 60 * 1000, 8 * 60 * 1000]);
 });
+
+
+test('Q1 (2026-10-07): la oferta con su cifra', () => {
+  const r = run(`
+    const rc = require(${JSON.stringify(path.join(__dirname, '../server/requestCoverage.ts'))});
+    const { runQualityCheck } = require(${mod('qualityCheck.ts')});
+    const html = '<html><head><title>Rebajas Lacoste</title></head><body><h1>Rebajas en polos</h1></body></html>';
+    const check = async (offer) => (await runQualityCheck(html, { offer })).checks.find((c) => c.id === 'offer');
+    const verified = '## 3. Datos verificados\\nOferta: hasta un 50 % en polos (https://www.lacoste.com/es/rebajas). Polo L.12.12 100% algodón, 100,00 € → 50,00 €.';
+    process.stdout.write(JSON.stringify({
+      asks: [rc.asksForOffer('newsletter de rebajas de Lacoste'), rc.asksForOffer('newsletter de Navidad de El Corte Inglés'), rc.asksForOffer('con un descuento para jóvenes')],
+      figures: rc.offerFigures(verified), cotton: rc.offerFigures('Polo 100% algodón'),
+      shows: [rc.pieceShowsFigure('Polos al 50 %'), rc.pieceShowsFigure('Ahora 49,95&nbsp;€'), rc.pieceShowsFigure('Rebajas en polos')],
+      err: await check({ asked: true, verifiedFigures: rc.offerFigures(verified), pieceHasFigure: false }),
+      warn: await check({ asked: true, verifiedFigures: [], pieceHasFigure: false }),
+      ok: await check({ asked: true, verifiedFigures: ['hasta un 50 %'], pieceHasFigure: true }),
+      none: await check({ asked: false, verifiedFigures: [], pieceHasFigure: false }),
+    }));
+  `);
+  assert.deepEqual(r.asks, [true, false, true]);
+  assert.deepEqual(r.figures, ['hasta un 50 %', '100,00 €', '50,00 €']);
+  assert.deepEqual(r.cotton, [], '«100 % algodón» no es una oferta');
+  assert.deepEqual(r.shows, [true, true, false]);
+  assert.equal(r.err.status, 'error');
+  assert.match(r.err.details[0], /hasta un 50 %/);
+  assert.equal(r.warn.status, 'warning');
+  assert.match(r.warn.details[0], /no la inventes/);
+  assert.equal(r.ok.status, 'ok');
+  assert.equal(r.none, undefined);
+});
