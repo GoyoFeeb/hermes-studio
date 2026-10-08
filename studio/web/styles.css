@@ -3330,24 +3330,9 @@ span.bf-quote { display: block; margin: 0 0 10px; }
 .g-count small { font-size: 10px; font-weight: 600; opacity: 0.8; }
 @media (prefers-reduced-motion: reduce) { .g-back, .g-stack > .thumb { transition: none; } }
 
-/* ---------- títulos de sección sin solaparse (2026-10-07) ---------- */
-/* El número grande detrás del título seguía pareciendo un error (marca de agua o no). Ahora es una etiqueta pequeña
-   encima, «01 ——», como los antetítulos de la web. Sin desplazamiento al hacer scroll. */
-.section-title { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 56px 0 20px; padding: 0; }
-.section-head .section-title { margin: 0; }
-.section-num {
-  position: static; display: inline-flex; align-items: center; gap: 12px;
-  font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 4px; line-height: 1;
-  color: var(--pink); background: none; -webkit-text-stroke: 0; transform: none !important; transition: none;
-}
-.section-num::after { content: ''; width: 44px; height: 1px; background: linear-gradient(90deg, var(--pink), transparent); }
-.section-title h2 { font-size: 30px; }
-@keyframes num-lit { 0%, 100% { text-shadow: none; } 15% { text-shadow: 0 0 14px rgba(251, 115, 255, 0.8); } }
-@media (max-width: 640px) {
-  .section-title { margin-top: 36px; padding: 0; }
-  .section-num { font-size: 12px; }
-  .section-title h2 { font-size: 24px; }
-}
+/* ---------- títulos de sección (2026-10-08) ---------- */
+/* Vuelve la marca de agua (a petición del equipo): número grande con contorno detrás del título (ver .section-num más
+   arriba). La etiqueta pequeña «01 ——» del 07-10 se quitó. */
 
 /* ---------- cifras a cero, discretas (2026-10-07) ---------- */
 .stats { display: flex; flex-wrap: wrap; }
