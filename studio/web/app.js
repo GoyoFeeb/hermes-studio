@@ -150,26 +150,33 @@ function renderBrandSide() {
   const box = document.getElementById('brand-side');
   if (!box) return;
   const name = clientNameInput.value.trim();
-  const slug = existingBrandInput.value || (name ? slugify(name) : '');
-  const card = existingBrandInput.value ? brandSummaries.get(slug)?.card : null;
+  // Panel vivo (2026-10-08): mientras se escribe, si una marca conocida empieza así, se enseña ya (con «Usar …»).
+  const guess = !existingBrandInput.value && name.length >= 2 ? brandCandidates(name).find((c) => c.prefix && c.folder) : null;
+  if (guess && !brandSummaries.has(guess.slug)) fetchBrandSummary(guess.slug).then(() => renderBrandSide());
+  const slug = existingBrandInput.value || guess?.slug || (name ? slugify(name) : '');
+  const card = existingBrandInput.value || guess ? brandSummaries.get(slug)?.card : null;
   const recent = slug
     ? historyState.jobs
         .filter((j) => j.clientSlug === slug && j.hasThumb && j.status === 'completed' && !j.archivedAt)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, 3)
     : [];
-  const key = `${slug}|${card ? 1 : 0}|${recent.map((j) => j.id).join(',')}`;
+  const key = `${slug}|${guess ? 'g' : ''}|${card ? 1 : 0}|${recent.map((j) => j.id).join(',')}`;
   if (key === brandSideKey) return;
   const changed = !brandSideKey || brandSideKey.split('|')[0] !== slug;
   brandSideKey = key;
+  // Sin marca, el panel se pliega y las opciones suben (2026-10-08): antes ocupaba la esquina con un icono y una frase.
+  box.hidden = !name;
   if (!name) {
-    box.innerHTML = `<p class="side-kicker">Marca</p><div class="side-empty"><span class="side-empty-art" aria-hidden="true"><i></i><i></i><i></i></span><p>Elige una marca y aquí verás su logo, sus colores y sus últimas newsletters.</p></div>`;
+    box.innerHTML = '';
   } else {
     const logo = card?.logo && /^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(card.logo) ? card.logo : '';
     const colors = (card?.colors || []).filter((c) => SAFE_COLOR.test(c.value)).slice(0, 8);
     const family = card?.typography?.family;
-    const display = existingBrandInput.value ? brandDisplayName(slug) : name;
-    const status = !existingBrandInput.value
+    const display = existingBrandInput.value || guess ? brandDisplayName(slug) : name;
+    const status = guess
+      ? `¿Es ${display}? Pulsa para usarla con su ficha.`
+      : !existingBrandInput.value
       ? 'Marca nueva: Studio medirá su identidad en su web antes de empezar.'
       : card?.hasPack
       ? 'Con brand pack: Hermes usará sus colores, tipografías y logos.'
@@ -178,6 +185,7 @@ function renderBrandSide() {
       `<p class="side-kicker">Marca</p>` +
       (logo ? `<span class="side-logo${card.logoOnDark ? ' is-dark' : ''}"><img src="${escapeHtml(logo)}" alt="Logo de ${escapeHtml(display)}"></span>` : `<p class="side-name">${escapeHtml(display)}</p>`) +
       `<p class="side-status">${escapeHtml(status)}</p>` +
+      (guess ? `<button type="button" class="btn btn-secondary btn-sm side-use" data-brand-pick="${escapeHtml(display)}">Usar ${escapeHtml(display)}</button>` : '') +
       (colors.length
         ? `<ul class="peek-colors side-colors" aria-label="Colores de la marca">${colors
             .map((c, n) => `<li style="--n:${n};--c:${c.value}" title="${escapeHtml(`${c.labels.join(' · ')} ${c.value}`)}"><span>${escapeHtml(c.value)}</span></li>`)
@@ -227,6 +235,10 @@ function renderBrandPeek(slug, card) {
   if (motionOk()) box.classList.add('is-in');
 }
 document.getElementById('brand-match').addEventListener('click', (e) => {
+  const pick = e.target.closest('[data-brand-pick]');
+  if (pick) chooseBrand(pick.dataset.brandPick);
+});
+document.getElementById('brand-side').addEventListener('click', (e) => {
   const pick = e.target.closest('[data-brand-pick]');
   if (pick) chooseBrand(pick.dataset.brandPick);
 });
@@ -370,15 +382,26 @@ async function describeKnownBrand(slug) {
     renderBrandSide();
   };
   if (brandSummaries.has(slug)) return render(brandSummaries.get(slug));
-  try {
-    const res = await apiFetch(`/api/brands/${encodeURIComponent(slug)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    brandSummaries.set(slug, data);
-    render(data);
-  } catch {
-    // sin red: se queda el aviso corto
+  const data = await fetchBrandSummary(slug);
+  if (data) render(data);
+}
+/** La ficha resumida de una marca (logo, colores, tipografía), una vez por marca. Sin red, null. */
+const brandFetches = new Map();
+function fetchBrandSummary(slug) {
+  if (brandSummaries.has(slug)) return Promise.resolve(brandSummaries.get(slug));
+  if (!brandFetches.has(slug)) {
+    brandFetches.set(
+      slug,
+      apiFetch(`/api/brands/${encodeURIComponent(slug)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) brandSummaries.set(slug, data);
+          return data;
+        })
+        .catch(() => null)
+    );
   }
+  return brandFetches.get(slug);
 }
 clientNameInput.addEventListener('input', updateBrandMatch);
 
@@ -426,13 +449,12 @@ function renderEtaHints() {
   if (ahead && t) {
     const others = ahead === 1 ? 'otra newsletter' : `otras ${ahead} newsletters`;
     const startMin = Math.max(1, Math.round(queueWaitNow.seconds / 60));
-    text = `Hermes tiene delante ${others}: la tuya empezaría en ~${startMin} min y estaría lista hacia las ${clockAt(queueWaitNow.seconds + t.sec)}. `;
+    // En una línea (2026-10-08): antes, dos líneas al lado del botón.
+    text = `Empieza en ~${startMin} min (${others} delante) · lista hacia las ${clockAt(queueWaitNow.seconds + t.sec)}`;
   } else if (t) {
-    text = t.n
-      ? `Suele tardar ${etaText(kind)} (mediana de las últimas ${t.n} con ${kind === 'brief' ? 'prompt completo' : 'instrucción rápida'}). `
-      : `Suele tardar ${etaText(kind)}. `;
+    text = `Lista en ${etaText(kind)} · hacia las ${clockAt(t.sec)}`;
   }
-  if (!hermesOnlineNow) text += 'Hermes no está conectado ahora: empezará en cuanto vuelva. ';
+  if (!hermesOnlineNow) text = `${text ? `${text} · ` : ''}Hermes no está conectado: empezará en cuanto vuelva`;
   document.getElementById('eta-hint').textContent = text;
   document.querySelectorAll('[data-eta="new"]').forEach((el) => (el.textContent = t ? etaText(kind) : 'unos 20 minutos'));
   // Cambios y adaptaciones a móvil también esperan su turno (2026-09-30): con cola, cuándo estarían listos.
@@ -799,6 +821,13 @@ async function submitJob(payload) {
   }
 }
 
+// ⌘/Ctrl + Intro envía el formulario desde cualquier campo (2026-10-08).
+form.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) {
+    e.preventDefault();
+    form.requestSubmit();
+  }
+});
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   const payload = Object.fromEntries(new FormData(form).entries());
