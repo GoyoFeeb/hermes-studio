@@ -945,3 +945,26 @@ test('Prompt completo (Nike, 2026-10-08): sin brief, el borrador investiga; con 
   assert.match(r.noteBrief, /No investigues lo que el brief deja pendiente/);
   assert.match(r.peticion, /Si la petición no pide una oferta, la oferta no cuenta/);
 });
+
+test('Fotos repetidas (Nike, 2026-10-08): la misma foto con otro nombre es error; el logo repetido, no', () => {
+  const r = run(`
+    const fs = require('fs'), os = require('os'), path = require('path'), sharp = require('sharp');
+    const { imageFindings } = require(${mod('renderChecks.ts')});
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dup-'));
+    const photo = (name, color) => sharp({ create: { width: 600, height: 400, channels: 3, background: color } }).jpeg().toFile(path.join(dir, name));
+    await photo('suela.jpg', '#c03030'); fs.copyFileSync(path.join(dir, 'suela.jpg'), path.join(dir, 'suela-crop.jpg'));
+    await photo('lateral.jpg', '#3050c0'); await photo('logo.jpg', '#111111');
+    const img = (src, w) => '<img src="' + src + '" width="' + w + '">';
+    const check = async (html) => (await imageFindings(html, dir, dir)).errors.filter((e) => e.startsWith('Foto repetida'));
+    process.stdout.write(JSON.stringify({
+      renamed: await check(img('suela.jpg', 600) + img('lateral.jpg', 250) + img('suela-crop.jpg', 250)),
+      same: await check(img('lateral.jpg', 600) + img('lateral.jpg', 250)),
+      logo: await check(img('logo.jpg', 200) + img('suela.jpg', 600) + img('logo.jpg', 200)),
+      small: await check(img('lateral.jpg', 600) + img('lateral.jpg', 120)),
+    }));
+  `);
+  assert.equal(r.renamed.length, 1);
+  assert.match(r.renamed[0], /suela\.jpg, suela-crop\.jpg\), con nombres distintos pero idéntica/);
+  assert.equal(r.same.length, 1);
+  assert.deepEqual([r.logo, r.small], [[], []]);
+});

@@ -16,6 +16,7 @@
  *   fondos: texto blanco sobre blanco.
  * Sin JavaScript de la pieza: el HTML lo escribe un modelo que ha leído webs de terceros.
  */
+import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { chromium, type Browser } from 'playwright';
@@ -577,6 +578,26 @@ export async function imageFindings(html: string, htmlDir: string, root: string,
   const warnings: string[] = [];
   const tags = [...html.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
   const seen = new Set<string>();
+  // Fotos repetidas por su contenido (Nike, 2026-10-08: «alphafly3-suela.jpg» y «_trabajo/suela-crop.jpg» eran el mismo
+  // archivo y la pieza enseñaba la misma foto dos veces; ni la comprobación ni la nota de arte lo vieron). Solo las que
+  // se pintan a 200 px o más y no son el logo (repetirlo en cabecera y pie, o claro/oscuro, es correcto).
+  const byContent = new Map<string, string[]>();
+  for (let i = 0; i < tags.length; i++) {
+    const src = tags[i].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || '';
+    const file = resolveLocal(src, htmlDir, root);
+    const painted = widths[i] || Number(tags[i].match(/\bwidth\s*=\s*["']?(\d+)/i)?.[1] || 0);
+    if (!file || painted < 200 || /logo|swoosh/i.test(path.basename(file))) continue;
+    const hash = createHash('md5').update(fs.readFileSync(file)).digest('hex');
+    byContent.set(hash, [...(byContent.get(hash) || []), src]);
+  }
+  for (const srcs of byContent.values()) {
+    if (srcs.length < 2) continue;
+    const names = [...new Set(srcs.map((s) => path.basename(s)))];
+    errors.push(
+      `Foto repetida: la misma imagen sale ${srcs.length} veces (${names.join(', ')})${names.length > 1 ? ', con nombres distintos pero idéntica' : ''}. ` +
+        'Cada escena lleva una foto distinta: usa otra de las fotos oficiales o quita una.'
+    );
+  }
   let total = 0;
   for (let i = 0; i < tags.length; i++) {
     const src = tags[i].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || '';

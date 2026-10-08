@@ -2580,3 +2580,14 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   pedida la oferta no cuenta y que el público se nota por producto, fotos y tono, nunca por una frase que lo nombre; la
   pasada de mejora prohíbe texto que hable de la pieza, su público o su objetivo.
 - Tests: 236. Pendiente: relanzar el prompt de Nike para comprobarlo.
+
+### 2026-10-08 — Nike relanzada (muz8q0d3-e4e1rw) y fotos repetidas (pedido por el usuario)
+- Con 208a0cf el «Prompt completo» investiga: ficha Nike ES (II7290-100), notas de prensa Alphafly 3 y 4, lista de
+  World Athletics, 3 fotos oficiales de la galería; nota 36 → 39/50. Tiempo 24 min (borrador 16:02, antes ~5).
+  Encontró −30 % (216,99 € / 309,99 €) y no lo usó porque el prompt pedía confirmar el objetivo con el cliente.
+- Fallo: la misma foto dos veces (`alphafly3-suela.jpg` y `_trabajo/suela-crop.jpg`, archivo idéntico con otro nombre);
+  ni check-newsletter ni la nota de arte lo vieron. Arreglo: `imageFindings` (renderChecks.ts) da error «Foto repetida»
+  si dos <img> pintadas a ≥ 200 px tienen el mismo contenido (md5), salvo archivos de logo. Barrido de 59 piezas: solo
+  estas dos (Nike y Calvin Klein 05-10, elixir-silver.jpg dos veces), las dos repeticiones reales.
+- Sin tocar (vigilar si se repiten): línea suelta en el pie («Zapatillas de competición para asfalto.»), notas.md
+  desfasado tras la pasada de mejora, copy que enumera componentes técnicos. Tests: 237.
