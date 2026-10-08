@@ -968,3 +968,19 @@ test('Fotos repetidas (Nike, 2026-10-08): la misma foto con otro nombre es error
   assert.equal(r.same.length, 1);
   assert.deepEqual([r.logo, r.small], [[], []]);
 });
+
+test('Q1 (Jordan y Nike, 2026-10-08): «saltes» no es «sales» y un prompt que pide verificar ofertas no pide una', () => {
+  const r = run(`
+    const rc = require(${JSON.stringify(path.join(__dirname, '../server/requestCoverage.ts'))});
+    process.stdout.write(JSON.stringify({
+      saltes: rc.asksForOffer('Ejecuta los pasos siguientes EN ORDEN. No saltes ninguno.'),
+      sales: rc.asksForOffer('newsletter de sales de verano'),
+      typo: rc.requestTerms('newsletter de black frisay').map((t) => t.id),
+      rebajas: rc.asksForOffer('newsletter de rebjas de Lacoste'),
+    }));
+  `);
+  assert.equal(r.saltes, false);
+  assert.equal(r.sales, true);
+  assert.deepEqual(r.typo, ['black-friday']);
+  assert.equal(r.rebajas, true, 'las palabras largas siguen tolerando una errata');
+});

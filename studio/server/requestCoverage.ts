@@ -88,7 +88,8 @@ function distance(a: string, b: string): number {
  *  «npre-black») no importa: se busca la secuencia de palabras en cualquier posición. */
 function wordMatches(word: string, want: string): boolean {
   if (word === want) return true;
-  if (want.length >= 5) return distance(word, want) <= (want.length >= 8 ? 2 : 1);
+  // Desde 6 letras (2026-10-08): con 5, «saltes» valía por «sales» (rebajas) y «No saltes ninguno» pedía una oferta.
+  if (want.length >= 6) return distance(word, want) <= (want.length >= 8 ? 2 : 1);
   return false;
 }
 

@@ -2591,3 +2591,14 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   estas dos (Nike y Calvin Klein 05-10, elixir-silver.jpg dos veces), las dos repeticiones reales.
 - Sin tocar (vigilar si se repiten): línea suelta en el pie («Zapatillas de competición para asfalto.»), notas.md
   desfasado tras la pasada de mejora, copy que enumera componentes técnicos. Tests: 237.
+
+### 2026-10-08 — Jordan (muzc6291-wxxbq1): Q1 falsa en «Prompt completo» (pedido por el usuario)
+- Jordan: AJ1 High OG «Royal» investigada y con fotos oficiales; nota 39/50 (la mejora daba 41 pero bajaba un criterio
+  por debajo de 4 y se recuperó la anterior). 24:43 (borrador 19:26 investigando). Fallo: «La oferta es de 190 €.»
+  (precio normal) añadido por la corrección tras el error «Oferta con su cifra».
+- Causa: en «Prompt completo» la Q1 leía el prompt. `wordMatches` toleraba una errata en palabras de 5 letras y
+  «saltes» («No saltes ninguno») valía por «sales» (rebajas); además los prompts nombran ofertas como algo a verificar
+  («vigencia de cualquier oferta», Nike).
+- Arreglo: errata tolerada desde 6 letras; «Oferta con su cifra» solo con petición del equipo (inspect.ts ya no lee
+  encargo.md); el error pide la cifra en una frase con verbo y en la voz de la marca. Tests: 238.
+- Vigilar: líneas de relleno en el pie («Consulta la disponibilidad…», «Zapatillas de competición…»): 2 de 2 piezas.

@@ -89,15 +89,10 @@ export async function inspectNewsletter(htmlPath: string, root: string, opts: In
   } catch {
     // pieza suelta o anterior a esta comprobación
   }
-  // La oferta con su cifra (Q1, 2026-10-07): lo pide la petición o, con «Prompt completo» (sin petición), el prompt.
-  let offerAsk = request;
-  if (opts.design && !offerAsk) {
-    try {
-      offerAsk = fs.readFileSync(path.join(dir, '_trabajo', 'encargo.md'), 'utf8').split('## Instrucciones de entrega')[0].slice(0, 2000);
-    } catch {
-      // sin encargo: pieza suelta
-    }
-  }
+  // La oferta con su cifra (Q1, 2026-10-07): solo si la pide la petición del equipo. Con «Prompt completo» se leía el
+  // prompt, y los prompts nombran ofertas como algo a verificar («vigencia de cualquier oferta», Nike 08-10) o colaban
+  // «saltes» por «sales» (Jordan 08-10: la corrección añadió «La oferta es de 190 €», el precio normal).
+  const offerAsk = request;
   const pieceText = `${html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || ''} ${visibleText(html)}`;
   const report = await runQualityCheck(html, {
     offer: opts.design && offerAsk ? { asked: asksForOffer(offerAsk), verifiedFigures: offerFigures(verified || ''), pieceHasFigure: pieceShowsFigure(pieceText) } : undefined,

@@ -619,7 +619,7 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
       'offer',
       'Oferta con su cifra',
       !pieceHasFigure && verifiedFigures.length
-        ? [`Se pide una oferta y lo verificado trae su cifra (${verifiedFigures.join(', ')}), pero la pieza no muestra ningún % ni precio: ponla en la primera escena, junto al titular.`]
+        ? [`Se pide una oferta y lo verificado trae su cifra (${verifiedFigures.join(', ')}), pero la pieza no muestra ningún % ni precio: ponla en la primera escena, junto al titular, dentro de una frase con verbo y en la voz de la marca (no una línea suelta tipo «La oferta es de…»).`]
         : [],
       !pieceHasFigure && !verifiedFigures.length
         ? ['Se pide una oferta y la pieza no muestra ningún % ni precio. Si existe una cifra verificada, ponla en la primera escena; si no, no la inventes.']
