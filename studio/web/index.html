@@ -170,15 +170,6 @@
             Pidiendo como <strong id="requester-note-name"></strong> · <button type="button" id="requester-change" class="link-btn">Cambiar</button>
           </p>
 
-          <fieldset class="kind">
-            <legend class="label">¿Qué vas a escribir?</legend>
-            <div class="segmented" role="radiogroup">
-              <label><input type="radio" name="inputKind" value="instruction" checked /><span>Instrucción rápida</span></label>
-              <label><input type="radio" name="inputKind" value="brief" /><span>Prompt completo</span></label>
-            </div>
-            <p class="hint" id="kind-hint"></p>
-          </fieldset>
-
           <div class="brand-field">
             <label for="client-name-input"><span class="label">Marca</span></label>
             <!-- Sugerencias propias con el logo de cada marca (2026-10-05): antes, la lista del navegador (<datalist>). -->
@@ -199,10 +190,18 @@
             </label>
           </div>
 
-          <label>
-            <span class="label" id="prompt-label">Instrucción</span>
-            <textarea name="promptText" id="prompt-input" required rows="14"></textarea>
-          </label>
+          <!-- Pestañas encima del cuadro de texto (2026-10-09): antes, un selector aparte arriba del todo. -->
+          <fieldset class="kind-tabs">
+            <legend class="sr-only">¿Qué vas a escribir?</legend>
+            <div class="tabs" role="radiogroup">
+              <label><input type="radio" name="inputKind" value="instruction" checked /><span>Instrucción rápida</span></label>
+              <label><input type="radio" name="inputKind" value="brief" /><span>Prompt completo</span></label>
+            </div>
+            <label class="tab-panel">
+              <span class="sr-only" id="prompt-label">Instrucción</span>
+              <textarea name="promptText" id="prompt-input" required rows="14"></textarea>
+            </label>
+          </fieldset>
           <div class="examples" id="examples" hidden>
             <span class="hint">Ejemplos:</span>
           </div>

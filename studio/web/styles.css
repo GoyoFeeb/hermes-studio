@@ -978,7 +978,37 @@ a.menu-item { text-decoration: none; box-sizing: border-box; }
   .sticky-actions #sticky-top { flex: 0 0 auto; }
 }
 
-/* ---------- tipo de entrada (instrucción / prompt) ---------- */
+/* ---------- tipo de entrada (instrucción / prompt): pestañas pegadas al cuadro de texto ---------- */
+.kind-tabs { margin-bottom: 20px; }
+.tabs { display: flex; gap: 4px; }
+.tabs label { margin: 0; cursor: pointer; }
+.tabs input { position: absolute; opacity: 0; pointer-events: none; }
+.tabs span {
+  display: block;
+  position: relative;
+  top: 1px;
+  padding: 10px 20px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  font-size: var(--fs-ui);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+}
+.tabs label:hover span { color: var(--text); }
+.tabs input:checked + span { z-index: 1; border-color: var(--border); background: var(--field); color: var(--text); box-shadow: inset 0 2px 0 var(--pink); }
+.tabs input:focus-visible + span { outline: 2px solid var(--pink); outline-offset: 2px; }
+.tab-panel { margin: 0; }
+.tab-panel textarea { margin-top: 0; }
+.kind-tabs:has(.tabs label:first-child input:checked) .tab-panel textarea { border-top-left-radius: 0; }
+@media (max-width: 640px) {
+  .tabs label { flex: 1; text-align: center; }
+  .tabs span { padding: 10px 6px; font-size: var(--fs-small); }
+  .kind-tabs .tab-panel textarea { border-top-left-radius: 0; border-top-right-radius: 0; }
+}
+
 .segmented {
   display: inline-flex;
   padding: 4px;
@@ -1001,7 +1031,6 @@ a.menu-item { text-decoration: none; box-sizing: border-box; }
 .segmented label:hover span { color: var(--text); }
 .segmented input:checked + span { background: var(--selected-bg); color: var(--text); box-shadow: 0 1px 2px var(--shadow); }
 .segmented input:focus-visible + span { outline: 2px solid var(--pink); outline-offset: 2px; }
-.kind .hint { margin-top: 8px; }
 
 .brief-body { padding: 4px 16px 16px; border-top: 1px solid var(--border); }
 #brief-text {

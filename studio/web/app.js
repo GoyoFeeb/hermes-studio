@@ -531,13 +531,11 @@ const KIND_COPY = {
     label: 'Instrucción',
     rows: 4,
     placeholder: 'Ej: quiero una newsletter de Adeslas para presentar su seguro dental a familias',
-    hint: 'Cuéntalo en una frase: Hermes lo convierte en un brief creativo completo y después hace la newsletter.',
   },
   brief: {
     label: 'Prompt creativo',
     rows: 14,
     placeholder: 'Pega aquí el prompt de dirección creativa completo (concepto, escenas, tono, textos…).',
-    hint: 'Hermes sigue tu prompt tal cual, sin reinterpretarlo.',
   },
 };
 
@@ -546,7 +544,6 @@ function applyKind() {
   const copy = KIND_COPY[kind];
   const input = document.getElementById('prompt-input');
   document.getElementById('prompt-label').textContent = copy.label;
-  document.getElementById('kind-hint').textContent = copy.hint;
   input.placeholder = copy.placeholder;
   input.rows = copy.rows;
   input.style.minHeight = kind === 'instruction' ? '0' : '';
