@@ -18,6 +18,7 @@ import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
 import { appendEvent, artPct, createJob, finalArtNotes, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
 import type { Job } from './store';
+import { supabase } from './supabase';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
 import { joinLabels, missingInBrief } from './requestCoverage';
@@ -1218,19 +1219,23 @@ app.get('/api/jobs/:id/result', (req: Request, res: Response) => {
 
 const server = app.listen(PORT, () => {
   console.log(`Hermes Studio escuchando en http://localhost:${PORT}`);
+  console.log(`Copia en Supabase: ${supabase.enabled ? 'activada' : 'desactivada (faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY)'}.`);
 });
 
 // Apagado limpio (2026-10-01): Railway para el contenedor anterior con SIGTERM en cada despliegue. Antes el
 // proceso moría por la señal (vía npx) y el despliegue sustituido salía como CRASHED sin haber fallado. Ahora
 // deja de aceptar conexiones, termina las peticiones en curso y sale con 0; si alguna se alarga, a los 5 s.
-// Los trabajos se guardan con escritura atómica (store.ts): no hay nada más que vaciar.
+// Los trabajos se guardan con escritura atómica (store.ts). Lo único que queda por vaciar es la cola de copias a
+// Supabase (2026-10-12): se le dan hasta 3 s dentro de esos 5.
 let shuttingDown = false;
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, () => {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`${signal} recibido: cerrando Hermes Studio…`);
-    server.close(() => {
+    server.close(async () => {
+      const left = await supabase.flush(3000);
+      if (left) console.error(`[supabase] ${left} envío(s) sin hacer al cerrar: los recupera la comprobación de paridad.`);
       console.log('Hermes Studio cerrado.');
       process.exit(0);
     });

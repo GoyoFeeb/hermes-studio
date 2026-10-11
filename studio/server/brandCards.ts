@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { DATA_DIR } from './paths';
+import { supabase } from './supabase';
 import type { BrandCard } from '../worker/brandCard';
 
 const DIR = path.join(DATA_DIR, 'brand-cards');
@@ -47,12 +48,14 @@ export function saveBrandCards(raw: unknown): number {
     const hash = entry?.hash;
     if (!card || typeof card !== 'object' || !SLUG_RE.test(String(card.slug)) || !HASH_RE.test(String(hash))) continue;
     if (card.logo != null && (typeof card.logo !== 'string' || !LOGO_RE.test(card.logo))) card.logo = null;
-    const json = JSON.stringify({ card, hash, receivedAt: new Date().toISOString() } satisfies StoredBrandCard);
+    const stored = { card, hash, receivedAt: new Date().toISOString() } satisfies StoredBrandCard;
+    const json = JSON.stringify(stored);
     if (json.length > MAX_CARD_CHARS) continue;
     const file = path.join(DIR, `${card.slug}.json`);
     const tmp = `${file}.tmp`;
     fs.writeFileSync(tmp, json);
     fs.renameSync(tmp, file);
+    supabase.saveBrandCard(card.slug, stored);
     saved++;
   }
   return saved;

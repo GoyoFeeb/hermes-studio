@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { JOBS_DIR } from './paths';
+import { supabase } from './supabase';
 import type { QualityReport } from '../worker/qualityCheck';
 import type { JobShare } from './share';
 import type { JobReportShare } from './report';
@@ -181,6 +182,8 @@ function writeJobFile(id: string, job: Job): void {
   const tmp = `${file}.${process.pid}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(job, null, 2));
   fs.renameSync(tmp, file);
+  // Copia en Supabase (fase 1 de la migración, 2026-10-12): el disco sigue mandando.
+  supabase.saveJob(job);
 }
 
 function ensureStore(): void {
@@ -231,8 +234,9 @@ export function listJobs(): Job[] {
 
 export function appendEvent(id: string, ev: Omit<JobEvent, 'ts'>): void {
   ensureStore();
-  const line = JSON.stringify({ ts: new Date().toISOString(), ...ev }) + '\n';
-  fs.appendFileSync(eventsFile(id), line);
+  const event: JobEvent = { ts: new Date().toISOString(), ...ev };
+  fs.appendFileSync(eventsFile(id), JSON.stringify(event) + '\n');
+  supabase.saveEvent(id, event);
 }
 
 export function readEvents(id: string): JobEvent[] {
