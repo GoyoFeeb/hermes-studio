@@ -15,19 +15,14 @@ import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, DATA_DIR, JOBS_DIR, BRANDS_DIR, NEWSLETTERS_DIR } from '../server/paths';
 import { supabase } from '../server/supabase';
 import type { Bucket } from '../server/supabase';
+import { contentTypeOf, storageTarget } from '../server/mirror';
 import type { Job, JobEvent } from '../server/store';
 
 loadEnv(ROOT);
 loadEnv(STUDIO_DIR);
 
 const CHECK_ONLY = process.argv.includes('--check');
-const PUBLIC_ASSET_RE = /\.(png|jpe?g|gif|webp|svg)$/i; // la misma regla que /assets en studio/server/index.ts
 const CARDS_DIR = path.join(DATA_DIR, 'brand-cards');
-const MIME: Record<string, string> = {
-  html: 'text/html; charset=utf-8', md: 'text/markdown; charset=utf-8', txt: 'text/plain; charset=utf-8',
-  json: 'application/json', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', png: 'image/png',
-  jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf', woff: 'font/woff',
-};
 
 const problems: string[] = [];
 
@@ -144,15 +139,13 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** newsletters/ va entero a `newsletters` con su ruta desde la raíz (la de campaignRelPath). De brands/, las
- *  imágenes que hoy sirve /assets van a `assets` y el resto a `brand-packs`, con su ruta dentro de brands/. */
+/** Qué va a cada bucket lo decide storageTarget (mirror.ts): la misma regla que usa el servidor al escribir. */
 function diskFiles(): DiskFile[] {
-  const files: DiskFile[] = [];
-  for (const abs of walk(NEWSLETTERS_DIR)) files.push({ bucket: 'newsletters', key: path.relative(ROOT, abs), abs, size: fs.statSync(abs).size });
-  for (const abs of walk(BRANDS_DIR)) {
-    files.push({ bucket: PUBLIC_ASSET_RE.test(abs) ? 'assets' : 'brand-packs', key: path.relative(BRANDS_DIR, abs), abs, size: fs.statSync(abs).size });
-  }
-  return files.filter((f) => f.size > 0).map((f) => ({ ...f, key: f.key.split(path.sep).join('/') }));
+  return [...walk(NEWSLETTERS_DIR), ...walk(BRANDS_DIR)].flatMap((abs) => {
+    const target = storageTarget(abs);
+    const size = fs.statSync(abs).size;
+    return target && size > 0 ? [{ ...target, abs, size }] : [];
+  });
 }
 
 async function remoteFiles(): Promise<Record<Bucket, Map<string, number>>> {
@@ -172,10 +165,9 @@ async function migrateFiles(files: DiskFile[]): Promise<void> {
   let failed = 0;
   async function worker(): Promise<void> {
     for (let f = todo.pop(); f; f = todo.pop()) {
-      const ext = f.key.split('.').pop()?.toLowerCase() ?? '';
       const url = `/storage/v1/object/${f.bucket}/${f.key.split('/').map(encodeURIComponent).join('/')}`;
       try {
-        await api(url, { method: 'POST', headers: { 'Content-Type': MIME[ext] ?? 'application/octet-stream', 'x-upsert': 'true' }, body: fs.readFileSync(f.abs) as unknown as BodyInit });
+        await api(url, { method: 'POST', headers: { 'Content-Type': contentTypeOf(f.abs), 'x-upsert': 'true' }, body: fs.readFileSync(f.abs) as unknown as BodyInit });
       } catch (err) {
         failed++;
         if (failed <= 20) console.error(`  no se pudo subir ${f.bucket}/${f.key}: ${(err as Error).message}`);

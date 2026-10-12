@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ROOT } from './paths';
+import { writeMirrored } from './mirror';
 
 export interface BrandCaptureResult {
   screenshots: Array<{ viewport: number; relPath: string; base64: string; mediaType: string }>;
@@ -81,7 +82,7 @@ export async function captureBrandSite(brandSlug: string, url: string): Promise<
             if (resp.ok()) {
               const ext = logoSrc.split('.').pop()?.split('?')[0]?.slice(0, 4) || 'png';
               const relPath = path.join('brands', brandSlug, 'design-input', `logo-captured.${ext}`);
-              fs.writeFileSync(path.join(ROOT, relPath), await resp.body());
+              writeMirrored(path.join(ROOT, relPath), await resp.body());
               capturedLogoRelPath = relPath;
             }
           } catch {
@@ -92,7 +93,7 @@ export async function captureBrandSite(brandSlug: string, url: string): Promise<
 
       const buf = await page.screenshot({ fullPage: false });
       const relPath = path.join('brands', brandSlug, 'design-input', `site-${viewportWidth}.png`);
-      fs.writeFileSync(path.join(ROOT, relPath), buf);
+      writeMirrored(path.join(ROOT, relPath), buf);
       screenshots.push({
         viewport: viewportWidth,
         relPath,

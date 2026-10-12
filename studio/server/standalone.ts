@@ -18,6 +18,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { ROOT, DATA_DIR } from './paths';
+import { writeMirrored } from './mirror';
 import { getJob, updateJob, appendEvent, listJobs, type Job, type JobArtReview, type JobTimings } from './store';
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
@@ -495,7 +496,7 @@ export function publishEmbeddedImages(html: string, job: Job): { html: string; c
       const ext = type === 'svg+xml' ? 'svg' : type === 'jpeg' ? 'jpg' : type;
       const rel = path.join(relDir, `img-${hash}.${ext}`);
       fs.mkdirSync(path.join(ROOT, relDir), { recursive: true });
-      fs.writeFileSync(path.join(ROOT, rel), buf);
+      writeMirrored(path.join(ROOT, rel), buf);
       url = toPublicAssetUrl(rel);
       byHash.set(hash, url);
     }
@@ -762,7 +763,7 @@ export function saveThumbnail(job: Job, b64: unknown): string | null {
   const isJpeg = buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
   if (!isJpeg || buf.length > THUMB_MAX_BYTES) return null;
   const rel = path.join(job.campaignRelPath, 'thumb.jpg');
-  fs.writeFileSync(path.join(ROOT, rel), buf);
+  writeMirrored(path.join(ROOT, rel), buf);
   return rel;
 }
 
@@ -788,11 +789,11 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
   const { html, count } = publishEmbeddedImages(rawHtml, job);
   if (count) log(jobId, `${count} imagen(es) publicada(s) en /assets.`, 'success');
 
-  fs.writeFileSync(path.join(outAbs, 'prompt.md'), job.input.briefText, 'utf8');
-  if (job.input.instruction) fs.writeFileSync(path.join(outAbs, 'instruccion.md'), job.input.instruction.trim() + '\n', 'utf8');
-  if (job.input.changeRequest) fs.writeFileSync(path.join(outAbs, 'cambios.md'), job.input.changeRequest.trim() + '\n', 'utf8');
-  fs.writeFileSync(path.join(outAbs, 'newsletter.html'), html, 'utf8');
-  if (finalMessage.trim()) fs.writeFileSync(path.join(outAbs, 'notas.md'), finalMessage.trim() + '\n', 'utf8');
+  writeMirrored(path.join(outAbs, 'prompt.md'), job.input.briefText, 'utf8');
+  if (job.input.instruction) writeMirrored(path.join(outAbs, 'instruccion.md'), job.input.instruction.trim() + '\n', 'utf8');
+  if (job.input.changeRequest) writeMirrored(path.join(outAbs, 'cambios.md'), job.input.changeRequest.trim() + '\n', 'utf8');
+  writeMirrored(path.join(outAbs, 'newsletter.html'), html, 'utf8');
+  if (finalMessage.trim()) writeMirrored(path.join(outAbs, 'notas.md'), finalMessage.trim() + '\n', 'utf8');
 
   for (const w of checkEmailHtml(html)) log(jobId, `Aviso: ${w}`, 'error');
   if (finalMessage.trim()) log(jobId, `Nota de Hermes: ${finalMessage.trim().slice(0, 1500)}`);
@@ -857,9 +858,9 @@ export function createTextEditVersion(
   const outRel = standaloneOutputDir(job);
   const outAbs = path.join(ROOT, outRel);
   fs.mkdirSync(outAbs, { recursive: true });
-  fs.writeFileSync(path.join(outAbs, 'newsletter.html'), out, 'utf8');
-  fs.writeFileSync(path.join(outAbs, 'prompt.md'), job.input.briefText, 'utf8');
-  fs.writeFileSync(path.join(outAbs, 'cambios.md'), summary + '\n', 'utf8');
+  writeMirrored(path.join(outAbs, 'newsletter.html'), out, 'utf8');
+  writeMirrored(path.join(outAbs, 'prompt.md'), job.input.briefText, 'utf8');
+  writeMirrored(path.join(outAbs, 'cambios.md'), summary + '\n', 'utf8');
   const who = job.input.requesterName ? ` por ${job.input.requesterName}` : '';
   const notes = [
     (readResultNotes(source) || '').trim(),
@@ -873,7 +874,7 @@ export function createTextEditVersion(
   ]
     .filter((l, i) => i > 0 || l)
     .join('\n');
-  fs.writeFileSync(path.join(outAbs, 'notas.md'), notes + '\n', 'utf8');
+  writeMirrored(path.join(outAbs, 'notas.md'), notes + '\n', 'utf8');
 
   const carried = (source.quality?.checks || []).filter((c) => c.id === 'links' || c.id === 'images' || c.id === 'mobile');
   const checks = [...carried.filter((c) => c.id !== 'mobile'), ...staticChecks(out), ...carried.filter((c) => c.id === 'mobile')];
