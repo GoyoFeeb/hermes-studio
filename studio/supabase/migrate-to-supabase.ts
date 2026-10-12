@@ -30,6 +30,19 @@ const MIME: Record<string, string> = {
 };
 
 const problems: string[] = [];
+
+/** El plan gratuito corta con 429 («too many connections») si se le pide mucho a la vez: se espera y se repite. */
+async function retry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt >= 7 || !/→ (429|5\d\d) /.test((err as Error).message)) throw err;
+      await new Promise((r) => setTimeout(r, Math.min(30000, 1000 * 2 ** attempt)));
+    }
+  }
+}
+const api = (p: string, init: Parameters<typeof supabase.raw>[1]) => retry(() => supabase.raw(p, init));
 const json = { 'Content-Type': 'application/json' };
 
 /** jsonb no conserva el orden de las claves: se compara con las claves ordenadas. */
@@ -74,13 +87,13 @@ function jobRow(j: Job) {
 }
 
 async function eventCount(id: string): Promise<number> {
-  const res = await supabase.raw(`/rest/v1/job_events?job_id=eq.${id}&select=id`, { method: 'HEAD', headers: { Prefer: 'count=exact' } });
+  const res = await api(`/rest/v1/job_events?job_id=eq.${id}&select=id`, { method: 'HEAD', headers: { Prefer: 'count=exact' } });
   return Number((res.headers.get('content-range') ?? '').split('/')[1] ?? NaN);
 }
 
 async function migrateJobs(jobs: Job[]): Promise<void> {
   for (let i = 0; i < jobs.length; i += 50) {
-    await supabase.raw('/rest/v1/jobs?on_conflict=id', {
+    await api('/rest/v1/jobs?on_conflict=id', {
       method: 'POST', headers: { ...json, Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(jobs.slice(i, i + 50).map(jobRow)),
     });
   }
@@ -88,9 +101,9 @@ async function migrateJobs(jobs: Job[]): Promise<void> {
   for (const j of jobs) {
     const events = diskEvents(j.id);
     if ((await eventCount(j.id)) === events.length) continue;
-    await supabase.raw(`/rest/v1/job_events?job_id=eq.${j.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    await api(`/rest/v1/job_events?job_id=eq.${j.id}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
     for (let i = 0; i < events.length; i += 500) {
-      await supabase.raw('/rest/v1/job_events', {
+      await api('/rest/v1/job_events', {
         method: 'POST', headers: { ...json, Prefer: 'return=minimal' },
         body: JSON.stringify(events.slice(i, i + 500).map((e) => ({ job_id: j.id, ts: e.ts, phase: e.phase, level: e.level, message: e.message }))),
       });
@@ -111,7 +124,7 @@ function diskCards(): { slug: string; data: unknown }[] {
 async function migrateCards(cards: { slug: string; data: unknown }[]): Promise<void> {
   if (!cards.length) return;
   const now = new Date().toISOString();
-  await supabase.raw('/rest/v1/brand_cards?on_conflict=slug', {
+  await api('/rest/v1/brand_cards?on_conflict=slug', {
     method: 'POST', headers: { ...json, Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify(cards.map((c) => ({ slug: c.slug, updated_at: now, data: c.data }))),
   });
@@ -143,7 +156,10 @@ function diskFiles(): DiskFile[] {
 }
 
 async function remoteFiles(): Promise<Record<Bucket, Map<string, number>>> {
-  const [newsletters, assets, packs] = await Promise.all([supabase.listFiles('newsletters'), supabase.listFiles('assets'), supabase.listFiles('brand-packs')]);
+  // De uno en uno: en paralelo agotaban las conexiones del plan gratuito.
+  const newsletters = await retry(() => supabase.listFiles('newsletters'));
+  const assets = await retry(() => supabase.listFiles('assets'));
+  const packs = await retry(() => supabase.listFiles('brand-packs'));
   return { newsletters, assets, 'brand-packs': packs };
 }
 
@@ -158,7 +174,7 @@ async function migrateFiles(files: DiskFile[]): Promise<void> {
       const ext = f.key.split('.').pop()?.toLowerCase() ?? '';
       const url = `/storage/v1/object/${f.bucket}/${f.key.split('/').map(encodeURIComponent).join('/')}`;
       try {
-        await supabase.raw(url, { method: 'POST', headers: { 'Content-Type': MIME[ext] ?? 'application/octet-stream', 'x-upsert': 'true' }, body: fs.readFileSync(f.abs) as unknown as BodyInit });
+        await api(url, { method: 'POST', headers: { 'Content-Type': MIME[ext] ?? 'application/octet-stream', 'x-upsert': 'true' }, body: fs.readFileSync(f.abs) as unknown as BodyInit });
       } catch (err) {
         failed++;
         if (failed <= 20) console.error(`  no se pudo subir ${f.bucket}/${f.key}: ${(err as Error).message}`);
@@ -166,12 +182,12 @@ async function migrateFiles(files: DiskFile[]): Promise<void> {
       if (++done % 200 === 0) console.log(`  ${done} procesados…`);
     }
   }
-  await Promise.all(Array.from({ length: 6 }, worker));
+  await Promise.all(Array.from({ length: 3 }, worker));
   console.log(`Archivos: subida terminada (${failed} fallos).`);
 }
 
 async function check(jobs: Job[], cards: { slug: string; data: unknown }[], files: DiskFile[]): Promise<void> {
-  const res = await supabase.raw('/rest/v1/jobs?select=id,data&limit=100000', { method: 'GET' });
+  const res = await api('/rest/v1/jobs?select=id,data&limit=100000', { method: 'GET' });
   const remoteJobs = new Map(((await res.json()) as { id: string; data: Job }[]).map((r) => [r.id, r.data]));
   for (const j of jobs) {
     const r = remoteJobs.get(j.id);
@@ -183,7 +199,7 @@ async function check(jobs: Job[], cards: { slug: string; data: unknown }[], file
       if (n !== m) problems.push(`trabajo ${j.id}: ${n} eventos en disco, ${m} en Supabase`);
     }
   }
-  const cres = await supabase.raw('/rest/v1/brand_cards?select=slug,data&limit=100000', { method: 'GET' });
+  const cres = await api('/rest/v1/brand_cards?select=slug,data&limit=100000', { method: 'GET' });
   const remoteCards = new Map(((await cres.json()) as { slug: string; data: unknown }[]).map((r) => [r.slug, r.data]));
   for (const c of cards) {
     if (!remoteCards.has(c.slug)) problems.push(`ficha ${c.slug}: falta en Supabase`);
