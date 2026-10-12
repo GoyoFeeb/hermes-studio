@@ -161,6 +161,33 @@ export function createSupabase(opts: SupabaseOptions = {}) {
       return Buffer.from(await res.arrayBuffer());
     },
 
+    /** Llamada directa y esperada, sin cola: para scripts de migración y comprobación. */
+    raw: request,
+
+    /** Todos los archivos de un bucket con su tamaño (recorre las carpetas). */
+    async listFiles(bucket: Bucket): Promise<Map<string, number>> {
+      const out = new Map<string, number>();
+      const folders = [''];
+      while (folders.length) {
+        const prefix = folders.pop() as string;
+        for (let offset = 0; ; offset += 1000) {
+          const res = await request(`/storage/v1/object/list/${bucket}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prefix, limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } }),
+          });
+          const items = (await res.json()) as { name: string; id: string | null; metadata?: { size?: number } | null }[];
+          for (const it of items) {
+            const key = prefix ? `${prefix}/${it.name}` : it.name;
+            if (it.id === null) folders.push(key);
+            else out.set(key, it.metadata?.size ?? -1);
+          }
+          if (items.length < 1000) break;
+        }
+      }
+      return out;
+    },
+
     pending: () => pending,
 
     /** Espera a que la cola se vacíe, como mucho `timeoutMs`. Devuelve lo que quedó sin enviar. */
@@ -187,6 +214,8 @@ export const supabase: Supabase = {
   saveBrandCard: (slug, data) => get().saveBrandCard(slug, data),
   saveFile: (bucket, relPath, body, contentType) => get().saveFile(bucket, relPath, body, contentType),
   readFile: (bucket, relPath) => get().readFile(bucket, relPath),
+  raw: (path, init) => get().raw(path, init),
+  listFiles: (bucket) => get().listFiles(bucket),
   pending: () => get().pending(),
   flush: (timeoutMs) => get().flush(timeoutMs),
 };

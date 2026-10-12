@@ -1,6 +1,6 @@
 # Plan — Fase 1 de la migración a Supabase: los datos
 
-Fecha: 2026-10-12 · Estado: proyecto creado en Supabase (tablas y buckets, `studio/supabase/001-fase-1.sql`); pasos 2 y 3 hechos en local (`supabase.ts`; escritura doble en `store.ts` y `brandCards.ts`; cola vaciada al cerrar). Sin desplegar.
+Fecha: 2026-10-12 · Estado: pasos 1 a 3 desplegados (copia en Supabase activada en Railway). Paso 4 y 5: `studio/supabase/migrate-to-supabase.ts`. Medido en producción: 110 trabajos, 51 fichas, 2.819 archivos (214 MB). Copia del volumen en `../backups/`.
 
 ## Objetivo
 
@@ -133,7 +133,7 @@ Cada paso se puede desplegar solo y deja el sistema funcionando.
 | `studio/server/standalone.ts` | subir resultado, miniatura e imágenes publicadas; descargar si falta |
 | `studio/server/heroImage.ts` | subir la imagen generada |
 | `studio/server/index.ts` | esperar la carga inicial antes de escuchar; vaciar la cola en SIGTERM |
-| `scripts/migrate-to-supabase.ts`, `scripts/check-supabase-parity.ts` | nuevos |
+| `studio/supabase/migrate-to-supabase.ts` | nuevo: migra y comprueba (`--check` solo comprueba). Fuera de `scripts/`, que vigila el lock del motor |
 | `studio/docker-entrypoint.sh` | paso 8 |
 | `package.json` | sin cambios: `supabase.ts` usa el `fetch` de Node, sin dependencia nueva (decidido al hacer el paso 2) |
 
