@@ -56,6 +56,21 @@ export function createSupabase(opts: SupabaseOptions = {}) {
     return res;
   }
 
+  /** Una petición por carpeta: seguidas y sin pausa, el plan gratuito responde 429 («too many connections»).
+   *  Se espera un poco entre una y otra y, si aun así frena, se repite esa petición (no el listado entero). */
+  async function patient<T>(fn: () => Promise<T>): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const out = await fn();
+        await new Promise((r) => setTimeout(r, 100));
+        return out;
+      } catch (err) {
+        if (attempt >= 9 || !/→ (429|5\d\d) /.test((err as Error).message)) throw err;
+        await new Promise((r) => setTimeout(r, Math.min(30000, 1000 * 2 ** attempt)));
+      }
+    }
+  }
+
   /** Encola un envío. No lanza: un fallo de Supabase no debe tumbar una petición de Studio. */
   function enqueue(label: string, send: () => Promise<unknown>): void {
     if (!enabled) return;
@@ -171,11 +186,13 @@ export function createSupabase(opts: SupabaseOptions = {}) {
       while (folders.length) {
         const prefix = folders.pop() as string;
         for (let offset = 0; ; offset += 1000) {
-          const res = await request(`/storage/v1/object/list/${bucket}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prefix, limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } }),
-          });
+          const res = await patient(() =>
+            request(`/storage/v1/object/list/${bucket}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prefix, limit: 1000, offset, sortBy: { column: 'name', order: 'asc' } }),
+            }),
+          );
           const items = (await res.json()) as { name: string; id: string | null; metadata?: { size?: number } | null }[];
           for (const it of items) {
             const key = prefix ? `${prefix}/${it.name}` : it.name;

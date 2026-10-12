@@ -157,9 +157,10 @@ function diskFiles(): DiskFile[] {
 
 async function remoteFiles(): Promise<Record<Bucket, Map<string, number>>> {
   // De uno en uno: en paralelo agotaban las conexiones del plan gratuito.
-  const newsletters = await retry(() => supabase.listFiles('newsletters'));
-  const assets = await retry(() => supabase.listFiles('assets'));
-  const packs = await retry(() => supabase.listFiles('brand-packs'));
+  const newsletters = await supabase.listFiles('newsletters');
+  const assets = await supabase.listFiles('assets');
+  const packs = await supabase.listFiles('brand-packs');
+  console.log(`Listado de Supabase: newsletters ${newsletters.size}, assets ${assets.size}, brand-packs ${packs.size}.`);
   return { newsletters, assets, 'brand-packs': packs };
 }
 

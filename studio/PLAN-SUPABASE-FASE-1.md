@@ -1,6 +1,6 @@
 # Plan — Fase 1 de la migración a Supabase: los datos
 
-Fecha: 2026-10-12 · Estado: pasos 1 a 3 desplegados (copia en Supabase activada en Railway). Paso 4 y 5: `studio/supabase/migrate-to-supabase.ts`. Medido en producción: 110 trabajos, 51 fichas, 2.819 archivos (214 MB). Copia del volumen en `../backups/`.
+Fecha: 2026-10-12 · Estado: pasos 1 a 6 parciales — hechos 1 a 5: copia de trabajos, eventos y fichas activada en Railway, y migración de lo existente terminada con «Disco y Supabase coinciden» (110 trabajos, 51 fichas, 2.819 archivos, 214 MB). Pendiente: paso 6 (subir a Storage los archivos nuevos al escribirlos), 7 y 8. Copia del volumen en `../backups/`. El plan gratuito responde 429 a ráfagas: el listado y la subida van con pausas y reintentos.
 
 ## Objetivo
 
