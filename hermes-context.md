@@ -2638,3 +2638,34 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   seguridad: si la versión mejorada trae un error de la comprobación que la anterior no tenía, se recupera la anterior
   aunque la nota suba. Tests: 241.
 - Tiempo: 29 min (borrador 24:07 investigando).
+
+### 2026-10-09 — Formulario: «Instrucción rápida / Prompt completo» pasan a pestañas (pedido por el usuario)
+- Antes: selector de píldora «¿Qué vas a escribir?» arriba del formulario, con la pista debajo. Ahora: dos pestañas
+  pegadas al cuadro de texto (`.kind-tabs` en index.html y styles.css); los radios `inputKind` son los mismos, así
+  que app.js no cambia. La etiqueta del cuadro queda solo para lectores de pantalla.
+- Desplegado (con permiso del usuario): `a2c465a` a `origin` y `deploy`; Vercel con `vercel --prod` desde
+  `studio/web` (Vercel NO se actualiza con el push: hay que publicarlo a mano).
+
+### 2026-10-12 — Railway caducó y empieza la migración a Supabase: fase 1, los datos (pedido por el usuario)
+- **Incidente:** se acabó el crédito de prueba de Railway (desde el 09-10): servicio Offline, despliegues REMOVED,
+  `/api/*` 404 y los correos ya enviados sin imágenes (`/assets`). El usuario activó el plan de pago. El redeploy
+  automático de Railway falló (usó Railpack sin leer `railway.json`: «No start command»); un push normal lo arregla.
+  El volumen no perdió nada.
+- **Decisión:** llevar los datos a Supabase por fases, con Railway como servidor hasta el final. Plan y estado en
+  `studio/PLAN-SUPABASE-FASE-1.md`; resumen de uso en «Copia en Supabase» de `studio/README.md`.
+- **Hecho (pasos 1 a 6):** proyecto `hermes-studio` en Supabase (UE, plan gratuito; SQL en
+  `studio/supabase/001-fase-1.sql`); `server/supabase.ts` (cola ordenada con reintentos, sin dependencia nueva);
+  escritura doble en `store.ts`, `brandCards.ts` y `mirror.ts` (`writeMirrored`, usado por `standalone.ts` y
+  `brandCapture.ts`); `studio/supabase/migrate-to-supabase.ts` (migra y, con `--check`, compara).
+- **Verificado en producción:** migración con «Disco y Supabase coinciden» (110 trabajos, 51 fichas, 2.819 archivos,
+  214 MB). Newsletter real después (Jordan, `mv5tvh63-sspqt8`): trabajo, eventos, sus 4 archivos y sus 5 imágenes
+  llegaron solos; nueva comprobación en cero (112 trabajos, 2.828 archivos). Bucket `assets` legible sin clave;
+  `newsletters`, no. Tests: 251.
+- **Aprendido:** el plan gratuito de Supabase corta ráfagas con 429 (hasta peticiones seguidas de una en una): pausas
+  y reintento por petición. `scripts/*.ts` está vigilado por el lock del motor: un script nuevo ahí rompe
+  `gates.smoke.test.js`; lo de Supabase vive en `studio/supabase/`. `railway ssh` pide clave registrada
+  (`mac-javi-hermes`) y aceptar `ssh.railway.com` a mano.
+- **Copia de seguridad:** `../backups/railway-volumen-2026-10-12.tgz` (fuera del repo), 3.633 archivos.
+- **Pendiente:** paso 7 (leer desde Supabase) tras unos días con `--check` en cero y con Supabase en Pro; entonces
+  el entrypoint deja de sembrar el volumen. Los correos enviados apuntan a `…up.railway.app/assets`: condición para
+  apagar Railway (redirección o dominio propio). Fases 2 a 4: usuarios, cola y Playwright en el worker, API.

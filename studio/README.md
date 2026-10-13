@@ -272,11 +272,51 @@ la raíz del repo) — no hace falta tocar nada del Dockerfile para esto. Pasos:
      la página de cada newsletter (`studio/server/mail.ts`). La clave sale de [resend.com](https://resend.com)
      y `MAIL_FROM` tiene que ser de un dominio verificado allí, p. ej.
      `Hermes Studio <pruebas@feebbodigital.com>`. Sin ellas, la web dice que no está activado.
+   - `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` (opcionales, 2026-10-12) — activan la copia de los datos
+     en Supabase (ver «Copia en Supabase» más abajo). La segunda es la clave **secreta** del proyecto
+     (`sb_secret_…`), no la pública: da acceso total a los datos, así que solo vive en Railway.
 
 5. **Desplegar**:
    ```bash
    railway up
    ```
+
+## Copia en Supabase (fase 1 de la migración, 2026-10-12)
+
+Railway sigue siendo el servidor y su volumen sigue mandando. Además, todo lo que Studio guarda se copia a
+un proyecto de Supabase (`hermes-studio`, región UE). El plan completo, con lo que falta, está en
+`studio/PLAN-SUPABASE-FASE-1.md`.
+
+| Dato | En disco (manda) | En Supabase (copia) |
+|---|---|---|
+| Trabajos | `studio/data/jobs/<id>.json` | tabla `jobs` (el trabajo entero en `data`) |
+| Eventos | `studio/data/jobs/<id>.events.ndjson` | tabla `job_events` |
+| Fichas de marca | `studio/data/brand-cards/<marca>.json` | tabla `brand_cards` |
+| Resultado de cada newsletter | `newsletters/…` | bucket `newsletters` (privado), misma ruta |
+| Imágenes de los correos | `brands/…` (las sirve `/assets`) | bucket `assets` (público), ruta dentro de `brands/` |
+| Resto de `brands/` | `brands/…` | bucket `brand-packs` (privado) |
+
+- **Cómo funciona:** `store.ts`, `brandCards.ts` y `mirror.ts` (`writeMirrored`) escriben en disco y encolan
+  la copia en `server/supabase.ts`: una cola ordenada, con reintentos, que agrupa los cambios seguidos de un
+  mismo trabajo. Un fallo de Supabase no tumba ninguna petición; deja un aviso `[supabase]` en el log.
+- **Activarla o apagarla:** con las dos variables puestas, el log de arranque dice «Copia en Supabase:
+  activada». Sin ellas no hace nada (local y tests no necesitan Supabase). Quitarlas devuelve el sistema al
+  estado anterior: el disco está completo.
+- **Tablas y buckets:** `studio/supabase/001-fase-1.sql`, ejecutado una vez en el SQL Editor. Tablas con RLS
+  y sin políticas: solo entra el servidor con la clave secreta.
+- **Comprobar que disco y Supabase coinciden** (solo lectura, unos 5 minutos), dentro del contenedor:
+  ```bash
+  railway ssh "cd /app && node --import tsx studio/supabase/migrate-to-supabase.ts --check"
+  ```
+  Sin `--check`, sube lo que falte o difiera y después comprueba. Se puede repetir; no borra nada.
+- **Qué no se copia solo:** lo que escriben los scripts del flujo antiguo de 9 fases (no pasan por
+  `writeMirrored`) y lo que el entrypoint siembra desde la imagen. Lo recoge el script de migración.
+- **Plan gratuito:** responde 429 («too many connections») a ráfagas de peticiones; por eso el listado y la
+  subida del script van con pausas y reintentos. Límites: 1 GB de archivos, 500 MB de base de datos, sin
+  copias de seguridad y con pausa tras una semana sin uso. Antes de leer desde Supabase (paso 7) hay que
+  pasar a Pro.
+- **`railway ssh`:** necesita una clave SSH registrada en la cuenta (`railway ssh keys add`) y aceptar una
+  vez el servidor `ssh.railway.com` desde un terminal.
 
 ## Frontend en Vercel (opcional, delante de Railway)
 

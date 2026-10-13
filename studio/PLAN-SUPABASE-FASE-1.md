@@ -1,6 +1,6 @@
 # Plan — Fase 1 de la migración a Supabase: los datos
 
-Fecha: 2026-10-12 · Estado: hechos los pasos 1 a 6: copia de trabajos, eventos y fichas activada en Railway, y migración de lo existente terminada con «Disco y Supabase coinciden» (110 trabajos, 51 fichas, 2.819 archivos, 214 MB). Paso 6: `studio/server/mirror.ts` (lo que escribe el servidor en newsletters/ y brands/ se copia a Storage; el flujo antiguo de 9 fases escribe con scripts aparte y no pasa por ahí). Pendiente: pasos 7 y 8. Copia del volumen en `../backups/`. El plan gratuito responde 429 a ráfagas: el listado y la subida van con pausas y reintentos.
+Fecha: 2026-10-12 · Estado (2026-10-13): pasos 1 a 6 hechos y verificados en producción con una newsletter real («Disco y Supabase coinciden»: 112 trabajos, 51 fichas, 2.828 archivos). Paso 8, la parte de documentación: hecha (`studio/README.md`, `hermes-context.md`, `.env.example`). Pendiente: paso 7 y, con él, el cambio del entrypoint. Copia del volumen en `../backups/`.
 
 ## Objetivo
 
@@ -120,8 +120,8 @@ Cada paso se puede desplegar solo y deja el sistema funcionando.
 7. **Dar la vuelta a la lectura.** Con la comprobación del paso 5 en cero durante varios días de uso real,
    el servidor carga los trabajos desde Postgres al arrancar y descarga de Storage los archivos que falten.
    El JSON en disco pasa a ser copia de seguridad.
-8. **Limpieza.** `docker-entrypoint.sh` deja de sembrar el volumen desde la imagen. Actualizar
-   `studio/README.md` y `hermes-context.md`.
+8. **Limpieza.** Documentación en `studio/README.md` y `hermes-context.md` (hecha). `docker-entrypoint.sh` deja
+   de sembrar el volumen desde la imagen: solo después del paso 7, mientras el disco mande hace falta.
 
 ## Archivos que cambian
 
