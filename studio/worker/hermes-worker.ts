@@ -25,7 +25,7 @@ import { describeErrors, staticChecks, type QualityReport } from './qualityCheck
 import { REQUEST_FILE, inspectNewsletter } from './inspect';
 import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote } from './measureBrand';
 import { Timeline, summarize, type JobTimings } from './timeline';
-import { renderThumbnail } from './thumbnail';
+import { renderThumbnails } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
 import { joinLabels, missingInBrief, type RequestTerm } from '../server/requestCoverage';
@@ -1644,8 +1644,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const notes = notesReady() ? fs.readFileSync(notesFile, 'utf8').trim() : '';
     const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
     // Miniatura para el historial: si no sale, la newsletter se entrega igual.
-    const thumbnail = (await renderThumbnail({ path: htmlPath })) || undefined;
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail, timings, artReview: artResult }, 6);
+    const thumbs = await renderThumbnails({ path: htmlPath });
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;
@@ -1669,7 +1669,7 @@ let thumbsIdleUntil = 0;
 
 async function backfillThumbnails(): Promise<void> {
   if (Date.now() < thumbsIdleUntil) return;
-  const res = await api('/api/worker/thumbs/pending', { hd: true }, 1);
+  const res = await api('/api/worker/thumbs/pending', { hd: true, long: true }, 1);
   if (!res.ok) {
     thumbsIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS; // Studio sin la ruta todavía
     return;
@@ -1680,8 +1680,8 @@ async function backfillThumbnails(): Promise<void> {
     return;
   }
   for (const j of jobs) {
-    const image = await renderThumbnail({ html: j.html });
-    await api(`/api/worker/jobs/${j.id}/thumb`, image ? { image } : { failed: true }, 2).catch(() => undefined);
+    const thumbs = await renderThumbnails({ html: j.html });
+    await api(`/api/worker/jobs/${j.id}/thumb`, thumbs ? { image: thumbs.image, long: thumbs.long } : { failed: true }, 2).catch(() => undefined);
   }
   console.log(`[${stamp()}] Miniaturas del historial: ${jobs.length} generada(s)`);
 }

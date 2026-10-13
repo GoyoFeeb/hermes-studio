@@ -46,6 +46,7 @@ import {
   archiveFamily,
   TextEditNoChanges,
   saveThumbnail,
+  saveThumbnailLong,
   THUMB_HD_WIDTH,
   pendingThumbnails,
   sanitizeQuality,
@@ -401,7 +402,7 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     return;
   }
   try {
-    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality), req.body.thumbnail, sanitizeTimings(req.body.timings));
+    completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality), req.body.thumbnail, sanitizeTimings(req.body.timings), req.body.thumbnailLong);
     // Notas de la revisión de dirección de arte (2026-10-06, punto 7): para ver por marca y fecha si la calidad sube.
     const artReview = sanitizeArtReview(req.body.artReview);
     if (artReview) updateJob(job.id, { artReview });
@@ -458,10 +459,10 @@ app.post('/api/worker/jobs/:id/art-review', requireWorker, express.json({ limit:
 });
 
 app.post('/api/worker/thumbs/pending', requireWorker, express.json({ limit: '16kb' }), (req: Request, res: Response) => {
-  res.json({ jobs: pendingThumbnails(3, req.body?.hd === true) });
+  res.json({ jobs: pendingThumbnails(3, { hd: req.body?.hd === true, long: req.body?.long === true }) });
 });
 
-app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '1mb' }), (req: Request, res: Response) => {
+app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '4mb' }), (req: Request, res: Response) => {
   const job = getJob(req.params.id);
   if (!job || job.input.mode !== 'standalone' || job.status !== 'completed') {
     res.status(404).json({ error: 'Trabajo no encontrado o no terminado.' });
@@ -479,6 +480,8 @@ app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '1mb
   }
   // Sin ancho legible en la cabecera se da por buena: si no, se le volvería a pedir al worker sin fin.
   updateJob(job.id, { ...thumb, thumbW: thumb.thumbW ?? THUMB_HD_WIDTH });
+  // La tira larga (2026-10-13). Un worker antiguo no manda el campo y la pieza sigue pendiente de ella.
+  if (req.body?.long !== undefined) updateJob(job.id, saveThumbnailLong(job, req.body.long));
   res.json({ ok: true });
 });
 
@@ -856,6 +859,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       briefWaitSec: j.briefWaitSec ?? null,
       hasThumb: !!j.thumbRelPath,
       thumbW: j.thumbW ?? null,
+      thumbLongH: j.thumbLongH || null,
       // Nota de la revisión de dirección de arte (2026-10-06, punto 7): porcentaje y notas finales por criterio.
       art: j.artReview ? { pct: artPct(j.artReview), notes: finalArtNotes(j.artReview) } : null,
       // Logo de la ficha de marca para las miniaturas sin imagen (2026-10-05): 'light' o 'dark' (versión blanca).
@@ -1250,12 +1254,14 @@ app.post('/api/jobs/:id/cancel', (req: Request, res: Response) => {
 
 app.get('/api/jobs/:id/thumb', (req: Request, res: Response) => {
   const job = getJob(req.params.id);
-  if (!job?.thumbRelPath) {
+  // ?long=1: la tira larga para el abanico de la portada (2026-10-13).
+  const rel = req.query.long ? job?.thumbLongRelPath : job?.thumbRelPath;
+  if (!rel) {
     res.status(404).end();
     return;
   }
   res.set('Cache-Control', 'private, max-age=86400');
-  res.type('jpeg').sendFile(path.join(ROOT, job.thumbRelPath));
+  res.type('jpeg').sendFile(path.join(ROOT, rel));
 });
 
 // Enviar una prueba por correo (2026-10-05, ver mail.ts). Para el equipo: pocas direcciones y un límite por hora.

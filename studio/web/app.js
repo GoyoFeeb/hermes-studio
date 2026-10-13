@@ -1426,7 +1426,7 @@ function renderShowcase(jobs) {
   box.innerHTML = order
     .map(
       (j) =>
-        `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"><span class="show-face"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb${j.thumbW ? `?w=${j.thumbW}` : ''}" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"><span class="show-brand">${escapeHtml(j.clientName || '')}</span></span></a>`
+        `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"${j.thumbLongH ? ` data-long="${Number(j.thumbLongH)}" data-long-src="/api/jobs/${encodeURIComponent(j.id)}/thumb?long=1&h=${Number(j.thumbLongH)}"` : ''}><span class="show-face"><span class="show-view"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb${j.thumbW ? `?w=${j.thumbW}` : ''}" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"></span><span class="show-brand">${escapeHtml(j.clientName || '')}</span></span></a>`
     )
     .join('');
   dealShowcase(box);
@@ -1501,6 +1501,30 @@ function dealShowcase(box) {
 const fanState = new WeakMap();
 /** Cuánto crece la carta señalada. La cara está maquetada a este tamaño en styles.css (140 %). */
 const FAN_GROW = 1.4;
+/** La carta señalada recorre la pieza (2026-10-13): espera un momento y baja por la tira larga (worker/thumbnail.ts,
+ *  600 px de ancho) a esta velocidad, en altos de carta por segundo. Al soltarla vuelve arriba. */
+const FAN_SCROLL_WAIT = 0.7;
+const FAN_SCROLL_SPEED = 0.28;
+const FAN_LONG_WIDTH = 600;
+/** Pone la tira larga sobre la miniatura la primera vez que se señala la carta. Hasta que carga no se recorre nada. */
+function fanLoadLong(card, st) {
+  const view = card.querySelector('.show-view');
+  if (!view) return;
+  const img = new Image();
+  img.className = 'show-long';
+  img.alt = '';
+  img.onload = () => {
+    img.classList.add('is-ready');
+    st.longOk = true;
+  };
+  img.onerror = () => {
+    img.remove();
+    delete card.dataset.long;
+  };
+  img.src = card.dataset.longSrc;
+  view.append(img);
+  st.long = img;
+}
 let fanBox = null;
 let fanHover = null;
 let fanPointer = 0;
@@ -1650,6 +1674,24 @@ function fanTick(now) {
     const face = card.querySelector('.show-face');
     // La cara está maquetada a su tamaño grande (styles.css, «La carta señalada, nítida»): en reposo se encoge.
     if (face) face.style.transform = `translateY(${st.ly.toFixed(2)}px) scale(${(narrow ? st.s : st.s / FAN_GROW).toFixed(4)})`;
+    // Recorrido de la pieza en la carta señalada.
+    const longH = Number(card.dataset.long) || 0;
+    if (face && longH) {
+      if (hot && !st.long) fanLoadLong(card, st);
+      if (hot && !st.hotT) {
+        // Medidas una vez al señalarla, no en cada fotograma.
+        st.viewH = face.offsetHeight;
+        st.scMax = Math.max(0, (longH * face.offsetWidth) / FAN_LONG_WIDTH - st.viewH);
+      }
+      st.hotT = hot ? (st.hotT || 0) + dt : 0;
+      if (st.longOk) {
+        if (!hot) st.scT = 0;
+        else if (st.hotT > FAN_SCROLL_WAIT) st.scT = Math.min(st.scMax, (st.scT || 0) + FAN_SCROLL_SPEED * st.viewH * dt);
+        st.sc ??= 0;
+        spring(st, 'sc', st.scT || 0, dt, hot ? 60 : 140, hot ? 16 : 24);
+        st.long.style.transform = `translateY(${(-Math.max(0, Math.min(st.scMax, st.sc))).toFixed(2)}px)`;
+      }
+    }
   });
   fanFrame = requestAnimationFrame(fanTick);
 }

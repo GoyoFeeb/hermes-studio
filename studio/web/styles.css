@@ -2158,6 +2158,11 @@ html { scroll-padding-top: 80px; }
 }
 .show-mock { overflow: hidden; }
 .show-card img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: inherit; }
+/* La ventana de la carta: recorta la tira larga que la carta señalada recorre hacia abajo (app.js, fanLoadLong). La
+   etiqueta de marca queda fuera, debajo, y por eso el recorte no va en la cara. */
+.show-view { position: absolute; inset: 0; display: block; overflow: hidden; border-radius: inherit; }
+.show-card img.show-long { position: absolute; left: 0; top: 0; height: auto; border-radius: 0; opacity: 0; will-change: transform; }
+.show-card img.show-long.is-ready { opacity: 1; }
 .show-card:nth-child(1) { --i: -2; --d: 40ms; z-index: 1; }
 .show-card:nth-child(2) { --i: -1; --d: 20ms; z-index: 2; }
 .show-card:nth-child(3) { --i: 0; z-index: 3; }

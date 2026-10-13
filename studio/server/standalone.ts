@@ -582,7 +582,6 @@ export function pendingArtReviews(limit: number, days = 7): { id: string; output
   const since = new Date(Date.now() - days * 86400000).toISOString();
   return listJobs()
     .filter((j) => j.input.mode === 'standalone' && j.status === 'completed' && !j.artReview && !j.artReviewFailed && j.createdAt >= since)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit)
     .flatMap((j) => {
       const html = readResultHtml(j);
@@ -754,6 +753,7 @@ export function readResultNotes(job: Job): string | null {
 }
 
 const THUMB_MAX_BYTES = 400 * 1024;
+const THUMB_LONG_MAX_BYTES = 1500 * 1024;
 
 /** Guarda la miniatura (base64 de un JPEG que envía el worker) junto a la newsletter. Solo se acepta
  *  un JPEG de verdad y de tamaño razonable: llega por la red y se sirve después como imagen. */
@@ -764,19 +764,32 @@ export function saveThumbnail(job: Job, b64: unknown): { thumbRelPath: string; t
   if (!isJpeg || buf.length > THUMB_MAX_BYTES) return null;
   const rel = path.join(job.campaignRelPath, 'thumb.jpg');
   writeMirrored(path.join(ROOT, rel), buf);
-  const thumbW = jpegWidth(buf);
+  const thumbW = jpegSize(buf)?.width;
   return { thumbRelPath: rel, ...(thumbW ? { thumbW } : {}) };
+}
+
+/** Guarda la tira larga (ver worker/thumbnail.ts). Devuelve siempre `thumbLongH`: 0 si no llegó ninguna válida
+ *  (pieza corta), para que no se le vuelva a pedir al worker. */
+export function saveThumbnailLong(job: Job, b64: unknown): { thumbLongRelPath?: string; thumbLongH: number } {
+  if (typeof b64 !== 'string' || !job.campaignRelPath) return { thumbLongH: 0 };
+  const buf = Buffer.from(b64, 'base64');
+  const size = jpegSize(buf);
+  if (!size || size.width !== THUMB_HD_WIDTH || buf.length > THUMB_LONG_MAX_BYTES) return { thumbLongH: 0 };
+  const rel = path.join(job.campaignRelPath, 'thumb-long.jpg');
+  writeMirrored(path.join(ROOT, rel), buf);
+  return { thumbLongRelPath: rel, thumbLongH: size.height };
 }
 
 /** Ancho de las miniaturas desde el 2026-10-13 (ver worker/thumbnail.ts). Las guardadas con menos se regeneran. */
 export const THUMB_HD_WIDTH = 600;
 
-/** Ancho de un JPEG leyendo su cabecera (el marcador SOF), sin decodificar la imagen. */
-function jpegWidth(buf: Buffer): number | null {
+/** Medidas de un JPEG leyendo su cabecera (el marcador SOF), sin decodificar la imagen. */
+function jpegSize(buf: Buffer): { width: number; height: number } | null {
+  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
   let i = 2;
   while (i + 9 < buf.length && buf[i] === 0xff) {
     const marker = buf[i + 1];
-    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return buf.readUInt16BE(i + 7);
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return { width: buf.readUInt16BE(i + 7), height: buf.readUInt16BE(i + 5) };
     i += 2 + buf.readUInt16BE(i + 2);
   }
   return null;
@@ -785,11 +798,11 @@ function jpegWidth(buf: Buffer): number | null {
 /** Newsletters terminadas sin miniatura (anteriores a esta función): el worker las genera cuando está
  *  libre, de pocas en pocas, a partir del HTML publicado. Con `hd` (un worker que ya las saca a 600 px)
  *  entran también las guardadas a 300 × 400; a un worker antiguo no se le piden, porque las devolvería
- *  igual y se le volverían a pedir sin fin. */
-export function pendingThumbnails(limit: number, hd = false): { id: string; html: string }[] {
+ *  igual y se le volverían a pedir sin fin. Lo mismo con `long` y las que no tienen tira larga. */
+export function pendingThumbnails(limit: number, can: { hd?: boolean; long?: boolean } = {}): { id: string; html: string }[] {
   return listJobs()
     .filter((j) => j.input.mode === 'standalone' && j.status === 'completed' && !j.thumbFailed)
-    .filter((j) => !j.thumbRelPath || (hd && (j.thumbW ?? 0) < THUMB_HD_WIDTH))
+    .filter((j) => !j.thumbRelPath || (can.hd && (j.thumbW ?? 0) < THUMB_HD_WIDTH) || (can.long && j.thumbLongH === undefined))
     .slice(0, limit)
     .flatMap((j) => {
       const html = readResultHtml(j);
@@ -797,7 +810,7 @@ export function pendingThumbnails(limit: number, hd = false): { id: string; html
     });
 }
 
-export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessage: string, quality?: QualityReport, thumbnail?: string, timings?: JobTimings): void {
+export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessage: string, quality?: QualityReport, thumbnail?: string, timings?: JobTimings, thumbnailLong?: unknown): void {
   const job = getJob(jobId);
   if (!job) throw new Error(`Job ${jobId} no encontrado`);
   const outRel = standaloneOutputDir(job);
@@ -831,6 +844,8 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
   const done = getJob(jobId);
   const thumb = done && thumbnail ? saveThumbnail(done, thumbnail) : null;
   if (thumb) updateJob(jobId, thumb);
+  // `undefined` es un worker que aún no manda tira larga: se le pedirá cuando se actualice.
+  if (done && thumb && thumbnailLong !== undefined) updateJob(jobId, saveThumbnailLong(done, thumbnailLong));
   log(jobId, 'Newsletter lista.', 'success');
 }
 

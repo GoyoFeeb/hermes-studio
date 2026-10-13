@@ -85,6 +85,11 @@ export interface Job {
   /** Ancho en píxeles de la miniatura guardada (2026-10-13): 600 desde ese día; sin definir en las de 300 × 400,
    *  que el worker vuelve a generar cuando está libre. */
   thumbW?: number;
+  /** Tira larga de la pieza (2026-10-13): la columna de 600 px hasta 2800 de alto, para que la carta señalada del
+   *  abanico de la portada la recorra. `thumbLongH` es su alto; 0 si se intentó y la pieza es corta (no se vuelve a
+   *  pedir); sin definir en las piezas a las que aún no se les ha pedido. */
+  thumbLongRelPath?: string;
+  thumbLongH?: number;
   /** El worker no pudo generarla: no se le vuelve a pedir. */
   thumbFailed?: boolean;
   /** Cuándo lo recogió Hermes y cuándo terminó (2026-09-28): la duración real, sin la espera en cola. */
