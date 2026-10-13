@@ -1669,7 +1669,7 @@ let thumbsIdleUntil = 0;
 
 async function backfillThumbnails(): Promise<void> {
   if (Date.now() < thumbsIdleUntil) return;
-  const res = await api('/api/worker/thumbs/pending', {}, 1);
+  const res = await api('/api/worker/thumbs/pending', { hd: true }, 1);
   if (!res.ok) {
     thumbsIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS; // Studio sin la ruta todavía
     return;

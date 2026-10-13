@@ -80,8 +80,11 @@ export interface Job {
   /** Control de calidad del worker al terminar (2026-09-28, ver studio/worker/qualityCheck.ts).
    *  Sin definir en las newsletters anteriores a ese control. */
   quality?: QualityReport;
-  /** Miniatura para el historial (2026-09-28): JPEG 300×400 que genera el worker en el Mac. */
+  /** Miniatura para el historial (2026-09-28): JPEG que genera el worker en el Mac. */
   thumbRelPath?: string;
+  /** Ancho en píxeles de la miniatura guardada (2026-10-13): 600 desde ese día; sin definir en las de 300 × 400,
+   *  que el worker vuelve a generar cuando está libre. */
+  thumbW?: number;
   /** El worker no pudo generarla: no se le vuelve a pedir. */
   thumbFailed?: boolean;
   /** Cuándo lo recogió Hermes y cuándo terminó (2026-09-28): la duración real, sin la espera en cola. */

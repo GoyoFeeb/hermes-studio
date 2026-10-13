@@ -197,7 +197,7 @@ porque el marco sigue el modo del sistema de quien mira) e Invertido (aproximaci
 móvil). Solo afecta a la vista previa: la descarga y "Copiar HTML" son la pieza tal cual.
 
 **Miniaturas del historial** (2026-09-28): las genera el worker en el Mac (`studio/worker/thumbnail.ts`:
-Chromium sin JavaScript a 800 px, parte de arriba 600×800 → JPEG 300×400 con `sharp`), no Railway, que va
+Chromium sin JavaScript a 800 px, parte de arriba 600×800 capturada al doble de densidad → JPEG 600×800 con `sharp`; hasta el 2026-10-13 eran de 300×400 y el abanico de la portada las enseñaba pixeladas; las antiguas se regeneran solas), no Railway, que va
 justo de memoria. Las nuevas viajan con la newsletter; las anteriores las pide el worker cuando está libre
 (`/api/worker/thumbs/pending`, de 3 en 3). Sin miniatura, la fila muestra las iniciales de la marca. La
 cabecera dice con qué newsletter está Hermes (y enlaza con ella) y cuántas esperan; "Mis trabajos" filtra

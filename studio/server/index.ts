@@ -46,6 +46,7 @@ import {
   archiveFamily,
   TextEditNoChanges,
   saveThumbnail,
+  THUMB_HD_WIDTH,
   pendingThumbnails,
   sanitizeQuality,
   sanitizeTimings,
@@ -456,8 +457,8 @@ app.post('/api/worker/jobs/:id/art-review', requireWorker, express.json({ limit:
   res.json({ ok: true });
 });
 
-app.post('/api/worker/thumbs/pending', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
-  res.json({ jobs: pendingThumbnails(3) });
+app.post('/api/worker/thumbs/pending', requireWorker, express.json({ limit: '16kb' }), (req: Request, res: Response) => {
+  res.json({ jobs: pendingThumbnails(3, req.body?.hd === true) });
 });
 
 app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '1mb' }), (req: Request, res: Response) => {
@@ -471,12 +472,13 @@ app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '1mb
     res.json({ ok: true });
     return;
   }
-  const rel = saveThumbnail(job, req.body?.image);
-  if (!rel) {
+  const thumb = saveThumbnail(job, req.body?.image);
+  if (!thumb) {
     res.status(400).json({ error: 'Miniatura no válida.' });
     return;
   }
-  updateJob(job.id, { thumbRelPath: rel });
+  // Sin ancho legible en la cabecera se da por buena: si no, se le volvería a pedir al worker sin fin.
+  updateJob(job.id, { ...thumb, thumbW: thumb.thumbW ?? THUMB_HD_WIDTH });
   res.json({ ok: true });
 });
 
@@ -853,6 +855,7 @@ app.get('/api/jobs', (_req: Request, res: Response) => {
       durationSec: durationSec(j),
       briefWaitSec: j.briefWaitSec ?? null,
       hasThumb: !!j.thumbRelPath,
+      thumbW: j.thumbW ?? null,
       // Nota de la revisión de dirección de arte (2026-10-06, punto 7): porcentaje y notas finales por criterio.
       art: j.artReview ? { pct: artPct(j.artReview), notes: finalArtNotes(j.artReview) } : null,
       // Logo de la ficha de marca para las miniaturas sin imagen (2026-10-05): 'light' o 'dark' (versión blanca).

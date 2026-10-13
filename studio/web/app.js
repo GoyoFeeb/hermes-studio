@@ -1426,7 +1426,7 @@ function renderShowcase(jobs) {
   box.innerHTML = order
     .map(
       (j) =>
-        `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"><span class="show-face"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"><span class="show-brand">${escapeHtml(j.clientName || '')}</span></span></a>`
+        `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"><span class="show-face"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb${j.thumbW ? `?w=${j.thumbW}` : ''}" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"><span class="show-brand">${escapeHtml(j.clientName || '')}</span></span></a>`
     )
     .join('');
   dealShowcase(box);

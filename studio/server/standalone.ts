@@ -757,21 +757,39 @@ const THUMB_MAX_BYTES = 400 * 1024;
 
 /** Guarda la miniatura (base64 de un JPEG que envía el worker) junto a la newsletter. Solo se acepta
  *  un JPEG de verdad y de tamaño razonable: llega por la red y se sirve después como imagen. */
-export function saveThumbnail(job: Job, b64: unknown): string | null {
+export function saveThumbnail(job: Job, b64: unknown): { thumbRelPath: string; thumbW?: number } | null {
   if (typeof b64 !== 'string' || !job.campaignRelPath) return null;
   const buf = Buffer.from(b64, 'base64');
   const isJpeg = buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
   if (!isJpeg || buf.length > THUMB_MAX_BYTES) return null;
   const rel = path.join(job.campaignRelPath, 'thumb.jpg');
   writeMirrored(path.join(ROOT, rel), buf);
-  return rel;
+  const thumbW = jpegWidth(buf);
+  return { thumbRelPath: rel, ...(thumbW ? { thumbW } : {}) };
+}
+
+/** Ancho de las miniaturas desde el 2026-10-13 (ver worker/thumbnail.ts). Las guardadas con menos se regeneran. */
+export const THUMB_HD_WIDTH = 600;
+
+/** Ancho de un JPEG leyendo su cabecera (el marcador SOF), sin decodificar la imagen. */
+function jpegWidth(buf: Buffer): number | null {
+  let i = 2;
+  while (i + 9 < buf.length && buf[i] === 0xff) {
+    const marker = buf[i + 1];
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return buf.readUInt16BE(i + 7);
+    i += 2 + buf.readUInt16BE(i + 2);
+  }
+  return null;
 }
 
 /** Newsletters terminadas sin miniatura (anteriores a esta función): el worker las genera cuando está
- *  libre, de pocas en pocas, a partir del HTML publicado. */
-export function pendingThumbnails(limit: number): { id: string; html: string }[] {
+ *  libre, de pocas en pocas, a partir del HTML publicado. Con `hd` (un worker que ya las saca a 600 px)
+ *  entran también las guardadas a 300 × 400; a un worker antiguo no se le piden, porque las devolvería
+ *  igual y se le volverían a pedir sin fin. */
+export function pendingThumbnails(limit: number, hd = false): { id: string; html: string }[] {
   return listJobs()
-    .filter((j) => j.input.mode === 'standalone' && j.status === 'completed' && !j.thumbRelPath && !j.thumbFailed)
+    .filter((j) => j.input.mode === 'standalone' && j.status === 'completed' && !j.thumbFailed)
+    .filter((j) => !j.thumbRelPath || (hd && (j.thumbW ?? 0) < THUMB_HD_WIDTH))
     .slice(0, limit)
     .flatMap((j) => {
       const html = readResultHtml(j);
@@ -811,8 +829,8 @@ export function completeStandaloneJob(jobId: string, rawHtml: string, finalMessa
   // Después de marcarla terminada: saveThumbnail necesita campaignRelPath. Si falla, el historial
   // muestra las iniciales de la marca; no es motivo para perder la newsletter.
   const done = getJob(jobId);
-  const thumbRelPath = done && thumbnail ? saveThumbnail(done, thumbnail) : null;
-  if (thumbRelPath) updateJob(jobId, { thumbRelPath });
+  const thumb = done && thumbnail ? saveThumbnail(done, thumbnail) : null;
+  if (thumb) updateJob(jobId, thumb);
   log(jobId, 'Newsletter lista.', 'success');
 }
 
