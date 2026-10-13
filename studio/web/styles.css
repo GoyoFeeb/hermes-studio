@@ -2177,9 +2177,16 @@ html { scroll-padding-top: 80px; }
 }
 a.show-card:hover .show-face, a.show-card:focus-visible .show-face { transform: translateY(64px) scale(1.4); }
 a.show-card:hover .show-face::after, a.show-card:focus-visible .show-face::after { opacity: 1; }
-.hero-showcase:has(a.show-card:hover) .show-card:not(:hover), .hero-showcase:has(a.show-card:focus-visible) .show-card:not(:focus-visible) { opacity: 0.55; }
+/* Las demás se apagan con un velo oscuro, no con transparencia (2026-10-13): como se solapan, transparentes se veía
+   una carta a través de otra y el fondo a través de todas. */
+.show-face::before, .show-mock::before {
+  content: ''; position: absolute; inset: 0; z-index: 1; border-radius: inherit; pointer-events: none;
+  background: rgba(6, 10, 36, 0.58); opacity: 0; transition: opacity 0.45s ease;
+}
+.hero-showcase:has(a.show-card:hover) .show-card:not(:hover) .show-face::before, .hero-showcase:has(a.show-card:focus-visible) .show-card:not(:focus-visible) .show-face::before { opacity: 1; }
 .show-card .show-brand {
-  position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px);
+  /* Debajo de la carta y centrada (2026-10-13): dentro, abajo a la izquierda, tapaba el botón de la pieza. */
+  position: absolute; z-index: 2; left: 50%; top: calc(100% + 8px); transform: translateX(-50%); max-width: 100%;
   padding: 3px 8px; border-radius: var(--pill);
   background: rgba(8, 17, 54, 0.82); color: #edf3fc;
   font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -3071,7 +3078,7 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .hero-showcase.is-live.has-hot { cursor: pointer; }
 .hero-showcase.is-live .show-card.is-hot .show-face::after { opacity: 1; }
 .hero-showcase.is-live .show-card.is-hot .show-brand { opacity: 1; }
-.hero-showcase.is-live.has-hot .show-card:not(.is-hot) { opacity: 0.55; }
+.hero-showcase.is-live.has-hot .show-card:not(.is-hot) .show-face::before, .hero-showcase.is-live.has-hot .show-mock:not(.is-hot)::before { opacity: 1; }
 .hero-showcase.is-live .show-face::after { transition: opacity 0.35s ease; }
 .hero-showcase.is-live .show-card { transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 /* La carta señalada, nítida (2026-10-13): el navegador guarda cada carta ya pintada para moverla sin repintar, y al
@@ -3082,7 +3089,7 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
   /* El transform de aquí solo vale hasta el primer fotograma de app.js, que lo pone en línea. */
   .hero-showcase.is-live .show-face { left: -20%; top: -48%; width: 140%; height: 140%; transform: scale(0.7143); border-radius: 14px; box-shadow: 0 25px 56px rgba(0, 0, 0, 0.45), 0 0 0 1.4px rgba(255, 255, 255, 0.08); }
   .hero-showcase.is-live .show-face::after { box-shadow: 0 42px 84px rgba(0, 0, 0, 0.6), 0 0 0 2.8px var(--pink); }
-  .hero-showcase.is-live .show-brand { left: 11px; bottom: 11px; max-width: calc(100% - 22px); padding: 4px 11px; font-size: 15.4px; }
+  .hero-showcase.is-live .show-brand { top: calc(100% + 13px); padding: 4px 11px; font-size: 15.4px; }
 }
 /* Y la señalada, sin capa guardada: se pinta siempre a su tamaño real. */
 .hero-showcase.is-live .show-card.is-hot, .hero-showcase.is-live .show-card.is-hot .show-face { will-change: auto; }
