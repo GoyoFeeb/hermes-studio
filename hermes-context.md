@@ -2683,5 +2683,8 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
 - **Se activa con `AUTH_EMAIL_DOMAIN`**; sin ella no cambia nada (por eso se pudo desplegar antes de configurar
   Google). Probado en local con un Supabase de mentira: entrar, volver a un enlace directo, cerrar sesión, otro
   dominio rechazado, contraseña compartida por las dos vías. Tests: 257.
-- **Pendiente del usuario:** cliente OAuth en Google Cloud, proveedor Google y URL en Supabase, y la variable en
-  Railway. Luego, retirar `APP_ACCESS_PASSWORD`.
+- **Activado en producción (2026-10-13):** cliente OAuth «Hermes Studio» en Google Cloud (proyecto `hermes-studio-511507`,
+  organización feebbo.com), proveedor Google y URL en Supabase, `AUTH_EMAIL_DOMAIN=feebbo.com` en Railway. El usuario
+  entró con su cuenta de Google y confirmó que funciona (primero volvía a `localhost:3000`: faltaba guardar la
+  Site URL y la Redirect URL con `/**` en Supabase).
+- **Pendiente:** retirar `APP_ACCESS_PASSWORD` cuando todo el equipo haya entrado con su cuenta.

@@ -333,6 +333,9 @@ vez y lleva su propia sesión en una cookie firmada de 30 días (`studio/server/
   como Site URL y `https://hermes-studio-beta.vercel.app/**` entre las Redirect URLs.
 - **En Google Cloud:** un cliente OAuth de tipo «Aplicación web» cuya URI de redirección autorizada es
   `https://<proyecto>.supabase.co/auth/v1/callback`.
+- **Si al entrar con Google acabas en `localhost:3000`:** Supabase no reconoce la dirección de vuelta y usa su
+  Site URL por defecto. Revisa en URL Configuration la Site URL y que la Redirect URL lleve el `/**` final
+  (cada bloque tiene su propio botón de guardar).
 - **Convivencia con la contraseña compartida:** mientras `APP_ACCESS_PASSWORD` siga puesta, la pantalla de
   entrada ofrece también «Usar la contraseña del equipo». Para retirarla, se quita esa variable en Railway.
 - **«Pidiendo como…»:** con cuenta de Google es el nombre de la cuenta y lo fija el servidor. «Mis trabajos»
