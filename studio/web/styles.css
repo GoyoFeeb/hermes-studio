@@ -761,7 +761,9 @@ body.has-sticky .foot { padding-bottom: 88px; }
   background: var(--bg);
   overflow: hidden;
 }
-.preview-device { flex: none; transform-origin: top left; }
+/* width: max-content (2026-10-13): al escalar la vista, la columna se estrecha al ancho ya escalado y el dispositivo,
+   que es un bloque, se encogía con ella; el email (ancho fijo) se salía del marco del móvil por la derecha. */
+.preview-device { flex: none; width: max-content; transform-origin: top left; }
 .preview-col { flex: none; }
 .preview-stage.is-compare { gap: 16px; }
 .preview-label {
@@ -2517,7 +2519,8 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 .preview-stage.no-anim #preview-frame, .preview-stage.no-anim #preview-frame-before, .preview-stage.no-anim .preview-device { transition: none; }
 
 /* ---------- rendimiento y 5.ª tanda (2026-10-06) ---------- */
-html.in-job .bg-card { animation-play-state: paused; }
+/* El fondo se paraba en la página del trabajo por rendimiento; desde 2026-10-13 se mueve también ahí (pedido por el
+   usuario: parado parecía una imagen estática). Solo anima transform, que no obliga a repintar la vista previa. */
 
 /* Píldora de Hermes con anillo: trazo que recorre el contorno y se cierra con el progreso; libre y conectado, late suave. */
 /* Con anillo: sin borde CSS (overflow: hidden recortaría lo que se dibuje encima); el SVG pinta pista y progreso. */

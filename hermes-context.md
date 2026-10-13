@@ -2701,3 +2701,10 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
 - Mismo día: la columna derecha no existe hasta que hay marca (`#brief-form.has-brand`, lo pone `renderBrandSide`):
   una conocida en cuanto coincide; una nueva, al salir del campo (para que el ancho no cambie al teclear). Sin marca
   el formulario ocupa todo el ancho de la tarjeta. Solo afecta a escritorio (≥ 1180 px).
+
+### 2026-10-13 — Página de la newsletter: fondo animado y móvil fuera de su marco (pedido por el usuario)
+- Fondo: `html.in-job .bg-card { animation-play-state: paused }` (rendimiento, 06-10) se quita: parado parecía una
+  imagen estática. Solo anima `transform`. Si la página va a tirones en un equipo lento, mirar aquí primero.
+- Vista previa escalada («al 86 %»): la columna se estrechaba al ancho ya escalado y `.preview-device` (un bloque) se
+  encogía con ella; el email, de ancho fijo, se salía del marco del móvil. Arreglo: `width: max-content`. Medido en
+  «Los dos» a 1680 px: marco 211 → 289 px, email 273 px dentro. Comprobado en las cuatro vistas y a 375 px.
