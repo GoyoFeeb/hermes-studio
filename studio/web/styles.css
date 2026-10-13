@@ -3074,6 +3074,18 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .hero-showcase.is-live.has-hot .show-card:not(.is-hot) { opacity: 0.55; }
 .hero-showcase.is-live .show-face::after { transition: opacity 0.35s ease; }
 .hero-showcase.is-live .show-card { transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+/* La carta señalada, nítida (2026-10-13): el navegador guarda cada carta ya pintada para moverla sin repintar, y al
+   crecer 1,4× estiraba esa imagen, que se veía borrosa. Ahora la cara se pinta a su tamaño grande y en reposo se
+   encoge (app.js, FAN_GROW): reducir no emborrona. Todo lo que va en píxeles dentro de la cara va × 1,4 para verse
+   igual que antes. En móvil no hay carta señalada y la cara queda como estaba. */
+@media (min-width: 761px) {
+  /* El transform de aquí solo vale hasta el primer fotograma de app.js, que lo pone en línea. */
+  .hero-showcase.is-live .show-face { left: -20%; top: -48%; width: 140%; height: 140%; transform: scale(0.7143); border-radius: 14px; box-shadow: 0 25px 56px rgba(0, 0, 0, 0.45), 0 0 0 1.4px rgba(255, 255, 255, 0.08); }
+  .hero-showcase.is-live .show-face::after { box-shadow: 0 42px 84px rgba(0, 0, 0, 0.6), 0 0 0 2.8px var(--pink); }
+  .hero-showcase.is-live .show-brand { left: 11px; bottom: 11px; max-width: calc(100% - 22px); padding: 4px 11px; font-size: 15.4px; }
+}
+/* Y la señalada, sin capa guardada: se pinta siempre a su tamaño real. */
+.hero-showcase.is-live .show-card.is-hot, .hero-showcase.is-live .show-card.is-hot .show-face { will-change: auto; }
 
 /* ---------- pieza en marcha: maqueta grande y últimas acciones (2026-10-07) ---------- */
 #job-progress.has-build { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px 32px; align-items: start; }

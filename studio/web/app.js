@@ -1499,6 +1499,8 @@ function dealShowcase(box) {
  *  flota despacio, cada una a su ritmo. Con el abanico abierto, las cartas se inclinan un poco hacia el ratón. El CSS
  *  sigue siendo la base: sin JavaScript, en móvil táctil sin hover o con «reducir movimiento», se queda como estaba. */
 const fanState = new WeakMap();
+/** Cuánto crece la carta señalada. La cara está maquetada a este tamaño en styles.css (140 %). */
+const FAN_GROW = 1.4;
 let fanBox = null;
 let fanHover = null;
 let fanPointer = 0;
@@ -1635,7 +1637,7 @@ function fanTick(now) {
     spring(st, 'x', x, dt);
     spring(st, 'y', y, dt);
     spring(st, 'r', r, dt);
-    spring(st, 's', hot ? 1.4 : 1, dt, 120, 16);
+    spring(st, 's', hot ? FAN_GROW : 1, dt, 120, 16);
     spring(st, 'ly', hot ? 64 * k : 0, dt, 120, 16);
     // Flotar: vaivén lento y distinto en cada carta; la señalada casi quieta.
     const amp = hot ? 0.25 : 1;
@@ -1646,7 +1648,8 @@ function fanTick(now) {
     const base = 3 - Math.abs(Math.round(i));
     card.style.zIndex = hot ? '7' : st.s > 1.06 ? '6' : String(base);
     const face = card.querySelector('.show-face');
-    if (face) face.style.transform = `translateY(${st.ly.toFixed(2)}px) scale(${st.s.toFixed(4)})`;
+    // La cara está maquetada a su tamaño grande (styles.css, «La carta señalada, nítida»): en reposo se encoge.
+    if (face) face.style.transform = `translateY(${st.ly.toFixed(2)}px) scale(${(narrow ? st.s : st.s / FAN_GROW).toFixed(4)})`;
   });
   fanFrame = requestAnimationFrame(fanTick);
 }
