@@ -276,10 +276,40 @@ la raíz del repo) — no hace falta tocar nada del Dockerfile para esto. Pasos:
      en Supabase (ver «Copia en Supabase» más abajo). La segunda es la clave **secreta** del proyecto
      (`sb_secret_…`), no la pública: da acceso total a los datos, así que solo vive en Railway.
 
-5. **Desplegar**:
+5. **Desplegar** — el servicio está conectado al repositorio de GitHub `Javifeebbo/hermes-studio`
+   (el remoto `deploy` de este repo) y se despliega solo con cada push a su rama `main`:
    ```bash
-   railway up
+   git push deploy main
    ```
+   `railway up` **no sirve** en este servicio (comprobado el 2026-10-13): la subida directa no usa
+   `railway.json`, intenta construir con Railpack en lugar de con `studio/Dockerfile` y falla con
+   «No start command detected». El despliegue anterior sigue en pie cuando pasa, pero no se publica
+   nada. El push a `origin` (`GoyoFeeb/creas-javi`) tampoco despliega: es solo la copia del código.
+
+## Publicar un cambio (Railway + Vercel)
+
+Son dos despliegues separados y ninguno sale con el push a `origin`. Para un cambio de la interfaz
+(`studio/web/`) hacen falta los dos, porque Railway sirve su propia copia de esos archivos; para un
+cambio solo del servidor basta con el primero.
+
+```bash
+git push origin main                       # la copia del código; no despliega nada
+git push deploy main                       # Railway: construye la imagen y reinicia el servidor (~3 min)
+cd studio/web && vercel --prod --yes       # Vercel: la interfaz que usa el equipo (segundos)
+```
+
+El de Railway reinicia el servidor al terminar: mejor cuando no haya una newsletter en marcha.
+
+Para comprobar que ha salido, la huella del archivo publicado tiene que coincidir con la local:
+
+```bash
+shasum studio/web/styles.css
+curl -s https://hermes-studio-beta.vercel.app/styles.css | shasum
+curl -s https://hermes-studio-production-761e.up.railway.app/styles.css | shasum
+```
+
+`railway deployment list` enseña el estado de cada despliegue de Railway (`BUILDING`, `SUCCESS`,
+`FAILED`) y `vercel ls hermes-studio`, los de Vercel.
 
 ## Copia en Supabase (fase 1 de la migración, 2026-10-12)
 
@@ -368,6 +398,10 @@ diálogo aparece en la primera llamada a `/api`).
    ```
    O, conectando el repo desde el dashboard de Vercel, fija **Root Directory = `studio/web`**,
    Framework Preset = *Other*, sin build command.
+
+   Hoy el proyecto (`hermes-studio`, en `https://hermes-studio-beta.vercel.app`) **no** está conectado
+   al repo: no se publica con ningún push, hay que lanzar ese comando cada vez (ver «Publicar un
+   cambio» más arriba).
 
 `STUDIO_PUBLIC_BASE_URL` puede apuntar a la URL de Railway o a la de Vercel (ambas sirven
 `/assets`, público y solo imágenes desde 2026-09-24).
