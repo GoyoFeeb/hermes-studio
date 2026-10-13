@@ -3544,4 +3544,9 @@ span.bf-quote { display: block; margin: 0 0 10px; }
   /* La columna derecha ya solo lleva la marca: sin la raya que la separaba de las opciones. */
   .brand-side { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
 }
+@media (min-width: 1180px) {
+  /* Sin marca elegida no hay columna derecha (2026-10-13): el formulario ocupa todo el ancho en vez de dejar un hueco. */
+  #brief-form:not(.has-brand) { grid-template-columns: minmax(0, 1fr); }
+  #brief-form:not(.has-brand) .form-side { display: none; }
+}
 @media (prefers-reduced-motion: reduce) { .choice-switch input, .choice-switch input::after { transition: none; } }

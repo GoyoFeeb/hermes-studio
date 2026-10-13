@@ -2698,3 +2698,6 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   imágenes; su explicación larga queda en el `title`. La columna derecha es solo la marca. El botón es el único
   relleno (`.btn-go`, el degradado de «+ Nueva»). `#eta-hint` sigue en el DOM, oculto: app.js lo sigue rellenando.
 - OJO: el 08-10 se deshizo un cambio con botón relleno (0ddbc9c); esta vez el usuario lo ha aprobado viéndolo.
+- Mismo día: la columna derecha no existe hasta que hay marca (`#brief-form.has-brand`, lo pone `renderBrandSide`):
+  una conocida en cuanto coincide; una nueva, al salir del campo (para que el ancho no cambie al teclear). Sin marca
+  el formulario ocupa todo el ancho de la tarjeta. Solo afecta a escritorio (≥ 1180 px).

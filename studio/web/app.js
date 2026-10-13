@@ -148,6 +148,7 @@ function updateBrandMatch() {
  *  (logo, colores, tipografía) y sus últimas newsletters. Sin marca, qué saldrá aquí; con una marca nueva, lo que hará
  *  Studio. Se anima solo al cambiar de marca. */
 let brandSideKey = null;
+for (const ev of ['blur', 'change']) clientNameInput.addEventListener(ev, () => setTimeout(renderBrandSide));
 function renderBrandSide() {
   const box = document.getElementById('brand-side');
   if (!box) return;
@@ -160,6 +161,9 @@ function renderBrandSide() {
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, 3)
     : [];
+  // La columna de la marca solo existe con una marca elegida (2026-10-13): una conocida, o un nombre nuevo ya
+  // escrito (al salir del campo, para que el formulario no cambie de ancho mientras se teclea).
+  form.classList.toggle('has-brand', !!name && (!!existingBrandInput.value || document.activeElement !== clientNameInput));
   const key = `${slug}|${card ? 1 : 0}|${recent.map((j) => j.id).join(',')}`;
   if (key === brandSideKey) return;
   const changed = !brandSideKey || brandSideKey.split('|')[0] !== slug;
