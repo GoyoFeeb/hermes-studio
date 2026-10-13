@@ -935,9 +935,216 @@ document.getElementById('draft-discard').addEventListener('click', () => {
 });
 form.addEventListener('reset', clearFormNotices);
 
+// ---------------------------------------------------------------- física (2026-10-13)
+// Lo que se toca (el menú lateral, los avisos) no se mueve con animaciones de duración fija sino con un muelle: parte
+// siempre de donde está en pantalla, hereda la velocidad del dedo al soltar y se puede coger y dar la vuelta a medio
+// camino. Sin dependencias: unas 90 líneas.
+
+/** Muelle con los dos parámetros de Apple: `damping` (1 = llega sin rebote; 0,8 = rebote leve, solo tras un gesto con
+ *  impulso) y `response` (segundos que tarda en llegar; no es una duración fija). `to()` cambia el destino sin cortar
+ *  la velocidad que lleve; `set()` lo coloca a mano, para seguir al dedo. Unidades: píxeles y píxeles por segundo. */
+function makeSpring({ value = 0, damping = 1, response = 0.35, onUpdate, onRest }) {
+  let x = value;
+  let v = 0;
+  let target = value;
+  let raf = 0;
+  let last = 0;
+  let k = 0;
+  let c = 0;
+  const tune = (d, r) => {
+    k = ((2 * Math.PI) / r) ** 2;
+    c = (4 * Math.PI * d) / r;
+  };
+  tune(damping, response);
+  const step = (now) => {
+    raf = 0;
+    let dt = Math.min(0.064, last ? (now - last) / 1000 : 1 / 60);
+    last = now;
+    // En pasos de 4 ms: el resultado no depende de los fotogramas por segundo de la pantalla.
+    while (dt > 0) {
+      const h = Math.min(dt, 0.004);
+      v += ((target - x) * k - v * c) * h;
+      x += v * h;
+      dt -= h;
+    }
+    if (Math.abs(target - x) < 0.3 && Math.abs(v) < 6) {
+      x = target;
+      v = 0;
+      last = 0;
+      onUpdate(x);
+      onRest?.(x);
+      return;
+    }
+    onUpdate(x);
+    raf = requestAnimationFrame(step);
+  };
+  return {
+    get value() {
+      return x;
+    },
+    get moving() {
+      return raf !== 0;
+    },
+    set(val) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      last = 0;
+      x = val;
+      v = 0;
+      target = val;
+      onUpdate(x);
+    },
+    to(t, opts = {}) {
+      target = t;
+      if (opts.velocity) v = opts.velocity;
+      tune(opts.damping ?? damping, opts.response ?? response);
+      if (!raf) {
+        last = 0;
+        raf = requestAnimationFrame(step);
+      }
+    },
+  };
+}
+
+/** Dónde acabaría algo soltado a esa velocidad (px/s) si frenara como el scroll: la fórmula de Apple. Se decide el
+ *  destino con ese punto, no con el sitio donde se soltó: un toque corto y rápido llega tan lejos como uno largo. */
+function projectMomentum(velocity, rate = 0.998) {
+  return ((velocity / 1000) * rate) / (1 - rate);
+}
+
+/** Pasado el tope no se para en seco: sigue al dedo cada vez menos. */
+function rubberband(overshoot, dimension, constant = 0.55) {
+  return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
+}
+
+/** Arrastre en un eje, pegado al puntero. Empieza tras 10 px (antes puede ser un clic, o un scroll si se va por el otro
+ *  eje) y desde ahí cuenta el desplazamiento, sin salto. Si `grabNow()` dice que el elemento ya se está moviendo, se
+ *  coge al instante. `onRelease` recibe la velocidad de los últimos 100 ms (0 si el dedo se paró antes de soltar). */
+function trackDrag(el, { axis = 'x', canStart, grabNow, onGrab, onMove, onRelease }) {
+  let id = null;
+  let dragging = false;
+  let start = null;
+  let hist = [];
+  const main = (e) => (axis === 'x' ? e.clientX : e.clientY);
+  const cross = (e) => (axis === 'x' ? e.clientY : e.clientX);
+  const begin = (e) => {
+    dragging = true;
+    start.main = main(e);
+    try {
+      el.setPointerCapture(e.pointerId); // sigue aunque el puntero salga del elemento
+    } catch {
+      // puntero ya soltado
+    }
+    el.classList.add('is-dragging');
+    onGrab?.(e);
+  };
+  el.addEventListener('pointerdown', (e) => {
+    if (id !== null || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (canStart && !canStart(e)) return;
+    id = e.pointerId;
+    dragging = false;
+    start = { main: main(e), cross: cross(e) };
+    hist = [{ p: main(e), t: e.timeStamp }];
+    if (grabNow?.()) begin(e);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== id) return;
+    if (!dragging) {
+      const d = Math.abs(main(e) - start.main);
+      const c = Math.abs(cross(e) - start.cross);
+      if (c > 10 && c > d) {
+        id = null; // va por el otro eje: es un scroll
+        return;
+      }
+      if (d < 10) return;
+      begin(e);
+    }
+    hist.push({ p: main(e), t: e.timeStamp });
+    while (hist.length > 2 && e.timeStamp - hist[0].t > 100) hist.shift();
+    onMove(main(e) - start.main, e);
+  });
+  const end = (e) => {
+    if (e.pointerId !== id) return;
+    id = null;
+    if (!dragging) return;
+    dragging = false;
+    el.classList.remove('is-dragging');
+    const a = hist[0];
+    const b = hist[hist.length - 1];
+    const still = e.timeStamp - b.t > 80;
+    const velocity = e.type === 'pointercancel' || still || b.t <= a.t ? 0 : ((b.p - a.p) / (b.t - a.t)) * 1000;
+    // El clic que cierra un arrastre no es un clic.
+    const eat = (ev) => {
+      ev.stopPropagation();
+      ev.preventDefault();
+    };
+    const done = () => {
+      window.removeEventListener('click', eat, { capture: true });
+      window.removeEventListener('pointerdown', done, { capture: true });
+    };
+    window.addEventListener('click', eat, { capture: true, once: true });
+    // Solo ese: en cuanto se vuelve a pulsar (o pasan 350 ms) ya no se come nada.
+    window.addEventListener('pointerdown', done, { capture: true });
+    setTimeout(done, 350);
+    onRelease(velocity, e);
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+
 // ---------------------------------------------------------------- avisos flotantes
 
 let toastTimer = null;
+let toastEnds = 0;
+let toastSpring = null;
+/** Cuánto por debajo de su sitio empieza y acaba el aviso: entra y sale por el mismo camino. */
+const TOAST_OFF = 28;
+/** El muelle del aviso (2026-10-13; antes una animación CSS que entraba girando y salía de golpe). Mueve `translate`
+ *  y la opacidad; con «reducir movimiento», solo la opacidad. Se puede arrastrar hacia abajo para quitarlo. */
+function toastMotion() {
+  if (toastSpring) return toastSpring;
+  const toast = document.getElementById('toast');
+  toastSpring = makeSpring({
+    value: TOAST_OFF,
+    response: 0.3,
+    onUpdate: (y) => {
+      const shown = Math.max(0, Math.min(1, 1 - y / TOAST_OFF));
+      toast.style.opacity = shown.toFixed(3);
+      toast.style.translate = motionOk() ? `0 ${y.toFixed(1)}px` : '';
+      toast.style.scale = motionOk() ? (0.96 + 0.04 * shown).toFixed(4) : '';
+    },
+    onRest: (y) => {
+      if (y >= TOAST_OFF) toast.hidden = true;
+    },
+  });
+  let grabY = 0;
+  trackDrag(toast, {
+    axis: 'y',
+    canStart: () => !toast.hidden && motionOk(),
+    onGrab: () => {
+      grabY = toastSpring.value;
+      toastSpring.set(grabY);
+      clearTimeout(toastTimer);
+      toast.classList.add('is-held');
+    },
+    // Hacia abajo sigue al dedo; hacia arriba no hay nada: cede cada vez menos.
+    onMove: (d) => toastSpring.set(grabY + d < 0 ? -rubberband(-(grabY + d), 120) : grabY + d),
+    onRelease: (velocity) => {
+      toast.classList.remove('is-held');
+      if (toastSpring.value + projectMomentum(velocity) > TOAST_OFF * 0.6) {
+        hideToast(velocity);
+        return;
+      }
+      toastSpring.to(0, { velocity, damping: 0.8 });
+      toastTimer = setTimeout(hideToast, Math.max(1200, toastEnds - performance.now()));
+    },
+  });
+  return toastSpring;
+}
+function hideToast(velocity = 0) {
+  clearTimeout(toastTimer);
+  toastMotion().to(TOAST_OFF, { velocity, damping: 1, response: 0.24 });
+}
 /** `action` (opcional): { label, run } → un botón en el aviso, que dura más para dar tiempo a pulsarlo. */
 function showToast(message, level = 'info', action = null) {
   const toast = document.getElementById('toast');
@@ -948,21 +1155,26 @@ function showToast(message, level = 'info', action = null) {
     btn.className = 'link-btn toast-action';
     btn.textContent = action.label;
     btn.addEventListener('click', () => {
-      toast.hidden = true;
+      hideToast();
       action.run();
     });
     toast.appendChild(btn);
   }
   toast.classList.toggle('is-error', level === 'error');
   const ms = action ? 10000 : level === 'error' ? 7000 : 3000;
-  // Entra como una carta desde abajo con una barra de tiempo (2026-10-06).
   toast.style.setProperty('--toast-ms', `${ms}ms`);
+  const motion = toastMotion();
+  // Si ya había uno a la vista, este sigue desde donde esté; si no, entra desde abajo.
+  if (toast.hidden) motion.set(TOAST_OFF);
   toast.hidden = false;
-  toast.classList.remove('is-in');
+  // La barra de tiempo empieza de nuevo.
+  toast.classList.remove('is-in', 'is-held');
   void toast.offsetWidth;
   toast.classList.add('is-in');
+  motion.to(0, { damping: 1, response: 0.3 });
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toast.hidden = true), ms);
+  toastEnds = performance.now() + ms;
+  toastTimer = setTimeout(hideToast, ms);
 }
 
 const STATUS_LABELS = {
@@ -3332,54 +3544,118 @@ const menuBackdrop = document.getElementById('menu-backdrop');
 // Diálogo (2026-10-05): con el menú abierto, el resto de la página queda inerte (ni foco ni clics), así el
 // tabulador no se escapa a lo de detrás.
 const behindMenu = ['.topbar', '#app', '.foot', '.side-rail'].map((sel) => document.querySelector(sel)).filter(Boolean);
-let menuClosing = 0;
-function setMenu(open, instant = false) {
-  // Cierre animado (2026-10-06): sale por la derecha y la × vuelve a hamburguesa; al terminar, se oculta como antes.
-  if (!open && !instant && !sideMenu.hidden && motionOk() && !menuClosing) {
-    menuBtn.setAttribute('aria-expanded', 'false');
-    behindMenu.forEach((el) => {
-      el.inert = false;
-    });
-    menuBtn.focus({ preventScroll: true });
-    sideMenu.inert = true;
-    sideMenu.classList.add('is-closing');
-    menuBackdrop.hidden = true; // el fondo transparente ya no se traga clics mientras sale
-    if (menuAnim) {
-      menuAnim.setDirection(-1);
-      menuAnim.play();
-    }
-    menuClosing = setTimeout(() => {
-      menuClosing = 0;
-      sideMenu.classList.remove('is-closing');
-      sideMenu.inert = false;
-      menuAnim?.setDirection(1);
-      setMenu(false, true);
-    }, 300);
-    return;
+// Movimiento (2026-10-13): la posición del panel la lleva un muelle, no una animación CSS de 300 ms. Antes, volver a
+// abrirlo a medio cerrar lo hacía saltar al borde y empezar de nuevo; ahora sigue desde donde está, con la velocidad
+// que lleve. Se puede arrastrar: sigue al dedo desde el punto donde se cogió, y al soltar decide con el impulso.
+let menuClosing = false;
+let menuW = 0;
+const menuWidth = () => (menuW = sideMenu.offsetWidth || menuW || 440);
+/** `x`: píxeles desplazado a la derecha (0 = abierto, su ancho = fuera). El velo y los enlaces siguen a --menu-p. */
+function renderMenu(x) {
+  const p = Math.max(0, Math.min(1, x / (menuW || menuWidth())));
+  if (motionOk()) {
+    sideMenu.style.transform = `translate3d(${x.toFixed(1)}px, 0, 0)`;
+    sideMenu.style.opacity = '';
+  } else {
+    // Con «reducir movimiento» no se desliza: se funde.
+    sideMenu.style.transform = '';
+    sideMenu.style.opacity = (1 - p).toFixed(3);
   }
-  if (open && menuClosing) {
-    clearTimeout(menuClosing);
-    menuClosing = 0;
-    sideMenu.classList.remove('is-closing');
-    sideMenu.inert = false;
+  sideMenu.style.setProperty('--menu-p', p.toFixed(3));
+  menuBackdrop.style.setProperty('--menu-p', p.toFixed(3));
+}
+const menuSpring = makeSpring({
+  response: 0.38,
+  onUpdate: renderMenu,
+  onRest: (x) => {
+    if (!menuClosing || x <= 0) return;
+    menuClosing = false;
     menuAnim?.setDirection(1);
-  }
-  sideMenu.hidden = !open;
-  menuBackdrop.hidden = !open;
+    setMenu(false, true);
+  },
+});
+/** Lo que no es movimiento: qué está inerte, qué dice el botón y si el fondo recoge clics. */
+function menuState(open) {
   menuBtn.setAttribute('aria-expanded', String(open));
   behindMenu.forEach((el) => {
     el.inert = open;
   });
+  menuBackdrop.style.pointerEvents = open ? '' : 'none'; // mientras sale, el fondo ya no se traga clics
+}
+/** `velocity` (px/s): la que llevaba el dedo al soltar; el muelle sigue con ella, sin costura. `flicked`: el gesto
+ *  traía impulso, así que al abrirse llega con un rebote leve. */
+function setMenu(open, instant = false, velocity = 0, flicked = false) {
+  // Cierre: sale por la derecha, por donde entró, y la × vuelve a hamburguesa; al llegar, se oculta. El panel no se
+  // bloquea mientras sale: se puede volver a coger.
+  if (!open && !instant && !sideMenu.hidden) {
+    if (!menuClosing) {
+      menuClosing = true;
+      menuState(false);
+      menuBtn.focus({ preventScroll: true });
+      if (menuAnim) {
+        menuAnim.setDirection(-1);
+        menuAnim.play();
+      }
+    }
+    menuSpring.to(menuWidth(), { velocity, damping: 1, response: 0.32 });
+    return;
+  }
+  const reopening = open && menuClosing;
+  if (reopening) {
+    menuClosing = false;
+    // La × sigue desde el fotograma en que iba, hacia delante.
+    if (menuAnim) {
+      menuAnim.setDirection(1);
+      menuAnim.play();
+    }
+  }
+  const wasHidden = sideMenu.hidden;
+  sideMenu.hidden = !open;
+  menuBackdrop.hidden = !open;
+  menuState(open);
   if (open) {
     renumberMenu();
-    // La × se dibuja desde la hamburguesa, como en la web (con menos movimiento, directamente la ×).
-    if (menuAnim) {
-      if (reduceMotion.matches) menuAnim.goToAndStop(menuAnim.totalFrames - 1, true);
-      else menuAnim.goToAndPlay(0, true);
+    if (wasHidden) {
+      // Parte de fuera de la pantalla. La × se dibuja desde la hamburguesa, como en la web (con menos movimiento,
+      // directamente la ×).
+      menuSpring.set(menuWidth());
+      if (menuAnim) {
+        if (reduceMotion.matches) menuAnim.goToAndStop(menuAnim.totalFrames - 1, true);
+        else menuAnim.goToAndPlay(0, true);
+      }
     }
-    sideMenu.querySelector('[data-menu]').focus();
-  } else if (!instant) menuBtn.focus({ preventScroll: true });
+    menuSpring.to(0, { velocity, damping: flicked ? 0.8 : 1, response: 0.38 });
+    if (wasHidden || reopening) sideMenu.querySelector('[data-menu]').focus({ preventScroll: true });
+  } else {
+    menuClosing = false;
+    if (!instant) menuBtn.focus({ preventScroll: true });
+  }
 }
+let menuGrabX = 0;
+trackDrag(sideMenu, {
+  axis: 'x',
+  canStart: () => !sideMenu.hidden && motionOk(),
+  grabNow: () => menuSpring.moving, // en movimiento se coge al vuelo, sin esperar a los 10 px
+  onGrab: () => {
+    menuGrabX = menuSpring.value;
+    menuSpring.set(menuGrabX);
+    if (menuClosing) {
+      menuClosing = false;
+      menuState(true);
+      menuAnim?.setDirection(1);
+    }
+  },
+  // Hacia fuera sigue al dedo; hacia dentro ya está abierto del todo: cede cada vez menos.
+  onMove: (d) => {
+    const x = menuGrabX + d;
+    menuSpring.set(x < 0 ? -rubberband(-x, menuW || menuWidth()) : x);
+  },
+  // El destino sale de dónde acabaría con ese impulso, no de dónde se soltó.
+  onRelease: (velocity) => {
+    const closes = menuSpring.value + projectMomentum(velocity) > menuWidth() / 2;
+    setMenu(!closes, false, velocity, true);
+  },
+});
 /** Los atajos solo funcionan en la página de una newsletter y con teclado: el elemento del menú, solo ahí. La
  *  numeración (01, 02…) se rehace con lo que se ve. */
 const touchOnly = window.matchMedia('(hover: none)');
@@ -7996,11 +8272,12 @@ function escapeHtml(str) {
 
 /** Cambio de página con transición (2026-10-08): la portada, una pieza, una marca o «Marcas» cambiaban de golpe (y el
  *  salto arriba se veía). Con la API View Transitions, la página que se va se desvanece subiendo un poco y la nueva entra
- *  desde abajo; la cabecera no se mueve. Sin la API, con «reducir movimiento», en la primera carga o mientras vuela una
+ *  desde abajo; la cabecera no se mueve. Sin la API, en la primera carga o mientras vuela una
  *  carta de la galería (tiene su propia animación), cambia como antes. */
 let routedOnce = false;
 function withViewTransition(fn) {
-  if (!routedOnce || !document.startViewTransition || !motionOk() || document.hidden || document.querySelector('.card-fly')) return fn();
+  // Con «reducir movimiento» también pasa por aquí (2026-10-13): el CSS la deja en un fundido corto, sin desplazamiento.
+  if (!routedOnce || !document.startViewTransition || document.hidden || document.querySelector('.card-fly')) return fn();
   // Si el navegador la aborta (p. ej. la pestaña se oculta), el cambio se hace igual: solo se calla el aviso.
   const t = document.startViewTransition(fn);
   t.ready?.catch(() => undefined);

@@ -1996,26 +1996,30 @@ html { scroll-padding-top: 80px; }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --topbar-bg: rgba(244, 245, 251, 0.9); } }
 :root[data-theme="light"] { --topbar-bg: rgba(244, 245, 251, 0.9); }
 
-/* 5. Menú: entra desde la derecha y sus enlaces aparecen uno tras otro, como en la web. */
-.side-menu:not([hidden]) { animation: menu-in 0.35s ease-out; }
-.side-menu:not([hidden]) .menu-links li,
-.side-menu:not([hidden]) .menu-contact { animation: menu-item-in 0.4s ease-out both; }
-.side-menu:not([hidden]) .menu-links li:nth-child(1) { animation-delay: 0.10s; }
-.side-menu:not([hidden]) .menu-links li:nth-child(2) { animation-delay: 0.16s; }
-.side-menu:not([hidden]) .menu-links li:nth-child(3) { animation-delay: 0.22s; }
-.side-menu:not([hidden]) .menu-links li:nth-child(4) { animation-delay: 0.28s; }
-.side-menu:not([hidden]) .menu-links li:nth-child(5) { animation-delay: 0.34s; }
-.side-menu:not([hidden]) .menu-links li:nth-child(6) { animation-delay: 0.40s; }
-.side-menu:not([hidden]) .menu-contact { animation-delay: 0.34s; }
-@keyframes menu-in { from { transform: translateX(100%); } to { transform: none; } }
-@keyframes menu-item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* 5. Menú: entra desde la derecha y sus enlaces aparecen uno tras otro, como en la web.
+   Desde 2026-10-13 la posición la lleva un muelle (app.js, menuSpring) y no una animación de duración fija: se puede
+   coger con el dedo, soltar con impulso y volver a abrir a medio cerrar sin saltos. Los enlaces ya no siguen un reloj:
+   siguen al panel (--menu-p, 0 abierto y 1 cerrado), cada uno un poco más retrasado que el anterior.
+   El panel mide 120 px más de lo que se ve, escondidos a la derecha: al tirar de él hacia dentro cede sin dejar hueco. */
+.side-menu { --menu-p: 0; right: -120px; width: calc(min(320px, 86vw) + 120px); padding-right: 160px; touch-action: pan-y; will-change: transform; }
+.menu-close { right: 144px; }
+.side-menu .menu-links li, .side-menu .menu-contact {
+  opacity: calc(1 - var(--menu-p) * (1.4 + var(--n, 0) * 0.5));
+  transform: translateX(calc(var(--menu-p) * (16px + var(--n, 0) * 14px)));
+}
+.side-menu .menu-links li:nth-child(2) { --n: 1; }
+.side-menu .menu-links li:nth-child(3) { --n: 2; }
+.side-menu .menu-links li:nth-child(4) { --n: 3; }
+.side-menu .menu-links li:nth-child(5) { --n: 4; }
+.side-menu .menu-links li:nth-child(6) { --n: 5; }
+.side-menu .menu-contact { --n: 4; }
 
 /* 6. Entradas al hacer scroll (solo portada: títulos, cifras, «Ahora mismo» y la foto). La clase la pone app.js. */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
 .reveal.is-in { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .side-menu:not([hidden]), .side-menu:not([hidden]) .menu-links li, .side-menu:not([hidden]) .menu-contact { animation: none; }
+  .side-menu .menu-links li, .side-menu .menu-contact { transform: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
 }
 
@@ -2559,9 +2563,9 @@ html.in-job .status-pill.is-online { animation: none; }
 @keyframes check-draw { to { stroke-dashoffset: 0; } }
 
 /* Avisos: entran como una carta desde abajo, con una barra de tiempo. */
-.toast.is-in { animation: toast-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1.2) both; overflow: hidden; }
-/* Con translate/rotate/scale sueltos: el aviso se centra con transform: translateX(-50%) y no hay que pisarlo. */
-@keyframes toast-in { from { translate: 0 24px; rotate: -3deg; scale: 0.95; opacity: 0; } to { translate: 0 0; rotate: 0deg; scale: 1; opacity: 1; } }
+.toast.is-in { overflow: hidden; }
+/* El movimiento lo lleva un muelle (app.js, toastMotion) sobre «translate»: el aviso se centra con
+   transform: translateX(-50%) y no hay que pisarlo. Entra y sale por abajo, y se puede arrastrar para quitarlo. */
 .toast.is-in::after { content: ''; position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: linear-gradient(90deg, var(--purple), var(--pink)); transform-origin: left; animation: toast-time var(--toast-ms, 3000ms) linear forwards; }
 @keyframes toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
@@ -2599,17 +2603,7 @@ html.is-loading .brand img, html.is-loading .brand-anim { animation: logo-wait 1
 }
 
 /* ---------- 7.ª tanda de animaciones (2026-10-06) ---------- */
-/* Menú: cierre animado, sale por la derecha y sus enlaces se van en cascada inversa. */
-.side-menu.is-closing { animation: menu-out 0.3s ease-in forwards; }
-.side-menu.is-closing .menu-links li, .side-menu.is-closing .menu-contact { animation: menu-item-out 0.2s ease-in both; }
-.side-menu.is-closing .menu-links li:nth-last-child(1) { animation-delay: 0s; }
-.side-menu.is-closing .menu-links li:nth-last-child(2) { animation-delay: 0.03s; }
-.side-menu.is-closing .menu-links li:nth-last-child(3) { animation-delay: 0.06s; }
-.side-menu.is-closing .menu-links li:nth-last-child(4) { animation-delay: 0.09s; }
-.side-menu.is-closing .menu-links li:nth-last-child(5) { animation-delay: 0.12s; }
-.side-menu.is-closing .menu-links li:nth-last-child(6) { animation-delay: 0.15s; }
-@keyframes menu-out { from { transform: none; } to { transform: translateX(100%); } }
-@keyframes menu-item-out { to { opacity: 0; transform: translateX(12px); } }
+/* Menú: el cierre lo lleva el mismo muelle que la apertura (ver «5. Menú»), por el mismo camino. */
 
 /* Avisos con sacudida: corta y horizontal; el aviso entra deslizándose. */
 .is-shake { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
@@ -2632,7 +2626,7 @@ input.is-shake, textarea.is-shake, select.is-shake { border-color: var(--pink) !
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .side-menu.is-closing, .side-menu.is-closing .menu-links li, .side-menu.is-closing .menu-contact, .is-shake, .is-flash { animation: none !important; }
+  .is-shake, .is-flash { animation: none !important; }
 }
 
 /* ---------- Hilo que conecta 01 con 02 (2026-10-06) ---------- */
@@ -3471,9 +3465,13 @@ span.bf-quote { display: block; margin: 0 0 12px; }
 /* Pestañas de la pieza (Vista previa, Revisión…): el panel nuevo aparece en vez de cambiar de golpe. */
 .job-panel:not([hidden]) { animation: panel-in 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes panel-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-in { from { opacity: 0; } }
+/* Con «reducir movimiento» (2026-10-13): no desaparece la transición, se queda en un fundido corto sin desplazamiento. */
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
-  .job-panel:not([hidden]) { animation: none; }
+  ::view-transition-old(root) { animation: vt-fade-out 0.15s ease both; }
+  ::view-transition-new(root) { animation: vt-fade-in 0.2s ease both; }
+  .job-panel:not([hidden]) { animation: vt-fade-in 0.2s ease; }
 }
 
 /* ---------- cabecera: estado en una tarjeta y abanico alineado (2026-10-08) ---------- */
@@ -3603,3 +3601,77 @@ span.bf-quote { display: block; margin: 0 0 12px; }
 /* Títulos de 20 a 22 px. */
 .md h4, .md h5, .bh-name, .md.is-brief .bf-title, .login-card h2 { letter-spacing: -0.01em; }
 .login-card h2 { line-height: 1.25; }
+
+/* ================================================================ Respuesta y accesibilidad (2026-10-13) ====== */
+/* Nada de esto cambia cómo se ve la interfaz en reposo: es cómo responde al tocarla y cómo se adapta a los ajustes del
+   sistema. El menú y los avisos, movidos por un muelle, están en sus secciones («5. Menú» y «Avisos»). */
+
+/* ---------- respuesta al pulsar ---------- */
+/* No había ni un :active: todo respondía al pasar por encima o al soltar. Ahora, al bajar el dedo. */
+:root { --ease-out: cubic-bezier(0.22, 1, 0.36, 1); }
+/* Sin la espera del doble toque ni el recuadro gris de iOS: la respuesta la da cada elemento. */
+a, button, summary, label, select, input, textarea, [role="tab"], [role="option"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+/* Al soltar vuelve suave; al pulsar, se hunde en 80 ms (la duración se cambia solo mientras está pulsado). */
+.chip, .seg-btn, .theme-btn, .menu-btn, .history-jump, .locate-btn, .brand-row, .rail-icon {
+  transition: transform 0.3s var(--ease-out), background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.job-tab { transition: color 0.15s, opacity 0.1s; }
+.menu-item { transition: background-color 0.12s; }
+.btn:active:not(:disabled), .topbar.has-new .topbar-new:active { transform: scale(0.97); transition-duration: 0.08s; }
+.btn-sm:active:not(:disabled), .chip:active, .seg-btn:active, .theme-btn:active, .menu-btn:active, .history-jump:active,
+.locate-btn:active, .rail-icon:active { transform: scale(0.95); transition-duration: 0.08s; }
+.stat:active, .action-item:active:not(:disabled), .now-link:active, .g-card:active, .brand-row:active, .bv-card:active,
+.bv-chip:active, .side-recent a:active, .bh-best:active { transform: scale(0.98); transition-duration: 0.08s; }
+.stat.stat-static:active { transform: none; }
+.job-tab:active, .link-btn:active, .back-link:active, .family-toggle:active, .menu-links button:active, .how-btn:active { opacity: 0.6; }
+.menu-item:active { background: var(--selected-bg); }
+.choice:active { border-color: var(--border-strong); }
+.tabs label:active span, .segmented label:active span { opacity: 0.7; }
+.is-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+
+/* ---------- pantallas táctiles ---------- */
+/* Zona de toque de 44 px en los botones redondos de 34-36 px, sin cambiar lo que se ve. */
+.menu-btn, .theme-btn, .locate-btn { position: relative; }
+.menu-btn::after, .theme-btn::after, .menu-close::after, .locate-btn::after { content: ''; position: absolute; inset: -6px; }
+/* Sin ratón no hay «pasar por encima»: el estado se quedaba pegado tras el toque (filas levantadas, con sombra). */
+@media (hover: none) {
+  .btn:hover, .stat:hover, .now-link:hover, .job-row:hover, .bv-chip:hover, .bv-card:hover, .side-recent a:hover,
+  .bh-best:hover, .now-compact:hover { transform: none; }
+  .job-row:hover { box-shadow: none; }
+  .job-row:hover::before { opacity: 0; }
+  .job-row:hover .status-badge::after { display: none; }
+  .btn:active:not(:disabled) { transform: scale(0.97); }
+  .stat:active, .now-link:active, .bv-chip:active, .bv-card:active { transform: scale(0.98); }
+}
+
+/* ---------- avisos ---------- */
+/* Se arrastra hacia abajo para quitarlo; mientras se sujeta, su barra de tiempo se para. Por encima del menú lateral:
+   al cambiar el tema desde el menú, en móvil, quedaba tapado. */
+.toast { z-index: 110; touch-action: none; will-change: translate, opacity; }
+.toast.is-held::after { animation-play-state: paused; }
+
+/* ---------- ajustes de accesibilidad del sistema ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled), .chip:active, .seg-btn:active, .stat:active, .action-item:active, .now-link:active,
+  .g-card:active, .brand-row:active, .theme-btn:active, .menu-btn:active, .history-jump:active { transform: none; opacity: 0.7; }
+}
+/* Menos transparencia: lo translúcido con desenfoque pasa a superficies lisas. */
+@media (prefers-reduced-transparency: reduce) {
+  .topbar.is-scrolled::before, .day-sep, .day-label { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .sticky-actions, .pick-banner { background: var(--panel); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .hero-status:has(#hero-steps-live:not([hidden])), .hero-status:has(#now-compact:not([hidden])) { background: var(--panel); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .g-score { background: #080d2e; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+/* Más contraste: bordes marcados, texto secundario más cerca del principal y barras lisas. */
+@media (prefers-contrast: more) {
+  :root, :root[data-theme="light"], :root[data-theme="dark"], :root:not([data-theme="dark"]) {
+    --border: var(--border-strong);
+    --muted: color-mix(in srgb, var(--text) 82%, var(--bg));
+    --placeholder: color-mix(in srgb, var(--text) 70%, var(--bg));
+  }
+  .topbar.is-scrolled::before, .day-sep, .day-label { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .topbar.is-scrolled::before { box-shadow: 0 2px 0 var(--text); }
+  .sticky-actions, .toast, .row-menu-pop, .brand-suggest, .search-suggest, .alt-pop, .pin-pop, .shortcuts-dialog { background: var(--panel); border: 2px solid var(--text); }
+  .side-menu { border-left: 2px solid #ffffff; }
+  .btn-ghost, .chip, .choice, .job-row { border-color: var(--text); }
+}
