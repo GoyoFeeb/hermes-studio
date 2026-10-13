@@ -531,6 +531,37 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .auth-banner { margin: 24px 0 0; }
 /* Borrador recuperado (2026-09-28) */
 .requester-note { margin: 0 0 20px; }
+/* Cuentas (2026-10-13): con cuenta de Google el nombre no se cambia a mano; se cierra la sesión. */
+#account-logout { display: none; }
+.has-account #requester-change { display: none; }
+.has-account #account-logout { display: inline; }
+.login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg-deep);
+}
+.login-screen[hidden] { display: none; }
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--field);
+  text-align: center;
+}
+.login-card h2 { margin: 0 0 8px; }
+.login-card .hint { margin: 0 0 24px; }
+.login-card .btn { width: 100%; }
+.login-card .link-btn { display: block; margin: 16px auto 0; }
+.login-card .link-btn[hidden], .login-card .btn[hidden] { display: none; }
+.login-error { margin: 0 0 16px; color: var(--pink); font-size: var(--fs-small); }
+.needs-login body { overflow: hidden; }
 .requester-note strong { color: var(--text); font-weight: 600; }
 .draft-note {display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0 0 20px; padding: 12px 16px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); font-size: var(--fs-ui); color: var(--muted); }
 .toast {

@@ -2669,3 +2669,19 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
 - **Pendiente:** paso 7 (leer desde Supabase) tras unos días con `--check` en cero y con Supabase en Pro; entonces
   el entrypoint deja de sembrar el volumen. Los correos enviados apuntan a `…up.railway.app/assets`: condición para
   apagar Railway (redirección o dominio propio). Fases 2 a 4: usuarios, cola y Playwright en el worker, API.
+
+### 2026-10-13 — Fase 2 de la migración: cuentas del equipo con Google (pedido por el usuario)
+- **Decidido por el usuario:** entrar con Google, solo correos @feebbo.com, y la contraseña compartida conviviendo
+  unos días.
+- **Cómo:** Supabase Auth hace de puente con Google; `server/auth.ts` comprueba el token una vez (`/auth/v1/user`:
+  proveedor google, correo confirmado y del dominio) y emite una cookie de sesión propia firmada (HttpOnly,
+  SameSite=Lax, 30 días), para que `<img>` e `<iframe>` de la API sigan entrando. Rutas `/api/auth/{me,session,
+  password,logout}` antes del control de acceso. Con cuentas activas la API responde 401 sin `WWW-Authenticate`
+  (la web enseña su pantalla de entrada, `web/auth.js`); el diálogo del navegador queda solo en
+  `/api/auth/password`, que canjea la contraseña compartida por una sesión.
+- **Quién pide:** con cuenta de Google el servidor pone el nombre de la cuenta (`requesterOf`), no el del formulario.
+- **Se activa con `AUTH_EMAIL_DOMAIN`**; sin ella no cambia nada (por eso se pudo desplegar antes de configurar
+  Google). Probado en local con un Supabase de mentira: entrar, volver a un enlace directo, cerrar sesión, otro
+  dominio rechazado, contraseña compartida por las dos vías. Tests: 257.
+- **Pendiente del usuario:** cliente OAuth en Google Cloud, proveedor Google y URL en Supabase, y la variable en
+  Railway. Luego, retirar `APP_ACCESS_PASSWORD`.

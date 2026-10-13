@@ -34,6 +34,8 @@ function actionError(res, data, fallback, keepsText = false) {
 let inFlight = 0;
 let loadingTimer = null;
 async function apiFetch(url, options) {
+  // Cuentas (2026-10-13): auth.js puede estar canjeando la vuelta de Google por la sesión; se espera a que acabe.
+  if (window.hermesAuthReady) await window.hermesAuthReady;
   inFlight++;
   if (!loadingTimer) loadingTimer = setTimeout(() => document.documentElement.classList.toggle('is-loading', inFlight > 0), 400);
   let res;
@@ -603,6 +605,20 @@ function syncRequester() {
   document.getElementById('requester-note-name').textContent = name;
   document.getElementById('requester-note').hidden = !compact;
   document.getElementById('requester-field').hidden = compact;
+}
+// Cuentas (2026-10-13, auth.js): con cuenta de Google, el nombre es el de la cuenta desde la primera visita.
+if (window.hermesAuthReady) {
+  window.hermesAuthReady.then((me) => {
+    if (me?.user?.via !== 'google' || !me.user.name) return;
+    try {
+      localStorage.setItem('requesterName', me.user.name);
+    } catch {
+      // sin almacenamiento
+    }
+    document.getElementById('requester-input').value = me.user.name;
+    requesterEditing = false;
+    syncRequester();
+  });
 }
 document.getElementById('requester-change').addEventListener('click', () => {
   requesterEditing = true;

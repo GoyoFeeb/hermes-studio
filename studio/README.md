@@ -318,6 +318,30 @@ un proyecto de Supabase (`hermes-studio`, región UE). El plan completo, con lo 
 - **`railway ssh`:** necesita una clave SSH registrada en la cuenta (`railway ssh keys add`) y aceptar una
   vez el servidor `ssh.railway.com` desde un terminal.
 
+## Cuentas del equipo con Google (fase 2 de la migración, 2026-10-13)
+
+En vez de (o junto a) la contraseña compartida, cada persona entra con su cuenta de Google y Studio sabe
+quién pide cada newsletter. Google identifica a la persona a través de Supabase Auth; Studio lo comprueba una
+vez y lleva su propia sesión en una cookie firmada de 30 días (`studio/server/auth.ts`, `studio/web/auth.js`).
+
+- **Activarlas:** variable `AUTH_EMAIL_DOMAIN` en Railway (p. ej. `feebbo.com`; varias, separadas por comas),
+  además de las dos de Supabase. El log de arranque dice «Cuentas con Google: activadas (@…)». Sin ella, todo
+  sigue como antes: solo la contraseña compartida, con el diálogo del navegador.
+- **Quién entra:** solo cuentas de Google con correo de esos dominios. Se comprueba en el servidor.
+- **En Supabase** (Authentication): proveedor Google activado con el Client ID y el secreto de una aplicación
+  OAuth de Google Cloud; en URL Configuration, la dirección de la web (`https://hermes-studio-beta.vercel.app`)
+  como Site URL y `https://hermes-studio-beta.vercel.app/**` entre las Redirect URLs.
+- **En Google Cloud:** un cliente OAuth de tipo «Aplicación web» cuya URI de redirección autorizada es
+  `https://<proyecto>.supabase.co/auth/v1/callback`.
+- **Convivencia con la contraseña compartida:** mientras `APP_ACCESS_PASSWORD` siga puesta, la pantalla de
+  entrada ofrece también «Usar la contraseña del equipo». Para retirarla, se quita esa variable en Railway.
+- **«Pidiendo como…»:** con cuenta de Google es el nombre de la cuenta y lo fija el servidor. «Mis trabajos»
+  compara ese nombre con el de cada trabajo: los anteriores, pedidos con un nombre escrito a mano, solo
+  coinciden si era el mismo.
+- **No cambia:** el worker (su `WORKER_TOKEN`), `/assets` y los enlaces públicos para clientes (`/p`, `/r`).
+- **Opcional:** `SESSION_SECRET` para firmar las sesiones con un secreto propio. Sin ella, la firma sale de la
+  clave de Supabase; cambiar cualquiera de las dos cierra todas las sesiones.
+
 ## Frontend en Vercel (opcional, delante de Railway)
 
 Vercel no puede alojar el backend: la cola en memoria, la escritura en `newsletters/`/`brands/`,

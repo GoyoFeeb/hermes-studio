@@ -79,6 +79,17 @@
       <div class="skeleton skeleton-preview"></div>
     </div>
     <!-- Sin contraseña la API responde 401: antes la página se quedaba a medias sin decir por qué (2026-09-30). -->
+    <!-- Pantalla de entrada (2026-10-13, auth.js): solo aparece si el servidor tiene cuentas y no hay sesión. -->
+    <div id="login-screen" class="login-screen" role="dialog" aria-modal="true" aria-labelledby="login-title" hidden>
+      <div class="login-card">
+        <h2 id="login-title">Entra en Hermes Studio</h2>
+        <p class="hint" id="login-note"></p>
+        <p class="login-error" id="login-error" role="alert" hidden></p>
+        <button type="button" id="login-google" class="btn btn-primary" hidden>Entrar con Google</button>
+        <button type="button" id="login-password" class="link-btn" hidden>Usar la contraseña del equipo</button>
+      </div>
+    </div>
+
     <div id="auth-banner" class="form-warning auth-banner" role="alert" hidden>
       <p><strong>Necesitas iniciar sesión.</strong> Studio no ha podido cargar tus datos porque falta la contraseña del equipo. Recarga la página e introdúcela cuando el navegador te la pida.</p>
       <div class="warning-actions">
@@ -167,7 +178,7 @@
           </p>
           <!-- Con el nombre ya guardado, se dice arriba quién pide en vez de repetir el campo al final (2026-09-30). -->
           <p class="requester-note hint" id="requester-note" hidden>
-            Pidiendo como <strong id="requester-note-name"></strong> · <button type="button" id="requester-change" class="link-btn">Cambiar</button>
+            Pidiendo como <strong id="requester-note-name"></strong> · <button type="button" id="requester-change" class="link-btn">Cambiar</button><button type="button" id="account-logout" class="link-btn">Cerrar sesión</button>
           </p>
 
           <div class="brand-field">
@@ -965,6 +976,7 @@
   <script src="/metacheck.js"></script>
   <script src="/textedit.js"></script>
   <script src="/export.js"></script>
+  <script src="/auth.js"></script>
   <script src="/app.js"></script>
   <!-- Reproductor Lottie (versión ligera, solo SVG) para el logo y la hamburguesa de la web. defer: no retrasa nada. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js" defer

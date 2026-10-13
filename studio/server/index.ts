@@ -19,6 +19,8 @@ import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
 import { appendEvent, artPct, createJob, finalArtNotes, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
 import type { Job } from './store';
 import { supabase } from './supabase';
+import { SESSION_COOKIE, authConfigFromEnv, clearedCookie, createSessionToken, googleLoginUrl, readCookie, readSessionToken, sessionCookie, userFromSupabaseToken } from './auth';
+import type { SessionUser } from './auth';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
 import { joinLabels, missingInBrief } from './requestCoverage';
@@ -89,7 +91,10 @@ const PORT = Number(process.env.PORT || 3000);
 const ACCESS_PASSWORD = process.env.APP_ACCESS_PASSWORD;
 const ALLOW_NO_AUTH = process.env.ALLOW_NO_AUTH === 'true';
 
-if (!ACCESS_PASSWORD && !ALLOW_NO_AUTH) {
+// Cuentas del equipo con Google (2026-10-13, ver auth.ts). null: no configuradas, solo contraseña compartida.
+const AUTH = authConfigFromEnv();
+
+if (!ACCESS_PASSWORD && !ALLOW_NO_AUTH && !AUTH) {
   console.error(
     '\nERROR: APP_ACCESS_PASSWORD no está configurada y ALLOW_NO_AUTH no es "true".\n' +
     'El servicio se niega a arrancar abierto sin contraseña por accidente.\n' +
@@ -475,18 +480,97 @@ app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '1mb
   res.json({ ok: true });
 });
 
-if (ACCESS_PASSWORD) {
+function basicPasswordOk(req: Request): boolean {
+  const header = req.headers.authorization;
+  if (!ACCESS_PASSWORD || !header?.startsWith('Basic ')) return false;
+  const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+  const separatorIndex = decoded.indexOf(':');
+  return safeEqual(separatorIndex >= 0 ? decoded.slice(separatorIndex + 1) : '', ACCESS_PASSWORD);
+}
+
+/** Quién hace la petición: la sesión de la cookie (cuenta de Google, o contraseña compartida canjeada en
+ *  /api/auth/password) o, como siempre, la contraseña compartida en la cabecera. */
+function sessionOf(req: Request): SessionUser | null {
+  const fromCookie = AUTH ? readSessionToken(readCookie(req.headers.cookie, SESSION_COOKIE), AUTH.secret) : null;
+  return fromCookie ?? (basicPasswordOk(req) ? { via: 'password' } : null);
+}
+
+// --- Cuentas (2026-10-13) ---------------------------------------------------------------------
+// Van antes del control de acceso: es lo que la web consulta para saber si hay sesión y cómo entrar.
+// Ninguna responde con WWW-Authenticate salvo /api/auth/password, que es justo para eso.
+app.get('/api/auth/me', (req: Request, res: Response) => {
+  const user = sessionOf(req);
+  res.set('Cache-Control', 'no-store').json({
+    open: !ACCESS_PASSWORD && !AUTH,
+    user: user ? { via: user.via, name: user.name ?? null, email: user.email ?? null } : null,
+    google: AUTH ? { url: googleLoginUrl(AUTH), domains: AUTH.domains } : null,
+    password: !!ACCESS_PASSWORD,
+  });
+});
+
+app.post('/api/auth/session', async (req: Request, res: Response) => {
+  if (!AUTH) {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (authRateLimit.isLimited(req)) {
+    authRateLimit.reject(req, res);
+    return;
+  }
+  try {
+    const user = await userFromSupabaseToken(req.body?.accessToken, AUTH);
+    res.set('Set-Cookie', sessionCookie(createSessionToken(user, AUTH.secret), req.secure));
+    res.json({ user: { via: user.via, name: user.name, email: user.email } });
+  } catch (err) {
+    authRateLimit.recordFailure(req);
+    res.status(401).json({ error: (err as Error).message });
+  }
+});
+
+// La contraseña compartida, mientras conviva con las cuentas: aquí el navegador sí enseña su diálogo y, si
+// acierta, se lleva una sesión como las demás (el resto de la API ya no lo provoca).
+app.get('/api/auth/password', (req: Request, res: Response) => {
+  if (!AUTH || !ACCESS_PASSWORD) {
+    res.status(404).send('No encontrado');
+    return;
+  }
+  if (authRateLimit.isLimited(req)) {
+    authRateLimit.reject(req, res);
+    return;
+  }
+  if (!basicPasswordOk(req)) {
+    if (req.headers.authorization) authRateLimit.recordFailure(req);
+    res.set('WWW-Authenticate', 'Basic realm="Hermes Studio"');
+    res.status(401).send('Autenticación requerida.');
+    return;
+  }
+  res.set('Set-Cookie', sessionCookie(createSessionToken({ via: 'password' }, AUTH.secret), req.secure));
+  res.redirect('/');
+});
+
+app.post('/api/auth/logout', (req: Request, res: Response) => {
+  res.set('Set-Cookie', clearedCookie(req.secure));
+  res.json({ ok: true });
+});
+
+if (ACCESS_PASSWORD || AUTH) {
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (authRateLimit.isLimited(req)) {
       authRateLimit.reject(req, res);
       return;
     }
-    const header = req.headers.authorization;
-    if (header?.startsWith('Basic ')) {
-      const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-      const separatorIndex = decoded.indexOf(':');
-      const password = separatorIndex >= 0 ? decoded.slice(separatorIndex + 1) : '';
-      if (safeEqual(password, ACCESS_PASSWORD)) return next();
+    const user = sessionOf(req);
+    if (user) {
+      res.locals.user = user;
+      return next();
+    }
+    if (AUTH) {
+      // Con cuentas, la web (pública también en Vercel) enseña su propia pantalla de entrada: la API responde
+      // 401 sin WWW-Authenticate para que el navegador no saque su diálogo de contraseña.
+      if (!req.path.startsWith('/api/')) return next();
+      if (req.headers.authorization) authRateLimit.recordFailure(req);
+      res.status(401).json({ error: 'Necesitas iniciar sesión.' });
+      return;
     }
     authRateLimit.recordFailure(req);
     res.set('WWW-Authenticate', 'Basic realm="Hermes Studio"');
@@ -494,6 +578,14 @@ if (ACCESS_PASSWORD) {
   });
 } else {
   console.warn('ATENCION: arrancando SIN contraseña porque ALLOW_NO_AUTH=true -- el servicio queda abierto (solo para desarrollo local).');
+}
+
+/** Quién pide: con cuenta de Google manda su nombre, no lo que diga el formulario. */
+function requesterOf(req: Request, res: Response, fallback?: string): string | undefined {
+  const user = res.locals.user as SessionUser | undefined;
+  if (user?.via === 'google' && user.name) return user.name;
+  const typed = req.body?.requesterName;
+  return typeof typed === 'string' && typed.trim() ? typed.trim().slice(0, 80) : fallback;
 }
 
 app.use(express.static(path.join(STUDIO_DIR, 'web')));
@@ -691,7 +783,7 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       artReview: body.artReview === true ? true : undefined,
       brandUrl: typeof body.brandUrl === 'string' && /^https:\/\/[^\s"'<>]{4,300}$/.test(body.brandUrl.trim()) ? body.brandUrl.trim() : undefined,
       imageMode: body.imageMode,
-      requesterName: body.requesterName || undefined,
+      requesterName: requesterOf(req, res),
     });
     // No pasa por la cola interna: lo recoge el worker de Hermes (ver /api/worker/claim).
     hermesLog(
@@ -828,7 +920,7 @@ app.post('/api/jobs/:id/retry', createJobRateLimit.middleware, (req: Request, re
   }
   const briefReused = !!source.input.instruction && !!source.input.briefText.trim();
   const requesterName =
-    typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : source.input.requesterName;
+    requesterOf(req, res, source.input.requesterName);
   const job = createJob({ ...source.input, requesterName, retryOf: source.id, briefReused: briefReused || undefined });
   hermesLog(
     job.id,
@@ -852,7 +944,7 @@ app.post('/api/jobs/:id/mobile-fix', createJobRateLimit.middleware, (req: Reques
     briefText: source.input.briefText,
     imageMode: source.input.imageMode,
     // Quien la pide ahora (2026-09-30); sin nombre, el de la newsletter de partida, como en "Pedir cambios".
-    requesterName: typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : source.input.requesterName,
+    requesterName: requesterOf(req, res, source.input.requesterName),
     mobileFixOf: source.id,
   });
   hermesLog(job.id, `Adaptación a móvil de la newsletter ${source.id}: en cola.`);
@@ -879,7 +971,7 @@ app.post('/api/jobs/:id/revise', createJobRateLimit.middleware, (req: Request, r
     brandMode: source.input.brandMode,
     briefText: source.input.briefText,
     imageMode: source.input.imageMode,
-    requesterName: typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : source.input.requesterName,
+    requesterName: requesterOf(req, res, source.input.requesterName),
     revisionOf: source.id,
     changeRequest: changes.slice(0, 4000),
   });
@@ -931,7 +1023,7 @@ app.post('/api/jobs/:id/text-edit', createJobRateLimit.middleware, express.json(
     return;
   }
   const subject = typeof req.body?.subject === 'string' ? req.body.subject.slice(0, 300) : null;
-  const requester = typeof req.body?.requesterName === 'string' && req.body.requesterName.trim() ? req.body.requesterName.trim().slice(0, 80) : undefined;
+  const requester = requesterOf(req, res);
   try {
     const job = createTextEditVersion(source, edits, subject, requester, alts, links, imageEdits);
     // Enlaces o imágenes nuevos: se comprueban de verdad (404, dominio inexistente…) antes de responder; la
@@ -1219,6 +1311,7 @@ app.get('/api/jobs/:id/result', (req: Request, res: Response) => {
 
 const server = app.listen(PORT, () => {
   console.log(`Hermes Studio escuchando en http://localhost:${PORT}`);
+  console.log(`Cuentas con Google: ${AUTH ? `activadas (${AUTH.domains.map((d) => `@${d}`).join(', ')})` : 'desactivadas (falta AUTH_EMAIL_DOMAIN o las variables de Supabase)'}${ACCESS_PASSWORD ? '; contraseña compartida: activa' : ''}.`);
   console.log(`Copia en Supabase: ${supabase.enabled ? 'activada' : 'desactivada (faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY)'}.`);
 });
 
