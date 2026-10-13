@@ -3507,3 +3507,41 @@ span.bf-quote { display: block; margin: 0 0 10px; }
   .hero h1 { font-size: 66px; }
   .g-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
 }
+
+/* ---------- formulario en cuatro pasos (2026-10-13) ---------- */
+/* El orden se lee solo: 1 marca, 2 qué necesitas, 3 imágenes, 4 opciones y el botón. Las opciones dejan la columna
+   derecha (queda para la marca) y usan las mismas tarjetas que las imágenes: lo elegido, en rosa. */
+.step-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin-right: 10px; border-radius: 50%;
+  border: 1px solid var(--pink); color: var(--pink);
+  font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; line-height: 1; vertical-align: 1px;
+}
+.kind-tabs > legend { margin-bottom: 12px; }
+/* Con «Marca conocida…» debajo del campo, el paso 2 quedaba pegado. */
+.brand-field { margin-bottom: 12px; }
+/* Interruptor en vez de casilla: se enciende o se apaga, no se elige entre dos. */
+.choice-switch input {
+  appearance: none; flex: none; position: relative; width: 34px; height: 20px; margin: 2px 0 0; border-radius: 999px;
+  background: var(--border-strong); cursor: pointer; transition: background 0.15s;
+}
+.choice-switch input::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text); transition: transform 0.18s cubic-bezier(0.3, 0.7, 0.2, 1.2), background 0.15s;
+}
+.choice-switch input:checked { background: var(--pink); }
+.choice-switch input:checked::after { transform: translateX(14px); background: var(--on-accent); }
+.choice-switch[hidden] { display: none; }
+/* El botón principal es el único relleno del formulario, como «+ Nueva» en la cabecera. */
+.btn-go {
+  padding: 14px 28px; border-color: transparent;
+  background: linear-gradient(135deg, var(--purple), var(--pink)); color: #1b0420; font-weight: 700;
+  box-shadow: 0 8px 20px rgba(251, 115, 255, 0.28);
+}
+.btn-go:hover { background: linear-gradient(135deg, var(--purple), var(--pink)); color: #1b0420; filter: brightness(1.08); box-shadow: 0 10px 24px rgba(251, 115, 255, 0.36); }
+.actions { margin-top: 16px; }
+@media (min-width: 1180px) {
+  /* La columna derecha ya solo lleva la marca: sin la raya que la separaba de las opciones. */
+  .brand-side { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .choice-switch input, .choice-switch input::after { transition: none; } }

@@ -2688,3 +2688,13 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   entró con su cuenta de Google y confirmó que funciona (primero volvía a `localhost:3000`: faltaba guardar la
   Site URL y la Redirect URL con `/**` en Supabase).
 - **Pendiente:** retirar `APP_ACCESS_PASSWORD` cuando todo el equipo haya entrado con su cuenta.
+
+### 2026-10-13 — Formulario en cuatro pasos (pedido por el usuario)
+- Pedido: quitar el texto junto a «Generar newsletter» y hacer la sección más intuitiva (es la que más se usa).
+  Tres bocetos previos y un retoque del historial (miniaturas grandes, «LISTA» solo en excepciones) no convencieron:
+  el retoque se deshizo. Lo que sí: verlo funcionando en local con datos reales, no en boceto.
+- Ahora: pasos numerados (1 Marca, 2 Qué necesitas, 3 Imágenes, 4 Opciones) y el botón. «Revisar el brief» y
+  «Revisión de arte» dejan la columna derecha y son tarjetas con interruptor (`.choice-switch`), iguales que las de
+  imágenes; su explicación larga queda en el `title`. La columna derecha es solo la marca. El botón es el único
+  relleno (`.btn-go`, el degradado de «+ Nueva»). `#eta-hint` sigue en el DOM, oculto: app.js lo sigue rellenando.
+- OJO: el 08-10 se deshizo un cambio con botón relleno (0ddbc9c); esta vez el usuario lo ha aprobado viéndolo.

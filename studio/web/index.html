@@ -182,7 +182,7 @@
           </p>
 
           <div class="brand-field">
-            <label for="client-name-input"><span class="label">Marca</span></label>
+            <label for="client-name-input"><span class="label"><span class="step-n" aria-hidden="true">1</span>Marca</span></label>
             <!-- Sugerencias propias con el logo de cada marca (2026-10-05): antes, la lista del navegador (<datalist>). -->
             <div class="brand-combo">
               <input type="text" name="clientName" id="client-name-input" required autocomplete="off"
@@ -203,7 +203,7 @@
 
           <!-- Pestañas encima del cuadro de texto (2026-10-09): antes, un selector aparte arriba del todo. -->
           <fieldset class="kind-tabs">
-            <legend class="sr-only">¿Qué vas a escribir?</legend>
+            <legend class="label"><span class="step-n" aria-hidden="true">2</span>Qué necesitas</legend>
             <div class="tabs" role="radiogroup">
               <label><input type="radio" name="inputKind" value="instruction" checked /><span>Instrucción rápida</span></label>
               <label><input type="radio" name="inputKind" value="brief" /><span>Prompt completo</span></label>
@@ -219,7 +219,7 @@
           <!-- Formulario guiado (2026-10-07): mientras se escribe, lo que suele hacer buena una pieza y si ya está. -->
           <div class="prompt-coach" id="prompt-coach" aria-live="polite" hidden></div>
           <fieldset>
-            <legend class="label">¿De dónde salen las imágenes?</legend>
+            <legend class="label"><span class="step-n" aria-hidden="true">3</span>Imágenes</legend>
             <div class="choices">
               <label class="choice">
                 <input type="radio" name="imageMode" value="official" required />
@@ -230,7 +230,22 @@
                 <span><strong>Generadas con IA</strong><small>Hero, producto y ambiente</small></span>
               </label>
             </div>
-            <p class="hint">El logo siempre es el oficial. Se recuerda lo que elegiste la última vez.</p>
+          </fieldset>
+
+          <!-- Opciones en el orden del formulario (2026-10-13): antes, dos casillas con párrafos en la columna derecha. La
+               explicación larga queda al pasar el ratón. Las dos se recuerdan. -->
+          <fieldset>
+            <legend class="label"><span class="step-n" aria-hidden="true">4</span>Opciones</legend>
+            <div class="choices">
+              <label class="choice choice-switch" id="review-brief-field" title="Hermes se para tras escribir el brief (unos minutos) para que lo apruebes o lo corrijas. Se recuerda.">
+                <input type="checkbox" name="reviewBrief" value="true" id="review-brief-input" />
+                <span><strong>Revisar el brief antes</strong><small>Hermes se para para que lo apruebes</small></span>
+              </label>
+              <label class="choice choice-switch" title="Hermes mira las capturas, comprueba que la pieza cumple tu petición y que los textos casan con las fotos, puntúa identidad, concepto, jerarquía, aire y originalidad, y retoca lo que baje de 4. Unos minutos más. Se recuerda.">
+                <input type="checkbox" name="artReview" value="true" id="art-review-input" checked />
+                <span><strong>Revisión de arte al final</strong><small>Puntúa la pieza y retoca lo flojo</small></span>
+              </label>
+            </div>
           </fieldset>
 
           <label id="requester-field">
@@ -238,17 +253,8 @@
             <input type="text" name="requesterName" id="requester-input" />
           </label>
         </div>
-        <aside class="form-side" aria-label="Marca y opciones">
+        <aside class="form-side" aria-label="Marca">
           <div class="brand-side" id="brand-side" aria-live="polite"></div>
-          <div class="review-brief-field" id="review-brief-field">
-            <label class="toggle"><input type="checkbox" name="reviewBrief" value="true" id="review-brief-input" /><span>Revisar el brief antes de que haga la newsletter</span></label>
-            <p class="hint">Hermes se para tras escribir el brief (unos minutos) para que lo apruebes o lo corrijas. Se recuerda.</p>
-          </div>
-          <div class="review-brief-field">
-            <label class="toggle"><input type="checkbox" name="artReview" value="true" id="art-review-input" checked /><span>Revisión de dirección de arte al final</span></label>
-            <p class="hint">Activada por defecto. Hermes mira las capturas, comprueba que la pieza cumple tu petición y que los textos casan con las fotos, puntúa identidad, concepto, jerarquía, aire y originalidad, y retoca lo que baje de 4. Unos minutos más. Si la quitas, se recuerda.</p>
-          </div>
-
         </aside>
         <div class="form-end">
           <div id="vague-warning" class="form-warning" role="alert" hidden>
@@ -269,8 +275,9 @@
           <p id="form-error" class="form-error" role="alert" hidden></p>
 
           <div class="actions">
-            <button type="submit" class="btn btn-primary">Generar newsletter</button>
-            <p class="hint"><span id="eta-hint"></span>Puedes cerrar esta página y volver con el enlace del trabajo.</p>
+            <button type="submit" class="btn btn-primary btn-go">Generar newsletter <span aria-hidden="true">→</span></button>
+            <!-- Sin texto al lado del botón (2026-10-13, pedido por el usuario). app.js sigue calculando la estimación. -->
+            <span id="eta-hint" hidden></span>
           </div>
         </div>
       </form>
