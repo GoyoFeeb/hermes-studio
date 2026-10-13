@@ -1423,13 +1423,18 @@ function renderShowcase(jobs) {
   box.setAttribute('aria-label', 'Últimas newsletters de Hermes');
   // La carta (el enlace) se queda en su sitio del abanico y lo que crece es su cara: la zona que reacciona al ratón no
   // se mueve con la animación.
+  // Reparto de entrada (2026-10-13): la primera vez que salen las piezas en esta carga, las cartas parten apiladas en
+  // el centro y fanTick las suelta una a una, del centro hacia fuera. Antes era una animación aparte y solo en la
+  // primera visita de la sesión.
+  const deal = !fanDealt && motionOk();
+  fanDealt = true;
   box.innerHTML = order
     .map(
       (j) =>
-        `<a class="show-card" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"${j.thumbLongH ? ` data-long="${Number(j.thumbLongH)}" data-long-src="/api/jobs/${encodeURIComponent(j.id)}/thumb?long=1&h=${Number(j.thumbLongH)}"` : ''}><span class="show-face"><span class="show-view"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb${j.thumbW ? `?w=${j.thumbW}` : ''}" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"></span><span class="show-brand">${escapeHtml(j.clientName || '')}</span></span></a>`
+        `<a class="show-card${deal ? ' is-stacked' : ''}" href="?job=${encodeURIComponent(j.id)}" title="${escapeHtml(j.clientName || '')}"${j.thumbLongH ? ` data-long="${Number(j.thumbLongH)}" data-long-src="/api/jobs/${encodeURIComponent(j.id)}/thumb?long=1&h=${Number(j.thumbLongH)}"` : ''}><span class="show-face"><span class="show-view"><img src="/api/jobs/${encodeURIComponent(j.id)}/thumb${j.thumbW ? `?w=${j.thumbW}` : ''}" alt="Newsletter de ${escapeHtml(j.clientName || '')}" width="300" height="400" loading="lazy"></span><span class="show-brand">${escapeHtml(j.clientName || '')}</span></span></a>`
     )
     .join('');
-  dealShowcase(box);
+  if (deal) box.dataset.deal = '1';
   startFan(box);
 }
 
@@ -1450,7 +1455,6 @@ const introOn = (() => {
   }
   return true;
 })();
-let introDealt = false;
 if (introOn) {
   const h1 = document.querySelector('.hero h1');
   let i = 0;
@@ -1476,24 +1480,6 @@ if (introOn) {
   };
   if (h1) split(h1);
 }
-function dealShowcase(box) {
-  if (!introOn || introDealt || !box.animate) return;
-  introDealt = true;
-  const b = box.getBoundingClientRect();
-  [...box.querySelectorAll('.show-card')].forEach((card, n) => {
-    const r = card.getBoundingClientRect();
-    const dx = b.left + b.width / 2 - (r.left + r.width / 2);
-    card.animate(
-      [
-        { translate: `${dx}px 24px`, opacity: 0 },
-        { translate: `${dx}px 12px`, opacity: 1, offset: 0.35 },
-        { translate: '0 0', opacity: 1 },
-      ],
-      { duration: 700, delay: 250 + n * 70, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'backwards' }
-    );
-  });
-}
-
 /** Abanico que flota (2026-10-07, pedido del usuario: «como si estuvieran flotando, con un poco de movimiento»). Cada
  *  carta sigue a su posición con un muelle (abrir, cerrar y pasar de una a otra sin saltos ni curvas fijas) y encima
  *  flota despacio, cada una a su ritmo. Con el abanico abierto, las cartas se inclinan un poco hacia el ratón. El CSS
@@ -1506,6 +1492,33 @@ const FAN_GROW = 1.4;
 const FAN_SCROLL_WAIT = 0.7;
 const FAN_SCROLL_SPEED = 0.28;
 const FAN_LONG_WIDTH = 600;
+/** Reparto de entrada: espera antes de la primera carta y separación entre una y la siguiente, en segundos. */
+const FAN_DEAL_START = 0.2;
+const FAN_DEAL_GAP = 0.11;
+let fanDealt = false;
+/** Vida propia sin ratón (2026-10-13): tras un rato sin que nadie lo toque, el abanico va destacando una carta cada
+ *  vez (se endereza, crece un poco y enseña su marca) y la devuelve. En móvil es el único movimiento que hay, porque
+ *  no existe carta señalada. Segundos de espera, de carta destacada y de descanso entre dos. */
+const FAN_AUTO_WAIT = 4;
+const FAN_AUTO_SHOW = 2.8;
+const FAN_AUTO_REST = 1.6;
+const FAN_AUTO_GROW = 1.12;
+let fanIdle = 0;
+let fanAuto = null;
+/** Qué carta toca destacar ahora, o null. Empieza por la del centro y va saltando para no recorrerlas en fila. */
+function fanAutoPick(cards, busy, dt) {
+  if (busy) {
+    fanIdle = 0;
+    return null;
+  }
+  fanIdle += dt;
+  const links = cards.filter((c) => c.matches('a.show-card'));
+  const since = fanIdle - FAN_AUTO_WAIT;
+  if (since < 0 || links.length < 2) return null;
+  const turn = Math.floor(since / (FAN_AUTO_SHOW + FAN_AUTO_REST));
+  if (since - turn * (FAN_AUTO_SHOW + FAN_AUTO_REST) > FAN_AUTO_SHOW) return null;
+  return links[(Math.floor(links.length / 2) + turn * (links.length % 2 ? 2 : 1)) % links.length];
+}
 /** Pone la tira larga sobre la miniatura la primera vez que se señala la carta. Hasta que carga no se recorre nada. */
 function fanLoadLong(card, st) {
   const view = card.querySelector('.show-view');
@@ -1636,11 +1649,21 @@ function fanTick(now) {
   const cards = [...box.querySelectorAll('.show-card')];
   const k = narrow ? 1 : fanK(box);
   if (fanHover && !cards.includes(fanHover)) fanHover = null;
+  const deal = box.dataset.deal === '1';
+  delete box.dataset.deal;
+  const auto = fanAutoPick(cards, open || !!fanHover || cards.some((c) => fanState.get(c)?.hold > 0), dt);
+  if (auto !== fanAuto) {
+    fanAuto?.classList.remove('is-auto');
+    auto?.classList.add('is-auto');
+    fanAuto = auto;
+  }
   cards.forEach((card, n) => {
     let st = fanState.get(card);
     if (!st) {
       const i0 = parseFloat(getComputedStyle(card).getPropertyValue('--i')) || 0;
       st = { i: i0, x: i0 * 50, y: i0 * i0 * 6, r: i0 * 6, s: 1, ly: 0, v: {}, phase: n * 1.7 + 0.4 };
+      // Reparto: apilada en el centro hasta que le toca; el orden es 0, -1, 1, -2, 2.
+      if (deal) Object.assign(st, { x: 0, y: 10, r: 0, hold: FAN_DEAL_START + (Math.abs(i0) * 2 - (i0 < 0 ? 1 : 0)) * FAN_DEAL_GAP });
       fanState.set(card, st);
     }
     const i = st.i;
@@ -1658,13 +1681,22 @@ function fanTick(now) {
       y = 0;
       r = 0;
     }
+    const featured = card === auto && !hot;
+    if (featured) r = 0;
+    if (st.hold > 0) {
+      st.hold -= dt;
+      x = 0;
+      y = 10;
+      r = 0;
+      if (st.hold <= 0) card.classList.remove('is-stacked');
+    }
     spring(st, 'x', x, dt);
     spring(st, 'y', y, dt);
     spring(st, 'r', r, dt);
-    spring(st, 's', hot ? FAN_GROW : 1, dt, 120, 16);
-    spring(st, 'ly', hot ? 64 * k : 0, dt, 120, 16);
+    spring(st, 's', hot ? FAN_GROW : featured ? FAN_AUTO_GROW : 1, dt, 120, 16);
+    spring(st, 'ly', hot ? 64 * k : featured ? (narrow ? 8 : 16 * k) : 0, dt, 120, 16);
     // Flotar: vaivén lento y distinto en cada carta; la señalada casi quieta.
-    const amp = hot ? 0.25 : 1;
+    const amp = hot ? 0.25 : featured ? 0.5 : 1;
     const fy = Math.sin(t * 1.05 + st.phase) * 5 * amp;
     const fx = Math.sin(t * 0.63 + st.phase * 1.3) * 2 * amp;
     const fr = Math.sin(t * 0.8 + st.phase * 0.7) * 1.1 * amp;

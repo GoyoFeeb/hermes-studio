@@ -3096,8 +3096,13 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
   .hero-showcase.is-live .show-face::after { box-shadow: 0 42px 84px rgba(0, 0, 0, 0.6), 0 0 0 2.8px var(--pink); }
   .hero-showcase.is-live .show-brand { top: calc(100% + 13px); padding: 4px 11px; font-size: 15.4px; }
 }
-/* Y la señalada, sin capa guardada: se pinta siempre a su tamaño real. */
-.hero-showcase.is-live .show-card.is-hot, .hero-showcase.is-live .show-card.is-hot .show-face { will-change: auto; }
+/* Y la señalada, sin capa guardada: se pinta siempre a su tamaño real. Igual la que el abanico destaca por su cuenta
+   (is-auto), que en móvil crece sobre una cara maquetada a tamaño normal. */
+.hero-showcase.is-live .show-card.is-hot, .hero-showcase.is-live .show-card.is-hot .show-face,
+.hero-showcase.is-live .show-card.is-auto, .hero-showcase.is-live .show-card.is-auto .show-face { will-change: auto; }
+.hero-showcase.is-live .show-card.is-auto .show-brand { opacity: 1; }
+/* Reparto de entrada (app.js, fanTick): apiladas e invisibles hasta que a cada una le toca salir. */
+.hero-showcase.is-live .show-card.is-stacked { opacity: 0; transition: none; }
 
 /* ---------- pieza en marcha: maqueta grande y últimas acciones (2026-10-07) ---------- */
 #job-progress.has-build { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px 32px; align-items: start; }
