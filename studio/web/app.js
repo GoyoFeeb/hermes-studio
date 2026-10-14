@@ -1921,8 +1921,10 @@ function fanTick(now) {
     spring(st, 'x', x, dt);
     spring(st, 'y', y, dt);
     spring(st, 'r', r, dt);
-    spring(st, 's', hot ? FAN_GROW : featured ? FAN_AUTO_GROW : 1, dt, 120, 16);
-    spring(st, 'ly', hot ? 64 * k : featured ? (narrow ? 8 : 16 * k) : 0, dt, 120, 16);
+    // Crecer y bajar, sin rebote (2026-10-14; amortiguación crítica: 2·√120 ≈ 22): señalar una carta no la lanza. La
+    // posición sí conserva su pequeño rebote: las cartas flotan y se reparten.
+    spring(st, 's', hot ? FAN_GROW : featured ? FAN_AUTO_GROW : 1, dt, 120, 22);
+    spring(st, 'ly', hot ? 64 * k : featured ? (narrow ? 8 : 16 * k) : 0, dt, 120, 22);
     // Flotar: vaivén lento y distinto en cada carta; la señalada casi quieta.
     const amp = hot ? 0.25 : featured ? 0.5 : 1;
     const fy = Math.sin(t * 1.05 + st.phase) * 5 * amp;
