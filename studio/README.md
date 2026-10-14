@@ -400,6 +400,8 @@ vez y lleva su propia sesión en una cookie firmada de 30 días (`studio/server/
   (cada bloque tiene su propio botón de guardar).
 - **Convivencia con la contraseña compartida:** mientras `APP_ACCESS_PASSWORD` siga puesta, la pantalla de
   entrada ofrece también «Usar la contraseña del equipo». Para retirarla, se quita esa variable en Railway.
+  Desde 2026-10-14 la contraseña se escribe en la propia tarjeta (`POST /api/auth/password`, error en línea); el
+  `GET` con el diálogo del navegador sigue funcionando y, si se cancela, enseña una página con un botón de vuelta.
 - **«Pidiendo como…»:** con cuenta de Google es el nombre de la cuenta y lo fija el servidor. «Mis trabajos»
   compara ese nombre con el de cada trabajo: los anteriores, pedidos con un nombre escrito a mano, solo
   coinciden si era el mismo.

@@ -485,6 +485,14 @@ app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '4mb
   res.json({ ok: true });
 });
 
+/** Página del 401 de /api/auth/password con el aspecto de Studio y una salida (H-01). Sin recursos externos. */
+const PASSWORD_401_PAGE = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Hermes Studio · Entrar</title>
+<style>:root{color-scheme:dark light}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#050c2a;color:#edf3fc;font:16px/1.55 'Work Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif}
+.card{max-width:400px;padding:32px;border:1px solid #262b59;border-radius:10px;background:#0a1030;text-align:center}h1{margin:0 0 8px;font-size:22px}p{margin:0 0 24px;color:#8991ae}
+a{display:inline-block;padding:12px 24px;border:1px solid #fb73ff;border-radius:45px;background:#262b59;color:#edf3fc;font-weight:600;text-decoration:none}a:hover,a:focus-visible{background:#fb73ff;color:#081136;outline:none}
+@media (prefers-color-scheme:light){body{background:#f4f5fb;color:#0e1545}.card{background:#fff;border-color:#dcdeec}p{color:#5a6182}a{background:#e9eaf5;color:#0e1545;border-color:#9c1f9a}}</style></head>
+<body><main class="card"><h1>No has entrado</h1><p>Has cancelado la contraseña del equipo o no era correcta. Puedes volver a la entrada y escribirla allí, o entrar con Google.</p><a href="/">Volver a la entrada</a></main></body></html>`;
+
 function basicPasswordOk(req: Request): boolean {
   const header = req.headers.authorization;
   if (!ACCESS_PASSWORD || !header?.startsWith('Basic ')) return false;
@@ -546,11 +554,33 @@ app.get('/api/auth/password', (req: Request, res: Response) => {
   if (!basicPasswordOk(req)) {
     if (req.headers.authorization) authRateLimit.recordFailure(req);
     res.set('WWW-Authenticate', 'Basic realm="Hermes Studio"');
-    res.status(401).send('Autenticación requerida.');
+    // Al cancelar el diálogo, el navegador enseña esta página: antes era «Autenticación requerida.» sin estilos ni
+    // salida (auditoría de UX 2026-10-14, H-01). La web ya no viene aquí: usa el POST de abajo.
+    res.status(401).type('html').send(PASSWORD_401_PAGE);
     return;
   }
   res.set('Set-Cookie', sessionCookie(createSessionToken({ via: 'password' }, AUTH.secret), req.secure));
   res.redirect('/');
+});
+
+// La contraseña escrita en la propia tarjeta de entrada (H-01): responde JSON, sin diálogo del navegador.
+app.post('/api/auth/password', (req: Request, res: Response) => {
+  if (!AUTH || !ACCESS_PASSWORD) {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (authRateLimit.isLimited(req)) {
+    authRateLimit.reject(req, res);
+    return;
+  }
+  const typed = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (!typed || !safeEqual(typed, ACCESS_PASSWORD)) {
+    authRateLimit.recordFailure(req);
+    res.status(401).json({ error: 'Contraseña incorrecta. Vuelve a intentarlo o entra con Google.' });
+    return;
+  }
+  res.set('Set-Cookie', sessionCookie(createSessionToken({ via: 'password' }, AUTH.secret), req.secure));
+  res.json({ user: { via: 'password', name: null, email: null } });
 });
 
 app.post('/api/auth/logout', (req: Request, res: Response) => {

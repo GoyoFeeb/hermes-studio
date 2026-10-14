@@ -64,3 +64,26 @@ test('pistas en vivo: marcan lo que la instrucción ya dice (formulario guiado, 
   assert.deepEqual(done('Prozis con un 20% en creatina para corredores', 'Prozis'), ['topic', 'goal', 'offer', 'audience']);
   assert.deepEqual(done('Adeslas: seguro dental para familias con niños', 'Adeslas'), ['topic', 'goal', 'audience']);
 });
+
+test('marca cruzada (auditoría 2026-10-14, H-05): la instrucción nombra otra marca conocida', () => {
+  const { findOtherBrand } = require('./formcheck.js');
+  const brands = [
+    { slug: 'nike', name: 'Nike' },
+    { slug: 'prozis', name: 'Prozis' },
+    { slug: 'calvin-klein', name: 'Calvin Klein' },
+    { slug: 'calvin-klein-jeans', name: 'Calvin Klein Jeans' },
+    { slug: 'el-corte-ingles', name: 'El Corte Inglés' },
+  ];
+  const other = (text, slug, name) => findOtherBrand(text, { slug, name }, brands)?.slug ?? null;
+  assert.equal(other('newsletter de Prozis con un 20 % en creatina', 'nike', 'Nike'), 'prozis');
+  assert.equal(other('newsletter de Nike con un 20 % en zapatillas', 'nike', 'Nike'), null);
+  // Nombra las dos: no se avisa.
+  assert.equal(other('como la de Prozis, pero para Nike', 'nike', 'Nike'), null);
+  // Parte del nombre elegido: no es otra marca.
+  assert.equal(other('rebajas de vaqueros Calvin Klein', 'calvin-klein-jeans', 'Calvin Klein Jeans'), null);
+  // Tildes y mayúsculas.
+  assert.equal(other('novedades de el corte ingles para la vuelta al cole', 'nike', 'Nike'), 'el-corte-ingles');
+  // Marca nueva elegida (sin slug conocido).
+  assert.equal(other('newsletter de Prozis', 'mi-marca', 'Mi Marca'), 'prozis');
+  assert.equal(other('', 'nike', 'Nike'), null);
+});

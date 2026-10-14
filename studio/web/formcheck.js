@@ -115,7 +115,42 @@
     ];
   }
 
-  var api = { checkInstruction: checkInstruction, contentWords: contentWords, coachInstruction: coachInstruction, checkChangeRequest: checkChangeRequest, isSimpleTextChange: isSimpleTextChange };
+  function norm(t) {
+    return String(t || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  /** Marca cruzada (auditoría de UX 2026-10-14, H-05): con «Nike» elegida y «newsletter de Prozis con un 20 % en
+   *  creatina», el medidor decía «Bien concreta» y dejaba lanzar 27 minutos de trabajo para la marca equivocada.
+   *  Devuelve la otra marca conocida que nombra la instrucción ({ slug, name }) o null. Si la instrucción también
+   *  nombra la elegida, no avisa (p. ej. «como la de Prozis, pero para Nike»). `brands`: [{ slug, name }]. */
+  function findOtherBrand(text, chosen, brands) {
+    var t = ' ' + norm(text) + ' ';
+    var chosenNames = [norm(chosen && chosen.name), norm(chosen && chosen.slug && chosen.slug.replace(/-/g, ' '))].filter(function (n) {
+      return n.length > 1;
+    });
+    if (chosenNames.some(function (n) { return t.indexOf(' ' + n + ' ') >= 0; })) return null;
+    var best = null;
+    var bestLen = 0;
+    (brands || []).forEach(function (b) {
+      if (!b || !b.slug || (chosen && b.slug === chosen.slug)) return;
+      [norm(b.name), norm(b.slug.replace(/-/g, ' '))].forEach(function (n) {
+        // Nombres de 3 letras o más y que no sean parte del nombre elegido («Calvin Klein» frente a «Calvin Klein Jeans»).
+        if (n.length < 3 || chosenNames.some(function (c) { return c.indexOf(n) >= 0 || n.indexOf(c) >= 0; })) return;
+        if (t.indexOf(' ' + n + ' ') >= 0 && n.length > bestLen) {
+          best = { slug: b.slug, name: b.name || b.slug };
+          bestLen = n.length;
+        }
+      });
+    });
+    return best;
+  }
+
+  var api = { findOtherBrand: findOtherBrand, checkInstruction: checkInstruction, contentWords: contentWords, coachInstruction: coachInstruction, checkChangeRequest: checkChangeRequest, isSimpleTextChange: isSimpleTextChange };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HermesFormCheck = api;
 })(this);

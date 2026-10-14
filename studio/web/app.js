@@ -59,6 +59,13 @@ async function apiFetch(url, options) {
   return res;
 }
 document.getElementById('auth-reload').addEventListener('click', () => location.reload());
+// Saltar al contenido (auditoría 2026-10-14, H-18): el foco va a <main> sin pasar por el desplazamiento animado de los
+// enlaces con #, que lo dejaba en <body>.
+document.querySelector('.skip-link')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  document.getElementById('app').focus();
+});
 
 // ---------------------------------------------------------------- campo único de marca
 // Antes había dos campos (desplegable de carpeta + nombre) que podían contradecirse: así se envió un
@@ -142,6 +149,7 @@ function updateBrandMatch() {
   if (match) describeKnownBrand(match);
   else renderBrandPeek(null);
   renderBrandSide();
+  if (crossBrandReady) renderCrossBrand();
 }
 
 /** Panel lateral de marca (2026-10-07, formulario a dos columnas en escritorio): la identidad de la marca elegida
@@ -164,7 +172,9 @@ function renderBrandSide() {
   // La columna de la marca solo existe con una marca elegida (2026-10-13): una conocida, o un nombre nuevo ya
   // escrito (al salir del campo, para que el formulario no cambie de ancho mientras se teclea).
   form.classList.toggle('has-brand', !!name && (!!existingBrandInput.value || document.activeElement !== clientNameInput));
-  const key = `${slug}|${card ? 1 : 0}|${recent.map((j) => j.id).join(',')}`;
+  // Con la marca conocida o no en la clave (auditoría 2026-10-14, H-04): con conexión lenta, al recuperar un borrador
+  // el panel se quedaba en «Marca nueva» mientras el campo ya decía «Marca conocida».
+  const key = `${slug}|${existingBrandInput.value ? 1 : 0}|${card ? 1 : 0}|${card?.hasPack ? 1 : 0}|${recent.map((j) => j.id).join(',')}`;
   if (key === brandSideKey) return;
   const changed = !brandSideKey || brandSideKey.split('|')[0] !== slug;
   brandSideKey = key;
@@ -655,7 +665,46 @@ function updateExamples() {
   const text = promptInput.value.trim();
   document.getElementById('examples').hidden = kind !== 'instruction' || (!!text && !EXAMPLES.some((ex) => ex.text === text));
   renderCoach(kind, text);
+  renderCrossBrand();
 }
+
+/** Marca cruzada (auditoría de UX 2026-10-14, H-05): si la instrucción nombra otra marca conocida y no la elegida, se
+ *  avisa junto al botón con [Cambiar a X] [Seguir con Y]. «Seguir» vale para este texto y esta marca. */
+var crossBrandReady = false; // updateBrandMatch() puede llegar antes de que exista promptInput
+let crossBrand = null;
+let crossBrandKept = '';
+const crossKey = () => `${slugify(clientNameInput.value)}|${promptInput.value.trim()}`;
+function allBrandsForCheck() {
+  const slugs = new Set([...knownBrands, ...brandNames.keys()]);
+  return [...slugs].map((slug) => ({ slug, name: brandDisplayName(slug) }));
+}
+function renderCrossBrand() {
+  const box = document.getElementById('cross-brand');
+  const name = clientNameInput.value.trim();
+  const text = promptInput.value.trim();
+  crossBrand =
+    name && text && crossBrandKept !== crossKey()
+      ? HermesFormCheck.findOtherBrand(text, { slug: existingBrandInput.value || slugify(name), name }, allBrandsForCheck())
+      : null;
+  box.hidden = !crossBrand;
+  if (!crossBrand) return;
+  const kind = form.querySelector('input[name="inputKind"]:checked')?.value === 'brief' ? 'Tu prompt' : 'Tu instrucción';
+  document.getElementById('cross-brand-text').innerHTML = `${kind} habla de <strong>${escapeHtml(crossBrand.name)}</strong> y la marca elegida es <strong>${escapeHtml(name)}</strong>.`;
+  document.getElementById('cross-brand-switch').textContent = `Cambiar a ${crossBrand.name}`;
+  document.getElementById('cross-brand-keep').textContent = `Seguir con ${name}`;
+}
+document.getElementById('cross-brand-switch').addEventListener('click', () => {
+  if (!crossBrand) return;
+  chooseBrand(crossBrand.name);
+  scheduleDraftSave();
+  renderCrossBrand();
+});
+document.getElementById('cross-brand-keep').addEventListener('click', () => {
+  crossBrandKept = crossKey();
+  renderCrossBrand();
+  form.querySelector('button[type="submit"]').focus();
+});
+crossBrandReady = true;
 
 /** Formulario guiado (2026-10-07): bajo la instrucción, cuatro pistas (de qué va, objetivo o momento, oferta o dato,
  *  para quién) que se tachan al cubrirlas, y una medida de lo concreta que es. Antes el aviso de instrucción vaga
@@ -832,6 +881,14 @@ form.addEventListener('submit', (e) => {
   if (!payload.brandUrl || document.getElementById('brand-url-field').hidden) delete payload.brandUrl;
   else if (!/^https?:\/\//i.test(payload.brandUrl)) payload.brandUrl = `https://${payload.brandUrl}`;
   if (payload.brandUrl) payload.brandUrl = payload.brandUrl.replace(/^http:/i, 'https:');
+  // Marca cruzada sin resolver (H-05): no se envía hasta elegir «Cambiar» o «Seguir».
+  renderCrossBrand();
+  if (crossBrand) {
+    document.getElementById('cross-brand-switch').focus();
+    return;
+  }
+  // Ya confirmada con «Seguir con…»: el servidor no vuelve a preguntar si la instrucción menciona la marca.
+  if (crossBrandKept === crossKey()) payload.confirmBrand = true;
   // Instrucción poco concreta (formcheck.js): se avisa antes de gastar 20 minutos de Hermes, sin bloquear.
   const issues = HermesFormCheck.checkInstruction(payload.promptText, payload.inputKind, payload.clientName);
   if (issues.length) {
@@ -1200,7 +1257,7 @@ const STATUS_LABELS = {
   queued: 'En cola',
   running: 'Trabajando',
   review: 'Brief por revisar',
-  completed: 'Lista',
+  completed: 'Lista para revisar', // antes «Lista» aquí y «Lista para revisar» en la galería (auditoría 2026-10-14, H-07)
   failed: 'Fallida',
   blocked: 'Bloqueada',
   cancelled: 'Cancelada',
@@ -1287,7 +1344,7 @@ async function loadHistory() {
     let named = false;
     for (const j of jobs) {
       if (j.clientSlug && !brandNames.has(j.clientSlug) && slugify(j.clientName).replace(/-/g, '') === j.clientSlug.replace(/-/g, '')) {
-        brandNames.set(j.clientSlug, j.clientName);
+        brandNames.set(j.clientSlug, tidyBrandName(j.clientName));
         named = true;
       }
     }
@@ -1305,7 +1362,8 @@ async function loadHistory() {
 
     const brandSelect = document.getElementById('history-brand');
     const current = brandSelect.value;
-    const brands = [...new Map(jobs.map((j) => [j.clientSlug || j.clientName, j.clientName])).entries()].sort((a, b) =>
+    // Un nombre por carpeta, con mayúscula inicial (auditoría 2026-10-14, H-06): salían «asics» y «Helly hansen».
+    const brands = [...new Map(jobs.map((j) => [j.clientSlug || j.clientName, j.clientSlug ? brandDisplayName(j.clientSlug) : tidyBrandName(j.clientName)])).entries()].sort((a, b) =>
       a[1].localeCompare(b[1], 'es')
     );
     brandSelect.innerHTML =
@@ -1428,7 +1486,7 @@ function familyInfo(jobs) {
 const openFamilies = new Set();
 
 function jobKindLabel(j) {
-  return j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.textEditOf ? 'Texto editado' : j.retryOf ? 'Reintento' : j.fromInstruction ? 'Desde instrucción' : null;
+  return j.revisionOf ? 'Cambios' : j.mobileFixOf ? 'Adaptación a móvil' : j.textEditOf ? 'Texto editado' : j.retryOf ? 'Reintento' : j.fromInstruction ? 'Instrucción rápida' : null; // mismo nombre que en el formulario (H-09)
 }
 
 /** Lo que ha hecho el cliente en su enlace (2026-10-01), para la fila del historial. */
@@ -2993,7 +3051,7 @@ function renderHistory() {
           ? `<span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>`
           : score !== null
           ? `<span class="row-score is-${score >= 76 ? 'high' : score >= 60 ? 'mid' : 'low'}" title="Calidad de la pieza">${score} %<span class="sr-only"> de calidad</span></span>`
-          : '<span class="sr-only">Lista</span>';
+          : '<span class="sr-only">Lista para revisar</span>';
       const initials = String(j.clientName || '?')
         .split(/\s+/)
         .filter(Boolean)
@@ -3165,8 +3223,10 @@ function byDay(groups, coarse = false) {
 }
 let dayTotals = { fine: new Map(), coarse: new Map() };
 function daySep(label, count, total = count) {
-  const n = total > count ? `${count} de ${total}` : String(count);
-  return `<li class="day-sep" role="presentation"><span class="day-label">${escapeHtml(label)}</span><span class="day-count" title="${total} newsletter${total === 1 ? '' : 's'} en este tramo">${n}</span></li>`;
+  // «20 de 21» solo se explicaba en el title (auditoría 2026-10-14, H-21): ahora solo el total del tramo; las que faltan
+  // están detrás de «Ver más», que ya lo dice.
+  const more = total > count ? ` (${count} a la vista; el resto, con «Ver más»)` : '';
+  return `<li class="day-sep" role="presentation"><span class="day-label">${escapeHtml(label)}</span><span class="day-count" title="${total} newsletter${total === 1 ? '' : 's'} en este tramo${more}">${total}</span></li>`;
 }
 
 /** Tarjeta de galería más rica (2026-10-07): un punto de color con el estado (lista, aprobada, con comentarios del
@@ -3193,7 +3253,11 @@ function galleryOverlay(j, members) {
     pct === null
       ? ''
       : `<span class="g-score is-${pct >= 76 ? 'high' : pct >= 60 ? 'mid' : 'low'}" title="Calidad: ${pct} %"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" pathLength="100"/><circle class="g-score-arc" cx="18" cy="18" r="15.5" pathLength="100" style="--p:${pct}"/></svg><b>${pct}</b></span>`;
-  return `<span class="g-dot is-${tone}" title="${escapeHtml(label)}"><span class="sr-only">${escapeHtml(label)}</span></span>${ring}`;
+  // Insignia con texto corto en vez de un punto de color cuyo significado solo salía al pasar el ratón (auditoría
+  // 2026-10-14, H-21; WCAG 1.4.1). El texto completo, en el title y para el lector de pantalla.
+  const short = { ok: 'Aprobada', ready: 'Revisar', live: label, bad: label }[tone] || (j.status === 'review' ? 'Brief' : 'Cliente');
+  const text = short === label ? escapeHtml(label) : `<span aria-hidden="true">${escapeHtml(short)}</span><span class="sr-only">${escapeHtml(label)}</span>`;
+  return `<span class="g-dot is-${tone}" title="${escapeHtml(label)}">${text}</span>${ring}`;
 }
 function renderGallery(groups, info) {
   const cards = groups
@@ -3296,7 +3360,7 @@ const searchSuggest = document.getElementById('search-suggest');
 const SEARCH_STATUSES = [
   ['active', 'En curso', /curso|marcha|trabaj|cola/],
   ['completed', 'Listas', /lista|termin|hecha/],
-  ['review', 'Por revisar', /revis|brief|pendient/],
+  ['review', 'Brief por revisar', /revis|brief|pendient/],
   ['failed', 'Fallidas', /fall|error|rota/],
   ['approved', 'Aprobadas', /aprob|ok|envi/],
 ];
@@ -3467,15 +3531,51 @@ document.getElementById('history-more').addEventListener('click', () => {
   renderHistory();
 });
 // Miniatura que no carga (borrada del volumen, red): se cambia por las iniciales de la marca.
+function thumbToInitials(img) {
+  const link = img.parentElement;
+  link.classList.remove('thumb-logo', 'is-on-dark');
+  link.classList.add('thumb-empty');
+  link.textContent = img.dataset.initials || '';
+}
 document.getElementById('history-list').addEventListener(
   'error',
   (e) => {
     const img = e.target;
     if (img.tagName !== 'IMG' || !img.closest('.thumb')) return;
-    const link = img.parentElement;
-    link.classList.remove('thumb-logo', 'is-on-dark');
-    link.classList.add('thumb-empty');
-    link.textContent = img.dataset.initials || '';
+    thumbToInitials(img);
+  },
+  true
+);
+/** Miniatura que carga pero está vacía (auditoría 2026-10-14, H-22: la de «Calvin Kleins Jeans» salía en blanco en la
+ *  galería): se reduce a 12 × 16 y, si todos los píxeles son casi iguales, también van las iniciales. */
+const blankProbe = document.createElement('canvas');
+blankProbe.width = 12;
+blankProbe.height = 16;
+function isBlankImage(img) {
+  if (img.naturalWidth < 8 || img.naturalHeight < 8) return true;
+  try {
+    const ctx = blankProbe.getContext('2d', { willReadFrequently: true });
+    ctx.clearRect(0, 0, 12, 16);
+    ctx.drawImage(img, 0, 0, 12, 16);
+    const d = ctx.getImageData(0, 0, 12, 16).data;
+    let min = 255;
+    let max = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = (d[i] + d[i + 1] + d[i + 2]) / 3;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    return max - min < 6;
+  } catch {
+    return false;
+  }
+}
+document.getElementById('history-list').addEventListener(
+  'load',
+  (e) => {
+    const img = e.target;
+    if (img.tagName !== 'IMG' || !img.dataset.initials || !img.closest('.thumb')) return;
+    if (isBlankImage(img)) thumbToInitials(img);
   },
   true
 );
@@ -3906,6 +4006,8 @@ sideMenu.addEventListener('click', (e) => {
     document.getElementById('theme-btn').click();
     return;
   }
+  // Cerrar sesión lo resuelve auth.js (recarga la página).
+  if (where === 'logout') return;
   setMenu(false);
   if (where === 'shortcuts') {
     toggleShortcuts(true);
@@ -4412,7 +4514,7 @@ function renderBrandView(slug, data) {
   }
   const assets = card
     ? brandSection(
-        'Archivos en el Mac de Hermes',
+        'Logos y fotos disponibles', // antes «Archivos en el Mac de Hermes» (auditoría 2026-10-14, H-24)
         `<p class="brand-text">${
           card.assets.logos.length ? `Logos: ${card.assets.logos.map((l) => `<code>${escapeHtml(l)}</code>`).join(', ')}.` : 'Sin logos guardados.'
         } ${card.assets.photos ? `${card.assets.photos} foto${card.assets.photos === 1 ? '' : 's'} sin verificar (pueden ser de campañas anteriores).` : ''} ${
@@ -5562,6 +5664,7 @@ function replaceInTextNode(doc, text) {
   const P = HermesTextEdit.PLACEHOLDER;
   const start = r.startOffset;
   const end = r.endOffset;
+  tePushUndo(n, start);
   const head = (n.data.slice(0, start) + text).split(P).join('');
   const tail = n.data.slice(end).split(P).join('');
   n.data = head + tail || P;
@@ -5574,6 +5677,43 @@ function replaceInTextNode(doc, text) {
   teStatusTimer = setTimeout(teRenderStatus, 300);
   return true;
 }
+
+/** Deshacer (auditoría de UX 2026-10-14, H-25). Como todo lo escrito lo pone Studio (replaceInTextNode), el ⌘Z del
+ *  navegador no tenía qué deshacer. Se guarda el texto de antes de cada cambio; lo que se escribe seguido en el mismo
+ *  trozo (menos de 1 s entre teclas) cuenta como un solo paso, como en un editor. */
+const TE_UNDO_MAX = 200;
+te.undo = [];
+function tePushUndo(node, caret) {
+  const last = te.undo[te.undo.length - 1];
+  const now = Date.now();
+  if (last && last.node === node && now - last.at < 1000) {
+    last.at = now;
+  } else {
+    te.undo.push({ node, data: node.data, caret, at: now });
+    if (te.undo.length > TE_UNDO_MAX) te.undo.shift();
+  }
+  document.getElementById('te-banner-undo').disabled = false;
+}
+function teUndo() {
+  const step = te.undo.pop();
+  document.getElementById('te-banner-undo').disabled = !te.undo.length;
+  if (!step) return;
+  if (step.node.isConnected) {
+    step.node.data = step.data;
+    const doc = step.node.ownerDocument;
+    const sel = doc.getSelection();
+    const caret = doc.createRange();
+    caret.setStart(step.node, Math.min(step.caret, step.node.data.length));
+    caret.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(caret);
+  }
+  teRenderStatus();
+}
+document.getElementById('te-banner-undo').addEventListener('click', () => {
+  teUndo();
+  previewDoc()?.body?.focus();
+});
 
 /** Una selección que abarca varios trozos de texto (triple clic en un titular, arrastrar de un bloque a
  *  otro) se recorta al trozo pulsado (o al primero): escribir encima cambia ese texto y no se lleva el
@@ -5614,6 +5754,10 @@ function armTextEdit(doc) {
     if (e.key === 'Enter') {
       e.preventDefault();
       showToast('Aquí no se pueden añadir líneas ni bloques: para eso, «Pedir cambios».');
+    } else if ((e.metaKey || e.ctrlKey) && !e.shiftKey && /^z$/i.test(e.key)) {
+      // ⌘Z / Ctrl+Z: el navegador no tiene nada que deshacer (lo escrito lo pone Studio). H-25.
+      e.preventDefault();
+      teUndo();
     } else if ((e.metaKey || e.ctrlKey) && /^[biu]$/i.test(e.key)) {
       e.preventDefault(); // negrita, cursiva, subrayado: cambiarían la estructura
     } else if (e.key === 'Escape') {
@@ -5643,6 +5787,11 @@ function armTextEdit(doc) {
   doc.addEventListener('beforeinput', (e) => {
     if (!te.active) return;
     const type = e.inputType;
+    if (type === 'historyUndo') {
+      e.preventDefault();
+      teUndo();
+      return;
+    }
     if (type === 'insertParagraph' || type === 'insertLineBreak' || /^format/.test(type) || /^history/.test(type)) {
       e.preventDefault();
       return;
@@ -5743,6 +5892,8 @@ function teOpen() {
     te.imgBefore = [...d.querySelectorAll('img')].map((img) => img.getAttribute('src') ?? '');
     te.images = new Map();
     te.links = new Map();
+    te.undo = [];
+    document.getElementById('te-banner-undo').disabled = true;
     renderTeLinks(d);
     armTextEdit(d);
     // Sin los contornos de "Resaltar cambios" mientras se escribe: vuelven al guardar o cancelar.
@@ -5779,6 +5930,7 @@ function teClose({ discard = true } = {}) {
   te.images = new Map();
   te.active = false;
   te.before = null;
+  te.undo = [];
   te.confirmCancel = false;
   teBox.hidden = true;
   teBtn.setAttribute('aria-expanded', 'false');
@@ -6137,6 +6289,7 @@ UTM_IDS.forEach((id) =>
 
 /** Descargar: tal cual desde el servidor, o preparado en el navegador si hay plataforma o UTM. */
 async function exportDownload(e) {
+  if (exportGated('download', e)) return;
   const opts = exportOptions();
   if (opts.platform === 'generic' && !opts.utm) return; // enlace normal del servidor
   e.preventDefault();
@@ -6174,6 +6327,24 @@ const APPROVAL_GO = [
   null,
 ];
 
+/** Qué puntos de APPROVAL_CHECKS ya dio por buenos la revisión automática (auditoría de UX 2026-10-14, H-07): salen
+ *  marcados con «comprobado por Studio». Antes se pedía volver a comprobar a mano lo que Studio ya había medido. */
+function approvalAutoChecked() {
+  const checks = currentJobData?.quality?.checks || [];
+  const st = (id) => checks.find((c) => c.id === id)?.status;
+  const okOrAbsent = (id) => !st(id) || st(id) === 'ok';
+  const metaOk = () =>
+    !!currentMeta &&
+    !(window.HermesMetaCheck?.checkMeta(currentMeta.subject, currentMeta.preheader, {}) || []).some((w) => w.level === 'warning');
+  return [
+    st('mobile') === 'ok',
+    st('dark-mode') === 'ok' && okOrAbsent('dark-legibility'),
+    st('links') === 'ok' && okOrAbsent('empty-links'),
+    st('preheader') === 'ok' && metaOk(),
+    false, // precios, fechas, nombres y claims: siempre a mano
+  ];
+}
+
 function setPreviewRadio(name, value) {
   showJobTab('preview');
   const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
@@ -6182,6 +6353,11 @@ function setPreviewRadio(name, value) {
   radio.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+// Exportar sin aprobar (H-07, más abajo): declarado aquí porque renderApproval y toggleApprove lo usan.
+let pendingExport = null; // 'download' | 'copy'
+let exportGateOkFor = null;
+let exportGateFor = null;
+const exportGate = document.getElementById('export-gate');
 const approveBox = document.getElementById('approve-box');
 const approveBtn = document.getElementById('approve-btn');
 
@@ -6192,6 +6368,10 @@ function renderApproval(job, versions) {
     const when = new Date(job.approvedAt).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     document.getElementById('approved-text').textContent = `✓ Aprobada para envío${job.approvedBy ? ` · ${job.approvedBy}` : ''} · ${when}`;
     banner.title = (job.approvalChecklist || []).length ? `Comprobado: ${job.approvalChecklist.join(' · ')}` : '';
+  }
+  if (job.approvedAt || job.id !== exportGateFor) {
+    exportGate.hidden = true;
+    exportGateFor = job.id;
   }
   approveBtn.hidden = !!job.approvedAt || job.status !== 'completed';
   document.getElementById('sticky-approve').hidden = approveBtn.hidden;
@@ -6207,14 +6387,19 @@ function renderApproval(job, versions) {
 function toggleApprove(open) {
   approveBox.hidden = !open;
   approveBtn.setAttribute('aria-expanded', String(open));
-  if (!open) return;
+  if (!open) {
+    pendingExport = null;
+    return;
+  }
+  const autoChecked = approvalAutoChecked();
   document.getElementById('approve-checklist').innerHTML = APPROVAL_CHECKS.map((c, i) => {
     const go = APPROVAL_GO[i];
     const usable = go && (!go.when || go.when());
     const btn = usable ? `<button type="button" class="link-btn check-go" data-check-go="${i}">${escapeHtml(go.label)}</button>` : '';
-    return `<li><label><input type="checkbox" data-check-item="${i}" /><span>${escapeHtml(c)}</span></label>${btn}</li>`;
+    const auto = autoChecked[i];
+    return `<li><label><input type="checkbox" data-check-item="${i}"${auto ? ' checked' : ''} /><span>${escapeHtml(c)}${auto ? ' <span class="check-auto">comprobado por Studio</span>' : ''}</span></label>${btn}</li>`;
   }).join('');
-  document.getElementById('approve-submit').disabled = true;
+  document.getElementById('approve-submit').disabled = !autoChecked.every(Boolean);
   const errors = currentJobData?.quality?.errors || 0;
   const q = document.getElementById('approve-quality');
   q.hidden = !errors;
@@ -6245,10 +6430,42 @@ approveBox.addEventListener('submit', async (e) => {
   }).catch(() => null);
   if (!res?.ok) return showToast('No se pudo aprobar. Inténtalo de nuevo.', 'error');
   celebrateApproval(document.getElementById('approve-submit'));
+  const thenExport = pendingExport;
   toggleApprove(false);
   showToast('Versión aprobada para envío.');
+  if (currentJobData) currentJobData.approvedAt = new Date().toISOString();
+  if (thenExport) runExport(thenExport);
   poll(currentJob);
   stampApproval();
+});
+
+// ---------------------------------------------------------------- exportar sin aprobar (auditoría 2026-10-14, H-07)
+// Al descargar o copiar una pieza sin aprobar: «Aún no está aprobada · [Aprobar y descargar] [Descargar igualmente]».
+// «Igualmente» vale para esa pieza mientras sigas en ella.
+function exportGated(kind, e) {
+  if (!currentJobData || currentJobData.approvedAt || currentJobData.status !== 'completed' || exportGateOkFor === currentJob) return false;
+  e?.preventDefault();
+  pendingExport = kind;
+  const verb = kind === 'copy' ? 'copiar' : 'descargar';
+  document.getElementById('export-gate-approve').textContent = `Aprobar y ${verb}`;
+  document.getElementById('export-gate-anyway').textContent = `${verb[0].toUpperCase()}${verb.slice(1)} igualmente`;
+  exportGate.hidden = false;
+  jumpTo(exportGate, 'nearest');
+  document.getElementById('export-gate-approve').focus({ preventScroll: true });
+  return true;
+}
+function runExport(kind) {
+  exportGateOkFor = currentJob;
+  pendingExport = null;
+  exportGate.hidden = true;
+  document.getElementById(kind === 'copy' ? 'copy-html-btn' : 'download-link').click();
+}
+document.getElementById('export-gate-anyway').addEventListener('click', () => runExport(pendingExport || 'download'));
+document.getElementById('export-gate-approve').addEventListener('click', () => {
+  const kind = pendingExport;
+  exportGate.hidden = true;
+  toggleApprove(true);
+  pendingExport = kind;
 });
 document.getElementById('unapprove-btn').addEventListener('click', async () => {
   // Lo aprobado se guarda antes de quitarlo: "Deshacer" lo restaura con sus comprobaciones y quién lo aprobó
@@ -6655,8 +6872,10 @@ async function poll(id) {
   }
 
   const statusEl = document.getElementById('job-status');
-  statusEl.textContent = STATUS_LABELS[job.status] || job.status;
-  statusEl.className = `status-badge status-${job.status}`;
+  // Aprobada: la insignia lo dice (auditoría 2026-10-14, H-07); antes seguía en «Lista» aunque estuviera aprobada.
+  const approvedNow = job.status === 'completed' && !!job.approvedAt;
+  statusEl.textContent = approvedNow ? 'Aprobada' : STATUS_LABELS[job.status] || job.status;
+  statusEl.className = `status-badge status-${approvedNow ? 'approved' : job.status}`;
 
   renderProgress(job, queue, hermesOnline);
   renderNotify(job);
@@ -6754,10 +6973,13 @@ function renderRequest(job) {
   if (!text || box.dataset.src === text) return;
   box.dataset.src = text;
   const label = input.instruction ? 'Pediste' : 'Prompt creativo';
+  // En el móvil, plegado en una línea (auditoría 2026-10-14, H-23): con la cabecera, el prompt y los controles, la
+  // vista previa empezaba por debajo del primer pantallazo.
+  const narrow = window.matchMedia('(max-width: 640px)').matches;
   box.innerHTML =
-    text.length <= REQUEST_INLINE_MAX && !text.includes('\n')
+    !narrow && text.length <= REQUEST_INLINE_MAX && !text.includes('\n')
       ? `<p>${label}: <q>${escapeHtml(text)}</q></p>`
-      : `<details><summary>${label}: <q>${escapeHtml(cut(text.split('\n')[0], 90))}</q> · ver completo</summary><div class="request-full">${escapeHtml(text)}</div></details>`;
+      : `<details><summary>${label}: <q>${escapeHtml(cut(text.split('\n')[0], narrow ? 40 : 90))}</q> · ver completo</summary><div class="request-full">${escapeHtml(text)}</div></details>`;
 }
 
 // ---------------------------------------------------------------- asunto, preheader y copiar
@@ -6919,6 +7141,7 @@ document.getElementById('email-meta').addEventListener('click', (e) => {
 
 document.getElementById('copy-html-btn').addEventListener('click', async (e) => {
   if (!currentJob) return;
+  if (exportGated('copy', e)) return;
   if (!currentHtml) await loadResultHtml(currentJob);
   if (!currentHtml) return showToast('No se pudo descargar el HTML para copiarlo.', 'error');
   const platform = document.getElementById('export-platform').value;
@@ -6978,7 +7201,7 @@ function updateTabTitle(job) {
       : job.status === 'queued'
       ? `En cola · ${name} · Hermes Studio`
       : job.status === 'completed'
-      ? `✓ Lista · ${name} · Hermes Studio`
+      ? `✓ ${job.approvedAt ? 'Aprobada' : 'Lista para revisar'} · ${name} · Hermes Studio`
       : `${STATUS_LABELS[job.status] || job.status} · ${name} · Hermes Studio`;
 }
 
@@ -7143,7 +7366,14 @@ function renderArtReview(a) {
   const before = artPctOf(a.before);
   const pct = artPctOf(fin);
   document.getElementById('art-sum').textContent = [
-    a.after ? (a.kept === false ? `${before} % (la mejora empeoraba: se quedó la versión anterior)` : `${before} % → ${pct} %`) : `${pct} %`,
+    // «80 % → 80 %» anunciaba una mejora que no había (auditoría 2026-10-14, H-08).
+    a.after
+      ? a.kept === false
+        ? `${before} % (la mejora empeoraba: se quedó la versión anterior)`
+        : pct === before
+        ? `${pct} % (revisada, sin cambios en la nota)`
+        : `${before} % → ${pct} %`
+      : `${pct} %`,
     a.web ? 'comparada con la web de la marca' : null,
     a.backfill ? 'puntuada después, sin pasada de mejora' : null,
   ]
@@ -7163,8 +7393,29 @@ function renderArtReview(a) {
     .join('');
   drawArtBars();
   const list = (title, items) => (items?.length ? `<p class="art-notes-title">${title}</p><ul class="art-notes">${items.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : '');
-  document.getElementById('art-notes').innerHTML = list('Problemas que vio', a.problemas) + list('Mejoras que propuso', a.mejoras);
+  document.getElementById('art-notes').innerHTML = list('Problemas que vio', a.problemas) + list('Mejoras que propuso', a.mejoras) + artMobileNote(fin);
 }
+
+/** Móvil «Correcto» en la revisión automática y 3/5 en la de arte (auditoría 2026-10-14, H-08): miden cosas distintas.
+ *  Se explica y se enlaza a «Adaptar a móvil» (si esta versión no es ya una adaptación). */
+function artMobileNote(fin) {
+  const art = fin?.movil;
+  const auto = currentJobData?.quality?.checks?.find((c) => c.id === 'mobile')?.status;
+  if (art == null || art >= 4 || auto !== 'ok') return '';
+  const canFix = !document.getElementById('mobile-fix-btn')?.hidden;
+  return (
+    `<div class="art-mobile-note"><p><strong>Móvil: dos revisiones, dos cosas distintas.</strong> Revisión automática: el código funciona a 375 px ` +
+    `(nada se sale ni se rompe). Dirección de arte: la composición en móvil es mejorable (${art}/5).</p>` +
+    (canFix ? `<button type="button" class="btn btn-secondary btn-sm" data-art-mobile-fix>Adaptar a móvil</button>` : '') +
+    `</div>`
+  );
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('[data-art-mobile-fix]')) return;
+  const btn = document.getElementById('mobile-fix-btn');
+  jumpTo(btn, 'center');
+  btn.click();
+});
 
 /** Nota de arte en el lateral (2026-10-07): la nota final y sus cinco criterios en barras, siempre a la vista junto a
  *  la pieza. «Ver detalle» abre la revisión completa (problemas y mejoras) en su pestaña. */
@@ -7186,12 +7437,20 @@ function renderArtCard(a) {
   card.className = `art-card is-${tone}${fresh && motionOk() ? ' is-drawing' : ''}`;
   card.innerHTML =
     `<div class="art-card-head"><span class="art-card-pct">${pct}<small> %</small></span><span class="art-card-title">Dirección de arte<small>${
-      a.after && a.kept !== false ? `mejorada desde ${artPctOf(a.before)} %` : a.backfill ? 'puntuada después' : 'nota de Hermes'
+      a.after && a.kept !== false
+        ? pct > artPctOf(a.before)
+          ? `mejorada desde ${artPctOf(a.before)} %`
+          : pct === artPctOf(a.before)
+          ? 'revisada, sin cambios'
+          : `revisada (antes ${artPctOf(a.before)} %)`
+        : a.backfill
+        ? 'puntuada después'
+        : 'nota de Hermes'
     }</small></span><button type="button" class="link-btn" id="art-card-more">Ver detalle</button></div>` +
     `<ul class="art-card-bars">${Object.keys(fin)
       .map(
         (k, i) =>
-          `<li style="--i:${i}"><span>${escapeHtml(artLabel(k))}</span><span class="art-card-bar${fin[k] < 4 ? ' is-low' : ''}"><i style="--w:${fin[k] * 20}%"></i></span><b>${fin[k]}</b></li>`
+          `<li style="--i:${i}"><span>${escapeHtml(artLabel(k))}</span><span class="art-card-bar${fin[k] < 4 ? ' is-low' : ''}"><i style="--w:${fin[k] * 20}%"></i></span><b>${fin[k]}<small>/5</small></b></li>`
       )
       .join('')}</ul>`;
 }
@@ -7432,7 +7691,9 @@ function readPreviewView() {
   const fallback = window.matchMedia('(max-width: 600px)').matches ? 'mobile' : 'desktop';
   try {
     const v = localStorage.getItem('previewView');
-    return v === 'mobile' || v === 'free' || v === 'desktop' || (v === 'both' && !fallback.startsWith('m')) ? v : fallback;
+    // En el móvil solo quedan «Escritorio» y «Móvil» (auditoría 2026-10-14, H-23): «Los dos» y «Libre» no caben.
+    if (fallback === 'mobile') return v === 'desktop' ? v : fallback;
+    return v === 'mobile' || v === 'free' || v === 'desktop' || v === 'both' ? v : fallback;
   } catch {
     return fallback;
   }
@@ -8484,6 +8745,18 @@ function announceJob(job, queue) {
 }
 
 // ---------------------------------------------------------------- utilidades
+
+/** Mayúscula inicial en las palabras escritas en minúscula («asics» → «Asics», «Helly hansen» → «Helly Hansen»),
+ *  salvo las cortas de enlace que no van primero («Para y Compara», «El Corte Inglés»). No toca las que ya llevan alguna
+ *  mayúscula («iPhone», «BMW»). Auditoría de UX 2026-10-14, H-06. */
+const BRAND_SMALL_WORDS = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'y', 'e', 'o', 'contra', 'of', 'the', 'and', 'for']);
+function tidyBrandName(name) {
+  return String(name || '')
+    .trim()
+    .split(/(\s+)/)
+    .map((w, i) => (/^\p{Ll}+$/u.test(w) && (i === 0 || !BRAND_SMALL_WORDS.has(w)) ? w[0].toUpperCase() + w.slice(1) : w))
+    .join('');
+}
 
 function prettyBrand(slug) {
   return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());

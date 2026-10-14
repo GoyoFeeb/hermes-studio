@@ -22,6 +22,8 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
+  <!-- Auditoría de UX (2026-10-14, H-18): con Tab, lo primero era el logo y hacían falta 6 pulsaciones para llegar al contenido. -->
+  <a class="skip-link" href="#app">Saltar al contenido</a>
   <header class="topbar">
     <a class="brand" href="/" aria-label="Hermes Studio — inicio">
       <!-- Imagen fija = último fotograma del Lottie (2026-10-05), del mismo tamaño que la animación: el logo oficial
@@ -41,14 +43,13 @@
       <button id="menu-btn" type="button" class="menu-btn" aria-label="Abrir el menú" aria-expanded="false" aria-controls="side-menu"><span></span><span></span><span></span></button>
     </div>
   </header>
-  <!-- Raíl vertical como el de feebbodigital.com (2026-10-02): años, línea rosa y redes. Solo en pantallas anchas. -->
+  <!-- Raíl vertical como el de feebbodigital.com (2026-10-02): años y línea rosa. Solo desde 1600 px; sin redes desde la
+       auditoría de 2026-10-14 (en una herramienta interna no sirven y tapaban el contenido). -->
   <aside class="side-rail" aria-label="Feebbo Digital">
     <span class="rail-years" id="rail-years">2010 – 2026</span>
     <span class="rail-line" aria-hidden="true"></span>
     <!-- Raíl de progreso (2026-10-06): la línea crece al bajar y aquí se marca la sección en la que estás. -->
     <span class="rail-sec" id="rail-sec" aria-hidden="true"></span>
-    <a class="rail-icon" href="https://www.linkedin.com/company/feebbo-digital/" target="_blank" rel="noopener" aria-label="Feebbo Digital en LinkedIn">in</a>
-    <a class="rail-icon" href="https://twitter.com/feebbodigital" target="_blank" rel="noopener" aria-label="Feebbo Digital en X">X</a>
   </aside>
   <div id="menu-backdrop" class="menu-backdrop" hidden></div>
   <nav id="side-menu" class="side-menu" role="dialog" aria-modal="true" aria-label="Menú" hidden>
@@ -63,6 +64,8 @@
       <li><button type="button" data-menu="how"><span class="menu-num"></span>Cómo funciona</button></li>
       <li id="menu-shortcuts-item" hidden><button type="button" data-menu="shortcuts" aria-haspopup="dialog"><span class="menu-num"></span>Atajos de teclado</button></li>
       <li class="menu-theme-item"><button type="button" data-menu="theme" id="menu-theme"><span class="menu-num"></span>Tema: <span id="menu-theme-name">Auto</span></button></li>
+      <!-- Auditoría de UX (2026-10-14, H-15): cerrar sesión también aquí, con un área pulsable grande. Solo con sesión. -->
+      <li class="menu-logout-item"><button type="button" data-menu="logout" id="menu-logout"><span class="menu-num"></span>Cerrar sesión</button></li>
     </ol>
     <dl class="menu-contact">
       <div><dt>Correo</dt><dd><a href="mailto:info@feebbodigital.com">info@feebbodigital.com</a></dd></div>
@@ -70,7 +73,31 @@
     </dl>
   </nav>
 
-  <main id="app">
+  <!-- Pantalla de entrada (2026-10-13, auth.js): solo aparece si el servidor tiene cuentas y no hay sesión. Fuera de
+       <main> desde la auditoría de 2026-10-14 (H-02): mientras se ve, la aplicación de detrás queda inerte y el lector de
+       pantalla ya no lee sus avisos. La contraseña del equipo se escribe aquí (H-01): antes abría el diálogo del navegador y,
+       al cancelarlo, quedaba una página en blanco. -->
+  <div id="login-screen" class="login-screen" role="dialog" aria-modal="true" aria-labelledby="login-title" hidden>
+    <div class="login-card">
+      <img class="login-logo" src="/feebbo-logo-anim.svg" alt="Feebbo Digital" width="99" height="40" />
+      <h2 id="login-title">Entra en Hermes Studio</h2>
+      <p class="login-lead">Newsletters de marca hechas por Hermes: las pides con una frase, las revisas y las exportas.</p>
+      <p class="hint" id="login-note"></p>
+      <p class="login-error" id="login-error" role="alert" hidden></p>
+      <button type="button" id="login-google" class="btn btn-primary" hidden>Entrar con Google</button>
+      <button type="button" id="login-password" class="link-btn" aria-expanded="false" aria-controls="login-pass-form" hidden>Usar la contraseña del equipo</button>
+      <form id="login-pass-form" class="login-pass" hidden>
+        <label>Contraseña del equipo
+          <input type="password" id="login-pass-input" name="password" autocomplete="current-password" required />
+        </label>
+        <div class="login-pass-actions">
+          <button type="submit" class="btn btn-secondary" id="login-pass-submit">Entrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <main id="app" tabindex="-1">
     <!-- Silueta mientras carga un enlace directo (ver la clase deep-link en <head>). -->
     <div id="boot-skeleton" class="card skeleton-job boot-skeleton" aria-hidden="true">
       <div class="skeleton skeleton-title"></div>
@@ -79,19 +106,8 @@
       <div class="skeleton skeleton-preview"></div>
     </div>
     <!-- Sin contraseña la API responde 401: antes la página se quedaba a medias sin decir por qué (2026-09-30). -->
-    <!-- Pantalla de entrada (2026-10-13, auth.js): solo aparece si el servidor tiene cuentas y no hay sesión. -->
-    <div id="login-screen" class="login-screen" role="dialog" aria-modal="true" aria-labelledby="login-title" hidden>
-      <div class="login-card">
-        <h2 id="login-title">Entra en Hermes Studio</h2>
-        <p class="hint" id="login-note"></p>
-        <p class="login-error" id="login-error" role="alert" hidden></p>
-        <button type="button" id="login-google" class="btn btn-primary" hidden>Entrar con Google</button>
-        <button type="button" id="login-password" class="link-btn" hidden>Usar la contraseña del equipo</button>
-      </div>
-    </div>
-
     <div id="auth-banner" class="form-warning auth-banner" role="alert" hidden>
-      <p><strong>Necesitas iniciar sesión.</strong> Studio no ha podido cargar tus datos porque falta la contraseña del equipo. Recarga la página e introdúcela cuando el navegador te la pida.</p>
+      <p><strong>Necesitas iniciar sesión.</strong> Studio no ha podido cargar tus datos porque la sesión ha caducado o falta la contraseña del equipo. Recarga la página para volver a entrar.</p>
       <div class="warning-actions">
         <button type="button" id="auth-reload" class="btn btn-secondary btn-sm">Recargar e iniciar sesión</button>
       </div>
@@ -257,6 +273,15 @@
           <div class="brand-side" id="brand-side" aria-live="polite"></div>
         </aside>
         <div class="form-end">
+          <!-- Marca cruzada (auditoría de UX 2026-10-14, H-05): la instrucción habla de otra marca conocida. Se avisa en
+               vivo, junto al botón, antes de gastar media hora de Hermes en la marca equivocada. -->
+          <div id="cross-brand" class="form-warning brand-cross" role="status" hidden>
+            <p id="cross-brand-text"></p>
+            <div class="warning-actions">
+              <button type="button" id="cross-brand-switch" class="btn btn-secondary btn-sm"></button>
+              <button type="button" id="cross-brand-keep" class="btn btn-ghost btn-sm"></button>
+            </div>
+          </div>
           <div id="vague-warning" class="form-warning" role="alert" hidden>
             <p>Hermes tardará <span data-eta="new">unos 20 minutos</span>, y con esta instrucción tendrá que suponer cosas:</p>
             <ul id="vague-list"></ul>
@@ -331,7 +356,7 @@
             <button type="button" class="chip" data-status="active" aria-pressed="false">En curso</button>
             <button type="button" class="chip" data-status="completed" aria-pressed="false">Listas</button>
             <!-- Por revisar (2026-10-05): briefs que esperan al equipo; antes había que buscarlos dentro de «En curso». -->
-            <button type="button" class="chip" data-status="review" aria-pressed="false">Por revisar</button>
+            <button type="button" class="chip" data-status="review" aria-pressed="false">Brief por revisar</button>
             <button type="button" class="chip" data-status="failed" aria-pressed="false">Fallidas</button>
             <button type="button" class="chip" data-status="approved" aria-pressed="false">Aprobadas</button>
           </div>
@@ -494,6 +519,15 @@
                 <a id="download-link" class="btn btn-primary" href="#"><span class="lbl-long">Descargar HTML</span><span class="lbl-short">Descargar</span></a>
                 <button id="copy-html-btn" type="button" class="btn btn-secondary"><span class="lbl-long">Copiar HTML</span><span class="lbl-short">Copiar</span></button>
               </div>
+              <!-- Exportar sin aprobar (auditoría de UX 2026-10-14, H-07): 0 de 64 newsletters aprobadas porque se descargaba
+                   sin pasar por la lista. No bloquea: propone aprobar antes y deja seguir. -->
+              <div class="form-warning export-gate" id="export-gate" role="status" hidden>
+                <p>Aún no está aprobada para envío.</p>
+                <div class="warning-actions">
+                  <button type="button" id="export-gate-approve" class="btn btn-secondary btn-sm"></button>
+                  <button type="button" id="export-gate-anyway" class="btn btn-ghost btn-sm"></button>
+                </div>
+              </div>
               <div class="export-row" id="export-row">
                 <label class="export-field">
                   <span class="label">Exportar para</span>
@@ -557,7 +591,7 @@
 
         <form id="approve-box" class="revise-box" hidden>
           <h3 class="panel-title">Aprobar para envío</h3>
-          <p class="hint">Marca lo que has comprobado. Solo una versión de cada newsletter puede estar aprobada: si otra lo estaba, deja de estarlo.</p>
+          <p class="hint">Lo que la revisión automática ya dio por bueno sale marcado («comprobado por Studio»); marca lo demás. Solo una versión de cada newsletter puede estar aprobada: si otra lo estaba, deja de estarlo.</p>
           <p class="approve-quality" id="approve-quality" hidden></p>
           <ul class="approve-checklist" id="approve-checklist"></ul>
           <div class="actions">
@@ -651,7 +685,7 @@
             <div class="segmented theme-toggle" role="radiogroup" aria-label="Modo de color de la vista previa">
               <label title="Como se ve con el modo claro"><input type="radio" name="previewTheme" value="light" checked /><span>Claro</span></label>
               <label title="Como Apple Mail o iOS Mail en modo oscuro: la pieza usa sus propios estilos oscuros"><input type="radio" name="previewTheme" value="dark" /><span>Oscuro</span></label>
-              <label title="Aproximación a Gmail y Outlook en móvil con modo oscuro: invierten los colores"><input type="radio" name="previewTheme" value="invert" /><span>Invertido</span></label>
+              <label title="Como lo pintan Gmail y Outlook en modo oscuro: invierten los colores"><input type="radio" name="previewTheme" value="invert" /><span>Invertido<span class="sr-only">: como lo pintan Gmail y Outlook en modo oscuro</span></span></label>
             </div>
             <label class="toggle" id="compare-toggle-wrap" hidden>
               <input type="checkbox" id="compare-toggle" />
@@ -683,6 +717,8 @@
           <div class="pick-banner te-banner" id="te-banner" hidden>
             <span>Editando el texto: haz clic en la pieza y escribe. <span class="hint" id="te-banner-count"></span></span>
             <span class="te-banner-actions">
+              <!-- Deshacer paso a paso (auditoría 2026-10-14, H-25): antes era todo o nada, y ⌘Z no hacía nada. -->
+              <button type="button" id="te-banner-undo" class="btn btn-ghost btn-sm" aria-keyshortcuts="Meta+Z Control+Z" disabled>Deshacer</button>
               <button type="button" id="te-banner-save" class="btn btn-primary btn-sm">Guardar</button>
               <button type="button" id="te-banner-cancel" class="btn btn-ghost btn-sm">Cancelar</button>
             </span>

@@ -24,6 +24,10 @@
   --field: #0a1030;
   --border: #262b59;
   --border-strong: #3a3f78;
+  /* Borde de los campos (auditoría UX 2026-10-14, WCAG 1.4.11): 3,47:1 sobre --field; --border-strong daba 1,9:1. */
+  --border-input: #5f66a3;
+  /* Anillo de foco por tema (auditoría 2026-10-14): el rosa da 2,1:1 sobre el fondo claro. */
+  --focus-ring: #fb73ff;
   --text: #edf3fc;
   --muted: #8991ae;
   --pink: #fb73ff;
@@ -96,7 +100,7 @@
   --radius-md: 10px;
   --radius: 12px;
   --radius-card: 22px;
-  --pill: 45px;
+  --pill: 999px; /* antes 45px y 999px mezclados (auditoría 2026-10-14): con alturas menores de 90 px se ven igual */
 }
 
 /* Tema claro (2026-09-28): sigue al sistema de cada persona, salvo que elija uno a mano en la
@@ -111,6 +115,8 @@
   --field: #ffffff;
   --border: #dcdeec;
   --border-strong: #b8bcd8;
+  --border-input: #858aad; /* 3,37:1 sobre blanco */
+  --focus-ring: #9c1f9a; /* 6,27:1 sobre blanco */
   --text: #0e1545;
   --muted: #5a6182;
   --pink-soft: #8e3f92;
@@ -155,6 +161,8 @@
   --field: #ffffff;
   --border: #dcdeec;
   --border-strong: #b8bcd8;
+  --border-input: #858aad; /* 3,37:1 sobre blanco */
+  --focus-ring: #9c1f9a; /* 6,27:1 sobre blanco */
   --text: #0e1545;
   --muted: #5a6182;
   --pink-soft: #8e3f92;
@@ -212,7 +220,7 @@ button:focus-visible,
 summary:focus-visible,
 .choice:has(input:focus-visible),
 .toggle:has(input:focus-visible) {
-  outline: 2px solid var(--pink);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 /* Títulos que reciben el foco por programa al cambiar de vista (lector de pantalla): sin recuadro. El de la ficha
@@ -365,7 +373,7 @@ input[type="text"], input[type="search"], input[type="url"], textarea, select {
   width: 100%;
   margin-top: 8px;
   padding: 12px 16px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-input);
   border-radius: var(--radius-md);
   background: var(--field);
   color: var(--text);
@@ -376,7 +384,7 @@ input[type="text"], input[type="search"], input[type="url"], textarea, select {
 input::placeholder, textarea::placeholder { color: var(--placeholder); }
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--pink);
+  border-color: var(--focus-ring);
   box-shadow: 0 0 0 3px rgba(251, 115, 255, 0.18);
 }
 select {
@@ -462,6 +470,7 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .status-queued { background: rgba(198, 187, 255, 0.12); color: var(--lilac); }
 .status-running { background: rgba(251, 115, 255, 0.14); color: var(--accent-text); }
 .status-completed { background: var(--success-tint); color: var(--success); }
+.status-approved { background: var(--success-tint); color: var(--success); box-shadow: inset 0 0 0 1px var(--success); }
 .status-blocked, .status-failed { background: var(--error-tint); color: var(--error); }
 .status-cancelled { background: rgba(137, 145, 174, 0.14); color: var(--muted); }
 .status-review { background: var(--warning-tint); color: var(--warning); }
@@ -566,7 +575,7 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 .login-card .btn { width: 100%; }
 .login-card .link-btn { display: block; margin: 16px auto 0; }
 .login-card .link-btn[hidden], .login-card .btn[hidden] { display: none; }
-.login-error { margin: 0 0 16px; color: var(--pink); font-size: var(--fs-small); }
+.login-error { margin: 0 0 16px; color: var(--error); font-size: var(--fs-small); }
 .needs-login body { overflow: hidden; }
 .requester-note strong { color: var(--text); font-weight: 600; }
 .draft-note {display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin: 0 0 20px; padding: 12px 16px; border: 1px dashed var(--border-strong); border-radius: var(--radius-md); font-size: var(--fs-ui); color: var(--muted); }
@@ -1038,7 +1047,7 @@ a.menu-item { text-decoration: none; box-sizing: border-box; }
 }
 .tabs label:hover span { color: var(--text); }
 .tabs input:checked + span { z-index: 1; border-color: var(--border); background: var(--field); color: var(--text); box-shadow: inset 0 2px 0 var(--pink); }
-.tabs input:focus-visible + span { outline: 2px solid var(--pink); outline-offset: 2px; }
+.tabs input:focus-visible + span { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .tab-panel { margin: 0; }
 .tab-panel textarea { margin-top: 0; }
 .kind-tabs:has(.tabs label:first-child input:checked) .tab-panel textarea { border-top-left-radius: 0; }
@@ -1069,7 +1078,7 @@ a.menu-item { text-decoration: none; box-sizing: border-box; }
 }
 .segmented label:hover span { color: var(--text); }
 .segmented input:checked + span { background: var(--selected-bg); color: var(--text); box-shadow: 0 1px 2px var(--shadow); }
-.segmented input:focus-visible + span { outline: 2px solid var(--pink); outline-offset: 2px; }
+.segmented input:focus-visible + span { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 .brief-body { padding: 4px 16px 16px; border-top: 1px solid var(--border); }
 #brief-text {
@@ -1100,7 +1109,7 @@ a.menu-item { text-decoration: none; box-sizing: border-box; }
 .quick-changes { margin: 12px 0 16px; }
 .quick-changes .chip { font-weight: 500; }
 .pick-banner {
-  position: sticky; top: 12px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  position: sticky; top: calc(var(--topbar-h, 64px) + 8px); z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: 0 0 12px; padding: 12px 16px; border: 1px solid var(--pink); border-radius: var(--radius-md);
   background: var(--surface-sticky); box-shadow: 0 12px 32px var(--shadow-strong); font-size: var(--fs-ui);
 }
@@ -1349,7 +1358,7 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 }
 .job-tab:hover { color: var(--text); }
 .job-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--pink); }
-.job-tab:focus-visible { outline: 2px solid var(--pink); outline-offset: -2px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.job-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
 .tab-badge:empty { display: none; }
 .tab-badge {
   min-width: 20px;
@@ -1688,6 +1697,8 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 .menu-links button { white-space: nowrap; letter-spacing: 3.5px; }
 /* El tema ya está en la cabecera en pantallas anchas: en el menú, solo en móvil. */
 @media (min-width: 641px) { .menu-theme-item { display: none; } }
+.menu-logout-item { display: none; }
+.has-session .menu-logout-item { display: list-item; }
 .menu-contact { margin: auto 0 0; display: grid; gap: 20px; }
 .menu-contact dt { font-size: var(--fs-lead); font-weight: 700; color: #fb73ff; }
 .menu-contact dd { margin: 4px 0 0; font-size: var(--fs-ui); }
@@ -1705,7 +1716,9 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 /* 14. Raíl vertical (como .column-left de la web): años en Barlow 12 px morado, línea rosa y redes en círculo.
    Fijo a la izquierda; solo cuando sobra sitio a los lados del contenido (880 px). */
 .side-rail { display: none; }
-@media (min-width: 1180px) {
+/* Desde 1600 px (auditoría 2026-10-14): con el contenido a 1440 px, a partir de 1180 el raíl se montaba encima del
+   formulario y del historial. */
+@media (min-width: 1600px) {
   .side-rail {
     position: fixed;
     left: 32px;
@@ -2204,7 +2217,7 @@ a.show-card:hover .show-face::after, a.show-card:focus-visible .show-face::after
   position: absolute; z-index: 2; left: 50%; top: calc(100% + 8px); transform: translateX(-50%); max-width: 100%;
   padding: 2px 8px; border-radius: var(--pill);
   background: rgba(8, 17, 54, 0.82); color: #edf3fc;
-  font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   opacity: 0; transition: opacity 0.25s ease 0.1s;
 }
 a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 1; }
@@ -2878,7 +2891,7 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .peek-logo img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
 .peek-colors { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .peek-colors li { position: relative; width: 34px; height: 34px; border-radius: 9px; background: var(--c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent), 0 4px 10px rgba(0, 0, 0, 0.18); }
-.peek-colors li span { position: absolute; left: 50%; bottom: calc(100% + 6px); translate: -50% 4px; padding: 2px 6px; border-radius: var(--pill); background: #0e1545; color: #ffffff; font-size: 10px; font-family: ui-monospace, monospace; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s, translate 0.15s; }
+.peek-colors li span { position: absolute; left: 50%; bottom: calc(100% + 6px); translate: -50% 4px; padding: 2px 6px; border-radius: var(--pill); background: #0e1545; color: #ffffff; font-size: var(--fs-caption); font-family: ui-monospace, monospace; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s, translate 0.15s; }
 .peek-colors li:hover span { opacity: 1; translate: -50% 0; }
 /* Al elegir la marca: el logo aparece y los colores caen uno detrás de otro, con un pequeño bote. */
 .brand-peek.is-in { animation: peek-in 0.35s ease-out both; }
@@ -2974,23 +2987,28 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
   position: absolute; left: 50%; bottom: 10%; translate: -50% 0;
   padding: 2px 8px; border-radius: 999px;
   background: rgba(20, 24, 63, 0.82); color: #ffffff;
-  font-style: normal; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; white-space: nowrap;
+  font-style: normal; font-size: var(--fs-caption); font-weight: 600; letter-spacing: 0.3px; white-space: nowrap;
 }
 .job-row .thumb-state, .now-thumb .thumb-state { display: none; }
 
 /* ---------- tarjeta de galería más rica (2026-10-07) ---------- */
+/* Insignia con texto desde la auditoría de 2026-10-14 (H-21): antes, un punto de 10 px solo distinguible por el color. */
 .g-dot {
   position: absolute; top: 8px; left: 8px; z-index: 2;
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--dot, #8f96c9);
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.3);
+  display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 64px);
+  padding: 2px 8px 2px 6px; border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.94); color: #14183f;
+  font-size: var(--fs-caption); font-weight: 600; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
+.g-dot::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--dot, #8f96c9); }
 .g-dot.is-ok { --dot: #2fbf71; }
 .g-dot.is-warn { --dot: #f4a524; }
-.g-dot.is-live { --dot: var(--pink); animation: g-dot-live 1.6s ease-out infinite; }
+.g-dot.is-live { --dot: var(--pink); }
+.g-dot.is-live::before { animation: g-dot-live 1.6s ease-out infinite; }
 .g-dot.is-bad { --dot: #e5484d; }
 .g-dot.is-ready { --dot: #5b8cff; }
-@keyframes g-dot-live { 0% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(251, 115, 255, 0.6); } 100% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 0 11px rgba(251, 115, 255, 0); } }
+@keyframes g-dot-live { 0% { box-shadow: 0 0 0 0 rgba(251, 115, 255, 0.6); } 100% { box-shadow: 0 0 0 6px rgba(251, 115, 255, 0); } }
 .g-score {
   position: absolute; top: 6px; right: 6px; z-index: 2;
   display: flex; align-items: center; justify-content: center;
@@ -3005,13 +3023,13 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .g-score.is-high { --arc: #2fbf71; }
 .g-score.is-mid { --arc: #f4a524; }
 .g-score.is-low { --arc: #e5484d; }
-.g-score b { position: relative; font-size: 11px; font-weight: 700; color: #ffffff; font-variant-numeric: tabular-nums; }
+.g-score b { position: relative; font-size: var(--fs-caption); font-weight: 700; color: #ffffff; font-variant-numeric: tabular-nums; }
 /* El arco se dibuja con la entrada en cascada de la galería (no en cada refresco). */
 .is-cascade .g-score .g-score-arc { animation: g-score-draw 1s cubic-bezier(0.22, 1, 0.36, 1) 0.25s both; }
 @keyframes g-score-draw { from { stroke-dasharray: 0 100; } }
 /* Con la pieza que se recorre (A), el anillo y el punto se quedan encima. */
 .g-card .thumb-scroll { z-index: 1; }
-@media (prefers-reduced-motion: reduce) { .g-dot.is-live, .is-cascade .g-score .g-score-arc { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .g-dot.is-live::before, .is-cascade .g-score .g-score-arc { animation: none; } }
 
 /* ---------- historial por días (2026-10-07) ---------- */
 /* «Hoy», «Ayer», «Esta semana», «Septiembre»…: un separador que se queda fijo bajo la cabecera mientras se recorre su
@@ -3055,7 +3073,7 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .art-card.is-mid { --tone: #f4a524; }
 .art-card.is-low { --tone: #e5484d; }
 .art-card-bars { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.art-card-bars li { display: grid; grid-template-columns: 96px 1fr 18px; align-items: center; gap: 12px; font-size: var(--fs-small); }
+.art-card-bars li { display: grid; grid-template-columns: 96px 1fr 30px; align-items: center; gap: 12px; font-size: var(--fs-small); }
 .art-card-bars li > span:first-child { color: var(--lilac); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .art-card-bars b { text-align: right; font-variant-numeric: tabular-nums; }
 .art-card-bar { position: relative; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
@@ -3188,7 +3206,7 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 .bh-best { position: relative; display: block; width: 84px; aspect-ratio: 3 / 4; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: #fff; box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25); transition: transform 0.3s var(--spring); }
 .bh-best:hover { transform: translateY(-4px) rotate(-2deg); }
 .bh-best img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
-.bh-best span { position: absolute; left: 4px; right: 4px; bottom: 4px; padding: 2px 4px; border-radius: 999px; background: rgba(8, 13, 46, 0.85); color: #fff; font-size: 9px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bh-best span { position: absolute; left: 4px; right: 4px; bottom: 4px; padding: 2px 4px; border-radius: 999px; background: rgba(8, 13, 46, 0.85); color: #fff; font-size: var(--fs-caption); font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hist-brand-head.is-in > * { animation: peek-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .hist-brand-head.is-in > *:nth-child(2) { animation-delay: 0.07s; }
 .hist-brand-head.is-in > *:nth-child(3) { animation-delay: 0.14s; }
@@ -3294,7 +3312,8 @@ span.bf-quote { display: block; margin: 0 0 12px; }
 .coach-list li small { font-weight: 400; color: var(--muted); }
 .coach-list li small::before { content: '· '; }
 .coach-mark { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border-strong); font-size: 10px; line-height: 1; color: #fff; }
-.coach-list li.is-done { border-style: solid; border-color: color-mix(in srgb, #2fbf71 45%, transparent); background: color-mix(in srgb, #2fbf71 12%, transparent); color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, #2fbf71 70%, transparent); }
+.coach-list li.is-done { border-style: solid; border-color: color-mix(in srgb, #2fbf71 45%, transparent); background: color-mix(in srgb, #2fbf71 12%, transparent); color: var(--text); }
+.coach-list li.is-done .coach-mark { color: var(--success); }
 .coach-list li.is-done .coach-mark { border-color: #2fbf71; background: #2fbf71; }
 .coach-list li.is-new { animation: coach-pop 0.4s var(--spring); }
 .coach-list li.is-new .coach-mark { animation: coach-check 0.4s var(--spring); }
@@ -3313,7 +3332,7 @@ span.bf-quote { display: block; margin: 0 0 12px; }
 .pin-pop { position: absolute; z-index: 3; width: 260px; margin-left: -10px; padding: 12px 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--panel, #0e1545); color: var(--text); box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45); pointer-events: auto; font-size: var(--fs-small); animation: peek-in 0.25s ease both; }
 .pin-pop p { margin: 0 0 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pin-pop .c-ref { display: block; margin: 0 0 6px; }
-.c-num { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-right: 6px; padding: 0 6px; border-radius: 10px 10px 10px 3px; background: var(--pink); color: #1b0420; font-size: 11px; font-weight: 800; }
+.c-num { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-right: 6px; padding: 0 6px; border-radius: 10px 10px 10px 3px; background: var(--pink); color: #1b0420; font-size: var(--fs-caption); font-weight: 800; }
 @media (prefers-reduced-motion: reduce) { .client-pin, .pin-pop { animation: none; } }
 
 /* ---------- ficha de marca como portada (2026-10-07) ---------- */
@@ -3395,7 +3414,7 @@ span.bf-quote { display: block; margin: 0 0 12px; }
 .search-combo input { width: 100%; }
 .search-suggest { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 40; max-height: 360px; overflow-y: auto; margin: 0; padding: 6px; list-style: none; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--panel); box-shadow: 0 18px 40px var(--shadow-strong, rgba(0, 0, 0, 0.45)); transform-origin: top; animation: ss-in 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes ss-in { from { opacity: 0; transform: translateY(-6px) scaleY(0.96); } }
-.ss-head { padding: 8px 12px 4px; font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--pink); }
+.ss-head { padding: 8px 12px 4px; font-family: 'Barlow', sans-serif; font-size: var(--fs-caption); font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--pink); }
 .ss-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; cursor: pointer; animation: peek-in 0.25s ease both; animation-delay: calc(var(--n, 0) * 25ms); }
 .ss-item:hover, .ss-item[aria-selected="true"] { background: var(--surface-row-hover, rgba(255, 255, 255, 0.06)); }
 .ss-item[aria-selected="true"] { box-shadow: inset 2px 0 0 var(--pink); }
@@ -3428,7 +3447,7 @@ span.bf-quote { display: block; margin: 0 0 12px; }
 .g-card:has(.g-stack) { position: relative; }
 .g-card:has(.g-stack):hover { z-index: 4; }
 .g-count { position: absolute; left: 6px; bottom: 6px; z-index: 2; display: inline-flex; align-items: baseline; gap: 2px; padding: 2px 8px; border-radius: 999px; background: rgba(8, 13, 46, 0.85); color: #fff; font-size: 12px; font-weight: 800; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3); }
-.g-count small { font-size: 10px; font-weight: 600; opacity: 0.8; }
+.g-count small { font-size: var(--fs-caption); font-weight: 600; opacity: 0.8; }
 @media (prefers-reduced-motion: reduce) { .g-back, .g-stack > .thumb { transition: none; } }
 
 /* ---------- títulos de sección (2026-10-08) ---------- */
@@ -3820,3 +3839,72 @@ html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(roo
 /* «Generar newsletter → · ~20 min»: la acción y lo que cuesta juntas, sin texto al lado del botón. Más fina que el
    rótulo, para que se lea como un dato y no como parte de la orden. */
 .go-eta { margin-left: 2px; font-weight: 500; opacity: 0.78; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- Auditoría de UX (2026-10-14) */
+/* H-18. Enlace para saltar al formulario: primer elemento con Tab, solo visible con el foco. */
+.skip-link { position: absolute; left: 16px; top: -100px; z-index: 100; padding: 12px 16px; border-radius: var(--radius-md); background: var(--panel); color: var(--text); font-weight: 600; text-decoration: none; box-shadow: 0 8px 24px var(--shadow-strong); }
+.skip-link:focus { top: 12px; }
+#app:focus { outline: none; }
+
+/* H-20. A 768 px la última carta del abanico acababa en x = 783 y la página se desplazaba de lado. */
+@media (max-width: 1179px) { .hero-showcase { overflow-x: clip; } }
+
+/* H-12. Texto secundario dentro de lo seleccionado: --muted sobre --selected-bg daba 3,27:1 en oscuro. */
+.brand-suggest li:hover .bs-note, .brand-suggest li[aria-selected="true"] .bs-note,
+:is(.chip.is-active, .chip[aria-pressed="true"], .seg-btn[aria-pressed="true"], .segmented input:checked + span) :is(small, .hint, .muted) { color: var(--lilac); }
+
+/* H-15. «Cerrar sesión» medía 85 × 20 px en móvil. */
+@media (max-width: 640px) {
+  #requester-change, .has-account #account-logout { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; }
+  .has-account #requester-change { display: none; }
+}
+
+/* H-02. La tarjeta de entrada, con el logo y una línea de qué es Studio; H-01, la contraseña dentro de la tarjeta. */
+.login-logo { display: block; width: 99px; height: 40px; margin: 0 auto 16px; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .login-logo { filter: brightness(0) opacity(0.88); } }
+:root[data-theme="light"] .login-logo { filter: brightness(0) opacity(0.88); }
+.login-lead { margin: 0 0 16px; color: var(--muted); }
+.login-pass { display: grid; gap: 12px; margin: 16px 0 0; text-align: left; }
+.login-pass label { margin: 0; }
+.login-pass input[type="password"] {
+  display: block; width: 100%; margin-top: 8px; padding: 12px 16px; border: 1px solid var(--border-input); border-radius: var(--radius-md);
+  background: var(--field); color: var(--text); font: inherit; font-size: var(--fs-body);
+}
+.login-pass input[type="password"]:focus { outline: none; border-color: var(--focus-ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 25%, transparent); }
+.login-pass-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+
+/* H-05. Aviso en línea junto al botón de generar (mismo patrón que «Hermes tendría que adivinar esto»). */
+.brand-cross { margin: 0 0 16px; }
+.brand-cross p { margin: 0 0 8px; }
+
+/* H-07. Lo que ya comprobó Studio en la lista de aprobación, y el aviso al exportar sin aprobar. */
+.check-auto { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: var(--pill); background: var(--success-tint); color: var(--success); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; }
+.export-gate { margin: 8px 0 0; }
+.export-gate p { margin: 0 0 8px; }
+
+/* H-23. Móvil: las 4 cifras y las 8 píldoras ocupaban una pantalla antes de la primera newsletter. Filtros en una fila que
+   se desplaza de lado y cifras más bajas. */
+@media (max-width: 640px) {
+  .chips-row { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px; }
+  .chips-row::-webkit-scrollbar { display: none; }
+  .chips-row .chips { flex-wrap: nowrap; margin: 12px 0; }
+  .chips-row .chips > *, .chips-row .chips-side > * { flex: none; }
+  .chips-row .chips-side { display: flex; gap: 8px; flex: none; }
+  .stats { gap: 8px; margin-bottom: 12px; }
+  .stats > .stat, .stats > .stat.is-zero { padding: 8px 12px; gap: 0; }
+  .stats > .stat.is-zero .stat-num, .stats > .stat .stat-num { font-size: 22px; }
+  .stats > .stat-quality .q-spark { display: none; }
+  /* Página de la newsletter: los dos controles de vista, compactos y a todo el ancho; sin «Los dos» ni «Libre». */
+  .preview-head { gap: 8px; margin-bottom: 12px; }
+  .preview-head .view-toggle label:has(input[value="both"], input[value="free"]) { display: none; }
+  .preview-head .segmented { display: flex; flex: 1 1 100%; padding: 2px; }
+  .preview-head .segmented label { flex: 1 1 0; text-align: center; }
+  .preview-head .segmented span { padding: 6px 8px; font-size: var(--fs-small); }
+  .job-request summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #job-brand-link { display: inline-block; }
+}
+
+/* H-08. Por qué Móvil puede salir «Correcto» en la revisión automática y bajo en la de arte. */
+.art-mobile-note { margin: 12px 0 0; padding: 12px 16px; border-left: 3px solid var(--warning); background: var(--warning-subtle); font-size: var(--fs-small); }
+.art-mobile-note p { margin: 0 0 8px; }
+.art-card-bars b small { font-weight: 500; opacity: 0.7; }
