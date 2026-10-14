@@ -237,8 +237,9 @@ el servicio se niega a arrancar en vez de quedar abierto por accidente (auditor�
 
 ## Desplegar en Railway
 
-Railway construye directamente desde `railway.json` (apunta a `studio/Dockerfile`, contexto en
-la raíz del repo) — no hace falta tocar nada del Dockerfile para esto. Pasos:
+Railway construye la imagen con `studio/Dockerfile`, con la raíz del repo como contexto. Desde el
+2026-10-14 eso no lo dice `railway.json` (Config as Code, que Railway retira el 2026-12-01), sino
+`.railway/railway.ts` (ver «Configuración del servicio» más abajo). Pasos:
 
 1. **Cuenta y login** (los tienes que hacer tú, no un asistente): crea una cuenta en
    [railway.app](https://railway.app) si no tienes una, y en esta terminal:
@@ -281,10 +282,37 @@ la raíz del repo) — no hace falta tocar nada del Dockerfile para esto. Pasos:
    ```bash
    git push deploy main
    ```
-   `railway up` **no sirve** en este servicio (comprobado el 2026-10-13): la subida directa no usa
-   `railway.json`, intenta construir con Railpack en lugar de con `studio/Dockerfile` y falla con
-   «No start command detected». El despliegue anterior sigue en pie cuando pasa, pero no se publica
-   nada. El push a `origin` (`GoyoFeeb/creas-javi`) tampoco despliega: es solo la copia del código.
+   No uses `railway up`: el 2026-10-13 falló con «No start command detected» porque construía con
+   Railpack en lugar de con `studio/Dockerfile` (el despliegue anterior siguió en pie, pero no se
+   publicó nada). Desde la migración del 2026-10-14 el servicio ya tiene el Dockerfile en su
+   configuración, pero `railway up` no se ha vuelto a probar. El push a `origin` (`GoyoFeeb/creas-javi`)
+   tampoco despliega: es solo la copia del código.
+
+### Configuración del servicio (`.railway/railway.ts`)
+
+La configuración del servicio en Railway está escrita en `.railway/railway.ts` (Infrastructure as Code):
+repositorio y rama de los que despliega, construcción con `studio/Dockerfile`, hasta 3 reintentos si se
+cae (`ON_FAILURE`, el valor por defecto de Railway, por eso no aparece en el archivo), una réplica en
+`iad` y el volumen `hermes-studio-volume` montado en `/data`. Las variables **no** se gestionan desde
+ahí (`variables: { managed: false }`): siguen solo en Railway, y los secretos no entran en el repo.
+
+El archivo usa el paquete npm `railway` (dependencia de desarrollo; `npm install` lo instala). **El push
+no lo aplica**: Railway no lee `.railway/` al desplegar. Para cambiar la configuración:
+
+```bash
+railway config plan          # enseña qué cambiaría; no toca nada
+railway config apply --yes   # lo aplica (y lanza un despliegue)
+```
+
+Revisa el plan antes de aplicar: si propone borrar algo que no esperabas, para. Si el plan enseña
+siempre la misma diferencia aunque ya se haya aplicado, suele ser un valor por defecto que Railway no
+guarda (pasó con `restartPolicyType: "ON_FAILURE"`): quítalo del archivo.
+
+Cómo se hizo la migración (2026-10-14), por si hay que repetirla en otro servicio: `railway config migrate`
+no encontraba nada porque el servicio no tenía guardada la ruta de `railway.json` (Railway lo leía por
+estar en la raíz) y Railway ya no deja guardarla. Se generó el archivo con `railway config pull
+--variables unmanaged`, se le añadieron a mano el Dockerfile y los reintentos, se comprobó con
+`railway config plan`, se aplicó y después se borró `railway.json`.
 
 ## Publicar un cambio (Railway + Vercel)
 
