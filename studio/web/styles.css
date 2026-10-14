@@ -3716,12 +3716,13 @@ html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(roo
 }
 
 /* ---------- cabecera translúcida ---------- */
-/* Al bajar, el contenido pasa desenfocado por debajo en vez de quedar tras una barra casi opaca. El cristal aparece
+/* Al bajar, el contenido pasa desenfocado por debajo en vez de quedar tras una barra casi opaca. Al 68 % se veía
+   demasiado lo de detrás (2026-10-14, en producción): 82 % en oscuro y 85 % en claro, con el mismo desenfoque. El cristal aparece
    fundiéndose (antes el desenfoque salía de golpe) y, en lugar de la raya de 1 px, una sombra corta bajo la barra.
    Los rótulos de día del historial («Hoy», «Esta semana»), pegados a la cabecera, llevan el mismo cristal. */
-:root { --topbar-bg: color-mix(in srgb, var(--bg) 68%, transparent); }
-@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --topbar-bg: color-mix(in srgb, var(--bg) 70%, transparent); } }
-:root[data-theme="light"] { --topbar-bg: color-mix(in srgb, var(--bg) 70%, transparent); }
+:root { --topbar-bg: color-mix(in srgb, var(--bg) 82%, transparent); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --topbar-bg: color-mix(in srgb, var(--bg) 85%, transparent); } }
+:root[data-theme="light"] { --topbar-bg: color-mix(in srgb, var(--bg) 85%, transparent); }
 .topbar::before, .topbar.is-scrolled::before {
   background: var(--topbar-bg);
   -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
