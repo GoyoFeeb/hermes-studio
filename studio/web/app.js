@@ -1017,6 +1017,18 @@ function rubberband(overshoot, dimension, constant = 0.55) {
   return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
 }
 
+/** Vibración corta en los momentos que lo merecen (2026-10-14): se aprueba una pieza, falla una validación, se suelta un
+ *  gesto que hace algo. Donde no hay vibración (ordenadores, iPhone), no pasa nada. */
+function haptic(pattern = 10) {
+  // Sin un toque previo de la persona el navegador la bloquea y deja un error en la consola: ni se intenta.
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+  try {
+    navigator.vibrate?.(pattern);
+  } catch {
+    // sin vibración
+  }
+}
+
 /** Arrastre en un eje, pegado al puntero. Empieza tras 10 px (antes puede ser un clic, o un scroll si se va por el otro
  *  eje) y desde ahí cuenta el desplazamiento, sin salto. Si `grabNow()` dice que el elemento ya se está moviendo, se
  *  coge al instante. `onRelease` recibe la velocidad de los últimos 100 ms (0 si el dedo se paró antes de soltar). */
@@ -1193,6 +1205,10 @@ const IMAGE_LABELS = { official: 'Assets oficiales', ai: 'Imágenes con IA' };
 
 const HISTORY_PAGE = 20;
 const historyState = { jobs: [], query: '', brand: '', status: '', mine: false, archived: false, shown: HISTORY_PAGE, view: 'list' };
+/** Filas que se están deslizando o tienen su botón a la vista (2026-10-14): mientras haya alguna, el historial no se
+ *  repinta (la fila desaparecería bajo el dedo); se repinta al soltarlas. */
+const swipeBusy = new Set();
+let swipePending = false;
 try {
   historyState.view = localStorage.getItem('historyView') === 'gallery' ? 'gallery' : 'list';
 } catch {
@@ -2093,6 +2109,7 @@ function shake(el) {
   el.classList.remove('is-shake');
   void el.offsetWidth;
   el.classList.add('is-shake');
+  haptic([12, 50, 12]);
   setTimeout(() => el.classList.remove('is-shake'), 600);
 }
 new MutationObserver((records) => {
@@ -2600,6 +2617,7 @@ function stampApproval() {
         b.classList.remove('is-stamp');
         void b.offsetWidth;
         b.classList.add('is-stamp');
+        haptic(16);
       }
     }
   }, 150);
@@ -2859,6 +2877,10 @@ document.addEventListener(
 );
 
 function renderHistory() {
+  if (swipeBusy.size) {
+    swipePending = true;
+    return;
+  }
   renderMineChip();
   const info = familyInfo(historyState.jobs);
   retriedIds = new Set(historyState.jobs.map((j) => j.retryOf).filter(Boolean));
@@ -3423,6 +3445,172 @@ document.getElementById('history-list').addEventListener(
   },
   true
 );
+// ---------------------------------------------------------------- deslizar una fila en el móvil (2026-10-14)
+// Como en Mail: hacia la izquierda, archivar (o recuperar, en «Archivadas»); hacia la derecha, descargar. La fila sigue al
+// dedo desde donde se cogió; al soltar decide con el impulso: la acción entera, dejar el botón a la vista o volver. Pasada
+// la mitad, el botón cambia de color y vibra: soltar ahí lo hace. Solo con pantalla táctil y en la vista de lista; las
+// mismas acciones siguen en la fila y en «⋯» para el ordenador y el teclado.
+const SWIPE_BTN = 96;
+const coarsePointer = window.matchMedia('(pointer: coarse)');
+let swipeOpen = null; // la fila con su botón a la vista: { row, close }
+function swipeActions(row) {
+  const arch = row.querySelector(':scope > .row-actions [data-archive], :scope > .row-actions [data-unarchive]');
+  const dl = row.querySelector(':scope > .row-actions a[href*="download=1"]');
+  return {
+    toLeft: arch && { label: arch.dataset.archive ? 'Archivar' : 'Recuperar', id: arch.dataset.archive || arch.dataset.unarchive, archived: !!arch.dataset.archive },
+    toRight: dl && { label: 'Descargar', href: dl.getAttribute('href') },
+  };
+}
+function swipeRow(row) {
+  if (row.dataset.swipe) return;
+  row.dataset.swipe = '1';
+  let under = null;
+  let acts = null;
+  let grab = 0;
+  let crossed = false;
+  let committed = false;
+  const width = () => row.offsetWidth || 1;
+  const removeUnder = () => {
+    under?.remove();
+    under = null;
+    row.style.transition = '';
+    crossed = false;
+  };
+  const release = () => {
+    swipeBusy.delete(row);
+    if (!swipeBusy.size && swipePending) {
+      swipePending = false;
+      renderHistory();
+    }
+  };
+  const paint = (x) => {
+    row.style.transform = x ? `translate3d(${x.toFixed(1)}px, 0, 0)` : '';
+    if (!under) return;
+    const side = x < 0 ? 'arch' : x > 0 ? 'dl' : '';
+    under.dataset.side = side;
+    const btn = side && under.querySelector(`.swipe-${side}`);
+    if (btn) btn.style.width = `${Math.abs(x).toFixed(1)}px`;
+    // Pasada la mitad, soltar hace la acción: se avisa con el color y una vibración, al cruzar y no después.
+    const over = !committed && Math.abs(x) > width() / 2 && !!(x < 0 ? acts.toLeft : acts.toRight);
+    if (over !== crossed) {
+      crossed = over;
+      under.classList.toggle('is-commit', over);
+      if (over) haptic(8);
+    }
+  };
+  const spring = makeSpring({
+    response: 0.32,
+    onUpdate: paint,
+    onRest: (x) => {
+      if (x !== 0) return;
+      removeUnder();
+      if (swipeOpen?.row === row) swipeOpen = null;
+      release();
+    },
+  });
+  const close = () => spring.to(0);
+  const commit = (dir, velocity = 0) => {
+    if (committed) return;
+    committed = true;
+    haptic(12);
+    if (dir > 0) {
+      // Descargar: la página no cambia; la fila vuelve a su sitio.
+      location.href = acts.toRight.href;
+      committed = false;
+      spring.to(0, { velocity, damping: 0.8 });
+      return;
+    }
+    // Archivar: la fila sale por la izquierda, por donde se la empujó, y el aviso ofrece deshacerlo.
+    spring.to(-width() - 24, { velocity, response: 0.28 });
+    const { id, archived } = acts.toLeft;
+    setArchived(id, archived).then((ok) => {
+      if (ok && archived) {
+        showToast('Archivada con todas sus versiones.', 'info', {
+          label: 'Deshacer',
+          run: () => setArchived(id, false).then((back) => back && loadHistory()),
+        });
+      }
+      swipeBusy.delete(row);
+      swipePending = false;
+      loadHistory(); // se va de la lista; si falló, vuelve a salir
+    });
+  };
+  const makeUnder = () => {
+    if (under) return;
+    under = document.createElement('li');
+    under.className = 'swipe-under';
+    under.setAttribute('aria-hidden', 'true');
+    under.innerHTML =
+      (acts.toRight ? `<button type="button" class="swipe-btn swipe-dl" tabindex="-1"><span>${acts.toRight.label}</span></button>` : '') +
+      (acts.toLeft ? `<button type="button" class="swipe-btn swipe-arch" tabindex="-1"><span>${acts.toLeft.label}</span></button>` : '');
+    Object.assign(under.style, { top: `${row.offsetTop}px`, left: `${row.offsetLeft}px`, width: `${row.offsetWidth}px`, height: `${row.offsetHeight}px` });
+    row.before(under);
+    under.querySelector('.swipe-dl')?.addEventListener('click', () => commit(1));
+    under.querySelector('.swipe-arch')?.addEventListener('click', () => commit(-1));
+  };
+  trackDrag(row, {
+    axis: 'x',
+    canStart: (e) => {
+      if (!coarsePointer.matches || historyState.view !== 'list' || committed || e.target.closest('.row-menu, .family-list')) return false;
+      acts = swipeActions(row);
+      return !!(acts.toLeft || acts.toRight);
+    },
+    grabNow: () => spring.moving,
+    onGrab: () => {
+      if (swipeOpen && swipeOpen.row !== row) swipeOpen.close();
+      swipeBusy.add(row);
+      row.style.transition = 'none';
+      makeUnder();
+      grab = spring.value;
+      spring.set(grab);
+    },
+    onMove: (d) => {
+      let x = grab + d;
+      // Hacia un lado sin acción: cede poco y vuelve.
+      if ((x < 0 && !acts.toLeft) || (x > 0 && !acts.toRight)) x = Math.sign(x) * rubberband(Math.abs(x), 60);
+      spring.set(x);
+    },
+    onRelease: (velocity) => {
+      const x = spring.value;
+      const end = x + projectMomentum(velocity);
+      const dir = Math.sign(x);
+      const has = dir < 0 ? acts.toLeft : dir > 0 ? acts.toRight : null;
+      if (has && Math.sign(end) === dir && Math.abs(end) > width() / 2 && Math.abs(x) > SWIPE_BTN / 2) return commit(dir, velocity);
+      if (has && Math.sign(end) === dir && Math.abs(end) > SWIPE_BTN * 0.6) {
+        spring.to(dir * SWIPE_BTN, { velocity, damping: 0.8 });
+        swipeOpen = { row, close };
+        return;
+      }
+      spring.to(0, { velocity, damping: Math.abs(velocity) > 300 ? 0.8 : 1 });
+    },
+  });
+}
+(function swipeRows() {
+  const list = document.getElementById('history-list');
+  const attach = () => list.querySelectorAll(':scope > li.job-row').forEach(swipeRow);
+  new MutationObserver(attach).observe(list, { childList: true });
+  attach();
+  // Con un botón a la vista, tocar fuera o bajar lo cierra; tocar la propia fila también (no la abre).
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (swipeOpen && !swipeOpen.row.contains(e.target) && !e.target.closest('.swipe-under')) swipeOpen.close();
+    },
+    true
+  );
+  list.addEventListener(
+    'click',
+    (e) => {
+      if (!swipeOpen || !swipeOpen.row.contains(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      swipeOpen.close();
+    },
+    true
+  );
+  window.addEventListener('scroll', () => swipeOpen?.close(), { passive: true });
+})();
+
 document.getElementById('history-list').addEventListener('click', (e) => {
   const arch = e.target.closest('[data-archive], [data-unarchive]');
   if (arch) {
@@ -3653,6 +3841,7 @@ trackDrag(sideMenu, {
   // El destino sale de dónde acabaría con ese impulso, no de dónde se soltó.
   onRelease: (velocity) => {
     const closes = menuSpring.value + projectMomentum(velocity) > menuWidth() / 2;
+    if (closes) haptic();
     setMenu(!closes, false, velocity, true);
   },
 });
@@ -8187,16 +8376,22 @@ document.getElementById('theme-btn').addEventListener('click', (e) => {
   };
   // Cambio de tema con onda (2026-10-06): el nuevo tema se extiende en círculo desde el botón (View Transitions).
   if (document.startViewTransition && motionOk()) {
+    // vt-theme (2026-10-14): aparta la animación de cambio de página, que también se aplicaba aquí y hacía subir y
+    // desvanecerse el tema anterior debajo del círculo.
+    const root = document.documentElement;
+    root.classList.add('vt-theme');
     const r = e.currentTarget.getBoundingClientRect();
     const x = r.left + r.width / 2;
     const y = r.top + r.height / 2;
     const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
-    document.startViewTransition(apply).ready.then(() => {
-      document.documentElement.animate(
+    const t = document.startViewTransition(apply);
+    t.ready.then(() => {
+      root.animate(
         { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
         { duration: 650, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', pseudoElement: '::view-transition-new(root)' }
       );
     }).catch(() => undefined);
+    t.finished.catch(() => undefined).then(() => root.classList.remove('vt-theme'));
   } else apply();
   try {
     if (next === 'auto') localStorage.removeItem('studioTheme');
