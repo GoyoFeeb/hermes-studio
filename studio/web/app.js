@@ -2191,8 +2191,8 @@ function celebrateDone(ids) {
       row.classList.add('just-done');
       setTimeout(() => row.classList.remove('just-done'), 2600);
     }
-    // La etiqueta pasa de «Trabajando» a «Lista» con un giro de carta.
-    row?.querySelector('.status-badge')?.classList.add('flip-in');
+    // La etiqueta pasa de «Trabajando» a la calidad de la pieza (o a «Lista») con un giro de carta.
+    row?.querySelector('.status-badge, .row-score')?.classList.add('flip-in');
     const card = document.querySelector(`#hero-showcase a[href="${href}"]`);
     if (card) {
       card.classList.add('is-new');
@@ -2957,11 +2957,21 @@ function renderHistory() {
         : busy
         ? ''
         : `<button type="button" class="menu-item" data-archive="${escapeHtml(j.id)}">Archivar<small>Con todas sus versiones; no se borra</small></button>`;
-      const meta = approved + version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j), j.art ? `calidad ${j.art.pct} %` : null, clientLabel(j)]
+      // La calidad ya no va en esta línea (2026-10-14): sale grande, donde iba «Lista» (ver `badge`).
+      const meta = approved + version + [when, j.requesterName, jobKindLabel(j), IMAGE_LABELS[j.imageMode], durationLabel(j), clientLabel(j)]
         .filter(Boolean)
         .map(escapeHtml)
         .join(' · ');
       const running = j.status === 'running' && j.pct != null;
+      // Estado solo cuando no es lo normal (2026-10-14): casi todas las filas decían «Lista» y no informaba. En las
+      // terminadas, en su sitio va la calidad, con el color del aro de la galería; sin puntuar, nada a la vista.
+      const score = j.status === 'completed' && j.art ? Math.max(0, Math.min(100, Math.round(j.art.pct))) : null;
+      const badge =
+        j.status !== 'completed'
+          ? `<span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>`
+          : score !== null
+          ? `<span class="row-score is-${score >= 76 ? 'high' : score >= 60 ? 'mid' : 'low'}" title="Calidad de la pieza">${score} %<span class="sr-only"> de calidad</span></span>`
+          : '<span class="sr-only">Lista</span>';
       const initials = String(j.clientName || '?')
         .split(/\s+/)
         .filter(Boolean)
@@ -2996,7 +3006,7 @@ function renderHistory() {
       return `${sepBefore.get(gi) || ''}<li class="job-row">
           ${thumb}
           <a class="name" href="?job=${id}">${escapeHtml(j.clientName)}${j.familyTitle ? `<span class="row-title">${escapeHtml(j.familyTitle)}</span>` : ''}</a>
-          <span class="status-badge status-${escapeHtml(j.status)}">${escapeHtml(statusLabel(j))}</span>
+          ${badge}
           <p class="meta">${meta}</p>
           <div class="row-actions">${jobActions(j)}${rowMenu(j, archiveBtn)}</div>
           ${running ? `<div class="mini-track" aria-hidden="true"><div style="width:${Number(j.pct) || 0}%"></div></div>` : ''}

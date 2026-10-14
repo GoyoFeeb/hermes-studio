@@ -3758,3 +3758,52 @@ html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(roo
 @media (max-width: 640px) { .row-menu[open] > .row-menu-pop { transform-origin: top left; } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.94); } }
 @media (prefers-reduced-motion: reduce) { .row-menu[open] > .row-menu-pop { animation: vt-fade-in 0.15s ease both; } }
+
+/* ================================================================ Bloque 3: historial (2026-10-14) =========== */
+
+/* ---------- estado solo cuando no es lo normal; en su sitio, la calidad ---------- */
+/* «Lista» se repetía en casi todas las filas y no decía nada. Ahora la etiqueta sale solo en lo que pide atención (en
+   curso, por revisar, fallida, cancelada) y en las terminadas va la calidad, el dato que más se mira, con los colores
+   del aro de la galería. */
+.job-row > .row-score { grid-column: 3; grid-row: 1; justify-self: end; }
+.row-score {
+  display: inline-flex; align-items: baseline; padding: 2px 10px; border-radius: var(--pill);
+  font-size: var(--fs-small); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, transparent);
+}
+.row-score.is-high { --tone: #2fbf71; }
+.row-score.is-mid { --tone: #f4a524; }
+.row-score.is-low { --tone: #e5484d; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .row-score.is-high { --tone: #0b7a4b; } :root:not([data-theme="dark"]) .row-score.is-mid { --tone: #9a5b00; } :root:not([data-theme="dark"]) .row-score.is-low { --tone: #b0223b; } }
+:root[data-theme="light"] .row-score.is-high { --tone: #0b7a4b; }
+:root[data-theme="light"] .row-score.is-mid { --tone: #9a5b00; }
+:root[data-theme="light"] .row-score.is-low { --tone: #b0223b; }
+.row-score.flip-in { animation: badge-flip 0.5s var(--spring) both; }
+@media (prefers-reduced-motion: reduce) { .row-score.flip-in { animation: none; } }
+
+/* ---------- la fila entera abre la newsletter ---------- */
+/* Como ya pasaba en el móvil: el nombre cubre toda la tarjeta, así que sobra «Ver». «Descargar» queda en su sitio pero
+   solo aparece al pasar el ratón por la fila o al llegar con el tabulador; en pantallas táctiles, a la vista. Lo que
+   pide hacer algo («Revisar el brief», «Reintentar») sigue siempre a la vista. */
+.job-row .name::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.job-row .row-actions, .job-row .thumb, .job-row [data-family], .job-row .family-list, .job-row .err a { position: relative; z-index: 1; }
+.job-row > .row-actions .row-view { display: none; }
+@media (hover: hover) {
+  .job-row > .row-actions .row-download { opacity: 0; transition: opacity 0.15s; }
+  .job-row:hover > .row-actions .row-download, .job-row:focus-within > .row-actions .row-download { opacity: 1; }
+}
+
+/* ---------- cifras a cero, en segundo plano ---------- */
+/* Siguen del mismo tamaño que las demás (decisión del 2026-10-08), pero sin el relleno de tarjeta: borde discontinuo y
+   en gris, para que «0 en curso» no pese lo mismo que «64 newsletters». Al elegirla como filtro, vuelve a ser tarjeta. */
+.stats > .stat.is-zero:not(.is-active) { opacity: 1; background: transparent; border: 1px dashed var(--border-strong); box-shadow: none; }
+.stats > .stat.is-zero:not(.is-active) .stat-num, .stats > .stat.is-zero:not(.is-active) .stat-label { color: var(--muted); }
+.stats > .stat.is-zero:not(.is-active):hover { border-color: var(--pink); }
+
+/* ---------- menú «⋯» en el móvil (2026-10-14) ---------- */
+/* Cuando los botones de la fila van a la derecha, bajo el estado (ver «Historial en móvil»), el menú se abría hacia la
+   derecha (left: 0) y quedaba fuera de la pantalla: en esas filas se abre hacia la izquierda, desde su botón. */
+@media (max-width: 640px) {
+  .job-row:not(:has(> .mini-track)) > .row-actions:is(:has(> .row-view + .row-menu), :has(> .row-view + .row-download + .row-menu)) .row-menu-pop { left: auto; right: 0; }
+  .job-row:not(:has(> .mini-track)) > .row-actions:is(:has(> .row-view + .row-menu), :has(> .row-view + .row-download + .row-menu)) .row-menu[open] > .row-menu-pop { transform-origin: top right; }
+}
