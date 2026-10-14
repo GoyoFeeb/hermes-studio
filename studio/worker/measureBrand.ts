@@ -31,7 +31,7 @@ export async function hasVisiblePixels(src: string | Buffer): Promise<boolean> {
 }
 
 export interface MeasuredIdentity {
-  version: 1;
+  version: number;
   measuredAt: string;
   url: string;
   title: string;
@@ -73,7 +73,8 @@ export function hasBrandPack(root: string, slug: string): boolean {
 export function needsMeasure(root: string, slug: string): boolean {
   if (!slug || hasBrandPack(root, slug)) return false;
   const m = readMeasuredIdentity(root, slug);
-  return !m || Date.now() - Date.parse(m.measuredAt) > MEASURE_MAX_AGE_DAYS * 86400000;
+  // Versión 1: botón medido sobre muestras de color e iconos (radio en %, CTAs ovalados). Se vuelve a medir.
+  return !m || m.version !== 2 || Date.now() - Date.parse(m.measuredAt) > MEASURE_MAX_AGE_DAYS * 86400000;
 }
 
 function norm(t: string): string {
@@ -139,13 +140,26 @@ const EXTRACT_JS = `function () {
   var body = vk ? { family: vk.split('|')[0], size: vk.split('|')[1], color: vk.split('|')[2] } : { family: bs.fontFamily, size: bs.fontSize, color: hex(parse(bs.color) || { r: 0, g: 0, b: 0 }) };
   var bg = parse(getComputedStyle(document.body).backgroundColor);
   var background = bg && bg.a > 0.5 ? hex(bg) : '#ffffff';
-  // Botones: el estilo más repetido entre los que tienen fondo de color.
+  // Botones: el estilo más repetido entre los que tienen fondo de color. Solo botones con texto, más anchos que altos
+  // y con texto legible sobre su fondo: las muestras de color, flechas e iconos redondos no son el botón de la marca
+  // (Alo, 2026-10-14: las muestras de color dieron «fondo burdeos, texto negro, radio 50%» y CTAs ovalados).
   var buttons = {};
   document.querySelectorAll('button, a[class*="btn"], a[class*="button"], a[class*="Button"], [role="button"], input[type="submit"]').forEach(function (b) {
     if (!vis(b)) return;
+    var r = b.getBoundingClientRect();
+    var label = (b.textContent || b.value || '').trim();
+    if (label.length < 2 || r.height < 24 || r.width < 60 || r.width < r.height * 1.5) return;
     var cs = getComputedStyle(b), c = parse(cs.backgroundColor);
     if (!c || c.a < 0.5) return;
-    var key = hex(c) + '|' + hex(parse(cs.color) || { r: 0, g: 0, b: 0 }) + '|' + cs.borderRadius + '|' + cs.textTransform;
+    var t = parse(cs.color) || { r: 0, g: 0, b: 0 };
+    if (Math.abs(lum(c) - lum(t)) < 0.35) return;
+    // Radio en px (nunca en %: en un botón ancho un porcentaje da un óvalo). Esquinas distintas = parte de un grupo.
+    var corners = [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius];
+    if (corners.some(function (x) { return x !== corners[0]; })) return;
+    var rad = parseFloat(corners[0]) || 0;
+    if (/%/.test(corners[0])) rad = rad / 100 * Math.min(r.width, r.height);
+    var radius = rad >= r.height / 2 - 1 ? '999px' : Math.round(rad) + 'px';
+    var key = hex(c) + '|' + hex(t) + '|' + radius + '|' + cs.textTransform;
     buttons[key] = (buttons[key] || 0) + 1;
   });
   var bk = Object.keys(buttons).sort(function (a, b) { return buttons[b] - buttons[a]; })[0];
@@ -261,7 +275,7 @@ export async function measureBrand(root: string, slug: string, name: string, giv
         const used = [x.headings?.family, x.body?.family].filter((f): f is string => !!f).map(cleanFamily);
         const families = [...new Set([...used, ...x.fonts])].filter((f) => f && !/^(sans-serif|serif|system-ui|-apple-system|arial|helvetica)$/i.test(f));
         const identity: MeasuredIdentity = {
-          version: 1,
+          version: 2,
           measuredAt: new Date().toISOString(),
           url: page.url(),
           title: title.slice(0, 200),
@@ -289,6 +303,14 @@ export async function measureBrand(root: string, slug: string, name: string, giv
   }
 }
 
+/** Radio del botón para el encargo, siempre en px. Las medidas antiguas en % o con esquinas distintas salían de
+ *  muestras de color o botones agrupados, no del CTA: se descartan. */
+function buttonRadius(radius: string): string {
+  if (/%/.test(radius) || radius.trim().includes(' ')) return 'no medido con fiabilidad (míralo en la captura de la web y ponlo en px, nunca en %)';
+  const px = parseFloat(radius) || 0;
+  return px >= 100 ? '999px (píldora)' : `${Math.round(px)}px`;
+}
+
 /** Nota para el brief y el encargo: la identidad ya medida, para que Hermes no la vuelva a buscar. */
 export function identityNote(m: MeasuredIdentity): string {
   const head = m.headings ? cleanFamily(m.headings.family) : null;
@@ -304,7 +326,7 @@ export function identityNote(m: MeasuredIdentity): string {
       ? `- Se pueden cargar en el email (Google Fonts): ${embeddable.join(', ')}${m.fontLinks[0] ? ` — <link href="${m.fontLinks[0]}">` : ''}.`
       : '- La fuente de la web no está en Google Fonts: busca la alternativa web más parecida y dilo en notas.md.',
     `- Fondo ${m.background}, texto ${m.text}.`,
-    m.button ? `- Botón: fondo ${m.button.background}, texto ${m.button.color}, radio ${m.button.radius}${m.button.transform !== 'none' ? `, ${m.button.transform}` : ''}.` : '',
+    m.button ? `- Botón: fondo ${m.button.background}, texto ${m.button.color}, radio ${buttonRadius(m.button.radius)}${m.button.transform !== 'none' ? `, ${m.button.transform}` : ''}.` : '',
     m.palette.length ? `- Colores de marca por superficie: ${m.palette.join(', ')}.` : '',
     m.logo ? `- Logo oficial ya descargado en PNG: ${m.logo} (Studio lo copia a la carpeta de la newsletter como logo-medido.png).` : '- No se encontró el logo en la cabecera: descárgalo tú (PNG).',
   ]

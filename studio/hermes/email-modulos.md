@@ -31,6 +31,10 @@ suman justo el hueco, el espacio en blanco entre los dos `<div>` las apila tambi
 
 ## Botón a prueba de Outlook (VML) con los colores de botón de la marca
 
+`border-radius` siempre en px, nunca en %: en un botón más ancho que alto un porcentaje dibuja un óvalo. Para un
+botón píldora usa `999px` (y `arcsize="50%"` en el VML, que ahí sí es correcto). El `arcsize` sale del radio de la
+marca: radio ÷ alto del botón (4px en 52px ≈ 8%).
+
 ```html
 <tr><td class="px btn" align="center" style="padding:8px 40px 48px;">
   <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="[URL]" style="height:52px; v-text-anchor:middle; width:260px;" arcsize="10%" stroke="f" fillcolor="[FONDO BOTÓN]"><w:anchorlock/><center style="color:[TEXTO BOTÓN]; font-family:Arial, sans-serif; font-size:16px; font-weight:bold;">[TEXTO DEL BOTÓN]</center></v:roundrect><![endif]-->
