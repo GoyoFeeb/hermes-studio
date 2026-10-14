@@ -2366,7 +2366,13 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 }
 
 /* ---------- fondo de newsletters flotando e interacciones (2026-10-06) ---------- */
-.bg-float { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; transform: translateY(var(--py, 0px)); }
+.bg-float { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+/* Tres capas de profundidad (2026-10-14): cada una con su parallax (--py, desde app.js). */
+.bg-layer { position: absolute; inset: 0; transform: translateY(var(--py, 0px)); }
+/* Fondo: desenfocada y apagada. El desenfoque va en cada tarjeta (capa propia) para no repintar la pantalla entera. */
+.bg-layer-0 .bg-card { opacity: 0.28; filter: blur(2.5px); will-change: transform; }
+/* Delante: más presente y con el borde algo más marcado. */
+.bg-layer-2 .bg-card { opacity: 0.62; border-color: rgba(198, 187, 255, 0.22); }
 .bg-card {
   position: absolute;
   left: var(--x);
@@ -2394,6 +2400,8 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 }
 :root[data-theme="light"] .bg-card { border-color: rgba(70, 58, 140, 0.14); background: rgba(70, 58, 140, 0.03); }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .bg-card { border-color: rgba(70, 58, 140, 0.14); background: rgba(70, 58, 140, 0.03); } }
+:root[data-theme="light"] .bg-layer-2 .bg-card { border-color: rgba(70, 58, 140, 0.2); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .bg-layer-2 .bg-card { border-color: rgba(70, 58, 140, 0.2); } }
 
 /* Tarjetas que se inclinan hacia el ratón, con brillo. */
 #brief-form.card, .now-link, .g-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }

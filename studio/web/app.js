@@ -2297,6 +2297,9 @@ document.querySelectorAll('.segmented').forEach((seg) => {
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
   // Fondo de newsletters flotando: 12 siluetas en posiciones y ritmos fijos (sin azar: la misma página cada vez).
+  // Profundidad (2026-10-14): repartidas en tres capas, como los materiales de Apple. Al fondo, pequeñas, desenfocadas,
+  // apagadas y lentas; en medio, como antes; delante, algo más grandes, nítidas y rápidas. Con el scroll cada capa
+  // se mueve a su propia velocidad (ver PARALLAX abajo), y así se nota el espacio entre ellas.
   const bg = document.createElement('div');
   bg.className = 'bg-float';
   bg.setAttribute('aria-hidden', 'true');
@@ -2304,9 +2307,19 @@ document.querySelectorAll('.segmented').forEach((seg) => {
     [4, 0.9, 44, 0], [14, 0.6, 58, -18], [27, 1.1, 50, -6], [38, 0.7, 64, -33], [52, 1, 47, -12], [63, 0.65, 60, -40],
     [74, 1.2, 54, -22], [86, 0.75, 49, -3], [93, 0.95, 62, -28], [8, 0.8, 57, -45], [46, 0.55, 66, -50], [80, 0.85, 52, -15],
   ];
-  bg.innerHTML = spots
-    .map(([x, scale, dur, delay], i) => `<span class="bg-card" style="--x:${x}vw;--s:${scale};--d:${dur}s;--dl:${delay}s;--r:${(i % 2 ? 1 : -1) * (4 + (i % 5))}deg"><i></i><b></b><em></em><em></em></span>`)
+  // Capa de cada silueta (0 fondo, 1 medio, 2 delante): cuatro por capa, alternadas a lo ancho de la pantalla.
+  const DEPTH = [1, 0, 2, 0, 1, 2, 0, 1, 2, 1, 0, 2];
+  // Por capa: tamaño y duración relativos (más duración = más lenta).
+  const LAYER = [{ s: 0.65, d: 1.4 }, { s: 1, d: 1 }, { s: 1.3, d: 0.8 }];
+  const card = ([x, scale, dur, delay], i) => {
+    const l = LAYER[DEPTH[i]];
+    return `<span class="bg-card" style="--x:${x}vw;--s:${(scale * l.s).toFixed(2)};--d:${Math.round(dur * l.d)}s;--dl:${delay}s;--r:${(i % 2 ? 1 : -1) * (4 + (i % 5))}deg"><i></i><b></b><em></em><em></em></span>`;
+  };
+  bg.innerHTML = [0, 1, 2]
+    .map((z) => `<div class="bg-layer bg-layer-${z}">${spots.map((sp, i) => (DEPTH[i] === z ? card(sp, i) : '')).join('')}</div>`)
     .join('');
+  const layers = bg.querySelectorAll('.bg-layer');
+  const PARALLAX = [-0.05, -0.12, -0.22];
   document.body.prepend(bg);
 
   // Hilo que conecta (2026-10-06): en el margen, una línea se dibuja del «01» al «02» según se baja; al llegar,
@@ -2387,7 +2400,7 @@ document.querySelectorAll('.segmented').forEach((seg) => {
     ticking = true;
     requestAnimationFrame(() => {
       ticking = false;
-      bg.style.setProperty('--py', `${Math.round(window.scrollY * -0.12)}px`);
+      layers.forEach((l, z) => l.style.setProperty('--py', `${Math.round(window.scrollY * PARALLAX[z])}px`));
       document.querySelectorAll('.section-num').forEach((n) => {
         const r = n.parentElement.getBoundingClientRect();
         n.style.setProperty('--px', `${Math.max(-12, Math.min(12, (r.top - window.innerHeight / 2) * 0.04)).toFixed(1)}px`);
