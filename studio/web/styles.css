@@ -3807,3 +3807,8 @@ html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(roo
   .job-row:not(:has(> .mini-track)) > .row-actions:is(:has(> .row-view + .row-menu), :has(> .row-view + .row-download + .row-menu)) .row-menu-pop { left: auto; right: 0; }
   .job-row:not(:has(> .mini-track)) > .row-actions:is(:has(> .row-view + .row-menu), :has(> .row-view + .row-download + .row-menu)) .row-menu[open] > .row-menu-pop { transform-origin: top right; }
 }
+
+/* ---------- lo que tarda, dentro del botón (2026-10-14) ---------- */
+/* «Generar newsletter → · ~20 min»: la acción y lo que cuesta juntas, sin texto al lado del botón. Más fina que el
+   rótulo, para que se lea como un dato y no como parte de la orden. */
+.go-eta { margin-left: 2px; font-weight: 500; opacity: 0.78; font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -275,9 +275,11 @@
           <p id="form-error" class="form-error" role="alert" hidden></p>
 
           <div class="actions">
-            <button type="submit" class="btn btn-primary btn-go">Generar newsletter <span aria-hidden="true">→</span></button>
-            <!-- Sin texto al lado del botón (2026-10-13, pedido por el usuario). app.js sigue calculando la estimación. -->
-            <span id="eta-hint" hidden></span>
+            <!-- Sin texto al lado del botón (2026-10-13, pedido por el usuario). Desde 2026-10-14 la estimación va corta
+                 dentro del propio botón («· ~20 min» o, con cola, «· hacia las 11:40»); la frase entera, para lectores de
+                 pantalla (eta-hint, enlazada con aria-describedby). -->
+            <button type="submit" class="btn btn-primary btn-go" aria-describedby="eta-hint">Generar newsletter <span aria-hidden="true">→</span><span class="go-eta" id="go-eta" aria-hidden="true" hidden></span></button>
+            <span id="eta-hint" class="sr-only"></span>
           </div>
         </div>
       </form>

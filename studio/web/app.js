@@ -440,6 +440,13 @@ function renderEtaHints() {
   }
   if (!hermesOnlineNow) text += 'Hermes no está conectado ahora: empezará en cuanto vuelva. ';
   document.getElementById('eta-hint').textContent = text;
+  // Dentro del botón (2026-10-14), solo lo que cuesta: cuánto tarda o, con cola, a qué hora estaría.
+  // Mientras el botón dice «Enviando…» no está; al volver se repinta con la siguiente actualización.
+  const goEta = document.getElementById('go-eta');
+  if (goEta) {
+    goEta.textContent = ahead && t ? `· hacia las ${clockAt(queueWaitNow.seconds + t.sec)}` : t ? `· ${etaText(kind)}` : '';
+    goEta.hidden = !goEta.textContent;
+  }
   document.querySelectorAll('[data-eta="new"]').forEach((el) => (el.textContent = t ? etaText(kind) : 'unos 20 minutos'));
   // Cambios y adaptaciones a móvil también esperan su turno (2026-09-30): con cola, cuándo estarían listos.
   const retouchEta = (k) => {
@@ -2132,11 +2139,13 @@ function morphSendBtn(btn, on) {
   if (!btn) return;
   if (on === btn.classList.contains('is-sending')) return;
   const from = btn.offsetWidth;
+  // Se guarda y se devuelve el HTML, no solo el texto (2026-10-14): con el texto se perdían la flecha y la estimación
+  // que van dentro del botón de «Generar newsletter».
   if (on) {
-    btn.dataset.label = btn.textContent;
+    btn.dataset.label = btn.innerHTML;
     btn.innerHTML = '<span class="send-dot" aria-hidden="true"></span>Enviando…';
   } else {
-    btn.textContent = btn.dataset.label || btn.textContent;
+    btn.innerHTML = btn.dataset.label || btn.innerHTML;
   }
   btn.classList.toggle('is-sending', on);
   if (!motionOk() || !btn.animate) return;
