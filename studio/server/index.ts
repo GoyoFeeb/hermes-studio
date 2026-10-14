@@ -21,6 +21,7 @@ import type { Job } from './store';
 import { supabase } from './supabase';
 import { SESSION_COOKIE, authConfigFromEnv, clearedCookie, createSessionToken, googleLoginUrl, readCookie, readSessionToken, sessionCookie, userFromSupabaseToken } from './auth';
 import type { SessionUser } from './auth';
+import { acceptCorrection, onWorkerBeat, openBrief } from './earlyBrief';
 import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
 import { joinLabels, missingInBrief } from './requestCoverage';
@@ -365,8 +366,13 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
     res.json({ pause: true });
     return;
   }
-  const updated = updateJob(job.id, { briefMissing, input: { ...job.input, briefText: brief.slice(0, 200000) } });
-  hermesLog(job.id, 'Brief creativo listo: Hermes empieza la newsletter.', 'success');
+  // Brief temprano (H-17): a la vista en la página mientras Hermes sigue; corregible si el worker sabe rehacer la pieza.
+  const updated = updateJob(job.id, {
+    briefMissing,
+    ...openBrief(req.body?.canRestart === true),
+    input: { ...job.input, briefText: brief.slice(0, 200000) },
+  });
+  hermesLog(job.id, 'Brief creativo listo: Hermes empieza la newsletter. Puedes leerlo y corregirlo mientras trabaja.', 'success');
   res.json({ prompt: buildHermesPrompt(updated) });
 });
 
@@ -391,6 +397,16 @@ app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '
     updateJob(job.id, {}); // renueva updatedAt: el trabajo sigue vivo
   }
   if (req.body?.message) hermesLog(job.id, String(req.body.message).slice(0, 2000), req.body.level === 'error' ? 'error' : 'info');
+  // Brief corregido desde la página (H-17): se entrega en este latido con el encargo nuevo y el worker rehace la pieza.
+  const beat = onWorkerBeat(getJob(job.id) || job, req.body?.briefLock === true);
+  if (beat.patch) updateJob(job.id, beat.patch);
+  if (beat.restart) {
+    const fresh = getJob(job.id) || job;
+    hermesLog(job.id, 'Hermes vuelve a empezar la pieza con el brief corregido.', 'success');
+    res.json({ ok: true, briefRestart: { prompt: buildHermesPrompt(fresh), brief: fresh.input.briefText } });
+    return;
+  }
+  if (req.body?.briefLock === true && beat.patch) hermesLog(job.id, 'Primera versión hecha: el brief ya no se puede corregir (para cambios, «Pedir cambios»).');
   res.json({ ok: true });
 });
 
@@ -1235,6 +1251,25 @@ app.delete('/api/jobs/:id/share', (req: Request, res: Response) => {
     revokeShare(job);
     hermesLog(job.id, 'Enlace de vista previa desactivado: quien lo tenga ya no podrá abrirlo.');
   }
+  res.json({ ok: true });
+});
+
+// Corregir el brief sin parar a Hermes (auditoría de UX 2026-10-14, H-17, ver earlyBrief.ts): se guarda y el worker
+// lo recoge en su siguiente latido (≤ 30 s), corta el turno y rehace la pieza con él.
+app.post('/api/jobs/:id/brief-correct', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job || job.input.mode !== 'standalone') {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  const result = acceptCorrection(job, req.body?.brief, requesterOf(req, res, typeof req.body?.by === 'string' ? req.body.by : undefined));
+  if ('error' in result) {
+    res.status(result.status).json({ error: result.error });
+    return;
+  }
+  const updated = updateJob(job.id, result.patch);
+  const by = updated.briefCorrection?.by;
+  hermesLog(job.id, `Brief corregido${by ? ` por ${by}` : ''}: Hermes rehará la pieza con él en menos de un minuto.`, 'success');
   res.json({ ok: true });
 });
 

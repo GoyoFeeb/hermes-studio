@@ -3908,3 +3908,8 @@ html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(roo
 .art-mobile-note { margin: 12px 0 0; padding: 12px 16px; border-left: 3px solid var(--warning); background: var(--warning-subtle); font-size: var(--fs-small); }
 .art-mobile-note p { margin: 0 0 8px; }
 .art-card-bars b small { font-weight: 500; opacity: 0.7; }
+
+/* H-17. Brief temprano: mismo marco que «Revisar el brief», pero sin el tono de aviso (Hermes no está parado). */
+.early-brief { border-color: var(--border-strong); }
+.early-brief.is-collapsed .review-brief-view { display: none; }
+.early-brief-status { margin: 12px 0 0; padding: 12px 16px; border-left: 3px solid var(--success); background: var(--success-subtle); font-size: var(--fs-small); }

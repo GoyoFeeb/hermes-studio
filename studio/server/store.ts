@@ -102,6 +102,11 @@ export interface Job {
   briefWaitSec?: number;
   /** Lo que la petición pedía y el brief no recogía al llegar (requestCoverage.ts): aviso en el panel del brief. */
   briefMissing?: string[];
+  /** Brief temprano (auditoría de UX 2026-10-14, H-17, ver earlyBrief.ts): cuándo quedó a la vista sin parar a Hermes,
+   *  si aún se puede corregir (hasta que la primera versión está hecha) y la última corrección pedida. */
+  briefShownAt?: string;
+  briefEditable?: boolean;
+  briefCorrection?: { at: string; by?: string; sentAt?: string; count: number };
   /** "Aprobada para envío" (2026-09-28): la versión de su familia que se va a enviar (solo una), quién la
    *  aprobó y qué comprobó (la lista de la página). */
   approvedAt?: string;

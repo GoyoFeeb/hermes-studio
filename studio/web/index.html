@@ -155,7 +155,7 @@
       </div>
       <ol id="how-panel" class="how-panel surface-light" hidden>
         <li><strong>Pides la newsletter.</strong> Con una frase («Instrucción rápida») o, si ya tienes un prompt de dirección creativa, pegándolo entero («Prompt completo»). Elige si las imágenes salen de la marca o se generan con IA.</li>
-        <li><strong>Hermes la hace.</strong> Investiga la marca, escribe el brief creativo si pediste con una frase, diseña la pieza y la corrige. Suele tardar <span data-eta="new">unos 20 minutos</span>, y hace una a la vez: si hay otras delante, te dice cuándo empezará. Puedes cerrar la página y volver con el enlace del trabajo.</li>
+        <li><strong>Hermes la hace.</strong> Investiga la marca, escribe el brief creativo si pediste con una frase (lo ves en la página a los pocos minutos y puedes corregirlo sin pararle), diseña la pieza y la corrige. Suele tardar <span data-eta="new">unos 20 minutos</span>, y hace una a la vez: si hay otras delante, te dice cuándo empezará. Puedes cerrar la página y volver con el enlace del trabajo.</li>
         <li><strong>Pasa una revisión automática.</strong> Enlaces e imágenes que responden, preheader, peso para que Gmail no la recorte y cómo se ve en móvil. Lo que falle sale en la pestaña «Revisión».</li>
         <li><strong>La ajustas.</strong> «Editar texto» cambia textos al momento, sin Hermes. «Pedir cambios» y «Adaptar a móvil» se los encargan a Hermes y tardan unos minutos. Cada cambio es una versión nueva: ninguna se pierde.</li>
         <li><strong>La apruebas y la llevas a tu plataforma.</strong> Marca lo que has comprobado, y descarga o copia el HTML preparado para Mailchimp, Brevo, HubSpot, Klaviyo o Salesforce, con UTM si los necesitas.</li>
@@ -248,15 +248,12 @@
             </div>
           </fieldset>
 
-          <!-- Opciones en el orden del formulario (2026-10-13): antes, dos casillas con párrafos en la columna derecha. La
-               explicación larga queda al pasar el ratón. Las dos se recuerdan. -->
+          <!-- Opciones en el orden del formulario (2026-10-13). «Revisar el brief antes» (paraba a Hermes hasta aprobarlo) se
+               quitó el 2026-10-14 (auditoría de UX, H-17): ahora el brief sale siempre en la página a los pocos minutos y se
+               puede corregir sin parar a Hermes. -->
           <fieldset>
             <legend class="label"><span class="step-n" aria-hidden="true">4</span>Opciones</legend>
             <div class="choices">
-              <label class="choice choice-switch" id="review-brief-field" title="Hermes se para tras escribir el brief (unos minutos) para que lo apruebes o lo corrijas. Se recuerda.">
-                <input type="checkbox" name="reviewBrief" value="true" id="review-brief-input" />
-                <span><strong>Revisar el brief antes</strong><small>Hermes se para para que lo apruebes</small></span>
-              </label>
               <label class="choice choice-switch" title="Hermes mira las capturas, comprueba que la pieza cumple tu petición y que los textos casan con las fotos, puntúa identidad, concepto, jerarquía, aire y originalidad, y retoca lo que baje de 4. Unos minutos más. Se recuerda.">
                 <input type="checkbox" name="artReview" value="true" id="art-review-input" checked />
                 <span><strong>Revisión de arte al final</strong><small>Puntúa la pieza y retoca lo flojo</small></span>
@@ -460,6 +457,27 @@
           <button id="cancel-no" type="button" class="btn btn-ghost btn-sm">No</button>
         </span>
       </div>
+
+      <!-- Brief temprano (auditoría de UX 2026-10-14, H-17): el brief a la vista en cuanto existe (a los pocos minutos),
+           mientras Hermes sigue con la pieza. Corregirlo rehace la primera versión con él; se puede hasta que esté hecha. -->
+      <section id="early-brief" class="job-review early-brief" hidden aria-labelledby="early-brief-title">
+        <h3 id="early-brief-title" class="review-title panel-title">Hermes va a hacer esto</h3>
+        <p class="hint" id="early-brief-lead"></p>
+        <p id="early-brief-missing" class="review-missing" role="status" hidden></p>
+        <p id="early-brief-status" class="early-brief-status" role="status" hidden></p>
+        <div id="early-brief-view" class="md surface-light review-brief-view"></div>
+        <label for="early-brief-text" class="sr-only">Brief creativo</label>
+        <textarea id="early-brief-text" rows="18" spellcheck="true" hidden></textarea>
+        <p id="early-brief-error" class="form-error" role="alert" hidden></p>
+        <div class="actions" id="early-brief-actions">
+          <button type="button" id="early-brief-edit" class="btn btn-secondary">Corregir</button>
+          <button type="button" id="early-brief-toggle" class="btn btn-ghost" aria-expanded="true" aria-controls="early-brief-view">Dejar que siga</button>
+        </div>
+        <div class="actions" id="early-brief-edit-actions" hidden>
+          <button type="button" id="early-brief-save" class="btn btn-primary">Guardar y rehacer la pieza</button>
+          <button type="button" id="early-brief-cancel" class="btn btn-ghost">Cancelar</button>
+        </div>
+      </section>
 
       <!-- Revisar el brief (2026-10-01): Hermes se ha parado tras el brief; se aprueba tal cual o corregido. -->
       <section id="job-review" class="job-review" hidden aria-labelledby="review-title">

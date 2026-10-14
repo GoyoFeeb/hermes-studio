@@ -570,8 +570,6 @@ function applyKind() {
   input.placeholder = copy.placeholder;
   input.rows = copy.rows;
   input.style.minHeight = kind === 'instruction' ? '0' : '';
-  // Con prompt completo no hay brief que revisar: el prompt ya es el brief.
-  document.getElementById('review-brief-field').hidden = kind !== 'instruction';
   updateExamples();
 }
 form.querySelectorAll('input[name="inputKind"]').forEach((r) =>
@@ -607,7 +605,6 @@ form.addEventListener('reset', () =>
       if (radio) radio.checked = true;
     }
     try {
-      document.getElementById('review-brief-input').checked = localStorage.getItem('reviewBrief') === '1';
       // Activada por defecto desde el 2026-10-05 (Paredes: concepto «el negro» con una zapatilla gris, marrón y roja,
       // y sin el Black Friday pedido). Solo se recuerda si alguien la quita; la clave antigua se ignora.
       document.getElementById('art-review-input').checked = localStorage.getItem('artReviewOff') !== '1';
@@ -851,7 +848,6 @@ async function submitJob(payload) {
     try {
       localStorage.setItem('requesterName', payload.requesterName || '');
       localStorage.setItem('imageMode', payload.imageMode || '');
-      if (payload.inputKind === 'instruction') localStorage.setItem('reviewBrief', payload.reviewBrief ? '1' : '0');
       localStorage.setItem('artReviewOff', payload.artReview ? '0' : '1');
     } catch {
       // sin almacenamiento: no se recuerda
@@ -875,7 +871,6 @@ async function submitJob(payload) {
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   const payload = Object.fromEntries(new FormData(form).entries());
-  payload.reviewBrief = payload.inputKind === 'instruction' && payload.reviewBrief === 'true';
   payload.artReview = payload.artReview === 'true';
   // La web solo cuenta para una marca nueva (el campo está oculto si es conocida).
   if (!payload.brandUrl || document.getElementById('brand-url-field').hidden) delete payload.brandUrl;
@@ -5287,6 +5282,141 @@ document.getElementById('review-approve').addEventListener('click', async (e) =>
   }
 });
 
+// ---------------------------------------------------------------- brief temprano (auditoría de UX 2026-10-14, H-17)
+// En cuanto Hermes escribe el brief (a los pocos minutos), sale aquí mientras sigue con la pieza: «Hermes va a hacer
+// esto. Corrígelo ahora o deja que siga». Corregirlo rehace la primera versión con el brief nuevo (studio/server/
+// earlyBrief.ts); se puede hasta que esa versión está hecha. Sustituye a «Revisar el brief antes», que paraba a Hermes.
+const earlyBox = document.getElementById('early-brief');
+const earlyText = document.getElementById('early-brief-text');
+const earlyView = document.getElementById('early-brief-view');
+const earlyError = document.getElementById('early-brief-error');
+const earlyToggle = document.getElementById('early-brief-toggle');
+let earlyEditing = false;
+const EARLY_KEPT_KEY = 'earlyBriefKept';
+function earlyKept(id) {
+  try {
+    return (JSON.parse(sessionStorage.getItem(EARLY_KEPT_KEY) || '[]') || []).includes(id);
+  } catch {
+    return false;
+  }
+}
+function setEarlyKept(id, kept) {
+  try {
+    const list = (JSON.parse(sessionStorage.getItem(EARLY_KEPT_KEY) || '[]') || []).filter((x) => x !== id);
+    if (kept) list.push(id);
+    sessionStorage.setItem(EARLY_KEPT_KEY, JSON.stringify(list.slice(-50)));
+  } catch {
+    // sin almacenamiento: solo dura mientras no se recarga
+  }
+}
+function setEarlyCollapsed(collapsed) {
+  earlyBox.classList.toggle('is-collapsed', collapsed);
+  earlyToggle.textContent = collapsed ? 'Ver el brief' : 'Dejar que siga';
+  earlyToggle.setAttribute('aria-expanded', String(!collapsed));
+}
+function setEarlyEditing(on) {
+  earlyEditing = on;
+  earlyText.hidden = !on;
+  earlyView.hidden = on;
+  document.getElementById('early-brief-actions').hidden = on;
+  document.getElementById('early-brief-edit-actions').hidden = !on;
+  if (on) {
+    setEarlyCollapsed(false);
+    earlyText.value = earlyText.dataset.src || '';
+    earlyText.focus();
+  }
+  earlyError.hidden = true;
+}
+
+function renderEarlyBrief(job) {
+  const show = job.status === 'running' && !!job.input.instruction && !!job.briefShownAt && !!job.input.briefText;
+  earlyBox.hidden = !show;
+  if (!show) {
+    if (earlyEditing) setEarlyEditing(false);
+    earlyBox.dataset.job = '';
+    return;
+  }
+  // El brief, en el desplegable de abajo, se repetiría.
+  document.getElementById('brief-box').hidden = true;
+  const src = job.input.briefText;
+  const fresh = earlyBox.dataset.job !== job.id;
+  if (fresh) {
+    earlyBox.dataset.job = job.id;
+    if (earlyEditing) setEarlyEditing(false);
+    setEarlyCollapsed(earlyKept(job.id));
+  }
+  // El sondeo no pisa lo que se está escribiendo.
+  if (fresh || earlyText.dataset.src !== src) {
+    earlyText.dataset.src = src;
+    earlyView.innerHTML = window.HermesMarkdown ? window.HermesMarkdown.render(src) : escapeHtml(src);
+    decorateBrief(earlyView);
+  }
+  const editable = !!job.briefEditable;
+  const c = job.briefCorrection;
+  const lead = document.getElementById('early-brief-lead');
+  lead.textContent = editable
+    ? 'Hermes ya está haciendo la pieza con este brief. Corrígelo ahora o deja que siga: si lo corriges, rehace la primera versión con él.'
+    : 'Hermes ya tiene hecha la primera versión con este brief: ahora la comprueba y la pule. Para cambiar algo, usa «Pedir cambios» cuando esté lista.';
+  document.getElementById('early-brief-edit').hidden = !editable;
+  if (!editable && earlyEditing) setEarlyEditing(false);
+  const status = document.getElementById('early-brief-status');
+  status.hidden = !c;
+  if (c) {
+    const at = new Date(c.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    status.textContent = c.sentAt
+      ? `Corregido a las ${at}${c.by ? ` por ${c.by}` : ''}: Hermes ha vuelto a empezar la pieza con este brief.`
+      : `Corrección guardada a las ${at}: Hermes la recogerá en menos de un minuto y rehará la pieza.`;
+  }
+  const missing = document.getElementById('early-brief-missing');
+  const gaps = c ? [] : job.briefMissing || [];
+  missing.hidden = !gaps.length;
+  if (gaps.length) {
+    const list = gaps.length === 1 ? gaps[0] : `${gaps.slice(0, -1).join(', ')} y ${gaps[gaps.length - 1]}`;
+    missing.innerHTML = `<strong>Ojo:</strong> tu petición pide <strong>${escapeHtml(list)}</strong> y el brief no lo recoge.${editable ? ' Añádelo con «Corregir».' : ''}`;
+  }
+}
+
+document.getElementById('early-brief-edit').addEventListener('click', () => setEarlyEditing(true));
+document.getElementById('early-brief-cancel').addEventListener('click', () => setEarlyEditing(false));
+earlyToggle.addEventListener('click', () => {
+  const collapse = !earlyBox.classList.contains('is-collapsed');
+  setEarlyCollapsed(collapse);
+  if (currentJob) setEarlyKept(currentJob, collapse);
+});
+document.getElementById('early-brief-save').addEventListener('click', async (e) => {
+  if (!currentJob) return;
+  const id = currentJob;
+  const btn = e.currentTarget;
+  if (earlyText.value.trim() === (earlyText.dataset.src || '').trim()) {
+    earlyError.textContent = 'No has cambiado nada del brief.';
+    earlyError.hidden = false;
+    return;
+  }
+  btn.disabled = true;
+  earlyError.hidden = true;
+  try {
+    const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/brief-correct`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brief: earlyText.value, by: savedRequester() || undefined }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      earlyError.textContent = actionError(res, data, 'No se pudo guardar el brief.', true);
+      earlyError.hidden = false;
+      return;
+    }
+    setEarlyEditing(false);
+    showToast('Brief corregido: Hermes rehará la pieza con él en menos de un minuto.');
+  } catch {
+    earlyError.textContent = NETWORK_ERROR;
+    earlyError.hidden = false;
+  } finally {
+    btn.disabled = false;
+    if (currentJob === id) poll(id);
+  }
+});
+
 // ---------------------------------------------------------------- cancelar y pedir cambios
 
 const cancelBtn = document.getElementById('cancel-btn');
@@ -6923,6 +7053,7 @@ async function poll(id) {
 
   renderRetried(retriedBy);
   renderBriefReview(job);
+  renderEarlyBrief(job);
   if (job.status === 'review') {
     pollTimer = setTimeout(() => poll(id), 15000); // por si otra persona lo aprueba o lo cancela
     return;

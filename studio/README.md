@@ -42,6 +42,9 @@ cada uno se ven en «Tiempo por fase», en el panel de revisión):
    `brands/<marca>/tokens/identidad-medida.json` y `design-input/logo-medido.png`. El brief y el encargo la reciben
    ya resuelta. A mano: `npm run measure-brand -- <slug> [url] ["Nombre"]`.
 2. **Brief** (`buildBriefPrompt`): método propio de Studio, sin cargar la skill (secciones fijas, ≤ 1.200 palabras).
+   Desde 2026-10-14 (brief temprano, `server/earlyBrief.ts`) sale en la página en cuanto existe, sin parar a Hermes, y se
+   puede corregir hasta que la primera versión está hecha: el worker lo recibe en su siguiente latido, corta el turno
+   y rehace la pieza con él. Sustituye a la casilla «Revisar el brief antes» (los trabajos ya en `review` siguen igual).
 3. **Newsletter** (`buildHermesPrompt`) sobre la **base técnica** `studio/hermes/email-base.html` (Outlook, modo
    oscuro declarado, preheader, móvil y baja ya resueltos; módulos de ejemplo en `studio/hermes/email-modulos.md`).
    Hermes descarga las imágenes con `npm run fetch-image -- <url> <carpeta>` (403, SVG → PNG, compresión) y, antes

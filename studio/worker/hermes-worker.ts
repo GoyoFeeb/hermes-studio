@@ -98,6 +98,7 @@ async function api(route: string, body?: unknown, attempts = 3): Promise<Respons
       });
       // 409 en una ruta del trabajo en curso = lo han cancelado desde la web (ver standaloneJobForWorker).
       if (res.status === 409 && current && route.startsWith(`/api/worker/jobs/${current}/`)) markCancelled();
+      if (res.ok && current && route === `/api/worker/jobs/${current}/progress`) await takeBriefRestart(res.clone());
       return res;
     } catch (err) {
       if (i >= attempts) throw err;
@@ -362,6 +363,11 @@ let currentChild: ReturnType<typeof spawn> | null = null;
 let cancelled = false;
 /** El vigilante de bucles paró a Hermes tras avisarle una vez (loopWatch.ts): no se le piden más turnos. */
 let loopStopped: string | null = null;
+/** Brief temprano (auditoría de UX 2026-10-14, H-17, ver studio/server/earlyBrief.ts): el equipo corrigió el brief
+ *  mientras Hermes hacía la primera versión. Lo entrega Studio en la respuesta de un latido; si llega durante la
+ *  primera versión (`inDraft`), se corta el turno y la pieza vuelve a empezar con el brief corregido. */
+let pendingBrief: { prompt: string; brief: string } | null = null;
+let inDraft = false;
 
 interface LoopState {
   watch: LoopWatch;
@@ -395,6 +401,16 @@ function watchForLoop(st: LoopState, tools: ToolCall[], jobId: string, phase: st
     console.log(`[${stamp()}] ${jobId}: Hermes sigue en bucle tras el aviso (${phase}) — ${loop}. Se detiene.`);
   }
   currentChild.kill('SIGTERM');
+}
+
+/** ¿Trae la respuesta del latido un brief corregido? (H-17). Se corta el turno solo durante la primera versión. */
+async function takeBriefRestart(res: Response): Promise<void> {
+  const body = (await res.json().catch(() => null)) as { briefRestart?: { prompt?: string; brief?: string } } | null;
+  const r = body?.briefRestart;
+  if (!r?.prompt || !r.brief) return;
+  pendingBrief = { prompt: r.prompt, brief: r.brief };
+  console.log(`[${stamp()}] ${current}: brief corregido desde Studio — ${inDraft ? 'se corta la pieza y vuelve a empezar' : 'se usará al empezar la pieza'}`);
+  if (inDraft) currentChild?.kill('SIGTERM');
 }
 
 function markCancelled(): void {
@@ -915,7 +931,8 @@ async function runBriefStep(
   }
   // canPause (2026-10-01): si el equipo pidió revisar el brief, Studio responde { pause: true } y el trabajo
   // espera su aprobación; al aprobarlo vuelve a la cola y llega con el encargo final, sin paso de brief.
-  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true }, 6);
+  // canRestart (2026-10-14, H-17): este worker sabe rehacer la pieza si el equipo corrige el brief mientras trabaja.
+  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true, canRestart: true }, 6);
   if (!res.ok) return { error: `Studio no aceptó el brief: ${res.status} ${(await res.text()).slice(0, 300)}` };
   const reply = (await res.json()) as { prompt?: string; pause?: boolean };
   if (reply.pause) {
@@ -1151,6 +1168,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   current = claimed.id;
   cancelled = false;
   loopStopped = null;
+  pendingBrief = null;
+  inDraft = false;
   const outAbs = path.join(ROOT, claimed.outputDir);
   currentOutAbs = outAbs;
   fs.mkdirSync(outAbs, { recursive: true });
@@ -1359,10 +1378,38 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const progressMessage = (message: string, level?: 'error'): Promise<unknown> =>
     api(`/api/worker/jobs/${job.id}/progress`, { message, ...(level ? { level } : {}) }).catch(() => undefined);
 
+  /** Brief corregido desde Studio (H-17): encargo nuevo, brief.md al día, lo verificado recalculado y fuera lo que
+   *  dejó la versión cortada (su HTML y sus notas), para que no se tome por la entrega. La sesión empieza de cero. */
+  const useBrief = (corrected: { prompt: string; brief: string }): void => {
+    job.prompt = prompt = corrected.prompt;
+    fs.writeFileSync(path.join(outAbs, 'brief.md'), corrected.brief);
+    fs.writeFileSync(path.join(outAbs, '_trabajo', VERIFIED_FILE), verifiedSource(prompt, productNote));
+  };
+  const restartWithBrief = (corrected: { prompt: string; brief: string }): void => {
+    useBrief(corrected);
+    for (const f of fs.readdirSync(outAbs)) {
+      if (/\.html?$/i.test(f) || f === 'notas.md') fs.rmSync(path.join(outAbs, f), { force: true });
+    }
+    envNotes = buildEnvNotes();
+    sessionId = null;
+    watched = null;
+    watchedSince = Date.now();
+    lastCount = -1;
+    lastChange = Date.now();
+    loops = newLoopState();
+    loopStopped = null;
+  };
+  // Llegó antes de empezar la pieza (durante la ficha de producto): se empieza ya con el brief corregido.
+  if (pendingBrief && !editKind && claimed.briefPrompt) {
+    const early: { prompt: string; brief: string } = pendingBrief;
+    pendingBrief = null;
+    useBrief(early);
+  }
+
   // 3. La pieza (primera versión, cambios pedidos o adaptación a móvil).
   timeline.start('draft', isRevision ? 'Cambios pedidos' : isMobileFix ? 'Adaptación a móvil' : 'Primera versión');
   const model = editKind ? MODELS.fix : MODELS.draft;
-  const envNotes =
+  const buildEnvNotes = (): string =>
     (isMobileFix
       ? ''
       : isRevision
@@ -1377,10 +1424,18 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         chosenModulesNote(job.prompt.split('## Instrucciones de entrega')[0], ROOT)) +
     PREVIOUS_WORK_NOTE +
     SECRETS_NOTE;
+  let envNotes = buildEnvNotes();
   const reasoning = draftReasoningArgs(!!editKind);
-  let turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
+  // Brief temprano (H-17): con brief propio, la primera versión puede volver a empezar si el equipo lo corrige.
+  const briefOpen = !editKind && !!claimed.briefPrompt;
+  const notesFile = path.join(outAbs, 'notas.md');
+  const notesReady = (): boolean => fs.existsSync(notesFile) && fs.statSync(notesFile).mtimeMs >= started;
+  let turn: Awaited<ReturnType<typeof runHermesTurn>>;
+  for (let attempt = 1; ; attempt++) {
+  inDraft = briefOpen;
+  turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
   sessionId = sessionId || watched;
-  for (let i = 1; i <= MAX_CONTINUES && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+  for (let i = 1; i <= MAX_CONTINUES && !pendingBrief && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
     const nudge = loops.nudge;
     loops.nudge = null;
     console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})${nudge ? ' — tras bucle' : ''}`);
@@ -1400,10 +1455,8 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   }
   // La autoauditoría por escrito es parte de la entrega (Adidas, 2026-09-24: titular que no salía
   // del concepto y precio sin fuente). Si falta, un turno más para escribirla y corregir la pieza.
-  const notesFile = path.join(outAbs, 'notas.md');
-  const notesReady = (): boolean => fs.existsSync(notesFile) && fs.statSync(notesFile).mtimeMs >= started;
   if (cancelled) return finishCancelled();
-  if (htmlReady() && !notesReady() && sessionId && Date.now() - started < TIMEOUT_MS) {
+  if (!pendingBrief && htmlReady() && !notesReady() && sessionId && Date.now() - started < TIMEOUT_MS) {
     console.log(`[${stamp()}] ${job.id}: falta notas.md — se pide la autoauditoría`);
     await progressMessage('Falta la autoauditoría por escrito: se le pide a Hermes.');
     await runHermesTurn(
@@ -1416,6 +1469,21 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     );
   }
   timeline.end(Math.max(0, lastCount));
+  if (cancelled) return finishCancelled();
+  // Primera versión hecha: se cierra el brief en Studio. Si justo llega (o había llegado) una corrección, se rehace.
+  if (briefOpen && !pendingBrief) {
+    inDraft = false;
+    await api(`/api/worker/jobs/${job.id}/progress`, { briefLock: true }).catch(() => undefined);
+  }
+  if (!pendingBrief) break;
+  const corrected: { prompt: string; brief: string } = pendingBrief;
+  pendingBrief = null;
+  console.log(`[${stamp()}] ${job.id}: rehaciendo la primera versión con el brief corregido (${attempt + 1}.ª)`);
+  await progressMessage('Hermes vuelve a empezar la pieza con el brief corregido.');
+  restartWithBrief(corrected);
+  timeline.start('draft', 'Primera versión (brief corregido)');
+  }
+  inDraft = false;
   // El encargo, a mano para las sesiones cortas de corrección y de revisión visual (no lo tienen en su historial). Se
   // escribe DESPUÉS de la primera versión: antes, Hermes lo encontraba en la carpeta y lo releía (es su propio prompt).
   fs.writeFileSync(path.join(outAbs, '_trabajo', 'encargo.md'), job.prompt + envNotes);
