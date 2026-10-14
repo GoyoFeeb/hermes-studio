@@ -282,11 +282,15 @@ Railway construye la imagen con `studio/Dockerfile`, con la raíz del repo como 
    ```bash
    git push deploy main
    ```
-   No uses `railway up`: el 2026-10-13 falló con «No start command detected» porque construía con
-   Railpack en lugar de con `studio/Dockerfile` (el despliegue anterior siguió en pie, pero no se
-   publicó nada). Desde la migración del 2026-10-14 el servicio ya tiene el Dockerfile en su
-   configuración, pero `railway up` no se ha vuelto a probar. El push a `origin` (`GoyoFeeb/creas-javi`)
-   tampoco despliega: es solo la copia del código.
+   `railway up` también funciona desde la migración del 2026-10-14 (antes construía con Railpack y fallaba
+   con «No start command detected»), pero no es la vía recomendada: sube la carpeta tal cual, con todo
+   lo que no está confirmado en git. Si hace falta, sube una copia limpia del último commit y lánzalo
+   desde dentro de ella (pasarle la ruta como argumento falla con «prefix not found»):
+   ```bash
+   rm -rf /tmp/hermes-up && mkdir /tmp/hermes-up && git archive HEAD | tar -x -C /tmp/hermes-up
+   cd /tmp/hermes-up && railway up -p 3aa39b0f-29dd-4212-a03f-e8bdec9d0bf6 -e production -s hermes-studio --ci
+   ```
+   El push a `origin` (`GoyoFeeb/creas-javi`) no despliega: es solo la copia del código.
 
 ### Configuración del servicio (`.railway/railway.ts`)
 
