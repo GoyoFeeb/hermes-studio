@@ -3123,11 +3123,8 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
   .hero-showcase.is-live .show-face::after { box-shadow: 0 42px 84px rgba(0, 0, 0, 0.6), 0 0 0 2.8px var(--pink); }
   .hero-showcase.is-live .show-brand { top: calc(100% + 13px); padding: 4px 12px; font-size: 15.4px; }
 }
-/* Y la señalada, sin capa guardada: se pinta siempre a su tamaño real. Igual la que el abanico destaca por su cuenta
-   (is-auto), que en móvil crece sobre una cara maquetada a tamaño normal. */
-.hero-showcase.is-live .show-card.is-hot, .hero-showcase.is-live .show-card.is-hot .show-face,
-.hero-showcase.is-live .show-card.is-auto, .hero-showcase.is-live .show-card.is-auto .show-face { will-change: auto; }
-.hero-showcase.is-live .show-card.is-auto .show-brand { opacity: 1; }
+/* Y la señalada, sin capa guardada: se pinta siempre a su tamaño real. */
+.hero-showcase.is-live .show-card.is-hot, .hero-showcase.is-live .show-card.is-hot .show-face { will-change: auto; }
 /* Reparto de entrada (app.js, fanTick): apiladas e invisibles hasta que a cada una le toca salir. */
 .hero-showcase.is-live .show-card.is-stacked { opacity: 0; transition: none; }
 

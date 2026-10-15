@@ -1784,29 +1784,6 @@ const FAN_LONG_WIDTH = 600;
 const FAN_DEAL_START = 0.2;
 const FAN_DEAL_GAP = 0.11;
 let fanDealt = false;
-/** Vida propia sin ratón (2026-10-13): tras un rato sin que nadie lo toque, el abanico va destacando una carta cada
- *  vez (se endereza, crece un poco y enseña su marca) y la devuelve. En móvil es el único movimiento que hay, porque
- *  no existe carta señalada. Segundos de espera, de carta destacada y de descanso entre dos. */
-const FAN_AUTO_WAIT = 4;
-const FAN_AUTO_SHOW = 2.8;
-const FAN_AUTO_REST = 1.6;
-const FAN_AUTO_GROW = 1.12;
-let fanIdle = 0;
-let fanAuto = null;
-/** Qué carta toca destacar ahora, o null. Empieza por la del centro y va saltando para no recorrerlas en fila. */
-function fanAutoPick(cards, busy, dt) {
-  if (busy) {
-    fanIdle = 0;
-    return null;
-  }
-  fanIdle += dt;
-  const links = cards.filter((c) => c.matches('a.show-card'));
-  const since = fanIdle - FAN_AUTO_WAIT;
-  if (since < 0 || links.length < 2) return null;
-  const turn = Math.floor(since / (FAN_AUTO_SHOW + FAN_AUTO_REST));
-  if (since - turn * (FAN_AUTO_SHOW + FAN_AUTO_REST) > FAN_AUTO_SHOW) return null;
-  return links[(Math.floor(links.length / 2) + turn * (links.length % 2 ? 2 : 1)) % links.length];
-}
 /** Pone la tira larga sobre la miniatura la primera vez que se señala la carta. Hasta que carga no se recorre nada. */
 function fanLoadLong(card, st) {
   const view = card.querySelector('.show-view');
@@ -1939,12 +1916,6 @@ function fanTick(now) {
   if (fanHover && !cards.includes(fanHover)) fanHover = null;
   const deal = box.dataset.deal === '1';
   delete box.dataset.deal;
-  const auto = fanAutoPick(cards, open || !!fanHover || cards.some((c) => fanState.get(c)?.hold > 0), dt);
-  if (auto !== fanAuto) {
-    fanAuto?.classList.remove('is-auto');
-    auto?.classList.add('is-auto');
-    fanAuto = auto;
-  }
   cards.forEach((card, n) => {
     let st = fanState.get(card);
     if (!st) {
@@ -1969,8 +1940,6 @@ function fanTick(now) {
       y = 0;
       r = 0;
     }
-    const featured = card === auto && !hot;
-    if (featured) r = 0;
     if (st.hold > 0) {
       st.hold -= dt;
       x = 0;
@@ -1983,10 +1952,10 @@ function fanTick(now) {
     spring(st, 'r', r, dt);
     // Crecer y bajar, sin rebote (2026-10-14; amortiguación crítica: 2·√120 ≈ 22): señalar una carta no la lanza. La
     // posición sí conserva su pequeño rebote: las cartas flotan y se reparten.
-    spring(st, 's', hot ? FAN_GROW : featured ? FAN_AUTO_GROW : 1, dt, 120, 22);
-    spring(st, 'ly', hot ? 64 * k : featured ? (narrow ? 8 : 16 * k) : 0, dt, 120, 22);
+    spring(st, 's', hot ? FAN_GROW : 1, dt, 120, 22);
+    spring(st, 'ly', hot ? 64 * k : 0, dt, 120, 22);
     // Flotar: vaivén lento y distinto en cada carta; la señalada casi quieta.
-    const amp = hot ? 0.25 : featured ? 0.5 : 1;
+    const amp = hot ? 0.25 : 1;
     const fy = Math.sin(t * 1.05 + st.phase) * 5 * amp;
     const fx = Math.sin(t * 0.63 + st.phase * 1.3) * 2 * amp;
     const fr = Math.sin(t * 0.8 + st.phase * 0.7) * 1.1 * amp;
