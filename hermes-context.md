@@ -2827,5 +2827,7 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   en «Tiempo por fase». Las piezas sin desglose siguen con «Pieza». La línea de resumen del log no cambia (`tiempos.ts`).
 - Comprobado: `draftParts` sobre la sesión real da 6:36 / 1:45 / 8:30; tarjeta pintada en Studio local con esos tiempos y
   con una pieza antigua con una corrección. `npm test` 280/280.
-- Pendiente: desplegar (Railway `git push deploy main`, Vercel `vercel --prod` desde `studio/web`) y reiniciar el worker.
-  Sin probar con un trabajo real.
+- Desplegado (commit `5b66a4a`): Railway SUCCESS (18:05), Vercel con `app.js` y `styles.css` iguales a los locales,
+  worker reiniciado estando libre. Sin probar con un trabajo real: el desglose solo aparece en piezas nuevas.
+- Visto de paso: en `7uxqfr` la medición de identidad se saltó porque la marca está escrita «Wolkswagen» y la web de
+  volkswagen.es no la nombra (comprobación de H-04). Por eso Hermes investigó la marca dentro de la pieza.
