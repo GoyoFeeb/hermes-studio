@@ -97,6 +97,11 @@ export async function inspectNewsletter(htmlPath: string, root: string, opts: In
   const report = await runQualityCheck(html, {
     offer: opts.design && offerAsk ? { asked: asksForOffer(offerAsk), verifiedFigures: offerFigures(verified || ''), pieceHasFigure: pieceShowsFigure(pieceText) } : undefined,
     verified,
+    // Solo mediciones v2: las anteriores tomaban muestras de color por botones (measureBrand.ts).
+    brandButtonRadius: (() => {
+      const m = opts.brandSlug ? readMeasuredIdentity(root, opts.brandSlug) : null;
+      return m && m.version >= 2 ? m.button?.radius : undefined;
+    })(),
     requestMissing: request ? missingInPiece(request, `${html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || ''} ${visibleText(html)}`).map((t) => t.label) : undefined,
     missingLocal: missingLocalImages(html, dir, root),
     mobileProblem: render ? render.mobile : undefined,

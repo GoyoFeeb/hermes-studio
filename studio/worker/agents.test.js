@@ -246,16 +246,19 @@ test('Identidad medida: no se mide si hay brand pack o una medición reciente', 
   fs.mkdirSync(path.join(root, 'brands', 'con-pack', 'tokens'), { recursive: true });
   fs.writeFileSync(path.join(root, 'brands', 'con-pack', 'tokens', 'brand-tokens.json'), '{}');
   fs.mkdirSync(path.join(root, 'brands', 'medida', 'tokens'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'brands', 'medida', 'tokens', 'identidad-medida.json'), JSON.stringify({ measuredAt: new Date().toISOString(), palette: ['#ff0000'] }));
+  fs.writeFileSync(path.join(root, 'brands', 'medida', 'tokens', 'identidad-medida.json'), JSON.stringify({ version: 2, measuredAt: new Date().toISOString(), palette: ['#ff0000'] }));
+  // Reciente pero de la versión 1 (botón medido sobre muestras de color): se vuelve a medir.
+  fs.mkdirSync(path.join(root, 'brands', 'v1', 'tokens'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'brands', 'v1', 'tokens', 'identidad-medida.json'), JSON.stringify({ version: 1, measuredAt: new Date().toISOString() }));
   fs.mkdirSync(path.join(root, 'brands', 'vieja', 'tokens'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'brands', 'vieja', 'tokens', 'identidad-medida.json'), JSON.stringify({ measuredAt: '2026-01-01T00:00:00Z' }));
+  fs.writeFileSync(path.join(root, 'brands', 'vieja', 'tokens', 'identidad-medida.json'), JSON.stringify({ version: 2, measuredAt: '2026-01-01T00:00:00Z' }));
   const r = run(`
     const m = require(${mod('measureBrand.ts')});
     const root = ${JSON.stringify(root)};
-    process.stdout.write(JSON.stringify(['con-pack', 'medida', 'vieja', 'nueva'].map((s) => m.needsMeasure(root, s))));
+    process.stdout.write(JSON.stringify(['con-pack', 'medida', 'v1', 'vieja', 'nueva'].map((s) => m.needsMeasure(root, s))));
   `);
   fs.rmSync(root, { recursive: true, force: true });
-  assert.deepEqual(r, [false, false, true, true]);
+  assert.deepEqual(r, [false, false, true, true, true]);
 });
 
 // ---------------------------------------------------------------- encargos (studio/server/standalone.ts)

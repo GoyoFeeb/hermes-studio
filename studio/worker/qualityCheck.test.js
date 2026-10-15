@@ -272,3 +272,38 @@ test('runQualityCheck: una imagen que da 403 es error (el proxy de Gmail tampoco
   assert.match(r.checks.find((c) => c.id === 'images').details[0], /la web bloquea la imagen/);
   assert.equal(r.checks.find((c) => c.id === 'links').status, 'warning');
 });
+
+// Botones (2026-10-15): Alo y Epika salieron con border-radius:50% en la celda del botón (óvalos).
+const btn = (radius, label = 'Elige tu Accolade') =>
+  `<!--[if mso]><v:roundrect arcsize="50%"><center>${label}</center></v:roundrect><![endif]-->` +
+  `<!--[if !mso]><!--><table><tr><td class="cta-bg" bgcolor="#b5876e" style="background-color:#b5876e; border-radius:${radius}; padding:16px 28px;"><a href="https://x.es/p" style="color:#000;">${label}</a></td></tr></table><!--<![endif]-->`;
+
+test('buttonsCheck: un radio en % en la celda del botón (Alo) es error', () => {
+  const r = run(`process.stdout.write(JSON.stringify(q.buttonsCheck(${JSON.stringify(btn('50%'))})));`);
+  assert.equal(r.status, 'error');
+  assert.match(r.details[0], /Elige tu Accolade.*óvalo/);
+});
+
+test('buttonsCheck: píldora en px con arcsize 50% está bien; el botón de Outlook no cuenta dos veces', () => {
+  const r = run(`process.stdout.write(JSON.stringify(q.buttonsCheck(${JSON.stringify(btn('999px'))})));`);
+  assert.equal(r.status, 'ok', JSON.stringify(r.details));
+  assert.match(r.details[0], /^1 botón/);
+});
+
+test('buttonsCheck: radios distintos, VML más redondo que el CSS y radio distinto del de la marca son avisos', () => {
+  const html = btn('4px') + btn('999px', 'Compra la colección');
+  const r = run(`process.stdout.write(JSON.stringify(q.buttonsCheck(${JSON.stringify(btn('4px'))}, '999px')));`);
+  assert.equal(r.status, 'warning');
+  assert.ok(r.details.some((d) => /arcsize/.test(d)), JSON.stringify(r.details));
+  assert.ok(r.details.some((d) => /web de la marca usa botones de píldora/.test(d)), JSON.stringify(r.details));
+  const mixed = run(`process.stdout.write(JSON.stringify(q.buttonsCheck(${JSON.stringify(html)})));`);
+  assert.ok(mixed.details.some((d) => /misma forma \(4 px, píldora\)/.test(d)), JSON.stringify(mixed.details));
+});
+
+test('buttonsCheck: un enlace con fondo propio también es un botón; un icono redondo sin texto no', () => {
+  const html = '<a href="https://x.es" style="display:inline-block;background-color:#000;color:#fff;border-radius:50%;">Ver</a>' +
+    '<table><tr><td style="background-color:#000;border-radius:50%;width:32px;height:32px;"><a href="https://x.es/ig"><img src="ig.png" alt="" width="16"></a></td></tr></table>';
+  const r = run(`process.stdout.write(JSON.stringify(q.buttonsCheck(${JSON.stringify(html)})));`);
+  assert.equal(r.errorCount, 1, JSON.stringify(r.details));
+  assert.match(r.details[0], /«Ver»/);
+});

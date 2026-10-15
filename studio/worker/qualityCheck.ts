@@ -247,6 +247,81 @@ export function outlookCheck(html: string): QualityCheckItem {
   return result;
 }
 
+/** Radio en px de un valor de border-radius; null si va en % o no se entiende. */
+function radiusPx(value: string): number | null {
+  if (/%/.test(value)) return null;
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+const describeRadius = (px: number) => (px >= 100 ? 'píldora' : `${Math.round(px)} px`);
+
+/** Botones (2026-10-15): el de Alo salió con border-radius:50% en la celda del botón, que en un botón más ancho que
+ *  alto dibuja un óvalo, y la revisión de arte no lo vio. Un botón es un enlace con fondo propio o la celda con fondo
+ *  que solo contiene un enlace. `brandRadius`: el radio medido en la web de la marca («4px», «999px»). */
+export function buttonsCheck(html: string, brandRadius?: string): QualityCheckItem {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  // Fuera lo que solo ve Outlook (<!--[if mso]>…); el botón normal va en <!--[if !mso]><!-->, que se queda.
+  const body = html.replace(/<!--\[if (?!!)[^\]]*\]>[\s\S]*?<!\[endif\]-->/gi, '');
+  const buttons: { label: string; radius: string }[] = [];
+  const styleOf = (tag: string) => attr(tag, 'style') || '';
+  const radiusOf = (style: string) => style.match(/border-radius\s*:\s*([^;]+)/i)?.[1].trim() ?? '0';
+  const hasBg = (style: string) => /background(-color)?\s*:\s*(#|rgb)/i.test(style);
+  for (const m of body.matchAll(/<td\b[^>]*>\s*(?:<!--[\s\S]*?-->\s*)*(<a\b[^>]*>)([\s\S]*?)<\/a>\s*(?:<!--[\s\S]*?-->\s*)*<\/td>/gi)) {
+    const td = m[0].match(/^<td\b[^>]*>/i)![0];
+    const a = m[1];
+    const label = stripTags(m[2]).trim();
+    if (label.length < 2) continue;
+    const cell = styleOf(td);
+    const link = styleOf(a);
+    if (hasBg(link)) buttons.push({ label, radius: radiusOf(link) });
+    else if (hasBg(cell) || /\bbgcolor\s*=/i.test(td)) buttons.push({ label, radius: radiusOf(cell) });
+  }
+  for (const m of body.matchAll(/(<a\b[^>]*>)([\s\S]*?)<\/a>/gi)) {
+    const link = styleOf(m[1]);
+    const label = stripTags(m[2]).trim();
+    if (label.length < 2 || !hasBg(link) || buttons.some((b) => b.label === label)) continue;
+    buttons.push({ label, radius: radiusOf(link) });
+  }
+  if (!buttons.length) {
+    const none = item('buttons', 'Botones', []);
+    none.details.push('La pieza no tiene botones con fondo.');
+    return none;
+  }
+
+  for (const b of buttons.filter((x) => /%/.test(x.radius))) {
+    errors.push(
+      `Botón «${b.label.slice(0, 40)}» con border-radius:${b.radius}: en un botón más ancho que alto un porcentaje dibuja un óvalo. Usa px: el radio de la marca o 999px si es una píldora.`
+    );
+  }
+  const px = buttons.map((b) => radiusPx(b.radius)).filter((n): n is number => n !== null);
+  const shapes = [...new Set(px.map(describeRadius))];
+  if (shapes.length > 1) warnings.push(`Los botones no tienen la misma forma (${shapes.join(', ')}): usa el mismo radio en todos.`);
+
+  // Outlook dibuja el botón con el VML: si su arcsize no corresponde al radio CSS, sale con otra forma.
+  const arcs = [...html.matchAll(/<v:roundrect\b[^>]*\barcsize\s*=\s*"(\d+(?:\.\d+)?)%"/gi)].map((m) => Number(m[1]));
+  if (arcs.length && px.length) {
+    if (px.every((r) => r <= 8) && arcs.some((a) => a >= 30)) {
+      warnings.push(`Los botones VML de Outlook llevan arcsize de hasta ${Math.max(...arcs)}% (casi píldora) y en CSS el radio es de ${Math.max(...px)} px: Outlook los pintará más redondos. arcsize = radio ÷ alto del botón.`);
+    } else if (px.some((r) => r >= 100) && arcs.some((a) => a < 30)) {
+      warnings.push(`Los botones son píldoras en CSS, pero el VML de Outlook lleva arcsize de ${Math.min(...arcs)}%: usa arcsize="50%".`);
+    }
+  }
+
+  const brand = brandRadius ? radiusPx(brandRadius) : null;
+  if (brand !== null && px.length) {
+    const off = px.filter((r) => (brand >= 100 ? r < 16 : r >= 100 || Math.abs(r - brand) > 4));
+    if (off.length) {
+      warnings.push(`La web de la marca usa botones de ${describeRadius(brand)} y la pieza de ${[...new Set(off.map(describeRadius))].join(', ')}: usa el radio de la marca salvo que el concepto pida otra cosa.`);
+    }
+  }
+
+  const result = item('buttons', 'Botones', errors, warnings);
+  if (result.status === 'ok') result.details.push(`${buttons.length} botón(es), radio ${shapes.join(', ') || '0 px'}${brand !== null ? ', como en la web de la marca' : ''}.`);
+  return result;
+}
+
 /** Primeras fuentes que no son de ninguna marca: de sistema o genéricas. «Helvetica Neue» o «Roboto» no están:
  *  hay marcas que las usan de verdad (Zara, Google). */
 const GENERIC_PRIMARY = new Set([
@@ -562,11 +637,14 @@ export interface QualityOptions {
   offer?: { asked: boolean; verifiedFigures: string[]; pieceHasFigure: boolean };
   /** Datos verificados del encargo (claims.ts); sin definir, los claims solo avisan. */
   verified?: string;
+  /** Radio de botón medido en la web de la marca (measureBrand.ts), p. ej. «4px» o «999px». */
+  brandButtonRadius?: string;
   fetcher?: Fetcher;
 }
 
 export async function runQualityCheck(html: string, opts: QualityOptions = {}): Promise<QualityReport> {
   const checks = staticChecks(html, opts.missingLocal, opts.verified);
+  checks.push(buttonsCheck(html, opts.brandButtonRadius));
   const { links, images } = collectUrls(html);
   const verdicts = await checkUrls([...links, ...images.filter((u) => !links.includes(u))], opts.fetcher);
   checks.unshift(
