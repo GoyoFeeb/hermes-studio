@@ -4,6 +4,18 @@ Piezas técnicas ya resueltas para Outlook, móvil y modo oscuro. Van dentro de 
 `email-base.html`. Son ejemplos de construcción, no de diseño: tipografía, colores, tamaños y composición
 salen del brief y de la marca.
 
+## Espaciados que mide Studio (a 600 y a 375 px)
+
+Studio renderiza la pieza y devuelve como error cualquiera de estos casos:
+- **Texto o botón pegado (menos de 12 px)** al borde de su banda de color, a una foto que tiene al lado o al borde
+  de la pieza. Dentro de una banda, 24 px de padding como mínimo; entre una foto y el texto de la columna de al
+  lado, 24 px.
+- **Texto pegado a su línea decorativa** (un `border-left` de cita o lista): `padding-left` de 12 px como mínimo,
+  también en móvil.
+- **Hueco vacío** de más de 88 px, del mismo color y mucho mayor que el resto de separaciones de la pieza: entre
+  escenas, 32-48 px. Un botón no lleva 8 px por arriba y 90 por abajo: reparte el aire.
+- **Textos que se pisan.**
+
 ## Foto + texto con aire (32 px como mínimo entre la foto y el texto, con padding de la celda)
 
 ```html

@@ -21,6 +21,7 @@ import * as path from 'path';
 import { chromium, type Browser } from 'playwright';
 import sharp from 'sharp';
 import { layoutFindings, LAYOUT_MIN_GAP } from './qualityCheck';
+import { spacingFindingsWith } from './spacing';
 
 export const MOBILE_WIDTH = 375;
 const DESKTOP_WIDTH = 700;
@@ -733,7 +734,11 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
     return {
       dark,
       mobile,
-      layout: [...layoutFindings({ touching: desktop.touching, mobileLeft: small.left }), ...(await stackedColumnsWith(browser, htmlPath).catch(() => []))],
+      layout: [
+        ...layoutFindings({ touching: desktop.touching, mobileLeft: small.left }),
+        ...(await stackedColumnsWith(browser, htmlPath).catch(() => [])),
+        ...(await spacingFindingsWith(browser, htmlPath, DESKTOP_WIDTH, MOBILE_WIDTH).catch(() => [])),
+      ],
       design: designFindings(desktop, small.fonts, palette),
       images: await imageFindings(html, path.dirname(htmlPath), root, desktop.imgWidths),
       imgWidths: desktop.imgWidths,

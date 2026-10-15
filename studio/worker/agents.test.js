@@ -1065,3 +1065,70 @@ test('Foto repetida recortada (Tarífalo, 2026-10-08): un recorte cuenta como la
   assert.match(r.piece[0], /con otro nombre o recortada/);
   assert.deepEqual(r.ok, []);
 });
+
+// ---------------------------------------------------------------- espaciados (spacing.ts, 2026-10-15)
+
+test('Espaciados: mensajes, y texto encima o debajo de una foto se deja a layoutFindings', () => {
+  const r = run(`
+    const { spacingFindings } = require(${mod('spacing.ts')});
+    process.stdout.write(JSON.stringify(spacingFindings({
+      width: 700,
+      edges: [
+        { text: 'Conoce cómo trabajamos', side: 'arriba', gap: 7, what: 'banda', button: true },
+        { text: 'Titular bajo la foto', side: 'arriba', gap: 4, what: 'foto', button: false },
+        { text: 'Botas claras', side: 'izquierda', gap: 0, what: 'foto', button: false },
+      ],
+      rules: [{ text: 'La comunicación ordena', gap: 0 }],
+      holes: [{ after: 'Conoce cómo trabajamos', before: 'La comunicación ordena', gap: 90 }],
+      overlaps: [],
+    }, 'a 600 px')));
+  `);
+  assert.equal(r.length, 4, JSON.stringify(r));
+  assert.match(r[0], /^Botón «Conoce cómo trabajamos» pegado por arriba a la banda de otro color \(7 px, a 600 px\)/);
+  assert.match(r[1], /^Texto «Botas claras» pegado por la izquierda a la foto/);
+  assert.match(r[2], /línea decorativa/);
+  assert.match(r[3], /Hueco vacío de 90 px/);
+});
+
+test('Espaciados renderizando: botón pegado a la banda, texto pegado a su línea y a la foto, hueco; una pieza bien, nada', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'spacing-'));
+  const shell = (rows) => '<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>body{margin:0;background:#d9c21e;font:16px/1.5 Arial}' +
+    '@media (max-width:620px){.c{width:100%!important}}</style></head><body><table class="c" width="600" align="center" cellpadding="0" cellspacing="0" style="background:#fff">' + rows + '</table></body></html>';
+  const band = '<tr><td style="background:#000;color:#fff;padding:40px 24px"><h1 style="margin:0">Cada mensaje toma su forma.</h1></td></tr>';
+  const para = (txt) => '<tr><td style="padding:24px"><p style="margin:0">' + txt + '</p></td></tr>';
+  const roto = shell(band +
+    '<tr><td style="padding:6px 24px 130px"><table><tr><td style="background:#d9c21e;padding:12px 20px"><a href="https://x.es">Conoce cómo trabajamos</a></td></tr></table></td></tr>' +
+    '<tr><td style="padding:0 24px 24px"><div style="border-left:2px solid #d9c21e"><p style="margin:0">La comunicación ordena el enfoque para que cada mensaje responda a sus objetivos.</p></div></td></tr>' +
+    para('Un segundo bloque de texto con su separación normal entre escenas.') + para('Y un tercero para que la pieza tenga su ritmo habitual.') +
+    '<tr><td style="padding:24px"><table width="100%"><tr><td width="200"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" width="200" height="200" style="display:block;background:#888"></td><td valign="top"><p style="margin:0">Botas claras frente a tonos oscuros, con texto largo.</p></td></tr></table></td></tr>' +
+    '<tr><td style="padding:32px 24px"><table><tr><td style="background:#d9c21e;padding:12px 20px"><a href="https://x.es/h">Habla con el equipo</a></td></tr></table></td></tr>');
+  const bien = shell(band +
+    '<tr><td style="padding:32px 24px"><table><tr><td style="background:#d9c21e;padding:12px 20px"><a href="https://x.es">Conoce cómo trabajamos</a></td></tr></table></td></tr>' +
+    '<tr><td style="padding:0 24px 24px"><div style="border-left:2px solid #d9c21e;padding-left:16px"><p style="margin:0">La comunicación ordena el enfoque para que cada mensaje responda a sus objetivos.</p></div></td></tr>' +
+    para('Un segundo bloque de texto con su separación normal entre escenas.') +
+    '<tr><td style="padding:24px 24px 40px"><p style="margin:0;text-align:center"><a href="https://x.es/p">Política de privacidad muy larga que salta de línea</a> · <a href="https://x.es/c">Política de cookies</a></p></td></tr>');
+  fs.writeFileSync(path.join(dir, 'roto.html'), roto);
+  fs.writeFileSync(path.join(dir, 'bien.html'), bien);
+  let out;
+  try {
+    out = run(`
+      const { chromium } = require('playwright');
+      const { spacingFindingsWith } = require(${mod('spacing.ts')});
+      const b = await chromium.launch();
+      const a = await spacingFindingsWith(b, ${JSON.stringify(path.join(dir, 'roto.html'))}, 700, 375);
+      const c = await spacingFindingsWith(b, ${JSON.stringify(path.join(dir, 'bien.html'))}, 700, 375);
+      await b.close();
+      process.stdout.write(JSON.stringify({ a, c }));
+    `);
+  } catch {
+    return t.skip('Chromium no arranca aquí');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  const all = out.a.join('\n');
+  assert.match(all, /Botón «Conoce cómo trabajamos» pegado por arriba a la banda de otro color \(\d px, en escritorio y móvil\)/);
+  assert.match(all, /«La comunicación ordena[^»]*» a 0 px de su línea decorativa/);
+  assert.match(all, /«Botas claras[^»]*» pegado por la izquierda a la foto \(\d px, a 600 px\)/);
+  assert.match(all, /Hueco vacío de \d+ px entre «Conoce cómo trabajamos» y «La comunicación ordena/);
+  assert.deepEqual(out.c, []);
+});
