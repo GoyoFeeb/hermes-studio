@@ -12,7 +12,7 @@ import { autoFix, compressLocalImages, hasAttr } from './autoFix';
 import { renderChecks, resolveLocal, type RenderReport } from './renderChecks';
 import { runQualityCheck, visibleText, type QualityReport, type Fetcher } from './qualityCheck';
 import { buildBrandCard, readBrandLegal } from './brandCard';
-import { readMeasuredIdentity } from './measureBrand';
+import { hasConfirmedUrl, readMeasuredIdentity } from './measureBrand';
 import { asksForOffer, missingInPiece, offerFigures, pieceShowsFigure } from '../server/requestCoverage';
 import { VERIFIED_FILE } from './claims';
 
@@ -54,8 +54,9 @@ export function brandPalette(root: string, slug: string | undefined): string[] {
   } catch {
     // sin brand pack
   }
+  // Solo si la web medida la dio el equipo (Tesla, 2026-10-15: la «paleta de la marca» era la de otra empresa).
   const measured = readMeasuredIdentity(root, slug);
-  for (const c of measured?.palette || []) out.add(c.toLowerCase());
+  if (hasConfirmedUrl(measured)) for (const c of measured!.palette || []) out.add(c.toLowerCase());
   return [...out];
 }
 
@@ -102,7 +103,7 @@ export async function inspectNewsletter(htmlPath: string, root: string, opts: In
     // Solo mediciones v2: las anteriores tomaban muestras de color por botones (measureBrand.ts).
     brandButtonRadius: (() => {
       const m = opts.brandSlug ? readMeasuredIdentity(root, opts.brandSlug) : null;
-      return m && m.version >= 2 ? m.button?.radius : undefined;
+      return m && m.version >= 2 && hasConfirmedUrl(m) ? m.button?.radius : undefined;
     })(),
     requestMissing: request ? missingInPiece(request, `${html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || ''} ${visibleText(html)}`).map((t) => t.label) : undefined,
     missingLocal: missingLocalImages(html, dir, root),

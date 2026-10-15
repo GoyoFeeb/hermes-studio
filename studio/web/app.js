@@ -146,6 +146,7 @@ function updateBrandMatch() {
     hint.textContent = `Sin brand pack ni logos en el Mac, pero ya hay ${done} newsletter${done === 1 ? '' : 's'} de ${name}: Hermes la investigará otra vez.`;
   } else hint.innerHTML = `Marca nueva: Studio medirá su identidad en su web y Hermes investigará el contenido. Se guardará como ${folder}: revisa que el nombre esté bien escrito.`;
   document.getElementById('brand-url-field').hidden = !name || !!match;
+  document.getElementById('brand-url-hint').textContent = BRAND_URL_HINT_NEW;
   if (match) describeKnownBrand(match);
   else renderBrandPeek(null);
   renderBrandSide();
@@ -366,6 +367,15 @@ brandSuggest.addEventListener('mousedown', (e) => {
   chooseBrand(opt.dataset.brandPick);
 });
 
+const BRAND_URL_HINT_NEW =
+  'Web oficial: con ella Studio mide su tipografía, colores y logo antes de empezar. Sin ella no se mide (podría ser otra empresa con el mismo nombre).';
+
+/** Marca conocida sin brand pack y sin web confirmada por el equipo (Tesla, 2026-10-15: Studio había adivinado tesla.es,
+ *  otra empresa). Se pide la web como en una marca nueva. */
+function knownBrandNeedsWeb(card) {
+  return !card || (!card.hasPack && !card.web?.confirmed);
+}
+
 // Qué sabe Hermes de una marca conocida (2026-10-01): antes el aviso decía siempre «usará sus colores,
 // tipografías y logos», pero 16 de 34 marcas no tienen brand pack medido (solo logos o nada).
 const brandSummaries = new Map();
@@ -382,6 +392,13 @@ async function describeKnownBrand(slug) {
       ? 'Marca conocida, sin brand pack medido: Hermes usará sus logos e investigará colores y tono.'
       : 'Marca conocida, sin brand pack ni logos: Hermes la investigará como nueva.';
     hint.innerHTML = `${escapeHtml(text)} <a href="?brand=${encodeURIComponent(slug)}" target="_blank" rel="noopener">Ver ficha</a>`;
+    const needsWeb = knownBrandNeedsWeb(card);
+    document.getElementById('brand-url-field').hidden = !needsWeb;
+    if (needsWeb) {
+      document.getElementById('brand-url-hint').textContent = card?.web
+        ? `Web oficial: Studio midió la marca en ${card.web.url}, pero nadie del equipo la confirmó (puede ser otra empresa). Escribe la web oficial para medirla bien.`
+        : 'Web oficial: esta marca no tiene una confirmada. Con ella Studio mide su tipografía, colores y logo antes de empezar.';
+    }
     renderBrandPeek(slug, card);
     renderBrandSide();
   };
@@ -828,7 +845,7 @@ function askBrandUrl(payload, message) {
   noUrlPayload = payload;
   document.getElementById('brand-url-warning-text').textContent =
     message ||
-    `${payload.clientName} es una marca nueva y no tiene web oficial. Sin ella Studio no mide su identidad: adivinar el dominio puede dar con otra empresa del mismo nombre (como «Feebbo» y feebbo.com, de Feebbo Encuestas).`;
+    `${payload.clientName} ${payload.existingBrand ? 'no tiene una web oficial confirmada' : 'es una marca nueva y no tiene web oficial'}. Sin ella Studio no mide su identidad: adivinar el dominio puede dar con otra empresa del mismo nombre (como «Feebbo» y feebbo.com, de Feebbo Encuestas).`;
   brandUrlWarning.hidden = false;
   document.getElementById('brand-url-fill').focus();
 }
@@ -925,6 +942,8 @@ function continueSubmit(payload) {
 }
 document.getElementById('brand-url-fill').addEventListener('click', () => {
   clearFormNotices();
+  // Si lo pidió el servidor (marca conocida sin ficha en este navegador), el campo podía estar oculto.
+  document.getElementById('brand-url-field').hidden = false;
   document.getElementById('brand-url-input').focus();
 });
 document.getElementById('brand-url-skip').addEventListener('click', () => {

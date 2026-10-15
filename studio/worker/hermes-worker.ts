@@ -23,7 +23,7 @@ import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 import { describeErrors, staticChecks, type QualityReport } from './qualityCheck';
 import { REQUEST_FILE, inspectNewsletter } from './inspect';
-import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote } from './measureBrand';
+import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote, hasConfirmedUrl, sameSite } from './measureBrand';
 import { Timeline, summarize, type JobTimings } from './timeline';
 import { renderThumbnails } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
@@ -745,7 +745,7 @@ export function legalNote(root: string, slug: string): string {
       ...head,
       '- Esta marca no tiene datos legales guardados. Búscalos en el aviso legal o la política de privacidad de su web oficial: razón social (con su forma, p. ej. «S.L.U.») y domicilio postal completo.',
       '- Ponlos en el pie, en texto (no en una imagen), junto a una línea que diga por qué lo recibe («Recibes este email porque…»). No los inventes: anota en notas.md de qué página los sacaste.',
-    ].join('\n');
+    ].join('\n') + '\n';
   }
   return [
     ...head,
@@ -753,7 +753,7 @@ export function legalNote(root: string, slug: string): string {
     `- Dirección postal: ${legal.direccion}.`,
     legal.motivo ? `- Por qué lo recibe: «${legal.motivo}»` : '- Añade una línea que diga por qué lo recibe («Recibes este email porque…»).',
     '- Ponlos tal cual en el pie, en texto (no en una imagen), junto al enlace de baja.',
-  ].join('\n');
+  ].join('\n') + '\n';
 }
 
 function brandAssetsNote(outputDir: string): string {
@@ -1208,12 +1208,17 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // sin brand pack, y una vez cada 90 días. El brief y el encargo la reciben ya resuelta.
   let identity = '';
   if (!editKind && slug) {
-    if (needsMeasure(ROOT, slug)) {
+    // Solo webs que dio el equipo (Tesla, 2026-10-15): la de este encargo o la de una medición suya anterior. Una web
+    // adivinada antes del arreglo de H-04 no se reutiliza. Si el equipo da una web y la guardada no es suya, se mide.
+    const given = claimed.brand?.url;
+    const prev = readMeasuredIdentity(ROOT, slug);
+    const confirmedPrev = hasConfirmedUrl(prev) ? prev!.url : undefined;
+    const newWeb = !!given && !hasBrandPack(ROOT, slug) && !(confirmedPrev && sameSite(given, confirmedPrev));
+    if (needsMeasure(ROOT, slug) || newWeb) {
       timeline.start('measure', 'Identidad medida en la web');
       await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Midiendo la identidad de la marca en su web (tipografía, colores, botones y logo)…' }).catch(() => undefined);
       try {
-        // Solo la web oficial: la que dé el equipo o, al volver a medir, la de la medición anterior (H-04, 2026-10-15).
-        const url = claimed.brand?.url || readMeasuredIdentity(ROOT, slug)?.url;
+        const url = given || confirmedPrev;
         const m = await withTimeout(measureBrand(ROOT, slug, claimed.brand?.name || slug, url), MEASURE_TIMEOUT_MS);
         const msg = !m
           ? 'La medición de la marca tardó demasiado: Hermes la investigará como siempre.'
@@ -1286,7 +1291,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const photos = !/GENÉRALAS CON IA/.test(prompt);
     // Galería de campaña (2026-10-06, punto 2): también las páginas de «6. Imágenes» del brief y la portada medida de la
     // marca, para que haya imagen principal y variedad aunque la pieza no sea de un producto con ficha.
-    const gallery = photos ? galleryUrls(briefPart, readMeasuredIdentity(ROOT, slug)?.url || brandHome(briefPart, slug)) : [];
+    // La portada medida solo si su web la dio el equipo (Tesla: las fotos salían de tesla.es, otra empresa).
+    const measuredHome = readMeasuredIdentity(ROOT, slug);
+    const gallery = photos ? galleryUrls(briefPart, (hasConfirmedUrl(measuredHome) ? measuredHome!.url : '') || brandHome(briefPart, slug)) : [];
     if (urls.length || gallery.length) {
       timeline.start('product', 'Ficha de producto y galería');
       await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Leyendo la web oficial: ficha del producto (precio, envío) y fotos de la campaña…' }).catch(() => undefined);
@@ -1305,7 +1312,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       timeline.end();
     }
     const logo = await copyMeasuredLogo(slug, outAbs);
-    if (logo) logoNote = `\n- Logo oficial medido ya copiado en ${claimed.outputDir}/${logo}: úsalo tal cual (no lo copies ni lo busques).`;
+    // Mismo criterio que la identidad medida (Tesla, 2026-10-15): solo si la web medida es la oficial de la marca.
+    if (logo)
+      logoNote = `\n- Logo medido en ${readMeasuredIdentity(ROOT, slug)?.url || 'la web de la marca'}, ya copiado en ${claimed.outputDir}/${logo}. Si esa web es la oficial de la marca (lo de «Identidad de la marca ya medida»), úsalo tal cual sin copiarlo ni buscarlo; si no lo es, bórralo de la carpeta y usa el logo de la web oficial.`;
   }
   if (cancelled) {
     setAsideFolder(outAbs, 'cancelado');

@@ -34,6 +34,9 @@ export interface MeasuredIdentity {
   version: number;
   measuredAt: string;
   url: string;
+  /** De dónde salió la web (2026-10-15): «equipo» = la escribió alguien en Studio. Sin el campo, la medición es de antes
+   *  y la web pudo ser adivinada (Tesla: www.tesla.es era «Tesla: Instalaciones Integrales en Barcelona»). */
+  urlSource?: 'equipo';
   title: string;
   headings: { family: string; weight: string; transform: string; letterSpacing: string; color: string } | null;
   body: { family: string; size: string; color: string } | null;
@@ -55,6 +58,21 @@ const NAV_TIMEOUT = 25000;
 
 export function measuredIdentityPath(root: string, slug: string): string {
   return path.join(root, 'brands', slug, 'tokens', 'identidad-medida.json');
+}
+
+/** ¿La web de la medición la dio el equipo? Solo esas se reutilizan al volver a medir. */
+export function hasConfirmedUrl(m: MeasuredIdentity | null): boolean {
+  return !!m && m.urlSource === 'equipo' && /^https?:\/\//i.test(m.url || '');
+}
+
+/** ¿Dos direcciones son la misma web? (mismo dominio, con o sin www). */
+export function sameSite(a: string, b: string): boolean {
+  try {
+    const host = (u: string): string => new URL(u).hostname.toLowerCase().replace(/^www\./, '');
+    return host(a) === host(b);
+  } catch {
+    return false;
+  }
 }
 
 export function readMeasuredIdentity(root: string, slug: string): MeasuredIdentity | null {
@@ -293,6 +311,8 @@ export async function measureBrand(root: string, slug: string, name: string, giv
           version: 2,
           measuredAt: new Date().toISOString(),
           url: page.url(),
+          // Solo se mide la web que da el equipo (o la de una medición suya anterior): candidateUrls ya no adivina.
+          urlSource: 'equipo',
           title: title.slice(0, 200),
           headings: x.headings,
           body: x.body,
@@ -334,7 +354,12 @@ export function identityNote(m: MeasuredIdentity): string {
   return [
     '',
     `## Identidad de la marca ya medida en su web (Studio, ${m.measuredAt.slice(0, 10)}, ${m.url})`,
-    '- Medida automáticamente con getComputedStyle. Úsala tal cual; no la vuelvas a medir salvo que veas en la web que no cuadra.',
+    hasConfirmedUrl(m)
+      ? '- Medida automáticamente con getComputedStyle en la web oficial que indicó el equipo.'
+      : '- OJO: esta web NO la confirmó el equipo (Studio la adivinó antes del 2026-10-15 y pudo dar con otra empresa del mismo nombre).',
+    // Tesla (2026-10-15): «úsala tal cual» hizo que Hermes pusiera el logo y los colores de otra empresa aunque él mismo
+    // investigó en tesla.com. Antes de usarla, que compruebe que es la marca de la que habla el encargo.
+    `- Antes de usarla, comprueba que ${m.url} es la web oficial de la marca del encargo: el mismo dominio que usas para investigar, el mismo nombre y el mismo logo. Si lo es, úsala sin volver a medirla. Si no lo es (otra empresa, un distribuidor, otra marca del grupo), NO uses nada de esta sección (ni el logo medido): busca la identidad en la web oficial y explícalo en notas.md.`,
     head ? `- Titulares: ${head} (peso ${m.headings!.weight}${m.headings!.transform !== 'none' ? `, ${m.headings!.transform}` : ''}, color ${m.headings!.color}).` : '',
     body ? `- Texto: ${body} (${m.body!.size}, color ${m.body!.color}).` : '',
     embeddable.length
@@ -343,10 +368,13 @@ export function identityNote(m: MeasuredIdentity): string {
     `- Fondo ${m.background}, texto ${m.text}.`,
     m.button ? `- Botón: fondo ${m.button.background}, texto ${m.button.color}, radio ${buttonRadius(m.button.radius)}${m.button.transform !== 'none' ? `, ${m.button.transform}` : ''}.` : '',
     m.palette.length ? `- Colores de marca por superficie: ${m.palette.join(', ')}.` : '',
-    m.logo ? `- Logo oficial ya descargado en PNG: ${m.logo} (Studio lo copia a la carpeta de la newsletter como logo-medido.png).` : '- No se encontró el logo en la cabecera: descárgalo tú (PNG).',
+    m.logo ? `- Logo de esa web ya descargado en PNG: ${m.logo} (Studio lo copia a la carpeta de la newsletter como logo-medido.png).` : '- No se encontró el logo en la cabecera: descárgalo tú (PNG).',
   ]
     .filter(Boolean)
-    .join('\n');
+    // Con saltos de línea propios: detrás de otra nota, el título quedaba pegado a su última línea (2026-10-15).
+    .join('\n')
+    .replace(/^/, '\n')
+    .concat('\n');
 }
 
 if (require.main === module) {

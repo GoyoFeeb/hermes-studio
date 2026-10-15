@@ -67,3 +67,18 @@ test('los archivos que no son imágenes no se ofrecen como logos y el logo elegi
   assert.ok(out.toyotaMismatched >= 1);
   assert.ok(!out.toyotaLogoMime || out.toyotaLogoMime.startsWith('data:image/'));
 });
+
+test('Tesla (2026-10-15): la ficha dice si la web medida la confirmó el equipo', () => {
+  const out = run(`
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'card-web-'));
+    const put = (slug, m) => { fs.mkdirSync(path.join(root, 'brands', slug, 'tokens'), { recursive: true }); fs.writeFileSync(path.join(root, 'brands', slug, 'tokens', 'identidad-medida.json'), JSON.stringify(m)); };
+    put('adivinada', { url: 'https://www.tesla.es/' });
+    put('equipo', { url: 'https://www.tesla.com/es_ES', urlSource: 'equipo' });
+    fs.mkdirSync(path.join(root, 'brands', 'sin-medir'), { recursive: true });
+    console.log(JSON.stringify(['adivinada', 'equipo', 'sin-medir'].map((s) => buildBrandCard(root, s).web)));
+    fs.rmSync(root, { recursive: true, force: true });
+  `);
+  assert.deepEqual(out, [{ url: 'https://www.tesla.es/', confirmed: false }, { url: 'https://www.tesla.com/es_ES', confirmed: true }, null]);
+});

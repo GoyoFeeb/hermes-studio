@@ -44,6 +44,19 @@ export interface BrandCard {
   logoOnDark: boolean;
   /** Identificación del remitente para el pie (H-02, 2026-10-15): brands/<marca>/tokens/legal.json. */
   legal: BrandLegal | null;
+  /** Web donde Studio midió la identidad y si la dio el equipo (Tesla, 2026-10-15). Sin confirmar, el formulario la pide. */
+  web: { url: string; confirmed: boolean } | null;
+}
+
+/** La web de identidad-medida.json (se lee aquí sin measureBrand.ts, que arrastra Playwright). */
+function measuredWeb(root: string, slug: string): BrandCard['web'] {
+  try {
+    const m = JSON.parse(fs.readFileSync(path.join(root, 'brands', slug, 'tokens', 'identidad-medida.json'), 'utf8')) as Json;
+    const url = str(m?.url, 300);
+    return url && /^https?:\/\//i.test(url) ? { url, confirmed: m.urlSource === 'equipo' } : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Datos legales del remitente (LSSI art. 10 / RGPD): razón social y dirección postal en el pie, y por qué lo recibe.
@@ -259,6 +272,7 @@ export function buildBrandCard(root: string, slug: string): BrandCard {
     logo: null,
     logoOnDark: false,
     legal: readBrandLegal(root, slug),
+    web: measuredWeb(root, slug),
   };
   const logo = pickLogo(root, slug, logos, t ? str(at(t, 'assets.logoSvg'), 200) : null);
   card.logo = logo?.uri || null;

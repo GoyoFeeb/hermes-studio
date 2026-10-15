@@ -824,12 +824,17 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       return;
     }
     // Marca nueva (H-04, 2026-10-15): sin web oficial, Studio podía medir otra empresa del mismo nombre («Feebbo» →
-    // feebbo.com, Feebbo Encuestas). Se pide la web o una confirmación expresa de enviar sin ella.
+    // feebbo.com, Feebbo Encuestas). Se pide la web o una confirmación expresa de enviar sin ella. También en una marca
+    // conocida sin brand pack cuya web medida no confirmó el equipo (Tesla: tesla.es era otra empresa).
     const brandUrl = typeof body.brandUrl === 'string' && /^https:\/\/[^\s"'<>]{4,300}$/.test(body.brandUrl.trim()) ? body.brandUrl.trim() : undefined;
-    if (!body.existingBrand && !brandUrl && body.confirmNoBrandUrl !== true) {
+    const knownCard = body.existingBrand ? readBrandCard(clientSlug)?.card : undefined;
+    const unconfirmedKnown = !!body.existingBrand && (!knownCard || (!knownCard.hasPack && !knownCard.web?.confirmed));
+    if ((!body.existingBrand || unconfirmedKnown) && !brandUrl && body.confirmNoBrandUrl !== true) {
       res.status(409).json({
         code: 'brand_url_required',
-        error: `"${body.clientName}" es una marca nueva: indica su web oficial o confirma que la envías sin ella (Hermes la investigará).`,
+        error: body.existingBrand
+          ? `"${body.clientName}" no tiene web oficial confirmada: indícala o confirma que la envías sin ella (Hermes la investigará).`
+          : `"${body.clientName}" es una marca nueva: indica su web oficial o confirma que la envías sin ella (Hermes la investigará).`,
       });
       return;
     }

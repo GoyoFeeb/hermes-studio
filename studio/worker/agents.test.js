@@ -264,7 +264,7 @@ test('H-04 (2026-10-15): sin web oficial no se mide; con título de otra marca t
     const keptAfterOther = fs.existsSync(${JSON.stringify(old)});
     const good = await m.measureBrand(root, 'feebbo', 'Feebbo Digital', base + '/buena');
     server.close();
-    process.stdout.write(JSON.stringify({ none, other, keptAfterOther, goodUrl: good.url, goodLogo: good.logo, oldLeft: fs.existsSync(${JSON.stringify(old)}) }));
+    process.stdout.write(JSON.stringify({ none, other, keptAfterOther, goodUrl: good.url, goodSource: good.urlSource, goodLogo: good.logo, oldLeft: fs.existsSync(${JSON.stringify(old)}) }));
   `);
   fs.rmSync(root, { recursive: true, force: true });
   assert.match(r.none.reason, /No hay web oficial/);
@@ -272,7 +272,39 @@ test('H-04 (2026-10-15): sin web oficial no se mide; con título de otra marca t
   assert.equal(r.keptAfterOther, true, 'si no se mide, no se toca nada');
   assert.match(r.goodUrl, /\/buena$/);
   assert.equal(r.goodLogo, null);
+  assert.equal(r.goodSource, 'equipo', 'la web medida queda marcada como dada por el equipo');
   assert.equal(r.oldLeft, false, 'el logo de la medición anterior no se queda como «oficial»');
+});
+
+test('Tesla (2026-10-15): una web adivinada no se da por buena; la nota de identidad pide comprobarla', () => {
+  const base = {
+    version: 2, measuredAt: '2026-10-15T13:33:55Z', url: 'https://www.tesla.es/', title: 'Tesla: Instalaciones Integrales en Barcelona',
+    headings: null, body: null, fonts: [], fontLinks: [], background: '#ffffff', text: '#1d1d1d', button: null,
+    palette: ['#128c3c'], logo: 'brands/tesla/design-input/logo-medido.png',
+  };
+  const r = run(`
+    const m = require(${mod('measureBrand.ts')});
+    const w = require(${mod('hermes-worker.ts')});
+    const legacy = ${JSON.stringify(base)};
+    const team = { ...legacy, url: 'https://www.tesla.com/es_ES', urlSource: 'equipo' };
+    process.stdout.write(JSON.stringify({
+      legacyOk: m.hasConfirmedUrl(legacy), teamOk: m.hasConfirmedUrl(team), none: m.hasConfirmedUrl(null),
+      same: [m.sameSite('https://tesla.com/es_ES', 'https://www.tesla.com/'), m.sameSite('https://www.tesla.es/', 'https://www.tesla.com/')],
+      legacyNote: m.identityNote(legacy), teamNote: m.identityNote(team),
+      legal: w.legalNote('/nonexistent', 'tesla'),
+    }));
+  `);
+  assert.deepEqual([r.legacyOk, r.teamOk, r.none], [false, true, false]);
+  assert.deepEqual(r.same, [true, false]);
+  assert.match(r.legacyNote, /NO la confirmó el equipo/);
+  assert.match(r.teamNote, /web oficial que indicó el equipo/);
+  for (const note of [r.legacyNote, r.teamNote]) {
+    assert.doesNotMatch(note, /tal cual; no la vuelvas a medir/);
+    assert.match(note, /NO uses nada de esta sección/);
+    assert.match(note, /^\n## Identidad/, 'el título empieza en su propia línea');
+    assert.match(note, /\n$/);
+  }
+  assert.match(r.legal, /\n$/, 'la nota legal acaba en salto de línea');
 });
 
 test('Identidad medida: no se mide si hay brand pack o una medición reciente', () => {
