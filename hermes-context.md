@@ -2785,3 +2785,18 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   del Mac reiniciado (`service.sh restart`, estaba libre) con el código nuevo; envió 54 fichas, Feebbo con `legal`.
   No se ha probado de punta a punta con un trabajo real (no se creó ninguno para no ocupar la cola).
 
+
+### 2026-10-15 — Tesla con la identidad de otra empresa (diagnóstico, nada cambiado)
+- Piezas `2026-10-08-a2e1t6` y `2026-10-15-12cyjn` (más el intento cancelado `xprbi5`): logo verde «TESLA» con rayo,
+  verde #128c3c y Safiro Bold (Hermes la sustituyó por Montserrat). Son de www.tesla.es, «Tesla: Instalaciones
+  Integrales en Barcelona», no de Tesla (tesla.com/es_ES). Hermes sacó los datos de tesla.com, pero el encargo le decía
+  «úsala tal cual; no la vuelvas a medir» y «logo oficial: úsalo tal cual».
+- Origen: (1) 08-10, código antiguo: sin web, se adivinó www.tesla.es y el título contiene «Tesla», así que se aceptó.
+  (2) Hoy 15:33: la medición era v1, así que tocaba repetirla, y el arreglo de H-04 («al volver a medir, la url de la
+  medición anterior») reutilizó esa web adivinada. **Hueco del arreglo de H-04:** las mediciones anteriores al arreglo
+  no dicen si la web la dio el equipo o se adivinó. (3) Tesla es «marca conocida» desde el 08-10 (tiene carpeta): el
+  formulario no muestra el campo de web. (4) La revisión de arte y los checks comparan contra esa misma paleta medida.
+- Otro fallo mío: `legalNote` no acaba en salto de línea y el título «## Identidad de la marca…» queda pegado a la línea
+  anterior en el encargo.
+- Mediciones dudosas sin verificar (el título es solo el dominio y no responden a curl): north-face (northface.es) y
+  helly-hansen (hellyhansen.es).
