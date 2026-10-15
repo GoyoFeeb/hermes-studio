@@ -7,7 +7,7 @@
 > qué se diagnosticó, qué se decidió arreglar, y qué sigue abierto — para que una futura sesión de
 > esta skill no repita el mismo diagnóstico desde cero.
 
-**Última actualización:** 2026-10-06 (ronda de investigación de tiempos y calidad agente por agente, solo diagnóstico)
+**Última actualización:** 2026-10-15 (corregidos los S0 H-04 marca equivocada y H-02 remitente sin identificar de la auditoría de Studio)
 
 ---
 
@@ -2708,3 +2708,76 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
 - Vista previa escalada («al 86 %»): la columna se estrechaba al ancho ya escalado y `.preview-device` (un bloque) se
   encogía con ella; el email, de ancho fijo, se salía del marco del móvil. Arreglo: `width: max-content`. Medido en
   «Los dos» a 1680 px: marco 211 → 289 px, email 273 px dentro. Comprobado en las cuatro vistas y a 375 px.
+
+### 2026-10-15 — Auditoría integral de Hermes Studio: paso 1, reconocimiento (solo diagnóstico, nada cambiado)
+- Encargo del usuario: auditoría «comité» A–L. Esta sesión solo hizo el reconocimiento y propuso el plan de pruebas;
+  no se generó ninguna pieza, ni se creó ningún enlace, ni se envió ninguna prueba.
+- El encargo partía de premisas que ya no son ciertas: hay entrada (Google @feebbo.com + contraseña compartida aún
+  activa, `/api/auth/me` → `password:true`); Studio no ejecuta el pipeline 00-09 (retirado el 2026-10-05), sino
+  una sesión de Hermes Agent en el Mac; el envío de prueba está apagado en producción (`mailEnabled:false`).
+- Medido en producción (`/api/jobs`, 2026-10-15): 112 trabajos desde el 24-09, 4 solicitantes, 87 completados,
+  14 fallidos (todos por infraestructura: worker reiniciado/Mac dormido/Hermes sin HTML), 10 cancelados,
+  **0 aprobados**, 110/112 con assets oficiales. Pieza nueva: p50 17,6 min, p90 27,7, máx 73,8.
+  Marcas duplicadas por escritura (Calvin Klein/«Calvin Kleins Jeans», Helly hansen/Hansen, asics, lacoste).
+- HTML de las 20 últimas piezas: 11-17 KB, `lang`, `role="presentation"`, MSO, modo oscuro, alt y baja en todas;
+  imágenes servidas desde el dominio de Railway.
+- Cabeceras: la home de Vercel no tiene CSP ni frame-ancestors/X-Frame-Options (las páginas /p y /r sí);
+  Railway responde directo con `X-Powered-By: Express`. Pendiente verificar el limitador por IP detrás del
+  rewrite de Vercel.
+
+### 2026-10-15 — Auditoría integral de Hermes Studio: pruebas reales e informe (solo diagnóstico, nada cambiado)
+- Informe completo (36 hallazgos, 57/100) en el doc de Claude «Auditoría integral de Hermes Studio»
+  (https://claude.ai/code/artifact/6305dd7c-8c40-450b-8421-45fb6dd3624e). Ningún cambio en el código ni en el sistema.
+- Piezas de prueba: C2 `mv9e05ul-qnyj7t` (prompt completo, IA), C3 `mv9e05ya-pb4jc5` (marca inventada Tostadores
+  Lumbre), C5 `mv9e0672-nfy1op` (inyección directa), C6 `mv9e0g6n-4acjeq` (inglés). C1 `mv9dze9a-l50vpv` falló por
+  reinicio del worker (12:27:53); su reintento `mv9egaei-3x4stq` y C4 `mv9e0632-92hhal` se cancelaron a petición del
+  usuario (no ocupar más cola). Enlace de cliente creado en C2 y desactivado (404 comprobado).
+- **Bug nuevo (S0): marca equivocada.** `measureBrand.candidateUrls` prueba `www.<slug>.es/.com` sin web dada y
+  `looksLikeBrand` acepta cualquier dominio con el nombre: «feebbo» → feebbo.com (Feebbo Encuestas). C2, C5 y C6
+  salieron con su logo y paleta; check-newsletter y revisión de arte (39, 40, 44/50) no lo vieron. Ya ocurrió el 07-10
+  (`muy744dg-p1lsyi`). `brands/feebbo/tokens/identidad-medida.json` apunta a feebbo.com: corregir.
+- Otros hallazgos verificados: 14/15 piezas sin razón social ni dirección (ningún check lo exige); worker reiniciado
+  mata el trabajo sin reintento; límite de 5 jobs/10 min no frena (6 aceptados en 46 s); C3 «Lista para revisar» con
+  2 errores y un CTA que no es enlace; en C6 el botón pierde el fondo en oscuro; pasada de mejora de arte descartada en
+  30 de 44 (y el log dice «empeoraba» aunque la nota suba); aprobación del cliente suplantable; home sin
+  frame-ancestors; `npm audit` 4 vulnerabilidades (proxy-addr crítica, sharp alta); `tsc` sigue roto (TS5107).
+- C5: Hermes no siguió la inyección (no creó /tmp/hermes-canary-2026-10-15.txt ni copió su prompt) y no lo anotó.
+- Coste medido (state.db, estimado): C2 0,063 $, C3 0,078 $, C5 0,103 $, C6 0,047 $.
+
+### 2026-10-15 — Auditoría de Studio: corregidos los dos S0, H-04 (marca equivocada) y H-02 (remitente) — sin desplegar
+- **H-04.** `measureBrand.candidateUrls` ya no adivina `www.<slug>.es/.com`: solo mide la web oficial que da el equipo o,
+  al volver a medir, la `url` de la medición anterior (`hermes-worker.ts`). `looksLikeBrand` compara el nombre completo
+  (el slug solo si el nombre tiene ≤ 2 letras): con «feebbo» bastaba para aceptar «Feebbo Encuestas». Si no mide, el
+  motivo sale en el progreso del trabajo (sin web, web caída o título que no nombra la marca). Fallo nuevo que no estaba
+  en el informe: sin logo en la medición nueva, el `logo-medido.png` anterior se quedaba en `design-input/` y
+  `brandAssets`/`pickLogo` lo seguían ofreciendo como oficial. Ahora se borra.
+- Formulario: «Web oficial» deja de ser opcional para marcas nuevas. Sin ella, aviso con «Poner la web» / «Enviar sin
+  web (Hermes la investigará)». El servidor responde 409 `brand_url_required` si falta la web y no llega
+  `confirmNoBrandUrl` (`studio/server/index.ts`). «Sin web» = no se mide; Hermes investiga la marca como antes.
+- Feebbo medida de nuevo en https://www.feebbodigital.com/ (título «Feebbo Digital - Site»): Work Sans, botón #262b59
+  píldora, paleta #14183f #015e53 #fb73ff… El logo nuevo es «FEEBBO DIGITAL» en blanco (el de Encuestas, guardado en el
+  scratchpad de la sesión, ya no está). Los demás logos de `brands/feebbo/design-input/` son de Feebbo Digital.
+- **H-02.** Nuevo `brands/<marca>/tokens/legal.json` (`razonSocial`, `cif`, `direccion`, `motivo`, `fuente`,
+  `revisadoAt`), aparte de `brand-tokens.json` para no cruzar la frontera del agente 02. Lo lee `brandCard.readBrandLegal`,
+  va en la ficha (`card.legal`, sección «Remitente (pie legal)» en la web) y en el encargo (`legalNote`, en primeras
+  versiones, «Pedir cambios» y «Adaptar a móvil»). Sin `legal.json`, el encargo manda a Hermes al aviso legal de la marca.
+  `qualityCheck.senderIdentityCheck` (id `sender`): error si el pie (texto alrededor del enlace de baja) no trae la razón
+  social y la dirección postal. Con `legal.json` las compara con esos datos; sin él, busca forma societaria o CIF y
+  calle o código postal. Sin motivo de recepción, solo aviso. Va en `staticChecks`, así que también salta en servidor
+  (`standalone.ts`, por patrones) y en «Pedir cambios» (se fuerza, no se hereda). `email-base.html`: el pie trae
+  `[MOTIVO DE RECEPCIÓN]` y `[RAZÓN SOCIAL] · [DIRECCIÓN POSTAL]` en vez de `[AVISO LEGAL DE LA MARCA]`.
+- Feebbo: `legal.json` con Feebbo Solutions, S.L.U., CIF B13515622, Calle Serrano, 42-4ºA, 28001 Madrid, sacado de la
+  política de privacidad y la de cookies de feebbodigital.com. **El motivo es una propuesta: confirmarlo con el equipo.**
+  Las demás marcas no tienen `legal.json`.
+- Verificado: `npm test` 276/276 (tests nuevos: H-04 con servidor local, 3 de remitente). `check-newsletter` sobre la C5
+  (`2026-10-15-nfy1op`) → exit 1 con «El pie no trae la razón social… / la dirección postal»; la C2 (`qnyj7t`, la única
+  de Feebbo con datos legales) pasa ese check. 5 de las 6 piezas de Feebbo fallarían. `tsc` sin errores en los archivos
+  de Studio (los 35 que quedan son antiguos, en campañas y `scripts/`).
+- **Efecto:** desde el despliegue, toda pieza sin remitente vuelve a Hermes en la ronda de corrección. Las marcas sin
+  `legal.json` dependen de que Hermes encuentre el aviso legal; si no lo encuentra, la pieza acaba «con errores».
+- **Abierto:** (1) avisar en el formulario, antes de enviar, si el título de la web indicada no nombra la marca: necesita
+  que el servidor descargue URLs de usuario, con protección SSRF; aplazado por decisión del usuario. (2) Editar
+  `legal.json` desde Studio (hoy solo a mano en el Mac). (3) `logo-medido.png` en blanco no se marca como versión
+  blanca (`WHITE_LOGO` mira el nombre): la ficha lo pintaría sobre fondo claro. (4) La medición de feebbodigital.com da
+  «Fondo #ffffff, texto #ffffff» (el texto se mide sobre el hero oscuro). Nada desplegado ni commiteado.
+

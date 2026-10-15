@@ -10,7 +10,7 @@
  *
  * No sustituye al brand pack (brand-tokens.json, agente 02): si existe, manda él y aquí no se mide nada.
  *
- * Uso suelto:  npx tsx studio/worker/measureBrand.ts <slug> [url] ["Nombre de la marca"]
+ * Uso suelto:  npx tsx studio/worker/measureBrand.ts <slug> <url oficial> ["Nombre de la marca"]
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -81,20 +81,17 @@ function norm(t: string): string {
   return t.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]+/g, '');
 }
 
-/** Webs que probar, en orden: la que dé el equipo y después las habituales de España. */
-export function candidateUrls(slug: string, given?: string): string[] {
-  const out: string[] = [];
-  if (given && /^https?:\/\//i.test(given)) out.push(given);
-  const bases = [...new Set([slug.replace(/-/g, ''), slug])];
-  for (const b of bases) {
-    out.push(`https://www.${b}.es/`, `https://www.${b}.com/es/`, `https://www.${b}.com/es-es/`, `https://www.${b}.com/`);
-  }
-  return [...new Set(out)];
+/** Webs que probar: solo la oficial que dé el equipo (o la de la medición anterior). Hasta el 2026-10-15 se probaba
+ *  también www.<slug>.es/.com, y «Feebbo» se midió en feebbo.com (Feebbo Encuestas, otra empresa): C2, C5 y C6 de la
+ *  auditoría salieron con su logo y su paleta. Adivinar el dominio no distingue dos empresas con el mismo nombre. */
+export function candidateUrls(_slug: string, given?: string): string[] {
+  return given && /^https?:\/\//i.test(given) ? [given] : [];
 }
 
-/** ¿La página es de la marca? El nombre (sin espacios ni signos) en el dominio, el título o el alt del logo. */
+/** ¿La página es de la marca? El nombre completo (sin espacios ni signos) en el dominio o el título. El slug solo si el
+ *  nombre es demasiado corto: con «feebbo» bastaba para dar por buena «Feebbo Encuestas» siendo «Feebbo Digital». */
 export function looksLikeBrand(name: string, slug: string, finalUrl: string, title: string): boolean {
-  const keys = [norm(name), norm(slug)].filter((k) => k.length > 2);
+  const keys = [norm(name).length > 2 ? norm(name) : norm(slug)].filter((k) => k.length > 2);
   let host = '';
   try {
     host = norm(new URL(finalUrl).hostname.replace(/^www\./, ''));
@@ -248,8 +245,17 @@ function cleanFamily(f: string): string {
   return f.split(',')[0].trim().replace(/^['"]|['"]$/g, '');
 }
 
-/** Mide la web y guarda identidad-medida.json (y el logo). Devuelve null si ninguna web candidata es de la marca. */
-export async function measureBrand(root: string, slug: string, name: string, givenUrl?: string): Promise<MeasuredIdentity | null> {
+/** Por qué no se midió (lo enseña el progreso del trabajo). */
+export interface MeasureMiss {
+  reason: string;
+}
+
+/** Mide la web y guarda identidad-medida.json (y el logo). Sin web oficial no mide nada; si la web no responde o su
+ *  título no nombra la marca, tampoco, y lo dice en `reason`. */
+export async function measureBrand(root: string, slug: string, name: string, givenUrl?: string): Promise<MeasuredIdentity | MeasureMiss> {
+  const urls = candidateUrls(slug, givenUrl);
+  if (!urls.length) return { reason: 'No hay web oficial de la marca: no se mide (adivinar el dominio puede dar con otra empresa del mismo nombre).' };
+  let miss = `La web ${urls[0]} no respondió.`;
   const browser = await launchBrowser();
   try {
     const context = await browser.newContext({
@@ -258,18 +264,27 @@ export async function measureBrand(root: string, slug: string, name: string, giv
       deviceScaleFactor: 2,
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36',
     });
-    for (const url of candidateUrls(slug, givenUrl)) {
+    for (const url of urls) {
       const page = await context.newPage();
       try {
         const res = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT }).catch(() => null);
-        if (!res || res.status() >= 400) continue;
+        if (!res || res.status() >= 400) {
+          miss = `La web ${url} no respondió${res ? ` (HTTP ${res.status()})` : ''}.`;
+          continue;
+        }
         await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => undefined);
         await acceptCookies(page);
         const title = await page.title().catch(() => '');
-        if (!looksLikeBrand(name, slug, page.url(), title)) continue;
+        if (!looksLikeBrand(name, slug, page.url(), title)) {
+          miss = `La web ${page.url()} se titula «${title.slice(0, 80)}» y no nombra a ${name}: no se ha medido por si es otra empresa.`;
+          continue;
+        }
         const x = (await page.evaluate(`(${EXTRACT_JS})()`)) as Extracted;
         const logoRel = path.join('brands', slug, 'design-input', 'logo-medido.png');
         const logoOk = x.logo ? await saveLogo(browser, page, x.logo, path.join(root, logoRel)).catch(() => false) : false;
+        // Sin logo nuevo, fuera el de la medición anterior: brandAssets lo seguiría ofreciendo como logo oficial
+        // (Feebbo, 2026-10-15: el de Feebbo Encuestas se habría quedado aunque se corrigiera la web).
+        if (!logoOk) fs.rmSync(path.join(root, logoRel), { force: true });
         // Familias de Google Fonts: las de los <link> de la web (aunque no hayan terminado de cargar).
         const google = new Set(x.links.flatMap((l) => [...l.matchAll(/family=([^&:]+)/g)].map((m) => decodeURIComponent(m[1]).replace(/\+/g, ' ').toLowerCase())));
         const used = [x.headings?.family, x.body?.family].filter((f): f is string => !!f).map(cleanFamily);
@@ -297,7 +312,7 @@ export async function measureBrand(root: string, slug: string, name: string, giv
         await page.close().catch(() => undefined);
       }
     }
-    return null;
+    return { reason: miss };
   } finally {
     await browser.close().catch(() => undefined);
   }
@@ -343,8 +358,8 @@ if (require.main === module) {
   const root = path.resolve(__dirname, '..', '..');
   measureBrand(root, slug, name || slug, url)
     .then((m) => {
-      if (!m) {
-        console.error('No se encontró la web de la marca. Pasa la URL como segundo argumento.');
+      if ('reason' in m) {
+        console.error(`${m.reason} Pasa la web oficial como segundo argumento.`);
         process.exitCode = 1;
         return;
       }

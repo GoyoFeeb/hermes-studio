@@ -32,6 +32,7 @@ const GOOD = `<!doctype html><html lang="es"><head><title>x</title>
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">El primer viaje también es un descanso para ti</div>
 <table><tr><td><img src="logo-marca.png" alt="Marca" width="120"><img src="https://studio.example.org/assets/marca/design-input/hermes/x/img-0123456789ab.jpg" alt="Hero" width="600">
 <p>Texto de la pieza.</p><a href="https://www.marca.es/producto">Descubre</a>
+<p>Recibes este email porque estás suscrito a las novedades de Marca.</p><p>Marca Ejemplo, S.L. · Calle Mayor, 1, 28013 Madrid</p>
 <a href="{{unsubscribe_url}}">Darse de baja</a></td></tr></table></body></html>`;
 
 test('runQualityCheck: una pieza correcta no tiene errores', () => {
@@ -306,4 +307,35 @@ test('buttonsCheck: un enlace con fondo propio también es un botón; un icono r
   const r = run(`process.stdout.write(JSON.stringify(q.buttonsCheck(${JSON.stringify(html)})));`);
   assert.equal(r.errorCount, 1, JSON.stringify(r.details));
   assert.match(r.details[0], /«Ver»/);
+});
+
+// ---------------------------------------------------------------- remitente en el pie (H-02, 2026-10-15)
+
+test('H-02: una pieza sin razón social ni dirección en el pie es error', () => {
+  const html = GOOD.replace(/<p>Recibes[\s\S]*?Madrid<\/p>\n/, '<p>© 2026 Marca. Todos los derechos reservados.</p>\n');
+  const r = run(`process.stdout.write(JSON.stringify(q.senderIdentityCheck(${JSON.stringify(html)})));`);
+  assert.equal(r.status, 'error');
+  assert.equal(r.errorCount, 2);
+  assert.match(r.details[0], /razón social/);
+  assert.match(r.details[1], /dirección postal/);
+  assert.match(r.details[2], /por qué lo recibe/);
+});
+
+test('H-02: con los datos de la marca (legal.json), se comparan con ellos', () => {
+  const legal = { razonSocial: 'Feebbo Solutions, S.L.U.', direccion: 'Calle Serrano, 42-4ºA, 28001 Madrid (España)' };
+  const ok = GOOD.replace('Marca Ejemplo, S.L. · Calle Mayor, 1, 28013 Madrid', 'Feebbo Solutions SLU · C/ Serrano 42, 4ºA · 28001 Madrid');
+  const other = GOOD; // trae una razón social y una dirección, pero no las de la marca
+  const r = run(`process.stdout.write(JSON.stringify([q.senderIdentityCheck(${JSON.stringify(ok)}, ${JSON.stringify(legal)}), q.senderIdentityCheck(${JSON.stringify(other)}, ${JSON.stringify(legal)})]));`);
+  assert.equal(r[0].status, 'ok', JSON.stringify(r[0]));
+  assert.equal(r[1].status, 'error');
+  assert.equal(r[1].errorCount, 2);
+  assert.match(r[1].details[0], /Feebbo Solutions, S\.L\.U\./);
+});
+
+test('H-02: solo cuenta el pie, no una dirección en mitad de la pieza', () => {
+  const filler = '<p style="margin:0;font-family:Arial,sans-serif;font-size:16px;line-height:24px;color:#333333">Texto de relleno de la pieza.</p>'.repeat(60);
+  const html = GOOD.replace('<p>Texto de la pieza.</p>', '<p>Visítanos en Calle Mayor, 1, 28013 Madrid. Marca Ejemplo, S.L.</p>' + filler)
+    .replace(/<p>Recibes[\s\S]*?Madrid<\/p>\n/, '');
+  const r = run(`process.stdout.write(JSON.stringify(q.senderIdentityCheck(${JSON.stringify(html)})));`);
+  assert.equal(r.status, 'error');
 });

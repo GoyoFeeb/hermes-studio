@@ -24,6 +24,9 @@
  * Claims (2026-10-06, claims.ts): con lo verificado del encargo (`_trabajo/datos-verificados.md`), una afirmación
  * crítica que no está ahí («envío gratis», «-30 %», «solo hoy», «garantizado»…) es error; las técnicas del motor
  * siguen como aviso (daban falsos positivos: «potencia» en la ficha de una moto). Sin ese archivo, todo aviso.
+ * Remitente (H-02, 2026-10-15): error si el pie no trae razón social y dirección postal (LSSI art. 10; 14 de 15 piezas
+ * de la auditoría no las traían). Con brands/<marca>/tokens/legal.json se comparan con esos datos; sin él, se buscan una
+ * forma societaria o un CIF y una calle o un código postal. Sin una línea de por qué lo recibe, aviso.
  * Avisos (no se devuelven): webs que bloquean a los robots (403/429: Prozis, Adeslas), que en un navegador normal
  * funcionan.
  */
@@ -119,8 +122,57 @@ function snippet(tag: string): string {
   return tag.replace(/\s+/g, ' ').slice(0, 120);
 }
 
+/** Datos del remitente que tiene que traer el pie (brandCard.ts, legal.json). */
+export interface SenderLegal {
+  razonSocial: string;
+  direccion: string;
+}
+
+function flat(t: string): string {
+  return t.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]+/g, '');
+}
+
+/** Texto del pie: alrededor del enlace de baja (lo que haya antes, hasta ~6.000 caracteres de HTML, y después); sin
+ *  enlace de baja, el final de la pieza. */
+export function footerText(html: string): string {
+  const body = bodyOf(html);
+  const at = body.search(/href\s*=\s*["']\s*\{\{\s*unsubscribe_url\s*\}\}/i);
+  return stripTags(at >= 0 ? body.slice(Math.max(0, at - 6000), at + 3000) : body.slice(-8000));
+}
+
+const COMPANY_FORM_RE =
+  /(\bS\.\s?L\.(\s?[UP]\.)?|\bS\.\s?A\.(\s?U\.)?|\bS\.\s?Coop\.|\b(SLU|SLP|SL|SAU|SA|Inc|Ltd|LLC|GmbH|BV|SAS|SpA|AG|NV)\b\.?|\bFundaci[oó]n\b|\bAsociaci[oó]n\b)/;
+const TAX_ID_RE = /\b[ABCDEFGHJNPQRSUVW]-?\d{7}[0-9A-J]\b/;
+const POSTCODE_RE = /\b(0[1-9]|[1-4]\d|5[0-2])\d{3}\b/;
+const STREET_RE = /\b(calle|c\/|avda\.?|avenida|av\.|paseo|plaza|pza\.?|carrer|camino|ronda|gran v[ií]a|travesía|street|st\.|road|rue)\s*[^.;|]{2,60}?\d/i;
+const REASON_RE = /recib(es|e|iste|ido)\b|te (escribimos|enviamos)|suscri(to|ta|ción|pción|biste)|porque (eres|estás|te|nos)|you (are )?receiv|subscribed/i;
+const STREET_WORDS = new Set(['calle', 'avenida', 'avda', 'paseo', 'plaza', 'carrer', 'camino', 'ronda', 'espana', 'spain', 'travesia']);
+
+/** Remitente identificado en el pie (H-02, 2026-10-15). */
+export function senderIdentityCheck(html: string, legal?: SenderLegal | null): QualityCheckItem {
+  const text = footerText(html);
+  const f = flat(text);
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  if (legal) {
+    if (!f.includes(flat(legal.razonSocial))) errors.push(`El pie no trae la razón social del remitente: pon «${legal.razonSocial}» en texto, junto al enlace de baja.`);
+    const postcode = legal.direccion.match(/\b\d{5}\b/)?.[0];
+    const street = flat(legal.direccion.split(/[,\d]/).join(' ').split(/\s+/).find((w) => w.length >= 4 && !STREET_WORDS.has(flat(w))) || '');
+    if ((postcode && !f.includes(postcode)) || (street && !f.includes(street))) errors.push(`El pie no trae la dirección postal del remitente: pon «${legal.direccion}» en texto, junto al enlace de baja.`);
+  } else {
+    if (!COMPANY_FORM_RE.test(text) && !TAX_ID_RE.test(text))
+      errors.push('El pie no trae la razón social del remitente (p. ej. «Marca, S.L.» o su CIF): sácala del aviso legal de la web de la marca y ponla en texto junto al enlace de baja.');
+    if (!POSTCODE_RE.test(text) && !STREET_RE.test(text))
+      errors.push('El pie no trae la dirección postal del remitente (calle, número, código postal y ciudad): sácala del aviso legal de la web de la marca.');
+  }
+  if (!REASON_RE.test(text)) warnings.push('El pie no dice por qué lo recibe («Recibes este email porque…»).');
+  const it = item('sender', 'Remitente identificado en el pie', errors, warnings);
+  if (it.status === 'ok') it.details.push(legal ? `Razón social y dirección de ${legal.razonSocial} en el pie.` : 'Razón social y dirección postal en el pie.');
+  return it;
+}
+
 /** Comprobaciones que no necesitan red. `missingLocal`: imágenes con ruta local que no existen. */
-export function staticChecks(html: string, missingLocal: string[] = [], verified?: string): QualityCheckItem[] {
+export function staticChecks(html: string, missingLocal: string[] = [], verified?: string, legal?: SenderLegal | null): QualityCheckItem[] {
   const checks: QualityCheckItem[] = [];
 
   const pre = findPreheader(html);
@@ -134,6 +186,7 @@ export function staticChecks(html: string, missingLocal: string[] = [], verified
   checks.push(
     item('unsubscribe', 'Enlace de baja', hrefs.some((h) => h && /\{\{\s*unsubscribe_url\s*\}\}/.test(h)) ? [] : ['Falta el enlace de baja con href="{{unsubscribe_url}}" en el footer.'])
   );
+  checks.push(senderIdentityCheck(html, legal));
 
   const empty = anchors.filter((t) => {
     const h = (attr(t, 'href') ?? '').trim();
@@ -641,11 +694,13 @@ export interface QualityOptions {
   verified?: string;
   /** Radio de botón medido en la web de la marca (measureBrand.ts), p. ej. «4px» o «999px». */
   brandButtonRadius?: string;
+  /** Remitente de la marca (brands/<marca>/tokens/legal.json); sin definir, el pie se comprueba por patrones. */
+  legal?: SenderLegal | null;
   fetcher?: Fetcher;
 }
 
 export async function runQualityCheck(html: string, opts: QualityOptions = {}): Promise<QualityReport> {
-  const checks = staticChecks(html, opts.missingLocal, opts.verified);
+  const checks = staticChecks(html, opts.missingLocal, opts.verified, opts.legal);
   checks.push(buttonsCheck(html, opts.brandButtonRadius));
   const { links, images } = collectUrls(html);
   const verdicts = await checkUrls([...links, ...images.filter((u) => !links.includes(u))], opts.fetcher);

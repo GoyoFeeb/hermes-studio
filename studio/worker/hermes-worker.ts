@@ -27,7 +27,7 @@ import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, has
 import { Timeline, summarize, type JobTimings } from './timeline';
 import { renderThumbnails } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
-import { brandAssets, buildBrandCard, cardHash, type BrandCard } from './brandCard';
+import { brandAssets, buildBrandCard, cardHash, readBrandLegal, type BrandCard } from './brandCard';
 import { joinLabels, missingInBrief, type RequestTerm } from '../server/requestCoverage';
 import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrls } from './productSheet';
 import { captureBrandWeb, renderSheet } from './render-newsletter';
@@ -735,6 +735,27 @@ export const BRIEF_TIME_BUDGET_SEC = 14 * 60;
  *  Hermes usó como "assets oficiales" de Adidas dos fotos generadas con fal.ai que estaban en
  *  brands/adidas/design-input/. Las copias reducidas pierden los metadatos, así que también se
  *  marcan las que comparten nombre base con una detectada (hero-banner.png → hero-banner-email.jpg). */
+/** Remitente en el pie (H-02, 2026-10-15): 14 de 15 piezas salían sin razón social ni dirección postal (LSSI art. 10).
+ *  Con legal.json se dan los datos; sin él, Hermes los saca del aviso legal de la marca. check-newsletter lo exige. */
+export function legalNote(root: string, slug: string): string {
+  const legal = slug ? readBrandLegal(root, slug) : null;
+  const head = ['', '## Remitente en el pie (obligatorio: Studio no entrega la pieza sin razón social y dirección postal)'];
+  if (!legal) {
+    return [
+      ...head,
+      '- Esta marca no tiene datos legales guardados. Búscalos en el aviso legal o la política de privacidad de su web oficial: razón social (con su forma, p. ej. «S.L.U.») y domicilio postal completo.',
+      '- Ponlos en el pie, en texto (no en una imagen), junto a una línea que diga por qué lo recibe («Recibes este email porque…»). No los inventes: anota en notas.md de qué página los sacaste.',
+    ].join('\n');
+  }
+  return [
+    ...head,
+    `- Razón social: ${legal.razonSocial}${legal.cif ? ` (CIF ${legal.cif})` : ''}.`,
+    `- Dirección postal: ${legal.direccion}.`,
+    legal.motivo ? `- Por qué lo recibe: «${legal.motivo}»` : '- Añade una línea que diga por qué lo recibe («Recibes este email porque…»).',
+    '- Ponlos tal cual en el pie, en texto (no en una imagen), junto al enlace de baja.',
+  ].join('\n');
+}
+
 function brandAssetsNote(outputDir: string): string {
   const slug = outputDir.split(path.sep)[2] || '';
   const { dir, logos, photos, ai, broken, mismatched } = brandAssets(ROOT, slug);
@@ -1191,10 +1212,14 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       timeline.start('measure', 'Identidad medida en la web');
       await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Midiendo la identidad de la marca en su web (tipografía, colores, botones y logo)…' }).catch(() => undefined);
       try {
-        const m = await withTimeout(measureBrand(ROOT, slug, claimed.brand?.name || slug, claimed.brand?.url), MEASURE_TIMEOUT_MS);
-        const msg = m
-          ? `Identidad medida en ${m.url}: ${[m.headings?.family.split(',')[0], m.palette.slice(0, 3).join(' ')].filter(Boolean).join(' · ')}${m.logo ? ' · logo descargado' : ' · sin logo'}.`
-          : 'No se encontró la web de la marca para medirla: Hermes la investigará como siempre.';
+        // Solo la web oficial: la que dé el equipo o, al volver a medir, la de la medición anterior (H-04, 2026-10-15).
+        const url = claimed.brand?.url || readMeasuredIdentity(ROOT, slug)?.url;
+        const m = await withTimeout(measureBrand(ROOT, slug, claimed.brand?.name || slug, url), MEASURE_TIMEOUT_MS);
+        const msg = !m
+          ? 'La medición de la marca tardó demasiado: Hermes la investigará como siempre.'
+          : 'reason' in m
+          ? `${m.reason} Hermes investigará la marca como siempre.`
+          : `Identidad medida en ${m.url}: ${[m.headings?.family.split(',')[0], m.palette.slice(0, 3).join(' ')].filter(Boolean).join(' · ')}${m.logo ? ' · logo descargado' : ' · sin logo'}.`;
         console.log(`[${stamp()}] ${claimed.id}: ${msg}`);
         await api(`/api/worker/jobs/${claimed.id}/progress`, { message: msg }).catch(() => undefined);
       } catch (err) {
@@ -1410,6 +1435,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   timeline.start('draft', isRevision ? 'Cambios pedidos' : isMobileFix ? 'Adaptación a móvil' : 'Primera versión');
   const model = editKind ? MODELS.fix : MODELS.draft;
   const buildEnvNotes = (): string =>
+    legalNote(ROOT, slug) +
     (isMobileFix
       ? ''
       : isRevision

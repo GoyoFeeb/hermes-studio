@@ -1,39 +1,48 @@
 {
-  "version": 1,
-  "measuredAt": "2026-10-06T14:57:01.279Z",
-  "url": "https://feebbo.com/",
-  "title": "Feebbo Encuestas",
+  "version": 2,
+  "measuredAt": "2026-10-15T11:39:35.638Z",
+  "url": "https://www.feebbodigital.com/",
+  "title": "Feebbo Digital - Site",
   "headings": {
     "family": "\"Work Sans\", sans-serif",
-    "weight": "700",
+    "weight": "600",
     "transform": "none",
     "letterSpacing": "normal",
-    "color": "#fb73ff"
+    "color": "#edf3fc"
   },
   "body": {
     "family": "\"Work Sans\", sans-serif",
-    "size": "16px",
-    "color": "#110456"
+    "size": "18px",
+    "color": "#ffffff"
   },
   "fonts": [
     {
       "family": "Work Sans",
+      "googleFonts": true
+    },
+    {
+      "family": "Barlow",
       "googleFonts": false
     }
   ],
-  "fontLinks": [],
+  "fontLinks": [
+    "https://fonts.googleapis.com/css?family=Work+Sans:regular,600,700,800%7CBarlow:regular,500,600,700,800"
+  ],
   "background": "#ffffff",
-  "text": "#110456",
+  "text": "#ffffff",
   "button": {
-    "background": "#fb73ff",
+    "background": "#262b59",
     "color": "#ffffff",
-    "radius": "100px",
+    "radius": "999px",
     "transform": "none"
   },
   "palette": [
-    "#110456",
+    "#14183f",
+    "#015e53",
     "#fb73ff",
-    "#8991ae"
+    "#262b59",
+    "#cf95d0",
+    "#b255c3"
   ],
   "logo": "brands/feebbo/design-input/logo-medido.png"
 }

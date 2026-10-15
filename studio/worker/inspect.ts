@@ -11,7 +11,7 @@ import * as path from 'path';
 import { autoFix, compressLocalImages, hasAttr } from './autoFix';
 import { renderChecks, resolveLocal, type RenderReport } from './renderChecks';
 import { runQualityCheck, visibleText, type QualityReport, type Fetcher } from './qualityCheck';
-import { buildBrandCard } from './brandCard';
+import { buildBrandCard, readBrandLegal } from './brandCard';
 import { readMeasuredIdentity } from './measureBrand';
 import { asksForOffer, missingInPiece, offerFigures, pieceShowsFigure } from '../server/requestCoverage';
 import { VERIFIED_FILE } from './claims';
@@ -97,6 +97,8 @@ export async function inspectNewsletter(htmlPath: string, root: string, opts: In
   const report = await runQualityCheck(html, {
     offer: opts.design && offerAsk ? { asked: asksForOffer(offerAsk), verifiedFigures: offerFigures(verified || ''), pieceHasFigure: pieceShowsFigure(pieceText) } : undefined,
     verified,
+    // Remitente en el pie (H-02, 2026-10-15): con legal.json se comprueban sus datos; sin él, por patrones.
+    legal: opts.brandSlug ? readBrandLegal(root, opts.brandSlug) : null,
     // Solo mediciones v2: las anteriores tomaban muestras de color por botones (measureBrand.ts).
     brandButtonRadius: (() => {
       const m = opts.brandSlug ? readMeasuredIdentity(root, opts.brandSlug) : null;

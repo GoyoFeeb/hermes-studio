@@ -212,7 +212,7 @@
             <div class="brand-peek" id="brand-peek" hidden></div>
             <!-- Marca nueva (2026-10-05): el worker mide su identidad en la web; con la dirección no tiene que adivinarla. -->
             <label class="brand-url-field" id="brand-url-field" hidden>
-              <span class="hint">Web oficial (opcional): con ella Studio mide su tipografía, colores y logo antes de empezar.</span>
+              <span class="hint">Web oficial: con ella Studio mide su tipografía, colores y logo antes de empezar. Sin ella no se mide (podría ser otra empresa con el mismo nombre).</span>
               <input type="url" name="brandUrl" id="brand-url-input" placeholder="https://www.marca.es/" inputmode="url" autocomplete="off" />
             </label>
           </div>
@@ -285,6 +285,14 @@
             <div class="warning-actions">
               <button type="button" id="vague-complete" class="btn btn-secondary btn-sm">Completar la instrucción</button>
               <button type="button" id="vague-send-anyway" class="btn btn-ghost btn-sm">Enviar igualmente</button>
+            </div>
+          </div>
+          <!-- Marca nueva sin web (H-04, 2026-10-15): «Feebbo» se midió en feebbo.com, otra empresa. -->
+          <div id="brand-url-warning" class="form-warning" role="alert" hidden>
+            <p id="brand-url-warning-text"></p>
+            <div class="warning-actions">
+              <button type="button" id="brand-url-fill" class="btn btn-secondary btn-sm">Poner la web</button>
+              <button type="button" id="brand-url-skip" class="btn btn-ghost btn-sm">Enviar sin web (Hermes la investigará)</button>
             </div>
           </div>
           <div id="brand-warning" class="form-warning" role="alert" hidden>

@@ -42,6 +42,37 @@ export interface BrandCard {
   logo: string | null;
   /** El único logo disponible es la versión blanca: se muestra sobre fondo oscuro. */
   logoOnDark: boolean;
+  /** Identificación del remitente para el pie (H-02, 2026-10-15): brands/<marca>/tokens/legal.json. */
+  legal: BrandLegal | null;
+}
+
+/** Datos legales del remitente (LSSI art. 10 / RGPD): razón social y dirección postal en el pie, y por qué lo recibe.
+ *  Archivo aparte de brand-tokens.json: no es una medida visual del agente 02 y no se vuelve a medir. */
+export interface BrandLegal {
+  razonSocial: string;
+  cif: string | null;
+  direccion: string;
+  motivo: string | null;
+  fuente: string | null;
+  revisadoAt: string | null;
+}
+
+export function brandLegalPath(root: string, slug: string): string {
+  return path.join(root, 'brands', slug, 'tokens', 'legal.json');
+}
+
+/** Lee legal.json; null si no existe o le falta la razón social o la dirección. */
+export function readBrandLegal(root: string, slug: string): BrandLegal | null {
+  let raw: Json;
+  try {
+    raw = JSON.parse(fs.readFileSync(brandLegalPath(root, slug), 'utf8'));
+  } catch {
+    return null;
+  }
+  const razonSocial = str(raw?.razonSocial, 160);
+  const direccion = str(raw?.direccion, 240);
+  if (!razonSocial || !direccion) return null;
+  return { razonSocial, cif: str(raw.cif, 20), direccion, motivo: str(raw.motivo, 300), fuente: str(raw.fuente, 400), revisadoAt: str(raw.revisadoAt, 20) };
 }
 
 const LOGO_MAX_BYTES = 150 * 1024;
@@ -227,6 +258,7 @@ export function buildBrandCard(root: string, slug: string): BrandCard {
     },
     logo: null,
     logoOnDark: false,
+    legal: readBrandLegal(root, slug),
   };
   const logo = pickLogo(root, slug, logos, t ? str(at(t, 'assets.logoSvg'), 200) : null);
   card.logo = logo?.uri || null;

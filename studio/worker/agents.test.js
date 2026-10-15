@@ -232,13 +232,47 @@ test('Identidad medida: webs candidatas, comprobación de que es la marca y nota
       note,
     }));
   `);
-  assert.deepEqual(r.urls.slice(0, 2), ['https://www.calvinklein.es/', 'https://www.calvinklein.com/es/']);
+  // H-04 (2026-10-15): sin web oficial no se adivina el dominio («Feebbo» → feebbo.com era Feebbo Encuestas).
+  assert.deepEqual(r.urls, []);
   assert.equal(r.given, 'https://www.nike.com/es/');
   assert.equal(r.ok, true);
   assert.equal(r.notOk, false);
   assert.match(r.note, /Titulares: Barlow Condensed \(peso 700, uppercase/);
   assert.match(r.note, /Google Fonts\): Barlow/);
   assert.match(r.note, /logo-medido\.png/);
+});
+
+test('H-04 (2026-10-15): sin web oficial no se mide; con título de otra marca tampoco; sin logo nuevo, fuera el viejo', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'brand-h04-'));
+  const old = path.join(root, 'brands', 'feebbo', 'design-input', 'logo-medido.png');
+  fs.mkdirSync(path.dirname(old), { recursive: true });
+  fs.writeFileSync(old, 'logo de otra empresa');
+  const r = run(`
+    const http = require('http');
+    const fs = require('fs');
+    const m = require(${mod('measureBrand.ts')});
+    const pages = {
+      '/otra': '<html><head><title>Feebbo Encuestas</title></head><body><h1>Encuestas pagadas</h1></body></html>',
+      '/buena': '<html><head><title>Feebbo Digital</title></head><body><h1>Consultoría digital</h1><p>Texto de la web de la marca, sin logo en la cabecera.</p></body></html>',
+    };
+    const server = http.createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/html' }); res.end(pages[req.url] || ''); });
+    await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
+    const base = 'http://127.0.0.1:' + server.address().port;
+    const root = ${JSON.stringify(root)};
+    const none = await m.measureBrand(root, 'feebbo', 'Feebbo Digital');
+    const other = await m.measureBrand(root, 'feebbo', 'Feebbo Digital', base + '/otra');
+    const keptAfterOther = fs.existsSync(${JSON.stringify(old)});
+    const good = await m.measureBrand(root, 'feebbo', 'Feebbo Digital', base + '/buena');
+    server.close();
+    process.stdout.write(JSON.stringify({ none, other, keptAfterOther, goodUrl: good.url, goodLogo: good.logo, oldLeft: fs.existsSync(${JSON.stringify(old)}) }));
+  `);
+  fs.rmSync(root, { recursive: true, force: true });
+  assert.match(r.none.reason, /No hay web oficial/);
+  assert.match(r.other.reason, /se titula «Feebbo Encuestas» y no nombra a Feebbo Digital/);
+  assert.equal(r.keptAfterOther, true, 'si no se mide, no se toca nada');
+  assert.match(r.goodUrl, /\/buena$/);
+  assert.equal(r.goodLogo, null);
+  assert.equal(r.oldLeft, false, 'el logo de la medición anterior no se queda como «oficial»');
 });
 
 test('Identidad medida: no se mide si hay brand pack o una medición reciente', () => {

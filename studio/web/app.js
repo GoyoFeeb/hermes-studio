@@ -807,15 +807,30 @@ function setKind(kind) {
 const brandWarning = document.getElementById('brand-warning');
 const formError = document.getElementById('form-error');
 const vagueWarning = document.getElementById('vague-warning');
+const brandUrlWarning = document.getElementById('brand-url-warning');
 let pendingPayload = null;
 let vaguePayload = null;
+let noUrlPayload = null;
 
 function clearFormNotices() {
   brandWarning.hidden = true;
   vagueWarning.hidden = true;
+  brandUrlWarning.hidden = true;
   formError.hidden = true;
   pendingPayload = null;
   vaguePayload = null;
+  noUrlPayload = null;
+}
+
+/** Marca nueva sin web oficial (H-04, 2026-10-15): no se envía sin «Poner la web» o «Enviar sin web». */
+function askBrandUrl(payload, message) {
+  clearFormNotices();
+  noUrlPayload = payload;
+  document.getElementById('brand-url-warning-text').textContent =
+    message ||
+    `${payload.clientName} es una marca nueva y no tiene web oficial. Sin ella Studio no mide su identidad: adivinar el dominio puede dar con otra empresa del mismo nombre (como «Feebbo» y feebbo.com, de Feebbo Encuestas).`;
+  brandUrlWarning.hidden = false;
+  document.getElementById('brand-url-fill').focus();
 }
 
 async function submitJob(payload) {
@@ -837,6 +852,10 @@ async function submitJob(payload) {
       document.getElementById('brand-warning-text').textContent = data.error;
       brandWarning.hidden = false;
       document.getElementById('brand-send-anyway').focus();
+      return;
+    }
+    if (res.status === 409 && data.code === 'brand_url_required') {
+      askBrandUrl(payload, data.error);
       return;
     }
     if (!res.ok) {
@@ -884,6 +903,14 @@ form.addEventListener('submit', (e) => {
   }
   // Ya confirmada con «Seguir con…»: el servidor no vuelve a preguntar si la instrucción menciona la marca.
   if (crossBrandKept === crossKey()) payload.confirmBrand = true;
+  if (!document.getElementById('brand-url-field').hidden && !payload.brandUrl) {
+    askBrandUrl(payload);
+    return;
+  }
+  continueSubmit(payload);
+});
+
+function continueSubmit(payload) {
   // Instrucción poco concreta (formcheck.js): se avisa antes de gastar 20 minutos de Hermes, sin bloquear.
   const issues = HermesFormCheck.checkInstruction(payload.promptText, payload.inputKind, payload.clientName);
   if (issues.length) {
@@ -895,6 +922,13 @@ form.addEventListener('submit', (e) => {
     return;
   }
   submitJob(payload);
+}
+document.getElementById('brand-url-fill').addEventListener('click', () => {
+  clearFormNotices();
+  document.getElementById('brand-url-input').focus();
+});
+document.getElementById('brand-url-skip').addEventListener('click', () => {
+  if (noUrlPayload) continueSubmit({ ...noUrlPayload, confirmNoBrandUrl: true });
 });
 document.getElementById('vague-send-anyway').addEventListener('click', () => {
   if (vaguePayload) submitJob(vaguePayload);
@@ -914,7 +948,7 @@ document.getElementById('brand-review').addEventListener('click', () => {
 });
 // Si se cambia algo del formulario, el aviso ya no corresponde a lo que se enviaría.
 form.addEventListener('input', () => {
-  if (!brandWarning.hidden || !vagueWarning.hidden) clearFormNotices();
+  if (!brandWarning.hidden || !vagueWarning.hidden || !brandUrlWarning.hidden) clearFormNotices();
 });
 
 // ---------------------------------------------------------------- borrador del formulario
@@ -4476,6 +4510,17 @@ function renderBrandView(slug, data) {
       brandSection('Modo oscuro', dm ? brandDl([['Estado', DARK_STATUS[dm.status] || dm.status], ['Nota', dm.note]]) : ''),
     ].join('');
   }
+  // Remitente (H-02, 2026-10-15): lo que va en el pie de cada pieza. Sale de brands/<marca>/tokens/legal.json.
+  const lg = card?.legal;
+  const legal = card
+    ? brandSection(
+        'Remitente (pie legal)',
+        lg
+          ? brandDl([['Razón social', lg.razonSocial], ['CIF', lg.cif], ['Dirección', lg.direccion], ['Por qué lo recibe', lg.motivo]]) +
+            (lg.fuente ? `<p class="hint">Fuente: ${escapeHtml(lg.fuente)}</p>` : '')
+          : '<p class="brand-warn">Sin datos legales guardados: Hermes tomará la razón social y la dirección del aviso legal de la web de la marca, y Studio no entrega la pieza sin ellas.</p>'
+      )
+    : '';
   const assets = card
     ? brandSection(
         'Logos y fotos disponibles', // antes «Archivos en el Mac de Hermes» (auditoría 2026-10-14, H-24)
@@ -4520,7 +4565,7 @@ function renderBrandView(slug, data) {
       })()
     : brandSection('Calidad', '<p class="hint">Todavía sin notas: salen de la revisión de dirección de arte de cada newsletter nueva.</p>');
   const readonly = `<p class="brand-readonly">Solo lectura. El brand pack lo mide el agente de marca en la web real (cada valor con su procedencia). Si algo está mal, pide en una newsletter que Hermes lo vuelva a medir, o avisa a quien mantiene el sistema.</p>`;
-  body.innerHTML = head + readonly + content + assets + quality + brandSection('Newsletters de esta marca', list ? `<ul class="bv-gallery">${list}</ul>` : '<p class="hint">Todavía ninguna.</p>');
+  body.innerHTML = head + readonly + content + legal + assets + quality + brandSection('Newsletters de esta marca', list ? `<ul class="bv-gallery">${list}</ul>` : '<p class="hint">Todavía ninguna.</p>');
   if (motionOk()) body.classList.add('is-in');
 }
 

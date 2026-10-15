@@ -823,6 +823,16 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       });
       return;
     }
+    // Marca nueva (H-04, 2026-10-15): sin web oficial, Studio podía medir otra empresa del mismo nombre («Feebbo» →
+    // feebbo.com, Feebbo Encuestas). Se pide la web o una confirmación expresa de enviar sin ella.
+    const brandUrl = typeof body.brandUrl === 'string' && /^https:\/\/[^\s"'<>]{4,300}$/.test(body.brandUrl.trim()) ? body.brandUrl.trim() : undefined;
+    if (!body.existingBrand && !brandUrl && body.confirmNoBrandUrl !== true) {
+      res.status(409).json({
+        code: 'brand_url_required',
+        error: `"${body.clientName}" es una marca nueva: indica su web oficial o confirma que la envías sin ella (Hermes la investigará).`,
+      });
+      return;
+    }
     const job = createJob({
       mode: 'standalone',
       clientSlug,
@@ -832,7 +842,7 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       instruction: fromInstruction ? String(body.promptText).slice(0, 4000) : undefined,
       reviewBrief: fromInstruction && body.reviewBrief === true ? true : undefined,
       artReview: body.artReview === true ? true : undefined,
-      brandUrl: typeof body.brandUrl === 'string' && /^https:\/\/[^\s"'<>]{4,300}$/.test(body.brandUrl.trim()) ? body.brandUrl.trim() : undefined,
+      brandUrl,
       imageMode: body.imageMode,
       requesterName: requesterOf(req, res),
     });
