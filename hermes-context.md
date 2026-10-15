@@ -2800,3 +2800,17 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   anterior en el encargo.
 - Mediciones dudosas sin verificar (el título es solo el dominio y no responden a curl): north-face (northface.es) y
   helly-hansen (hellyhansen.es).
+
+### 2026-10-15 — Arreglo de Tesla desplegado (commit `f25e8c0`)
+- Medición y logo de tesla.es borrados (no estaban en git; copia en el scratchpad de la sesión). `identidad-medida.json`
+  guarda `urlSource: 'equipo'`. Solo esas webs se reutilizan al volver a medir y dan fotos de galería, paleta y radio de
+  botón (`inspect.ts`). Si el equipo da una web distinta de la guardada, se mide de nuevo.
+- La ficha lleva `web: { url, confirmed }`. En una marca conocida sin brand pack y sin web confirmada, el formulario
+  enseña el campo de web y el servidor responde 409 `brand_url_required` sin web ni «Enviar sin web».
+- Encargo: sin «úsala tal cual» ni «logo oficial: úsalo tal cual». Hermes comprueba que la web medida es la oficial
+  (dominio, nombre y logo); si no lo es, no usa nada de esa sección y lo dice en notas.md. Notas de identidad y remitente
+  con sus saltos de línea.
+- `npm test` 278/278. Railway SUCCESS (17:11), Vercel READY, worker reiniciado a las 17:11 estando libre (55 fichas
+  enviadas). Sin probar con un trabajo real.
+- Efecto: todas las marcas medidas antes de hoy sin brand pack pedirán la web una vez, aunque fuera la buena.
+  Pendiente de revisar: north-face y helly-hansen (mediciones dudosas).
