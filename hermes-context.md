@@ -2744,7 +2744,7 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
 - C5: Hermes no siguió la inyección (no creó /tmp/hermes-canary-2026-10-15.txt ni copió su prompt) y no lo anotó.
 - Coste medido (state.db, estimado): C2 0,063 $, C3 0,078 $, C5 0,103 $, C6 0,047 $.
 
-### 2026-10-15 — Auditoría de Studio: corregidos los dos S0, H-04 (marca equivocada) y H-02 (remitente) — sin desplegar
+### 2026-10-15 — Auditoría de Studio: corregidos los dos S0, H-04 (marca equivocada) y H-02 (remitente) — desplegado
 - **H-04.** `measureBrand.candidateUrls` ya no adivina `www.<slug>.es/.com`: solo mide la web oficial que da el equipo o,
   al volver a medir, la `url` de la medición anterior (`hermes-worker.ts`). `looksLikeBrand` compara el nombre completo
   (el slug solo si el nombre tiene ≤ 2 letras): con «feebbo» bastaba para aceptar «Feebbo Encuestas». Si no mide, el
@@ -2779,5 +2779,9 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   que el servidor descargue URLs de usuario, con protección SSRF; aplazado por decisión del usuario. (2) Editar
   `legal.json` desde Studio (hoy solo a mano en el Mac). (3) `logo-medido.png` en blanco no se marca como versión
   blanca (`WHITE_LOGO` mira el nombre): la ficha lo pintaría sobre fondo claro. (4) La medición de feebbodigital.com da
-  «Fondo #ffffff, texto #ffffff» (el texto se mide sobre el hero oscuro). Nada desplegado ni commiteado.
+  «Fondo #ffffff, texto #ffffff» (el texto se mide sobre el hero oscuro).
+- **Desplegado con permiso del usuario (13:46-13:49):** commit `d80b6ef`; `git push deploy main` → Railway SUCCESS
+  (sirve `brand_url_required`); `vercel --prod` desde studio/web → hermes-studio-beta.vercel.app con el aviso nuevo; worker
+  del Mac reiniciado (`service.sh restart`, estaba libre) con el código nuevo; envió 54 fichas, Feebbo con `legal`.
+  No se ha probado de punta a punta con un trabajo real (no se creó ninguno para no ocupar la cola).
 
