@@ -621,6 +621,8 @@ export interface QualityOptions {
   mobileProblem?: string | null;
   /** Problemas de espacios medidos al renderizar (layoutFindings); sin definir = no se midió. */
   layoutProblems?: string[];
+  /** Descuadres medidos al renderizar (alignment.ts); sin definir = no se midió. */
+  alignmentProblems?: string[];
   /** Inspectores del 2026-10-05 (renderChecks.ts): contraste, letra en móvil, estructura y paleta. */
   design?: { errors: string[]; warnings: string[] };
   /** Contraste con la pieza en modo oscuro (renderChecks.ts, darkFindings); null = sin estilos oscuros. */
@@ -656,6 +658,11 @@ export async function runQualityCheck(html: string, opts: QualityOptions = {}): 
   }
   if (opts.layoutProblems !== undefined) {
     checks.push(item('layout', 'Espacios y márgenes', opts.layoutProblems));
+  }
+  if (opts.alignmentProblems !== undefined) {
+    const a = item('alignment', 'Alineación', opts.alignmentProblems);
+    if (a.status === 'ok') a.details.push('Textos, fotos, cajas y botones a la misma distancia del borde; lo centrado, centrado.');
+    checks.push(a);
   }
   if (opts.design) {
     const d = item('design', 'Legibilidad y estructura', opts.design.errors, opts.design.warnings);

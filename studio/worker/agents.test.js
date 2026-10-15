@@ -1132,3 +1132,55 @@ test('Espaciados renderizando: botón pegado a la banda, texto pegado a su líne
   assert.match(all, /Hueco vacío de \d+ px entre «Conoce cómo trabajamos» y «La comunicación ordena/);
   assert.deepEqual(out.c, []);
 });
+
+// ---------------------------------------------------------------- alineaciones (alignment.ts, 2026-10-15)
+
+test('Alineaciones: mensajes de descuadre y de centrado', () => {
+  const r = run(`
+    const { alignmentFindings } = require(${mod('alignment.ts')});
+    process.stdout.write(JSON.stringify(alignmentFindings({
+      width: 700,
+      lefts: [[{ x: 40, text: '«ANTES DEL PICO»' }, { x: 48, text: '«CRM + EMAIL MARKETING»' }]],
+      centers: [{ text: 'Reservar mi auditoría', left: 20, right: 40 }],
+    }, 'a 600 px')));
+  `);
+  assert.equal(r.length, 2);
+  assert.match(r[0], /^Descuadre a la izquierda \(a 600 px\): «ANTES DEL PICO» a 40 px, «CRM \+ EMAIL MARKETING» a 48 px del borde/);
+  assert.match(r[1], /«Reservar mi auditoría» está centrado pero queda descentrado \(20 px a la izquierda y 40 px a la derecha/);
+});
+
+test('Alineaciones renderizando: 48 frente a 40 px y un centrado torcido; la tarjeta, la sangría y el botón centrado, no', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'align-'));
+  const shell = (rows) => '<!doctype html><html><head><meta name="viewport" content="width=device-width"><style>body{margin:0;background:#eee;font:16px/1.5 Arial}' +
+    '@media (max-width:620px){.c{width:100%!important}}</style></head><body><table class="c" width="600" align="center" cellpadding="0" cellspacing="0" style="background:#fff">' + rows + '</table></body></html>';
+  const p = (pad, txt) => '<tr><td style="padding:24px ' + pad + 'px"><p style="margin:0">' + txt + '</p></td></tr>';
+  const card = '<tr><td style="padding:24px 40px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="background:#1b1464;color:#fff;padding:16px 18px"><p style="margin:0">Segmentación: ¿cada envío llega al segmento previsto?</p></td></tr></table></td></tr>';
+  const button = '<tr><td align="center" style="padding:24px 40px"><table cellpadding="0" cellspacing="0"><tr><td style="background:#1b1464;padding:12px 24px;border-radius:999px"><a href="https://x.es" style="color:#fff">Reservar mi auditoría</a></td></tr></table></td></tr>';
+  const tail = '<tr><td style="padding:24px 40px"><p style="margin:0">Feebbo Solutions · pie</p></td></tr>'.repeat(8);
+  const roto = shell(p(48, 'CRM y email marketing, en noviembre.') + p(40, 'Antes del pico: tres revisiones.') + card + button +
+    '<tr><td style="padding:24px 40px 24px 80px"><p style="margin:0;text-align:center">Un texto centrado con más aire a un lado</p></td></tr>' + tail);
+  const bien = shell(p(40, 'CRM y email marketing, en noviembre.') + p(40, 'Antes del pico: tres revisiones.') + card + button +
+    p(64, 'Una sangría a propósito, más de 12 px.') + tail);
+  fs.writeFileSync(path.join(dir, 'roto.html'), roto);
+  fs.writeFileSync(path.join(dir, 'bien.html'), bien);
+  let out;
+  try {
+    out = run(`
+      const { chromium } = require('playwright');
+      const { alignmentFindingsWith } = require(${mod('alignment.ts')});
+      const b = await chromium.launch();
+      const a = await alignmentFindingsWith(b, ${JSON.stringify(path.join(dir, 'roto.html'))}, 700, 375);
+      const c = await alignmentFindingsWith(b, ${JSON.stringify(path.join(dir, 'bien.html'))}, 700, 375);
+      await b.close();
+      process.stdout.write(JSON.stringify({ a, c }));
+    `);
+  } catch {
+    return t.skip('Chromium no arranca aquí');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  const all = out.a.join('\n');
+  assert.match(all, /Descuadre a la izquierda \(a 600 px\): «Antes del pico[^»]*» a 40 px[^\n]*«CRM y email marketing[^»]*» a 48 px/);
+  assert.match(all, /«Un texto centrado con más aire a un lado» está centrado pero queda descentrado/);
+  assert.deepEqual(out.c, []);
+});

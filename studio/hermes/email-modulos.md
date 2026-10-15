@@ -16,6 +16,15 @@ Studio renderiza la pieza y devuelve como error cualquiera de estos casos:
   escenas, 32-48 px. Un botón no lleva 8 px por arriba y 90 por abajo: reparte el aire.
 - **Textos que se pisan.**
 
+## Alineaciones que mide Studio (a 600 y a 375 px)
+
+- **Una sola columna izquierda.** Elige un margen lateral (p. ej. 40 px en escritorio, 22 px en móvil) y úsalo en
+  todas las escenas: textos, fotos que no van a todo el ancho, tarjetas y botones alineados a la izquierda empiezan
+  ahí. Si dos bordes quedan a 3-12 px uno del otro (40 y 48, 22 y 30), Studio lo devuelve como descuadre. Una sangría
+  a propósito se separa más de 12 px.
+- El texto dentro de una tarjeta o caja de color se mide contra su caja, no contra la columna: la caja sí va al margen.
+- **Lo centrado, centrado**: el mismo padding a los dos lados.
+
 ## Foto + texto con aire (32 px como mínimo entre la foto y el texto, con padding de la celda)
 
 ```html

@@ -22,6 +22,7 @@ import { chromium, type Browser } from 'playwright';
 import sharp from 'sharp';
 import { layoutFindings, LAYOUT_MIN_GAP } from './qualityCheck';
 import { spacingFindingsWith } from './spacing';
+import { alignmentFindingsWith } from './alignment';
 
 export const MOBILE_WIDTH = 375;
 const DESKTOP_WIDTH = 700;
@@ -192,6 +193,8 @@ export interface RenderReport {
   /** null = cabe a 375 px. */
   mobile: string | null;
   layout: string[];
+  /** Descuadres y centrados que no lo están (alignment.ts). */
+  alignment: string[];
   design: Findings;
   images: Findings;
   /** Ancho pintado a 700 px de cada <img>, en orden (0 si no se ve). */
@@ -739,6 +742,7 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
         ...(await stackedColumnsWith(browser, htmlPath).catch(() => [])),
         ...(await spacingFindingsWith(browser, htmlPath, DESKTOP_WIDTH, MOBILE_WIDTH).catch(() => [])),
       ],
+      alignment: await alignmentFindingsWith(browser, htmlPath, DESKTOP_WIDTH, MOBILE_WIDTH).catch(() => []),
       design: designFindings(desktop, small.fonts, palette),
       images: await imageFindings(html, path.dirname(htmlPath), root, desktop.imgWidths),
       imgWidths: desktop.imgWidths,
