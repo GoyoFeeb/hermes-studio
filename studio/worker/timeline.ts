@@ -13,6 +13,15 @@ export interface PhaseTiming {
   sec: number;
   /** Acciones de Hermes en la fase (si se pudieron leer de su sesión). */
   actions?: number;
+  /** Desglose de la primera versión (2026-10-15): investigación, escritura y autorrevisión de Hermes, cortadas por la
+   *  hora de cada mensaje de su sesión. Suman `sec`. */
+  parts?: PhasePart[];
+}
+
+export interface PhasePart {
+  id: 'research' | 'write' | 'selfreview';
+  label: string;
+  sec: number;
 }
 
 export interface JobTimings {
@@ -46,6 +55,23 @@ export class Timeline {
     const sec = Math.max(0, Math.round((this.now() - this.open.at) / 1000));
     this.phases.push({ id: this.open.id, label: this.open.label, sec, ...(actions !== undefined ? { actions } : {}) });
     this.open = null;
+  }
+
+  /** Hora (epoch ms) a la que empezó la fase abierta, para cortar después su sesión de Hermes. */
+  openedAt(): number | null {
+    return this.open?.at ?? null;
+  }
+
+  /** Desglose de la última fase cerrada. La última parte se ajusta para que sumen lo que midió la fase. */
+  splitLast(parts: PhasePart[]): void {
+    const last = this.phases[this.phases.length - 1];
+    if (!last || !parts.length) return;
+    let left = last.sec;
+    last.parts = parts.map((p, i) => {
+      const sec = i === parts.length - 1 ? left : Math.min(Math.max(0, Math.round(p.sec)), left);
+      left -= sec;
+      return { ...p, sec };
+    });
   }
 
   hang(idleSec: number): void {

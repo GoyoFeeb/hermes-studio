@@ -541,6 +541,10 @@ export function sanitizeTimings(raw: unknown): JobTimings | undefined {
       label: String(p?.label || '').slice(0, 60),
       sec: n(p?.sec),
       ...(p && Number.isFinite(Number(p.actions)) ? { actions: n(p.actions, 10000) } : {}),
+      // Desglose de la primera versión (2026-10-15): investigación, escritura y autorrevisión.
+      ...(Array.isArray(p?.parts) && p.parts.length
+        ? { parts: p.parts.slice(0, 3).map((x) => ({ id: String(x?.id || '').slice(0, 20), label: String(x?.label || '').slice(0, 40), sec: n(x?.sec) })) }
+        : {}),
     })),
     hangs: { count: n(r.hangs?.count, 100), sec: n(r.hangs?.sec) },
     rounds: n(r.rounds, 20),

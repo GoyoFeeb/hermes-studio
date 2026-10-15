@@ -211,6 +211,53 @@ test('Timeline: fases, esperas cortadas, rondas y resumen', () => {
   assert.match(r.line, /brief 1:30 · primera versión 13:30 · corrección 1 2:00 · esperas cortadas 1 \(8:00\) — total 17:00/);
 });
 
+// Desglose de la primera versión (2026-10-15, Volkswagen 7uxqfr: «Pieza 16:50» = 6:34 + 1:45 + 8:31).
+test('Primera versión: investigación, escritura y autorrevisión por la hora de cada mensaje', () => {
+  const r = run(`
+    const w = require(${mod('hermes-worker.ts')});
+    const { Timeline } = require(${mod('timeline.ts')});
+    const call = (name, p) => ({ function: { name, arguments: JSON.stringify({ path: p }) } });
+    const msg = (sec, role, calls) => ({ role, timestamp: String(1000 + sec), ...(calls ? { tool_calls: calls } : {}) });
+    const session = { messages: [
+      msg(-30, 'user'),                                           // de otra fase: no cuenta
+      msg(10, 'assistant', [call('browser_exec', '')]),
+      msg(394, 'tool'),                                           // última acción antes de escribir
+      msg(499, 'assistant', [call('write_file', 'x/newsletter.html')]),
+      msg(800, 'assistant', JSON.stringify([call('patch', 'x/newsletter.html')])),
+    ] };
+    const parts = w.draftParts(session, 1000000, 1000000 + 1005000);
+    const noHtml = w.draftParts({ messages: [msg(10, 'assistant', [call('write_file', 'x/notas.md')])] }, 1000000, 1100000);
+    let now = 0;
+    const t = new Timeline(() => now);
+    t.start('draft', 'Primera versión'); now = 1010000; t.end(30);
+    t.splitLast(parts);
+    const over = new Timeline(() => now);
+    over.start('draft', 'Primera versión'); now += 60000; over.end();
+    over.splitLast(parts);
+    process.stdout.write(JSON.stringify({ parts, noHtml, split: t.toJSON().phases[0].parts, over: over.toJSON().phases[0].parts }));
+  `);
+  assert.deepEqual(r.parts.map((p) => [p.id, p.sec]), [['research', 394], ['write', 105], ['selfreview', 506]]);
+  assert.deepEqual(r.noHtml, []);
+  // La autorrevisión absorbe el margen del worker: las partes suman lo que midió la fase (1010 s).
+  assert.deepEqual(r.split.map((p) => p.sec), [394, 105, 511]);
+  // Fase más corta que las partes: se recortan y siguen sumando la fase (60 s).
+  assert.deepEqual(r.over.map((p) => p.sec), [60, 0, 0]);
+});
+
+test('sanitizeTimings deja pasar el desglose de la primera versión, acotado', () => {
+  const r = run(`
+    const m = await import(${JSON.stringify(path.join(__dirname, '..', 'server', 'standalone.ts'))});
+    const { sanitizeTimings } = m.default ?? m;
+    const parts = [1, 2, 3, 4].map((i) => ({ id: 'p' + i, label: 'x'.repeat(80), sec: '12' }));
+    const t = sanitizeTimings({ phases: [{ id: 'draft', label: 'Primera versión', sec: 40, parts }, { id: 'check', label: 'C', sec: 5 }], hangs: {}, rounds: 0, totalSec: 45 });
+    process.stdout.write(JSON.stringify(t));
+  `);
+  assert.equal(r.phases[0].parts.length, 3);
+  assert.equal(r.phases[0].parts[0].label.length, 40);
+  assert.equal(r.phases[0].parts[0].sec, 12);
+  assert.equal(r.phases[1].parts, undefined);
+});
+
 // ---------------------------------------------------------------- measureBrand.ts
 
 test('Identidad medida: webs candidatas, comprobación de que es la marca y nota para Hermes', () => {

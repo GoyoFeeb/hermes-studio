@@ -24,7 +24,7 @@ import { loadEnv } from '../../scripts/lib/env';
 import { describeErrors, staticChecks, type QualityReport } from './qualityCheck';
 import { REQUEST_FILE, inspectNewsletter } from './inspect';
 import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote, hasConfirmedUrl, sameSite } from './measureBrand';
-import { Timeline, summarize, type JobTimings } from './timeline';
+import { Timeline, summarize, type JobTimings, type PhasePart } from './timeline';
 import { renderThumbnails } from './thumbnail';
 import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, readBrandLegal, type BrandCard } from './brandCard';
@@ -322,14 +322,54 @@ export function toolCallsFromSession(session: { messages?: unknown[] }): ToolCal
   );
 }
 
-async function sessionToolCalls(sessionId: string): Promise<ToolCall[]> {
+async function exportSession(sessionId: string): Promise<{ messages?: unknown[] }> {
   const tmp = path.join(os.tmpdir(), `hermes-worker-${sessionId}.jsonl`);
   await execFileAsync(HERMES_BIN, ['sessions', 'export', tmp, '--session-id', sessionId], { timeout: 30000, env: HERMES_ENV });
   try {
-    return toolCallsFromSession(JSON.parse(fs.readFileSync(tmp, 'utf8').split('\n')[0]));
+    return JSON.parse(fs.readFileSync(tmp, 'utf8').split('\n')[0]);
   } finally {
     fs.rmSync(tmp, { force: true });
   }
+}
+
+async function sessionToolCalls(sessionId: string): Promise<ToolCall[]> {
+  return toolCallsFromSession(await exportSession(sessionId));
+}
+
+/** Desglose de la primera versión (2026-10-15, Volkswagen: «Pieza 16:50» escondía 6:34 de investigación, 1:45 de
+ *  escritura y 8:31 de autorrevisión). Corta la sesión por la hora de cada mensaje: investigación hasta el último mensaje
+ *  antes de que Hermes guarde el primer .html, escritura hasta que lo guarda y autorrevisión lo que queda. Sin .html
+ *  guardado con write_file o patch, sin desglose. */
+export function draftParts(session: { messages?: unknown[] }, fromMs: number, toMs: number): PhasePart[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const at = (m: any): number => Number(m?.timestamp) * 1000;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const msgs = (session.messages || []).filter((m: any) => at(m) >= fromMs && at(m) <= toMs);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const writesHtml = (m: any): boolean => {
+    let calls = m?.tool_calls;
+    if (typeof calls === 'string') {
+      try {
+        calls = JSON.parse(calls);
+      } catch {
+        return false;
+      }
+    }
+    if (m?.role !== 'assistant' || !Array.isArray(calls)) return false;
+    return toolCallsFromSession({ messages: [{ tool_calls: calls }] }).some(
+      (c) => (c.name === 'write_file' || c.name === 'patch') && /\.html?$/i.test(c.target)
+    );
+  };
+  const i = msgs.findIndex(writesHtml);
+  if (i < 0) return [];
+  const researchEnd = i > 0 ? at(msgs[i - 1]) : fromMs;
+  const written = at(msgs[i]);
+  const sec = (a: number, b: number): number => Math.max(0, Math.round((b - a) / 1000));
+  return [
+    { id: 'research', label: 'Investigación', sec: sec(fromMs, researchEnd) },
+    { id: 'write', label: 'Escritura', sec: sec(researchEnd, written) },
+    { id: 'selfreview', label: 'Autorrevisión', sec: sec(written, toMs) },
+  ];
 }
 
 /** El .html más reciente escrito después de `sinceMs` en cualquier subcarpeta directa de `dir`. */
@@ -1503,7 +1543,13 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       model
     );
   }
+  const draftFrom = timeline.openedAt();
   timeline.end(Math.max(0, lastCount));
+  // Desglose de la primera versión (2026-10-15): no en cambios pedidos ni en adaptaciones a móvil, que no investigan.
+  if (!editKind && draftFrom && sessionId) {
+    const session = await exportSession(sessionId).catch(() => null);
+    if (session) timeline.splitLast(draftParts(session, draftFrom, Date.now()));
+  }
   if (cancelled) return finishCancelled();
   // Primera versión hecha: se cierra el brief en Studio. Si justo llega (o había llegado) una corrección, se rehace.
   if (briefOpen && !pendingBrief) {

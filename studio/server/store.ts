@@ -156,7 +156,7 @@ export function artPct(a: JobArtReview): number {
 }
 
 export interface JobTimings {
-  phases: { id: string; label: string; sec: number; actions?: number }[];
+  phases: { id: string; label: string; sec: number; actions?: number; parts?: { id: string; label: string; sec: number }[] }[];
   hangs: { count: number; sec: number };
   rounds: number;
   totalSec: number;

@@ -7619,17 +7619,26 @@ function renderArtCard(a) {
       .join('')}</ul>`;
 }
 /** Tiempo de la pieza a la vista (2026-10-08): una barra con cada fase en su tramo, junto a la nota de arte. El
- *  detalle (con acciones y esperas) sigue en «Revisión» → «Tiempo por fase». */
+ *  detalle (con acciones y esperas) sigue en «Revisión» → «Tiempo por fase».
+ *  2026-10-15 (Volkswagen): la primera versión se parte en investigación, escritura y autorrevisión de Hermes (si el
+ *  worker mandó el desglose; las piezas anteriores siguen con «Pieza»), y la comprobación de Studio va aparte de las
+ *  correcciones: «Correcciones 0:15» no era ninguna corrección. */
 const TIME_GROUPS = [
-  { key: 'prep', label: 'Investigación', test: (id) => /^(measure|brief|product)$/.test(id) },
+  { key: 'prep', label: 'Investigación', test: (id) => /^(measure|brief|product|draft-research)$/.test(id) },
   { key: 'draft', label: 'Pieza', test: (id) => id === 'draft' },
-  { key: 'fix', label: 'Correcciones', test: (id) => /^(check|fix-\d+)$/.test(id) },
+  { key: 'write', label: 'Escritura', test: (id) => id === 'draft-write' },
+  { key: 'selfreview', label: 'Autorrevisión', test: (id) => id === 'draft-selfreview' },
+  { key: 'check', label: 'Comprobación', test: (id) => id === 'check' },
+  { key: 'fix', label: 'Correcciones', test: (id) => /^fix-\d+$/.test(id) },
   { key: 'art', label: 'Revisión de arte', test: (id) => id === 'art' },
 ];
+/** La primera versión con desglose cuenta como sus partes («draft-research», «draft-write», «draft-selfreview»). */
+const splitDraft = (phases) =>
+  phases.flatMap((p) => (p.id === 'draft' && p.parts?.length ? p.parts.map((x) => ({ id: `draft-${x.id}`, label: x.label, sec: x.sec })) : [p]));
 function renderTimeCard(t) {
   const card = document.getElementById('time-card');
   if (!card) return;
-  const phases = t?.phases || [];
+  const phases = splitDraft(t?.phases || []);
   card.hidden = !phases.length;
   if (card.hidden) return;
   const groups = TIME_GROUPS.map((g) => ({ ...g, sec: phases.filter((p) => g.test(p.id)).reduce((a, p) => a + p.sec, 0) })).filter((g) => g.sec >= 1);
@@ -7705,7 +7714,16 @@ function renderTimings(t, briefWaitSec) {
       (r) =>
         `<li><span class="timings-label">${escapeHtml(r.label)}${r.times > 1 ? ` <span class="hint">×${r.times}</span>` : ''}</span>` +
         `<span class="timings-bar" aria-hidden="true"><span style="width:${Math.max(2, Math.round((r.sec / max) * 100))}%"></span></span>` +
-        `<span class="timings-time">${mmss(r.sec)}${r.actions ? ` <span class="hint">· ${plural(r.actions, 'acción', 'acciones')}</span>` : ''}</span></li>`
+        `<span class="timings-time">${mmss(r.sec)}${r.actions ? ` <span class="hint">· ${plural(r.actions, 'acción', 'acciones')}</span>` : ''}</span></li>` +
+        // Desglose de la primera versión (2026-10-15), en subfilas con la misma escala.
+        (r.parts || [])
+          .map(
+            (x) =>
+              `<li class="is-part"><span class="timings-label">${escapeHtml(x.label)}</span>` +
+              `<span class="timings-bar" aria-hidden="true"><span style="width:${Math.max(2, Math.round((x.sec / max) * 100))}%"></span></span>` +
+              `<span class="timings-time">${mmss(x.sec)}</span></li>`
+          )
+          .join('')
     )
     .join('');
 }

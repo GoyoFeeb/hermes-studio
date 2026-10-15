@@ -2814,3 +2814,18 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   enviadas). Sin probar con un trabajo real.
 - Efecto: todas las marcas medidas antes de hoy sin brand pack pedirán la web una vez, aunque fuera la buena.
   Pendiente de revisar: north-face y helly-hansen (mediciones dudosas).
+
+### 2026-10-15 — Tiempo de Hermes: «Pieza» desglosada y «Correcciones» separada de la comprobación (sin desplegar)
+- Diagnóstico (Volkswagen `7uxqfr`, 21 min): «Investigación 0:10» solo medía los pasos de Studio; la investigación real
+  de Hermes (6:34, 8 llamadas al navegador) caía en «Pieza 16:50», junto con 1:45 de escritura y 8:31 de autorrevisión.
+  De la pieza, 4:44 fueron herramientas y unos 12 min el modelo. «Correcciones 0:15» no tenía ninguna ronda: eran las dos
+  comprobaciones de Studio. La mejora de arte (2:25) se descartó (39 → 38/50).
+- Cambio: `timeline.ts` (`parts`, `openedAt`, `splitLast`); `hermes-worker.ts` (`exportSession`, `draftParts`: corta la
+  sesión por la hora de cada mensaje en el primer `.html` guardado con write_file/patch; solo primeras versiones; la
+  autorrevisión absorbe el margen y las partes suman la fase); `sanitizeTimings` deja pasar hasta 3 partes; web: tarjeta
+  con Investigación (Studio + Hermes), Escritura, Autorrevisión, Comprobación y Correcciones (solo con rondas), y subfilas
+  en «Tiempo por fase». Las piezas sin desglose siguen con «Pieza». La línea de resumen del log no cambia (`tiempos.ts`).
+- Comprobado: `draftParts` sobre la sesión real da 6:36 / 1:45 / 8:30; tarjeta pintada en Studio local con esos tiempos y
+  con una pieza antigua con una corrección. `npm test` 280/280.
+- Pendiente: desplegar (Railway `git push deploy main`, Vercel `vercel --prod` desde `studio/web`) y reiniciar el worker.
+  Sin probar con un trabajo real.
