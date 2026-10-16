@@ -1,0 +1,29 @@
+{
+ "dir": "diesel/hermes/2026-10-13-cd1lyk",
+ "identical": false,
+ "afterIs": "B",
+ "ms": 27474,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "mejorada",
+  "identidad": "igual",
+  "concepto": "mejorada",
+  "jerarquia": "igual",
+  "aire": "mejorada",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "texto_imagen",
+   "concepto",
+   "aire",
+   "copy"
+  ],
+  "losses": [],
+  "reason": "se queda: la comparación la prefiere en texto_imagen, concepto, aire, copy"
+ }
+}

@@ -22,7 +22,7 @@ import { spawn, execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
 import { describeErrors, staticChecks, type QualityReport } from './qualityCheck';
-import { REQUEST_FILE, inspectNewsletter } from './inspect';
+import { REQUEST_FILE, brandPalette, inspectNewsletter } from './inspect';
 import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote, hasConfirmedUrl, sameSite } from './measureBrand';
 import { Timeline, summarize, type JobTimings, type PhasePart } from './timeline';
 import { renderThumbnails } from './thumbnail';
@@ -30,11 +30,13 @@ import { LoopWatch, type LoopKind } from './loopWatch';
 import { brandAssets, buildBrandCard, cardHash, readBrandLegal, type BrandCard } from './brandCard';
 import { joinLabels, missingInBrief, type RequestTerm } from '../server/requestCoverage';
 import { brandHome, buildProductSheet, galleryUrls, productSheetNote, productUrls } from './productSheet';
-import { captureBrandWeb, renderSheet } from './render-newsletter';
+import { captureBrandWeb, renderPair, renderSheet, type RenderSheet } from './render-newsletter';
 import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
+import { FACTS_RULE, artCompareQuery, briefDigest, compareVerdict, doubleVerdict, judgeFacts, parseArtCompare, type ArtCompare } from './artJudge';
+import { renderChecks } from './renderChecks';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
@@ -606,6 +608,8 @@ export const MODELS = {
   brief: process.env.HERMES_MODEL_BRIEF || '',
   draft: process.env.HERMES_MODEL_DRAFT || '',
   fix: process.env.HERMES_MODEL_FIX || '',
+  /** Revisión de arte (nota y comparación, 2026-10-16). Vacía = la de la primera versión, como hasta ahora. */
+  art: process.env.HERMES_MODEL_ART || process.env.HERMES_MODEL_DRAFT || '',
 };
 
 /** Razonamiento de la primera versión (2026-10-06, punto 6): en la prueba A/B, `high` subió la nota de arte de 71 a
@@ -1108,6 +1112,13 @@ export const ART_VISION_QUESTION =
   'solo o con personas, fondo, colores reales del producto. ¿Qué titulares se leen y qué jerarquía tienen? ¿Se ve el logo? ' +
   '¿Parece una plantilla genérica o tiene un diseño propio?';
 
+/** Lo que se le pregunta a vision_analyze sobre la columna de escritorio a tamaño real (render-escritorio.jpg). */
+export const ART_DESKTOP_QUESTION =
+  'Es la versión de escritorio (600 px) de una newsletter, a tamaño real y cortada en tramos de izquierda a derecha ' +
+  '(lo de arriba del tramo 2 sigue al final del tramo 1). ¿Qué titulares se leen y qué jerarquía tienen en cada escena? ' +
+  'Describe cada foto (producto solo o con personas, fondo, colores reales) y el texto que la acompaña. ¿Hay espacios ' +
+  'apretados o huecos que parezcan errores? ¿Se ve el logo? ¿Parece una plantilla genérica o tiene un diseño propio?';
+
 export function artReviewQuery(
   request: string | undefined,
   prompt: string,
@@ -1115,23 +1126,38 @@ export function artReviewQuery(
   sheetPath = '<hoja>',
   size?: { width: number; height: number },
   web?: { path: string; size?: { width: number; height: number } } | null,
-  genericCopy: string[] = []
+  genericCopy: string[] = [],
+  // 2026-10-16 (auditoría de calidad): la columna de 600 px a tamaño real y las medidas de Studio.
+  desktop?: { path: string; width: number; height: number } | null,
+  facts: string[] = []
 ): string {
-  const brief = prompt.split('## Instrucciones de entrega')[0].trim().slice(0, 3500);
+  const brief = briefDigest(prompt);
   // GPT-6 Luna rellena siempre el parámetro opcional `region` de vision_analyze y a veces con [0, 0, 0, 0], que la
   // herramienta rechaza (Adeslas, 2026-10-06: revisión visual perdida en 11 s). Se le da el recorte de la hoja entera.
   const region = size ? ` y region [0, 0, ${size.width}, ${size.height}] (la imagen entera)` : '';
+  const steps: string[] = [];
+  if (desktop) {
+    steps.push(
+      `Llama a vision_analyze con image_url ${desktop.path} y region [0, 0, ${desktop.width}, ${desktop.height}] (la imagen entera) ` +
+        `y esta pregunta: «${ART_DESKTOP_QUESTION}» La nota de escritorio (jerarquía, aire, texto e imagen) sale de esta imagen.`
+    );
+  }
+  steps.push(
+    `Llama a vision_analyze con image_url ${sheetPath}${region} y esta pregunta: «${ART_VISION_QUESTION}»` +
+      (desktop ? ' De esta hoja salen sobre todo móvil y oscuro: la columna de 600 px va reducida.' : '') +
+      '\n   Si devuelve un error, reintenta UNA vez corrigiendo los parámetros que indique el error.'
+  );
+  if (web) {
+    steps.push(
+      `Llama a vision_analyze con image_url ${web.path}${web.size ? ` y region [0, 0, ${web.size.width}, ${web.size.height}] (la imagen entera)` : ''} ` +
+        `y esta pregunta: «${ART_WEB_QUESTION}» La nota de identidad sale de comparar la pieza con esta portada.`
+    );
+  }
+  const many = steps.length > 1;
+  steps.push(`Con lo que te devuelva${many ? 'n' : ''}, responde SOLO con un JSON, sin texto antes ni después. No uses ninguna otra herramienta.`);
   return [
     'Eres director de arte y vas a puntuar una newsletter de email ya terminada. Pasos, sin nada más:',
-    `1. Llama a vision_analyze con image_url ${sheetPath}${region} y esta pregunta: «${ART_VISION_QUESTION}»`,
-    '   Si devuelve un error, reintenta UNA vez corrigiendo los parámetros que indique el error.',
-    ...(web
-      ? [
-          `2. Llama a vision_analyze con image_url ${web.path}${web.size ? ` y region [0, 0, ${web.size.width}, ${web.size.height}] (la imagen entera)` : ''} ` +
-            `y esta pregunta: «${ART_WEB_QUESTION}» La nota de identidad sale de comparar la pieza con esta portada.`,
-          '3. Con lo que te devuelvan, responde SOLO con un JSON, sin texto antes ni después. No uses ninguna otra herramienta.',
-        ]
-      : ['2. Con lo que te devuelva, responde SOLO con un JSON, sin texto antes ni después. No uses ninguna otra herramienta.']),
+    ...steps.map((st, i) => `${i + 1}. ${st}`),
     'Si vision_analyze no puede ver la imagen, responde exactamente {"sin_imagen": true}: nunca puntúes sin haberla visto.',
     '',
     ...(request ? [`Petición original del equipo: «${request}».`] : []),
@@ -1139,6 +1165,7 @@ export function artReviewQuery(
     ...(genericCopy.length
       ? [`Copy genérico que ha detectado Studio (cuenta para la nota de copy; cada uno va en «mejoras» con su reescritura): ${genericCopy.slice(0, 8).join('; ')}.`]
       : []),
+    ...(facts.length ? ['', 'Medidas de Studio:', ...facts.map((l) => `- ${l}`), FACTS_RULE] : []),
     '',
     'Brief (resumen):',
     brief,
@@ -1223,6 +1250,59 @@ function artReviewSummary(review: ArtReview): string {
 function artReviewMarkdown(review: ArtReview | null, output: string, web: boolean): string {
   const head = `# Revisión de dirección de arte\n\nHoja: _trabajo/render-hoja.jpg (600 px, 375 px y oscuro).${web ? ' Comparada con la portada de la web: _trabajo/web-marca.jpg.' : ''}\n\n`;
   return review ? `${head}## Primera nota\n\n${artReviewSummary(review)}\n` : `${head}La respuesta no traía notas legibles; no se corrigió nada.\n\n${output.slice(0, 2000)}\n`;
+}
+
+/** Una comparación antes/después de la pasada de mejora (2026-10-16), con la mejorada en el lado `afterIs`. */
+export async function compareOnce(
+  beforeFile: string,
+  afterFile: string,
+  afterIs: 'A' | 'B',
+  baseDir: string,
+  outDir: string,
+  prompt: string,
+  request: string | undefined,
+  jobId: string,
+  facts: { before: string[]; after: string[] } = { before: [], after: [] }
+): Promise<{ cmp: ArtCompare; afterIs: 'A' | 'B'; output: string } | null> {
+  const [a, b] = afterIs === 'A' ? [afterFile, beforeFile] : [beforeFile, afterFile];
+  const pair = await renderPair(a, b, baseDir, outDir);
+  const query = artCompareQuery(
+    ART_CRITERIA,
+    pair,
+    briefDigest(prompt),
+    visibleText(fs.readFileSync(a, 'utf8')),
+    visibleText(fs.readFileSync(b, 'utf8')),
+    request,
+    afterIs === 'A' ? { a: facts.after, b: facts.before } : { a: facts.before, b: facts.after }
+  );
+  const look = await cappedTurn(ART_SCORE_CAP_MS, jobId, 'comparación de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
+  const cmp = parseArtCompare(look.output, Object.keys(ART_CRITERIA));
+  return cmp ? { cmp, afterIs, output: look.output } : null;
+}
+
+/** Sin las dos comparaciones legibles: las dos notas, como antes, pero diciendo el motivo de verdad (el 08-16-10 el registro ponía
+ *  «empeoraba» con 37 → 40 porque un criterio bajaba de 4). */
+export function fallbackVerdict(before: ArtReview, after: ArtReview | null): { keep: boolean; reason: string } {
+  if (!after) return { keep: true, reason: 'sin comparaciones ni segunda nota legibles: se queda la versión corregida' };
+  if (keepImproved(before, after)) return { keep: true, reason: 'sin las dos comparaciones legibles; la segunda nota no baja: se queda' };
+  const dropped = Object.keys(after.notas).filter((k) => after.notas[k] < 4 && before.notas[k] >= 4);
+  return {
+    keep: false,
+    reason: dropped.length
+      ? `sin las dos comparaciones legibles; se descarta: ${dropped.map((k) => `${k} ${before.notas[k]} → ${after.notas[k]}`).join(', ')} baja de 4`
+      : 'sin las dos comparaciones legibles; se descarta: la segunda nota suma menos',
+  };
+}
+
+/** La comparación en revision-visual.md, con la versión mejorada y la anterior ya nombradas (no A/B). */
+export function compareSummary(cmp: ArtCompare, afterIs: 'A' | 'B'): string {
+  const name = (v: string): string => (v === 'igual' ? 'igual' : v === afterIs ? 'mejorada' : 'anterior');
+  return (
+    `Comparación (la mejorada se enseñó como ${afterIs}):\n` +
+    Object.keys(cmp.criterios)
+      .map((k) => `- ${k}: ${name(cmp.criterios[k])}${cmp.razones[k] ? ` — ${cmp.razones[k]}` : ''}`)
+      .join('\n')
+  );
 }
 
 async function runJob(claimed: ClaimedJob): Promise<void> {
@@ -1658,13 +1738,16 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     if (sheet) {
       await progressMessage(`Revisión de dirección de arte: una mirada a la pieza en escritorio, móvil y oscuro${web ? ', comparada con la web de la marca' : ''}.`);
       watchNewSession();
-      const reviewOnce = async (ready?: string): Promise<{ review: ArtReview | null; output: string }> => {
-        const s2 = ready ? { sheet: ready } : await renderSheet(finalPath, workDir);
-        const query = artReviewQuery(claimed.request, job.prompt, fs.readFileSync(finalPath, 'utf8'), s2.sheet, await imageSize(s2.sheet), web, copyFindings(fs.readFileSync(finalPath, 'utf8')).found);
-        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.draft));
+      // Medidas de Studio para la revisión (2026-10-16): la letra y el contraste no se juzgan a ojo en una hoja reducida.
+      const factsOf = async (file: string): Promise<string[]> => judgeFacts(await renderChecks(file, ROOT, brandPalette(ROOT, slug)).catch(() => null));
+      const reviewOnce = async (ready?: RenderSheet): Promise<{ review: ArtReview | null; output: string }> => {
+        const s2 = ready || (await renderSheet(finalPath, workDir));
+        const html = fs.readFileSync(finalPath, 'utf8');
+        const query = artReviewQuery(claimed.request, job.prompt, html, s2.sheet, await imageSize(s2.sheet), web, copyFindings(html).found, s2.desktop, await factsOf(finalPath));
+        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
         return { review: parseArtReview(look.output), output: look.output };
       };
-      const first = await reviewOnce(sheet.sheet);
+      const first = await reviewOnce(sheet);
       const review = first.review;
       const low = review ? lowScores(review) : [];
       if (review) artResult = { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras };
@@ -1712,13 +1795,33 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           ].join('\n'),
           null,
           () => undefined,
-          MODELS.draft
+          MODELS.art
         ));
         if (cancelled) return finishCancelled();
-        // Segunda nota (una mirada) y red de seguridad: la mejora se queda solo si no empeora la pieza.
+        // La mejora se decide COMPARANDO (2026-10-16), dos veces y con el orden cambiado: se queda solo si las dos
+        // comparaciones la prefieren. Con UNA comparación el veredicto dependía del lado en el que iba cada versión en 8
+        // de 20 parejas (sesgo hacia la de la derecha; _archive/prueba-juez-2026-10-16). Antes decidían dos notas sueltas,
+        // y el registro decía «empeoraba» aunque el total subiera. La segunda nota se mantiene para el panel de calidad.
+        const changed = fs.readFileSync(backup, 'utf8') !== fs.readFileSync(finalPath, 'utf8');
+        const runs: ({ cmp: ArtCompare; afterIs: 'A' | 'B'; output: string } | null)[] = [];
+        if (changed && Date.now() - started < TIMEOUT_MS) {
+          const facts = { before: await factsOf(backup), after: await factsOf(finalPath) };
+          for (const side of ['A', 'B'] as const) {
+            if (cancelled || Date.now() - started >= TIMEOUT_MS) break;
+            watchNewSession();
+            runs.push(await compareOnce(backup, finalPath, side, outAbs, path.join(workDir, `comparar-${side.toLowerCase()}`), job.prompt, claimed.request, job.id, facts).catch(() => null));
+          }
+          if (cancelled) return finishCancelled();
+        }
+        const both = runs.length === 2 && runs[0] && runs[1] ? [runs[0], runs[1]] : null;
         watchNewSession();
         const second = Date.now() - started < TIMEOUT_MS ? await reviewOnce().catch(() => ({ review: null, output: '' })) : { review: null, output: '' };
-        let keep = keepImproved(review, second.review);
+        const decision = !changed
+          ? { keep: false, reason: 'Hermes no cambió nada en la pieza' }
+          : both
+          ? doubleVerdict(compareVerdict(both[0].cmp, both[0].afterIs), compareVerdict(both[1].cmp, both[1].afterIs))
+          : fallbackVerdict(review, second.review);
+        let keep = decision.keep;
         // Red de seguridad de Studio (2026-10-08, Tarífalo): la mejora cambió una foto por un recorte de la de apertura;
         // la nota subió (37 → 39) y se quedó. Si la versión mejorada trae un error de la comprobación que la anterior no
         // tenía, se descarta aunque la nota suba.
@@ -1733,12 +1836,16 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         }
         if (!keep) fs.copyFileSync(backup, finalPath);
         if (artResult) artResult = { ...artResult, ...(second.review ? { after: second.review.notas } : {}), kept: keep };
-        const verdict = second.review
-          ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}${keep ? '' : newErrors.length ? `: añadía errores (${newErrors.join(', ')}), se recupera la versión anterior` : ': empeoraba, se recupera la versión anterior'}`
-          : newErrors.length
-          ? `sin segunda nota legible y con errores nuevos (${newErrors.join(', ')}): se recupera la versión anterior`
-          : 'sin segunda nota legible: se queda la versión corregida';
-        fs.appendFileSync(reviewFile, `\n## Tras la mejora\n\n${second.review ? artReviewSummary(second.review) : '(sin notas legibles)'}\n\nResultado: ${verdict}.\n`);
+        const notes = second.review ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}, ` : '';
+        const verdict = newErrors.length
+          ? `${notes}se descarta: añadía errores (${newErrors.join(', ')}), se recupera la versión anterior`
+          : `${notes}${decision.reason}${keep ? '' : ' — se recupera la versión anterior'}`;
+        fs.appendFileSync(
+          reviewFile,
+          `\n## Tras la mejora\n\n${second.review ? artReviewSummary(second.review) : '(sin notas legibles)'}\n\n` +
+            runs.map((r, i) => (r ? `${compareSummary(r.cmp, r.afterIs)}\n\n` : `Comparación ${i + 1}: sin respuesta legible.\n\n`)).join('') +
+            `Resultado: ${verdict}.\n`
+        );
         console.log(`[${stamp()}] ${job.id}: revisión visual tras la mejora — ${verdict}`);
         await progressMessage(`Revisión de dirección de arte: ${verdict}.`);
       } else if (review && notesReady()) {
@@ -1866,7 +1973,8 @@ async function backfillArtReviews(): Promise<void> {
       const home = readMeasuredIdentity(ROOT, j.slug)?.url || brandHome(j.prompt.split('## Instrucciones de entrega')[0], j.slug);
       const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
       const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
-      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found), null, () => undefined, MODELS.draft);
+      const facts = judgeFacts(await renderChecks(htmlPath, ROOT, brandPalette(ROOT, j.slug)).catch(() => null));
+      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found, sheet.desktop, facts), null, () => undefined, MODELS.art);
       const review = parseArtReview(look.output);
       await api(
         `/api/worker/jobs/${j.id}/art-review`,

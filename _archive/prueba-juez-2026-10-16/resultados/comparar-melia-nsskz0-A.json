@@ -1,0 +1,30 @@
+{
+ "dir": "melia/hermes/2026-10-07-nsskz0",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 43626,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "mejorada",
+  "identidad": "igual",
+  "concepto": "anterior",
+  "jerarquia": "igual",
+  "aire": "anterior",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": false,
+  "wins": [
+   "texto_imagen",
+   "copy"
+  ],
+  "losses": [
+   "concepto",
+   "aire"
+  ],
+  "reason": "se descarta: la comparación prefiere la anterior (gana en texto_imagen, copy, pierde en concepto, aire)"
+ }
+}

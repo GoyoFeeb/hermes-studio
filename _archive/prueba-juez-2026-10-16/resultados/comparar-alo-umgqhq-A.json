@@ -1,0 +1,29 @@
+{
+ "dir": "alo/hermes/2026-10-14-umgqhq",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 26172,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "anterior",
+  "jerarquia": "mejorada",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "jerarquia",
+   "copy"
+  ],
+  "losses": [
+   "concepto"
+  ],
+  "reason": "se queda: la comparación la prefiere en jerarquia, copy (pierde en concepto)"
+ }
+}

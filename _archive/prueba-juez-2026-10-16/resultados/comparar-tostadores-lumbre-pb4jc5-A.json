@@ -1,0 +1,28 @@
+{
+ "dir": "tostadores-lumbre/hermes/2026-10-15-pb4jc5",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 27375,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "mejorada",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "mejorada",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "jerarquia",
+   "movil",
+   "copy"
+  ],
+  "losses": [],
+  "reason": "se queda: la comparación la prefiere en jerarquia, movil, copy"
+ }
+}

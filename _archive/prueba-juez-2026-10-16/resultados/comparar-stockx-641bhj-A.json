@@ -1,0 +1,27 @@
+{
+ "dir": "stockx/hermes/2026-10-06-641bhj",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 30520,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "anterior",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "igual",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "anterior"
+ },
+ "verdict": {
+  "keep": false,
+  "wins": [],
+  "losses": [
+   "texto_imagen",
+   "copy"
+  ],
+  "reason": "se descarta: la comparación prefiere la anterior (gana en nada, pierde en texto_imagen, copy)"
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "dir": "el-corte-ingles/hermes/2026-10-06-vxvm7f",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 26264,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "mejorada",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "anterior",
+  "aire": "anterior",
+  "originalidad": "anterior",
+  "movil": "anterior",
+  "oscuro": "igual",
+  "copy": "anterior"
+ },
+ "verdict": {
+  "keep": false,
+  "wins": [
+   "texto_imagen"
+  ],
+  "losses": [
+   "jerarquia",
+   "aire",
+   "originalidad",
+   "movil",
+   "copy"
+  ],
+  "reason": "se descarta: pierde en movil aunque gana en texto_imagen"
+ }
+}

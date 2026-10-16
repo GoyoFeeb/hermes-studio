@@ -1,0 +1,30 @@
+{
+ "dir": "bmw/hermes/2026-10-09-7pwjdr",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 35777,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "mejorada",
+  "jerarquia": "anterior",
+  "aire": "igual",
+  "originalidad": "anterior",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": false,
+  "wins": [
+   "concepto",
+   "copy"
+  ],
+  "losses": [
+   "jerarquia",
+   "originalidad"
+  ],
+  "reason": "se descarta: la comparación prefiere la anterior (gana en concepto, copy, pierde en jerarquia, originalidad)"
+ }
+}

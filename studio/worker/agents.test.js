@@ -1297,3 +1297,134 @@ test('Alineaciones renderizando: 48 frente a 40 px y un centrado torcido; la tar
   assert.match(all, /«Un texto centrado con más aire a un lado» está centrado pero queda descentrado/);
   assert.deepEqual(out.c, []);
 });
+
+// ---------------------------------------------------------------- revisión de arte fiable (2026-10-16)
+
+test('Juez de arte: hoja de escritorio en tramos, resumen del brief y medidas de Studio', () => {
+  const brief = [
+    '# Brief — Novo — Áticos',
+    '## 1. Concepto — Cuando cae la tarde, empieza la terraza.',
+    'Encaja con la marca.',
+    '## 2. Identidad de marca — Playfair',
+    'Paleta larga '.repeat(400),
+    '## 3. Datos verificados',
+    'Oferta: -20 % hasta el 30-11 (https://x.es)',
+    'Precio 300 €',
+    '## 4. Asunto y preheader — La terraza al caer la tarde',
+    '## 5. Escenas',
+    '1. Apertura: foto de la terraza.',
+    '## 6. Imágenes',
+    'foto-1.jpg',
+    '',
+    '## Instrucciones de entrega',
+    'no',
+  ].join('\n');
+  const r = run(`
+    const rn = require(${mod('render-newsletter.ts')});
+    const j = require(${mod('artJudge.ts')});
+    const w = require(${mod('hermes-worker.ts')});
+    const facts = j.judgeFacts({
+      fonts: { desktop: { bodyMin: 15, bodyTypical: 16, footerMin: 12 }, mobile: { bodyMin: 14, bodyTypical: 16, footerMin: null } },
+      mobile: null, design: { errors: [], warnings: ['Contraste bajo: «X» (#fff sobre #128c3c, 4.3:1); lo recomendable es 4,5:1.'] }, dark: null,
+    });
+    const q = w.artReviewQuery(undefined, ${JSON.stringify(brief)}, '<p>Hola</p>', '/tmp/hoja.jpg', { width: 1246, height: 2000 },
+      { path: '/tmp/web.jpg', size: { width: 1280, height: 900 } }, [], { path: '/tmp/esc.jpg', width: 1272, height: 1486 }, facts);
+    process.stdout.write(JSON.stringify({
+      tiles: [rn.desktopTiles(1000), rn.desktopTiles(3300), rn.desktopTiles(9000).length],
+      digest: j.briefDigest(${JSON.stringify(brief)}),
+      legacy: j.briefDigest('# Prompt pegado\\n' + 'x'.repeat(5000)).length,
+      facts, q,
+    }));
+  `);
+  assert.deepEqual(r.tiles[0], [[0, 1000]]);
+  // Tres tramos con solape de 60 px; nunca más de tres.
+  assert.deepEqual(r.tiles[1], [[0, 1100], [1040, 2200], [2140, 3300]]);
+  assert.equal(r.tiles[2], 3);
+  // El resumen lleva concepto, oferta, asunto y escenas; no la identidad (larga) ni las imágenes.
+  assert.match(r.digest, /Concepto: Cuando cae la tarde/);
+  assert.match(r.digest, /Oferta: -20 %/);
+  assert.match(r.digest, /Asunto y preheader/);
+  assert.match(r.digest, /1\. Apertura: foto de la terraza/);
+  assert.doesNotMatch(r.digest, /Paleta larga|foto-1\.jpg|Precio 300/);
+  assert.equal(r.legacy, 3500);
+  assert.match(r.facts[0], /600 px: mínima 15 px, habitual 16 px; pie 12 px/);
+  assert.match(r.facts[1], /pie sin texto corrido/);
+  assert.match(r.facts[3], /4\.3:1/);
+  // Pasos: escritorio, hoja, web y JSON, en ese orden.
+  assert.match(r.q, /1\. Llama a vision_analyze con image_url \/tmp\/esc\.jpg y region \[0, 0, 1272, 1486\]/);
+  assert.match(r.q, /2\. Llama a vision_analyze con image_url \/tmp\/hoja\.jpg/);
+  assert.match(r.q, /3\. Llama a vision_analyze con image_url \/tmp\/web\.jpg/);
+  assert.match(r.q, /4\. Con lo que te devuelvan, responde SOLO con un JSON/);
+  assert.match(r.q, /Medidas de Studio:[\s\S]*NO los juzgues por las imágenes/);
+  assert.doesNotMatch(r.q, /Paleta larga/);
+});
+
+test('Juez de arte: la mejora se decide comparando, con el motivo real en el registro', () => {
+  const r = run(`
+    const j = require(${mod('artJudge.ts')});
+    const w = require(${mod('hermes-worker.ts')});
+    const keys = Object.keys(w.ART_CRITERIA);
+    const all = (v) => Object.fromEntries(keys.map((k) => [k, v]));
+    const ok = j.parseArtCompare('Va: ' + JSON.stringify({ criterios: { ...all('igual'), copy: 'B', aire: 'b', movil: 'A' }, razones: { copy: 'titular concreto' } }), keys);
+    const bad = j.parseArtCompare(JSON.stringify({ criterios: { ...all('igual'), copy: 'mejor' } }), keys);
+    const partial = j.parseArtCompare(JSON.stringify({ criterios: { copy: 'B' } }), keys);
+    const wins = j.compareVerdict({ criterios: { ...all('igual'), copy: 'B', aire: 'B', jerarquia: 'A' }, razones: {} }, 'B');
+    const swapped = j.compareVerdict({ criterios: { ...all('igual'), copy: 'B', aire: 'B', jerarquia: 'A' }, razones: {} }, 'A');
+    const guard = j.compareVerdict({ criterios: { ...all('igual'), copy: 'B', aire: 'B', movil: 'A' }, razones: {} }, 'B');
+    const tie = j.compareVerdict({ criterios: all('igual'), razones: {} }, 'B');
+    const note = (o) => ({ notas: { ...all(4), ...o }, problemas: [], mejoras: [] });
+    const fb = [w.fallbackVerdict(note({}), note({ copy: 5, aire: 5, movil: 3 })), w.fallbackVerdict(note({}), note({ copy: 3 , aire: 3})), w.fallbackVerdict(note({}), null)];
+    const q = j.artCompareQuery(w.ART_CRITERIA, { desktop: { path: '/tmp/d.jpg', width: 1092, height: 2400 }, mobile: { path: '/tmp/m.jpg', width: 796, height: 2400 } }, 'Concepto: X', 'texto a', 'texto b', 'black friday');
+    process.stdout.write(JSON.stringify({ ok, bad, partial, wins, swapped, guard, tie, fb, q, summary: w.compareSummary(ok, 'B') }));
+  `);
+  assert.equal(r.ok.criterios.aire, 'B');
+  assert.equal(r.ok.criterios.movil, 'A');
+  assert.deepEqual(r.ok.razones, { copy: 'titular concreto' });
+  assert.equal(r.bad, null);
+  assert.equal(r.partial, null);
+  assert.equal(r.wins.keep, true);
+  assert.match(r.wins.reason, /se queda: la comparación la prefiere en aire, copy \(pierde en jerarquia\)/);
+  // El orden se sortea: con la mejorada como A, los mismos votos favorecen a la anterior.
+  assert.equal(r.swapped.keep, false);
+  assert.equal(r.guard.keep, false);
+  assert.match(r.guard.reason, /pierde en movil aunque gana en aire, copy/);
+  assert.equal(r.tie.keep, false);
+  assert.match(r.tie.reason, /no ve diferencias/);
+  // Sin comparación: el motivo es el criterio que baja de 4, no «empeoraba».
+  assert.equal(r.fb[0].keep, false);
+  assert.match(r.fb[0].reason, /movil 4 → 3 baja de 4/);
+  assert.match(r.fb[1].reason, /aire 4 → 3, copy 4 → 3 baja de 4/);
+  assert.equal(r.fb[2].keep, true);
+  assert.match(r.q, /1\. Llama a vision_analyze con image_url \/tmp\/d\.jpg y region \[0, 0, 1092, 2400\]/);
+  assert.match(r.q, /2\. Llama a vision_analyze con image_url \/tmp\/m\.jpg/);
+  assert.match(r.q, /Si dudas, «igual»/);
+  assert.match(r.q, /black friday/);
+  assert.match(r.summary, /- copy: mejorada — titular concreto/);
+  assert.match(r.summary, /- movil: anterior/);
+});
+
+test('Juez de arte: dos comparaciones con el orden cambiado; la mejora se queda solo si las dos la prefieren', () => {
+  const r = run(`
+    const j = require(${mod('artJudge.ts')});
+    const w = require(${mod('hermes-worker.ts')});
+    const all = (v) => Object.fromEntries(Object.keys(w.ART_CRITERIA).map((k) => [k, v]));
+    const v = (crit, afterIs) => j.compareVerdict({ criterios: { ...all('igual'), ...crit }, razones: {} }, afterIs);
+    // Mejorada en A y en B: los votos ya vienen por lado.
+    const keepA = v({ copy: 'A', aire: 'A' }, 'A');
+    const keepB = v({ copy: 'B', jerarquia: 'B' }, 'B');
+    const loseA = v({ copy: 'B' }, 'A');
+    const loseB = v({ copy: 'A', movil: 'A' }, 'B');
+    process.stdout.write(JSON.stringify({
+      both: j.doubleVerdict(keepA, keepB),
+      split: j.doubleVerdict(keepA, loseB),
+      none: j.doubleVerdict(loseA, loseB),
+    }));
+  `);
+  assert.equal(r.both.keep, true);
+  assert.match(r.both.reason, /las dos comparaciones la prefieren \(en las dos gana en copy\)/);
+  // Sesgo de posición (8 de 20 parejas en la prueba): si no coinciden, se queda la anterior.
+  assert.equal(r.split.keep, false);
+  assert.match(r.split.reason, /no coinciden \(primera: \+2\/−0; segunda: \+0\/−2\)/);
+  assert.equal(r.none.keep, false);
+  assert.match(r.none.reason, /ninguna de las dos/);
+});

@@ -1,0 +1,27 @@
+{
+ "dir": "el-corte-ingles/hermes/2026-10-06-t1mwq0",
+ "identical": false,
+ "afterIs": "B",
+ "ms": 22124,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "mejorada",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "jerarquia",
+   "copy"
+  ],
+  "losses": [],
+  "reason": "se queda: la comparación la prefiere en jerarquia, copy"
+ }
+}

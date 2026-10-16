@@ -7,7 +7,7 @@
 > qué se diagnosticó, qué se decidió arreglar, y qué sigue abierto — para que una futura sesión de
 > esta skill no repita el mismo diagnóstico desde cero.
 
-**Última actualización:** 2026-10-15 (corregidos los S0 H-04 marca equivocada y H-02 remitente sin identificar de la auditoría de Studio)
+**Última actualización:** 2026-10-16 (auditoría de calidad de las newsletters: solo diagnóstico)
 
 ---
 
@@ -2831,3 +2831,53 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   worker reiniciado estando libre. Sin probar con un trabajo real: el desglose solo aparece en piezas nuevas.
 - Visto de paso: en `7uxqfr` la medición de identidad se saltó porque la marca está escrita «Wolkswagen» y la web de
   volkswagen.es no la nombra (comprobación de H-04). Por eso Hermes investigó la marca dentro de la pieza.
+
+### 2026-10-16 — Auditoría de calidad de las newsletters (solo diagnóstico, nada cambiado)
+- Datos: `_trabajo/revision-visual.md` de 39 piezas (08-10 → 16-10, escala Q3), `encargo.md` de 41, hojas de render de
+  PlayStation y McDonald's vistas a mano, y `check-newsletter --sin-arreglos` sobre las 23 piezas del 13 al 16-10.
+- **Notas (media de 5):** originalidad 3,44 (21 de 39 por debajo de 4), copy 3,72 (14), móvil 3,79, petición 3,85,
+  texto_imagen 3,90 (11)… jerarquía 4,03, aire 4,00. Total medio 38,4/50 (35-44). Problema más repetido: «foto, titular,
+  apoyo y botón» repetido (23 piezas). En copy, titulares abstractos y botones «Elige tu…».
+- **Hallazgos:**
+  1. 35 de 41 piezas llegan por «Prompt completo» (de unas 1.100 palabras, plantilla «Rol: eres el equipo de dirección
+     creativa…»): se saltan el brief, la autocrítica, «fotos antes del concepto», «Lo que pidió el equipo», «Oferta con
+     su cifra» y el catálogo de módulos por escena. Casi todo lo construido del 05 al 08-10 solo actúa en 6 piezas.
+  2. Revisión de arte poco fiable: la hace el mismo modelo que escribe la pieza; volver a puntuar da ±4/50 (Novo Resort:
+     texto_imagen e identidad 5 → 4 con las mismas fotos); la mejora se queda en 13 de 39. El log dice «empeoraba»
+     también cuando el total sube (37→40, 38→42, 35→39: se descarta porque un criterio cae por debajo de 4).
+  3. La hoja de render pinta las tres columnas al mismo ancho y la reduce a 2.000 px de alto: la columna de 600 px se ve
+     al ~55 % (PlayStation: hoja 1.060×2.000). El juez no puede leer el texto de escritorio; varias quejas de «texto
+     pequeño a 600 px» (Alo, Diesel, Novo) salen de ahí. Las fuentes reales son de 15-16 px.
+  4. La revisión solo ve los primeros 3.500 caracteres del prompt (`artReviewQuery`): 22 de 24 prompts son más largos
+     (6.371 de media) y lo que ve es el rol y la investigación, no el concepto ni las escenas.
+  5. Sin datos del cliente: el formulario no permite meter oferta, fechas, precios ni subir fotos o logo. PlayStation
+     «Black Friday» (15-10) salió sin oferta: la de 2026 aún no estaba publicada (Hermes lo anotó bien en notas.md).
+  6. Texto e imagen: 12 piezas describen lo que la foto no muestra (Alo «botas» con zapatillas; BMW silueta roja sobre
+     una foto del interior). El modelo elige fotos por el nombre del archivo; no hay descripción de cada foto en el encargo.
+  7. Identidad: la portada de la marca sale tapada por cookies (Nike, Jordan) o es otra web (North Face: dominio en
+     venta; Tesla: TESA) y la revisión puntúa igual.
+- `check-newsletter --sin-arreglos`: 10 de 23 con errores de espacios, alineación o botones (border-radius 50 %); sin
+  arreglos automáticos, así que puede que la versión publicada esté bien. No es la causa principal de la baja calidad.
+- Propuestas entregadas en el chat, pendientes de que el usuario elija.
+
+### 2026-10-16 (continuación) — Propuesta 2 (juez de arte fiable): implementada en local y validada, sin desplegar
+- **Código (sin publicar, worker sin reiniciar):** `render-newsletter.ts` (`render-escritorio.jpg`: la columna de 600 px a
+  tamaño real en tramos; `renderPair` para comparar A/B; `shootPage`), `renderChecks.ts` (`fonts` con `fontSummary`),
+  `artJudge.ts` nuevo (`briefDigest`, `judgeFacts`, `artCompareQuery`, `parseArtCompare`, `compareVerdict`),
+  `hermes-worker.ts` (nota con hoja de escritorio, medidas y resumen del brief; la mejora se decide comparando, orden
+  sorteado; `fallbackVerdict` con el motivo real en vez de «empeoraba»; `MODELS.art` / `HERMES_MODEL_ART`). `npm test` 282/282.
+- **Validación** (`_archive/prueba-juez-2026-10-16/`, 84 llamadas): ruido de la nota Δ 1,5 → 1,0 (corrección: el «±4» de la
+  auditoría mezclaba notas de antes y después de la mejora; la misma pieza dos veces mueve ±1,5). Nota media +4,25 con el
+  método nuevo. Comparación: control 12/12 sin preferencia, pero en parejas reales mismo veredicto en los dos órdenes solo
+  en 12/20 (objetivo 80 %): sesgo hacia la versión de la derecha (B).
+- **Pendiente de decisión del usuario:** (a) criterio de las dos notas con el motivo corregido, o (b) dos comparaciones con
+  el orden cambiado (se queda solo si las dos la prefieren). Lo implementado ahora es UNA comparación: no desplegar así.
+- Visto de paso: el pie de Novo Resort (`wr22s3`) trae «Feebbo Solutions S.L. · C/ Serrano 42» como remitente. Confirmar
+  si es correcto (agencia que envía) o si `legalNote` colaba los datos de Feebbo.
+- **Decidido por el usuario (mismo día): opción (b).** `artJudge.doubleVerdict` + `hermes-worker.compareOnce`: dos
+  comparaciones (mejorada a la izquierda y a la derecha), la mejora se queda solo si las dos la prefieren; si alguna no se
+  lee, decide `fallbackVerdict` (dos notas, motivo corregido). `npm test` 283/283. Probado con el código del worker sobre
+  dos parejas reales: Nike `ndizjn` → se descarta (no coinciden; la mejora metía «Pieza de marca para corredores…», que el
+  criterio antiguo dejó pasar); McDonald's `q4ikwq` → se queda (las dos prefieren la mejorada; en la prueba anterior no
+  coincidían: en piezas dudosas el resultado puede variar, pero ahora solo se queda con acuerdo). Coste real: ~80 s por
+  pieza (dos capturas A/B y dos llamadas). **Sin desplegar:** solo cambia el worker del Mac (Railway y Vercel no).

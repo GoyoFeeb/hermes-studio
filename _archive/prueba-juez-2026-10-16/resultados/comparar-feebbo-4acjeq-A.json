@@ -1,0 +1,26 @@
+{
+ "dir": "feebbo/hermes/2026-10-15-4acjeq",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 29568,
+ "votes": {
+  "peticion": "mejorada",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "igual",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "igual"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "peticion"
+  ],
+  "losses": [],
+  "reason": "se queda: la comparación la prefiere en peticion"
+ }
+}

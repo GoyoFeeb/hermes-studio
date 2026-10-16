@@ -1,0 +1,24 @@
+{
+ "dir": "wolkswagen/hermes/2026-10-15-7uxqfr",
+ "identical": true,
+ "afterIs": "A",
+ "ms": 20551,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "igual",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "igual"
+ },
+ "verdict": {
+  "keep": false,
+  "wins": [],
+  "losses": [],
+  "reason": "se descarta: la comparación no ve diferencias que mejoren la pieza"
+ }
+}

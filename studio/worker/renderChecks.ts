@@ -205,6 +205,26 @@ export interface RenderReport {
   photos: { hero: Findings; variety: Findings };
   /** Lienzo distinguible del fondo exterior y franjas sueltas, medidos por píxeles en claro y oscuro (frameFindings). */
   frame: { canvas: Findings; strips: Findings };
+  /** Tamaño de la letra del texto corrido a 600 y a 375 px (fontSummary), para la revisión de arte. */
+  fonts: { desktop: FontSummary; mobile: FontSummary };
+}
+
+/** Letra del texto corrido (bloques de más de 40 caracteres): cuerpo (antes del último quinto) y pie, en px. */
+export interface FontSummary {
+  bodyMin: number | null;
+  bodyTypical: number | null;
+  footerMin: number | null;
+}
+
+export function fontSummary(fonts: { size: number; at: number }[]): FontSummary {
+  const body = fonts.filter((f) => f.at < 0.8).map((f) => f.size).sort((a, b) => a - b);
+  const footer = fonts.filter((f) => f.at >= 0.8).map((f) => f.size);
+  const round = (n: number): number => Math.round(n * 10) / 10;
+  return {
+    bodyMin: body.length ? round(body[0]) : null,
+    bodyTypical: body.length ? round(body[Math.floor(body.length / 2)]) : null,
+    footerMin: footer.length ? round(Math.min(...footer)) : null,
+  };
 }
 
 // --- Lienzo y franjas (2026-10-06) ---------------------------------------------------------------------
@@ -748,6 +768,7 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
       imgWidths: desktop.imgWidths,
       photos: photoFindings(html, desktop.imgWidths, desktop.imgTops, readGallery(path.dirname(htmlPath))),
       frame: frameFindings(await frameMetrics(browser, htmlPath, false).catch(() => null), darkCss ? await frameMetrics(browser, htmlPath, true).catch(() => null) : null),
+      fonts: { desktop: fontSummary(desktop.fonts), mobile: fontSummary(small.fonts) },
     };
   } catch (err) {
     console.log(`No se pudo renderizar la pieza para medirla: ${(err as Error).message.slice(0, 200)}`);

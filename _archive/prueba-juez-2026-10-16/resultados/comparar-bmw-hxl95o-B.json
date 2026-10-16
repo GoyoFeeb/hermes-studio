@@ -1,0 +1,27 @@
+{
+ "dir": "bmw/hermes/2026-10-08-hxl95o",
+ "identical": false,
+ "afterIs": "B",
+ "ms": 24069,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "mejorada",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "igual",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "texto_imagen",
+   "copy"
+  ],
+  "losses": [],
+  "reason": "se queda: la comparación la prefiere en texto_imagen, copy"
+ }
+}
