@@ -235,9 +235,10 @@ app.post('/p/:token/decision', shareWriteLimit.middleware, (req: Request, res: R
 });
 
 // --- Worker de Hermes (2026-09-24) -------------------------------------------------------
-// El Mac del usuario (studio/worker/hermes-worker.ts) recoge los trabajos standalone, los ejecuta
-// con `hermes -z` y devuelve el HTML. Autenticación propia con WORKER_TOKEN (Bearer), distinta de
-// la contraseña del equipo; sin WORKER_TOKEN estas rutas no existen. Van antes del Basic Auth.
+// studio/worker/hermes-worker.ts (en el Mac, o en el servicio Railway hermes-worker) recoge los
+// trabajos standalone, los ejecuta con `hermes -z` y devuelve el HTML. Autenticación propia con
+// WORKER_TOKEN (Bearer), distinta de la contraseña del equipo; sin WORKER_TOKEN estas rutas no
+// existen. Van antes del Basic Auth.
 const WORKER_TOKEN = process.env.WORKER_TOKEN || '';
 let lastWorkerSeen = 0;
 
@@ -259,6 +260,12 @@ function requireWorker(req: Request, res: Response, next: NextFunction): void {
   lastWorkerSeen = Date.now();
   next();
 }
+
+// El servicio hermes-worker llama aquí cada 30 s (studio/worker/CLOUD.md). /claim y /progress ya
+// renuevan lastWorkerSeen; este latido cubre un render largo en el que no hay otra llamada.
+app.post('/api/worker/heartbeat', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
+  res.json({ ok: true });
+});
 
 function standaloneJobForWorker(req: Request, res: Response): ReturnType<typeof getJob> {
   const job = getJob(req.params.id);

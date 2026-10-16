@@ -11,8 +11,21 @@ export default defineRailway(() => {
     volumeMounts: { "/data": hermesStudioVolume },
   });
 
+  // Mismo proyecto. No quitar hermes-studio: `railway config plan` tiene que añadir este servicio
+  // y su volumen. El repo de Studio se deja como está (Javifeebbo/…, ya aplicado; GitHub redirige).
+  // El servicio nuevo usa el nombre actual, que es el que resuelve la instalación de GitHub.
+  const hermesWorkerVolume = volume("hermes-worker-volume", { alerts: { usage: { "100": {}, "80": {}, "95": {} } }, allowOnlineResize: true, region: "iad", sizeMB: 2048 });
+  const hermesWorker = service("hermes-worker", {
+    source: github("GoyoFeeb/hermes-studio", { branch: "main", checkSuites: false }),
+    build: { builder: "DOCKERFILE", dockerfilePath: "studio/worker/Dockerfile" },
+    deploy: { restartPolicyMaxRetries: 3 },
+    healthcheck: "/heartbeat",
+    replicas: { "iad": 1 },
+    volumeMounts: { "/data": hermesWorkerVolume },
+  });
+
   return project("striking-luck", {
     variables: { managed: false },
-    resources: [hermesStudio, hermesStudioVolume],
+    resources: [hermesStudio, hermesStudioVolume, hermesWorker, hermesWorkerVolume],
   });
 });
