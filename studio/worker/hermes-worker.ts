@@ -1,19 +1,21 @@
 /**
- * hermes-worker.ts — corre en el Mac del usuario, NO en Railway (2026-09-24).
+ * hermes-worker.ts — el mismo proceso en el Mac o en el servicio Railway `hermes-worker` (2026-10-16).
  *
  * Pregunta a Hermes Studio si hay newsletters standalone en cola, ejecuta cada una con
- * `hermes chat -q` (no interactivo) usando la instalación local de Hermes Agent (config, skills, memoria, suscripción
+ * `hermes chat -q` (no interactivo) usando Hermes Agent (config, skills, memoria, suscripción
  * de Nous) dentro de sistema-final/, y sube el HTML resultante. Es exactamente el flujo manual
  * del usuario (pegar el prompt en Hermes), automatizado: por eso la calidad es la misma.
  *
+ * En el Mac: `npm run hermes-worker`. En Railway lo arranca studio/worker/cloud-entrypoint.sh
+ * (uid 1001, HERMES_CLOUD=1, lista blanca). Ver studio/worker/CLOUD.md. No los dos a la vez.
+ *
  * Progreso: lee el historial de sesiones de Hermes mientras trabaja (ver "Progreso" abajo).
  *
- * Uso (desde sistema-final/):   npm run hermes-worker
- * Credenciales (~/.config/hermes-studio/.env, fuera del repo): STUDIO_WORKER_URL, WORKER_TOKEN
+ * Credenciales en el Mac (~/.config/hermes-studio/.env, fuera del repo): STUDIO_WORKER_URL, WORKER_TOKEN
  * Opcionales:                   HERMES_BIN (por defecto "hermes"), HERMES_TIMEOUT_MIN (180)
  *
  * Un trabajo a la vez. `--yolo` aprueba solo los comandos (no hay nadie para confirmarlos):
- * Hermes actúa en este Mac igual que en una sesión normal, pero sin pedir permiso.
+ * Hermes actúa igual que en una sesión normal, pero sin pedir permiso.
  */
 import * as fs from 'fs';
 import * as os from 'os';
@@ -35,21 +37,27 @@ import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
+import { startHeartbeat } from './heartbeat';
 
 const ROOT = path.resolve(__dirname, '..', '..');
-/** Entorno para Hermes: el del terminal, SIN lo que carga este worker (.env del repo con claves de
- *  API, WORKER_TOKEN). Hermes ejecuta comandos sin pedir permiso y lee webs de terceros: una página
- *  con instrucciones ocultas no debe poder llevarse esos secretos (auditoría 2026-09-24). Los
- *  scripts del repo que necesiten claves las cargan ellos mismos desde .env. */
-const HERMES_ENV: NodeJS.ProcessEnv = { ...process.env };
-delete HERMES_ENV.WORKER_TOKEN;
-delete HERMES_ENV.STUDIO_WORKER_URL;
-delete HERMES_ENV.HERMES_WORKER_ENV_DIR;
+/** Entorno para Hermes: el del proceso, SIN lo que usa este worker para hablar con Studio.
+ *  Hermes ejecuta comandos sin pedir permiso y lee webs de terceros: una página con instrucciones
+ *  ocultas no debe poder llevarse esos secretos (auditoría 2026-09-24). En Railway el proceso ya
+ *  viene filtrado por cloudEnv.ts; aquí se quitan igual el token y la URL. Los scripts del repo
+ *  que necesiten claves las cargan ellos mismos desde .env. */
+export function hermesChildEnv(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env = { ...base };
+  delete env.WORKER_TOKEN;
+  delete env.STUDIO_WORKER_URL;
+  delete env.HERMES_WORKER_ENV_DIR;
+  return env;
+}
+const HERMES_ENV: NodeJS.ProcessEnv = hermesChildEnv(process.env);
 /** Credenciales del worker FUERA del repositorio (2026-09-28, BUG-H14): Hermes trabaja con
  *  cwd=sistema-final y --yolo, y quitarlas del entorno no bastaba — podía leer studio/.env desde el
- *  disco. Fuera del repo no las encuentra buscando en el proyecto. Es una mitigación, no un
- *  aislamiento: Hermes corre con el mismo usuario. El .env de la raíz (claves de API de los scripts
- *  del motor) ya no se carga aquí: el worker no las usa. */
+ *  disco. Fuera del repo no las encuentra buscando en el proyecto. En el Mac es una mitigación:
+ *  Hermes corre con el mismo usuario. En Railway, cloud-entrypoint.sh baja a uid 1001 antes de
+ *  este proceso. El .env de la raíz (claves de API de los scripts del motor) ya no se carga aquí. */
 const WORKER_ENV_DIR = process.env.HERMES_WORKER_ENV_DIR || path.join(os.homedir(), '.config', 'hermes-studio');
 loadEnv(WORKER_ENV_DIR);
 if (!process.env.WORKER_TOKEN) {
@@ -576,12 +584,16 @@ function loopNudge(loop: { kind: LoopKind; target: string; text: string }, deliv
 /** Firecrawl (web_extract/web_search) sale desde servidores de EE. UU.: webs españolas que
  *  redirigen por país o limitan peticiones (Prozis, 2026-09-24: "Go to Prozis USA" y 429)
  *  devuelven basura, y DeepSeek tiende a anunciar "Let me..." y cerrar el turno. */
+const BROWSER_EXIT =
+  process.env.HERMES_CLOUD === '1'
+    ? 'también sale desde EE. UU. (este worker está en Railway, no en un Mac en España): no insistas con el navegador si la web redirige por país; busca el dato en otra página oficial.'
+    : 'sale desde este Mac en España, o busca el dato en otra página oficial.';
 export const WEB_ACCESS_NOTE = [
   '',
   '## Nota de entorno: webs que bloquean la lectura',
   '- web_extract/web_search salen desde EE. UU. Si una web oficial devuelve una redirección de país',
   '  ("Go to ... USA"), un 429 o una página vacía, NO repitas web_extract: ábrela con el navegador',
-  '  (browser_navigate), que sale desde este Mac en España, o busca el dato en otra página oficial.',
+  `  (browser_navigate), que ${BROWSER_EXIT}`,
   '- Máximo 2 intentos por dato. Si no aparece, anótalo como pendiente y sigue: la entrega es el HTML.',
   '- No anuncies lo que vas a hacer ("Let me..."): llama a la herramienta directamente.',
   '- vision_analyze: si pasas region, que sea una zona real de la imagen ([0, 0, ancho, alto] para verla entera); nunca',
@@ -1785,7 +1797,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
 
   const { html, missing } = embedLocalImages(fs.readFileSync(htmlPath, 'utf8'), path.dirname(htmlPath), ROOT);
   if (missing.length) {
-    await progressMessage(`Aviso: ${missing.length} imagen(es) referenciadas que no existen en el Mac: ${missing.slice(0, 5).join(', ')}`);
+    await progressMessage(`Aviso: ${missing.length} imagen(es) referenciadas que no existen ${process.env.HERMES_CLOUD === '1' ? 'en el worker' : 'en el Mac'}: ${missing.slice(0, 5).join(', ')}`);
   }
   // Subida con más reintentos: un corte de red aquí perdía en Studio una newsletter ya terminada.
   let uploadError = '';
@@ -1801,7 +1813,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   }
   if (cancelled) return finishCancelled();
   if (uploadError) {
-    await fail(`La newsletter está terminada en el Mac del worker (${path.relative(ROOT, htmlPath)}) pero no se pudo subir a Studio: ${uploadError}`);
+    await fail(`La newsletter está terminada ${process.env.HERMES_CLOUD === '1' ? 'en el worker' : 'en el Mac del worker'} (${path.relative(ROOT, htmlPath)}) pero no se pudo subir a Studio: ${uploadError}`);
     console.log(`[${stamp()}] ✗ ${job.id}: terminada en ${path.relative(ROOT, htmlPath)} pero no se pudo subir (${uploadError})`);
   } else {
     if (!editKind) recordDuration(minutes);
@@ -1941,8 +1953,26 @@ function releaseLock(): void {
 
 async function main(): Promise<void> {
   if (!BASE || !TOKEN) {
-    console.error(`Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en ${WORKER_ENV_DIR}/.env — ver studio/README.md.`);
+    console.error(
+      process.env.HERMES_CLOUD === '1'
+        ? 'Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en las variables del servicio hermes-worker — ver studio/worker/CLOUD.md.'
+        : `Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en ${WORKER_ENV_DIR}/.env — ver studio/README.md.`
+    );
     process.exit(1);
+  }
+  if (process.env.HERMES_CLOUD === '1') {
+    const port = Number(process.env.PORT || 8080);
+    await startHeartbeat(port);
+    console.log(`Latido del worker en 0.0.0.0:${port}/heartbeat`);
+    // Además del /claim y del progreso: Railway puede tardar en un render y la web deja de ver a Hermes a los 2 min.
+    const beat = setInterval(() => {
+      api('/api/worker/heartbeat', {}, 1)
+        .then((res) => {
+          if (res.status === 401) console.error('Studio rechaza el WORKER_TOKEN (latido).');
+        })
+        .catch(() => undefined);
+    }, 30_000);
+    beat.unref();
   }
   await acquireLock();
   // Trabajos que este worker dejó a medias en una ejecución anterior (el aviso de Ctrl+C no
