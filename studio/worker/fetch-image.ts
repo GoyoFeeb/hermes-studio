@@ -15,7 +15,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
-import { launchBrowser } from './renderChecks';
+import { launchBrowser, NATIVE_WIDTHS_FILE } from './renderChecks';
 import { imageKindOf } from './brandCard';
 
 const HEADERS = {
@@ -102,7 +102,31 @@ export async function saveImage(raw: Buffer, url: string, outDir: string, name?:
   const file = path.join(outDir, `${base}.${ext}`);
   fs.writeFileSync(file, out);
   const meta = await sharp(out).metadata();
-  return `${path.basename(file)} (${meta.width}×${meta.height}, ${Math.round(out.length / 1024)} KB)`;
+  const native = isSvg(raw) ? null : (await sharp(raw).metadata()).width || null;
+  if (native) recordNativeWidth(outDir, path.basename(file), native);
+  const thumb = native && native < THUMB_MAX_WIDTH ? ` — MINIATURA: el original solo tiene ${native} px de ancho; no la amplíes (se ve borrosa), busca la misma foto más grande` : '';
+  return `${path.basename(file)} (${meta.width}×${meta.height}, ${Math.round(out.length / 1024)} KB)${thumb}`;
+}
+
+/** Por debajo de este ancho original, la imagen es una miniatura (Nike Vomero Plus, 2026-10-19: Hermes bajó la de
+ *  `t_PDP_144` —144 px— y la amplió a 1200 px; la suela salió pixelada a 520 px). */
+export const THUMB_MAX_WIDTH = 500;
+
+function recordNativeWidth(outDir: string, file: string, width: number): void {
+  const f = path.join(outDir, '_trabajo', NATIVE_WIDTHS_FILE);
+  try {
+    let all: Record<string, number> = {};
+    try {
+      all = JSON.parse(fs.readFileSync(f, 'utf8'));
+    } catch {
+      // primera descarga del trabajo
+    }
+    all[file] = width;
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, JSON.stringify(all, null, 2));
+  } catch {
+    // sin registro: la comprobación de miniaturas simplemente no actúa
+  }
 }
 
 if (require.main === module) {

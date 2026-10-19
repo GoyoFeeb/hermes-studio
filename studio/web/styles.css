@@ -1390,24 +1390,120 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border: 1px sol
 /* Navegación entre el formulario y los trabajos (2026-09-30). */
 .hero-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 20px; }
 .how-btn { font-size: var(--fs-ui); }
+/* «¿Cómo funciona?» (2026-10-19): rejilla de tarjetas en el sistema de la web (degradado azul, números grandes en
+   Barlow, rosa para lo que se señala). 01–03 en una fila; 04 ancha, con las tres herramientas comparadas, y 05. */
 .how-panel {
-  max-width: 640px;
-  margin: 16px 0 0;
-  padding: 16px 20px 16px 40px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-row);
-  display: grid;
-  gap: 12px;
-  font-size: var(--fs-prose);
-  line-height: var(--lh-prose);
-  color: var(--muted);
+  margin: 32px 0 0;
+  padding: 28px;
+  border-radius: var(--radius-card);
+  background: linear-gradient(156deg, var(--card-grad-1) 11%, var(--card-grad-2) 76%), var(--card-base);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 10px 28px var(--shadow);
+  scroll-margin-top: 96px;
+  animation: how-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.how-panel strong { color: var(--text); font-weight: 600; }
-/* Lista numerada como la de la web (2026-10-02): "01" en rosa y el texto en claro. */
-.how-panel { list-style: none; padding-left: 20px; counter-reset: step; color: var(--text); }
-.how-panel li { counter-increment: step; position: relative; padding-left: 40px; }
-.how-panel li::before { content: counter(step, decimal-leading-zero); position: absolute; left: 0; top: 0; color: var(--accent-text); }
+@keyframes how-in { from { opacity: 0; transform: translateY(12px); } }
+.how-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.how-title { margin: 6px 0 0; font-size: clamp(22px, 2.6vw, 30px); font-weight: 700; line-height: 1.15; color: var(--text); }
+.how-close { flex: none; width: 40px; height: 40px; border: 1px solid var(--border-strong); border-radius: var(--pill); background: none; color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.how-close:hover { border-color: var(--pink); color: var(--accent-text); }
+.how-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; counter-reset: none; }
+.how-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 22px 22px 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-row);
+  overflow: hidden;
+}
+.how-step-wide { grid-column: span 2; }
+/* Mismo número que los títulos de sección («01 Nueva newsletter», «02 Historial»): relleno que se desvanece hacia
+   abajo y contorno fino rosado, para que se distinga del fondo de la tarjeta (2026-10-19). */
+.how-num {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 88px;
+  font-weight: 800;
+  line-height: 0.8;
+  letter-spacing: -3px;
+  color: transparent;
+  background: linear-gradient(180deg, var(--how-num-fill) 0%, var(--how-num-fill) 35%, transparent 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--how-num-fill) 70%, var(--pink));
+  user-select: none;
+  pointer-events: none;
+}
+/* Sobre el azul de la tarjeta, --section-num (#1A2168) se funde y solo quedaba el contorno: en oscuro, un relleno algo
+   más claro. En claro ya se distingue (#DFE2F3 sobre blanco). */
+.how-panel { --how-num-fill: color-mix(in srgb, var(--section-num) 70%, var(--lilac)); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .how-panel { --how-num-fill: var(--section-num); } }
+:root[data-theme="light"] .how-panel { --how-num-fill: var(--section-num); }
+.how-step h3 { position: relative; margin: 0; padding-right: 84px; font-size: 19px; font-weight: 700; line-height: 1.25; color: var(--text); }
+.how-step h3::before { content: ''; display: block; width: 28px; height: 3px; margin-bottom: 14px; border-radius: 2px; background: linear-gradient(90deg, var(--purple), var(--pink)); }
+.how-step > p { position: relative; margin: 0; font-size: var(--fs-ui); line-height: 1.55; color: var(--muted); }
+.how-step strong { color: var(--text); font-weight: 600; }
+.how-foot { margin-top: auto !important; padding-top: 4px; }
+.how-tag { display: inline-block; padding: 2px 10px; border: 1px solid var(--border-strong); border-radius: var(--pill); font-size: var(--fs-small); color: var(--text); white-space: nowrap; }
+
+/* 01: las dos formas de pedir. */
+.how-pair { display: grid; gap: 8px; }
+.how-opt { display: grid; gap: 2px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-pill); border: 1px solid var(--border); }
+.how-opt b { font-size: var(--fs-ui); color: var(--text); }
+.how-opt span { font-size: var(--fs-small); color: var(--muted); }
+
+/* 02: la secuencia y los datos prácticos. */
+.how-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.how-flow li { display: flex; align-items: center; font-family: 'Barlow', sans-serif; font-size: var(--fs-caption); font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text); }
+.how-flow li + li::before { content: '→'; content: '→' / ''; margin-right: 6px; color: var(--accent-text); letter-spacing: 0; }
+.how-facts { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: var(--fs-small); line-height: 1.45; color: var(--muted); }
+.how-facts li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; }
+.how-ico { color: var(--accent-text); text-align: center; }
+
+/* 03: lista de comprobaciones. */
+.how-checks { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; font-size: var(--fs-small); color: var(--text); }
+.how-checks li { display: flex; align-items: center; gap: 10px; }
+.how-checks li::before { content: '✓'; content: '✓' / ''; flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--success-tint); color: var(--success); font-size: 11px; font-weight: 700; }
+
+/* 04: las tres herramientas, comparadas, y el rastro de versiones. */
+.how-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.how-tool { display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-pill); font-size: var(--fs-small); line-height: 1.45; color: var(--muted); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.2s; }
+.how-tool:hover { transform: translateY(-3px); border-color: var(--border-strong); }
+.how-tool.is-instant { border-color: color-mix(in srgb, var(--success) 45%, transparent); }
+.how-tool b { font-size: var(--fs-body); color: var(--text); }
+.how-badge { align-self: flex-start; padding: 2px 8px; border-radius: var(--pill); background: var(--success-tint); color: var(--success); font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+.how-badge.is-hermes { background: color-mix(in srgb, var(--pink) 16%, transparent); color: var(--accent-text); }
+.how-versions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 0; margin-top: auto; padding-top: 4px; }
+.how-v { display: grid; place-items: center; min-width: 34px; height: 26px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--pill); font-family: 'Barlow', sans-serif; font-size: var(--fs-caption); font-weight: 700; color: var(--muted); }
+.how-v + .how-v { margin-left: 18px; position: relative; }
+.how-v + .how-v::before { content: ''; position: absolute; right: 100%; width: 18px; height: 1px; background: var(--border-strong); }
+.how-v.is-current { border-color: var(--pink); color: var(--accent-text); }
+.how-versions p { flex: 1 1 260px; margin: 0 0 0 14px; font-size: var(--fs-small); color: var(--muted); }
+
+/* 05: plataformas de destino. */
+.how-platforms { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.how-platforms li { padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface-pill); border: 1px solid var(--border); font-size: var(--fs-small); font-weight: 600; color: var(--text); }
+
+@media (max-width: 1023px) {
+  .how-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .how-step-wide { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .how-panel { padding: 20px 16px; margin-top: 24px; }
+  .how-grid { grid-template-columns: 1fr; }
+  .how-tools { grid-template-columns: 1fr; }
+  .how-num { font-size: 72px; }
+  .how-versions p { margin: 8px 0 0; flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .how-panel { animation: none; }
+  .how-tool, .how-tool:hover { transition: none; transform: none; }
+}
 .history-jump {
   display: inline-flex;
   align-items: center;

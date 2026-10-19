@@ -2881,3 +2881,50 @@ Solo robustez; nada de lo que cambia la generación (encargo, herramientas por f
   criterio antiguo dejó pasar); McDonald's `q4ikwq` → se queda (las dos prefieren la mejorada; en la prueba anterior no
   coincidían: en piezas dudosas el resultado puede variar, pero ahora solo se queda con acuerdo). Coste real: ~80 s por
   pieza (dos capturas A/B y dos llamadas). **Sin desplegar:** solo cambia el worker del Mac (Railway y Vercel no).
+
+### 2026-10-16 (continuación) — Varias newsletters a la vez: plan hecho, aplazado por el usuario (nada cambiado)
+- **Por qué hoy va de una en una:** el servidor no lo impide (claim entrega el más antiguo); el límite es el worker: un
+  proceso con estado global (`current`, `currentChild`, `cancelled`, `loopStopped`…) y candado único; `findSessionId`
+  localiza la sesión de Hermes por la hora (con dos piezas leería la ajena); `/api/worker/reset` falla TODOS los trabajos
+  en curso; `queueWait` suma la cola en serie.
+- **Plan aprobado en principio, sin implementar:** N procesos de worker (`HERMES_WORKER_SLOT`, `HERMES_WORKERS=2` por
+  defecto; un servicio de launchd y un log por puesto; tareas de fondo solo en el puesto 1); sesión fijada con
+  `hermes chat --format stream-json` (el evento `init` trae `session_id` en el primer segundo, probado); `workerId` en el
+  trabajo; claim que no entrega dos trabajos de la misma marca a la vez; reset solo del propio worker; espera repartida
+  entre workers conectados; web con «N en marcha». Mac: 10 núcleos, 16 GB; 5 sesiones de Hermes en paralelo funcionaron.
+  Pendiente comprobar que `--resume` con stream-json también emite `init`.
+- **Desplegado (con permiso del usuario):** commit `7f6727d` (sin push) y worker reiniciado ~11:40. Primera pieza real con el
+  juez nuevo: Feria de Albacete `mvas8ibx-cj3zaz` (12:17, 19 min de pieza, 31:35 con el brief). Primera nota 38/50
+  (texto_imagen 3, identidad 2, oscuro 3); pasada de mejora; segunda nota 43/50, pero **se descarta: ninguna de las dos
+  comparaciones la prefiere (+2/−3 y +2/−2)**. Las dos coinciden criterio a criterio en lo importante: la mejora arreglaba un
+  fallo real (cuadrados dibujados donde el texto dice «círculos concéntricos», gana texto_imagen y originalidad) y a la vez
+  cambiaba el titular del concepto y añadía una frase redundante (pierde copy y aire). Funciona como se diseñó: las dos
+  comparaciones legibles, motivo real en el registro, `render-escritorio.jpg` creado, la nota cita las medidas de Studio
+  («cuerpo mínimo 16 px…»), sin `.comparar-*.html` en la carpeta de la pieza (`_trabajo/comparar-a|b`, 2,1 MB cada una).
+- **Vistos en esta pieza, sin tocar:** (1) la decisión es todo o nada: se pierde el arreglo de los círculos junto con los
+  cambios malos (la pieza final sigue con cuadrados y texto_imagen 3). (2) Revisión visual 7:54 frente a 3:32 de Novo esta
+  mañana: más de los ~80 s estimados; con una sola pieza no se sabe cuánto es la doble comparación y cuánto la mejora.
+  (3) `web-marca.jpg` es Spain.info (`brandHome` toma el dominio más citado del brief): la identidad se puntuó contra una web
+  que no es la marca; el remitente no estaba definido. (4) La cabecera de `revision-visual.md` no menciona la hoja de escritorio.
+
+### 2026-10-19 — Nike Vomero Plus (`mvf1s78a-ksop80`) sale mal: diagnóstico (nada cambiado)
+- Pieza «Prompt completo» sin URL de producto. Juez de arte: 37 → 43/50 y «se queda», pero el resultado es malo.
+- **Fallos vistos (render propio a 600 px, claro y oscuro):**
+  1. Imagen principal = el Swoosh blanco sobre negro (`foto-1.jpg`, 1200×680, **6 KB**), no la zapatilla. Origen: Studio
+     (`productSheet.ts`) leyó la galería de `https://nike.com/` (portada, no ficha), sacó UNA imagen y la marcó ★ solo por
+     ancho y proporción (`photoSize`: sin mirar peso ni si es un gráfico plano). El encargo obliga a usar una ★ como
+     imagen principal, así que Hermes obedeció. Hermes SÍ había bajado 4 fotos de prensa de 3200×2400
+     (`newsroom-vomero-plus-1..4.jpg`) y no las usó.
+  2. Logo de cabecera = rectángulo negro con Swoosh blanco: el HTML usa `logo-nike-official-trim.png` (sin alfa);
+     `notas.md` dice que usó `logo-nike-white-transparent.png`. Nada lo comprueba.
+  3. Foto de la suela pixelada: Hermes bajó la miniatura `t_PDP_144_v1` (144 px) y su propio script la amplió a 1200 px;
+     luego la recortó en una franja que corta la zapatilla. Studio no mide la resolución real de una foto.
+  4. Modo oscuro: el botón «Elige tu talla» (#111) sobre fondo #111 (`.dm-white`), invisible. El juez puso oscuro 5:
+     la comprobación de oscuro mira texto, no botón contra su fondo.
+  5. Copy: el colorway completo «Anthracite/Carmesí brillante/University Red/Negro» 3 veces y el nombre 4 (máx. 3).
+- El juez vio el Swoosh como problema («no sobre una imagen del producto») pero no puede quitar una ★ obligatoria.
+- **Propuestas (pendientes de que el usuario elija):** A) `photoSize`/`buildProductSheet`: no marcar ★ una imagen de
+  < ~40 KB a 1200 px o casi sin color (gráfico/logo); B) encargo: si no hay ★ válida o la galería sale de la portada,
+  la principal es una foto oficial de producto/prensa que encuentre Hermes, nunca el logo; C) `renderChecks`: avisar
+  si una foto se muestra más ancha que su resolución útil (miniatura ampliada) y si un botón tiene el mismo fondo que
+  su celda en oscuro; D) comprobar que el logo de cabecera no es un rectángulo opaco de otro color que el fondo.

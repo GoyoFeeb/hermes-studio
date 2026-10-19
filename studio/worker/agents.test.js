@@ -88,6 +88,59 @@ test('Contraste WCAG: negro sobre blanco 21:1, #999 sobre blanco por debajo de 3
   assert.ok(r[1] < 3);
 });
 
+test('Botón que se funde con su celda (Nike 19-10: #111 sobre #111 en oscuro) es error; 1,2:1 (Porsche) no', () => {
+  const r = run(`
+    const { buttonFindings } = require(${mod('renderChecks.ts')});
+    process.stdout.write(JSON.stringify({
+      bad: buttonFindings([{ text: 'Elige tu talla', bg: '#111111', around: '#111111' }], 'oscuro'),
+      ok: buttonFindings([{ text: 'Contacta', bg: '#111113', around: '#202226' }, { text: 'Compra', bg: '#111111', around: '#ffffff' }], 'claro'),
+    }));
+  `);
+  assert.equal(r.bad.length, 1);
+  assert.match(r.bad[0], /Elige tu talla/);
+  assert.deepEqual(r.ok, []);
+});
+
+test('Miniatura ampliada: el recorte «-email» hereda el ancho original de su descarga; «foto-10» no es de «foto-1»', () => {
+  const r = run(`
+    const { nativeWidthOf } = require(${mod('renderChecks.ts')});
+    const w = { 'vomero-017-detail.jpg': 144, 'foto-1.jpg': 1200 };
+    process.stdout.write(JSON.stringify([nativeWidthOf('vomero-017-detail-email.jpg', w), nativeWidthOf('foto-1.jpg', w), nativeWidthOf('foto-10.jpg', w)]));
+  `);
+  assert.deepEqual(r, [144, 1200, null]);
+});
+
+test('Logo o gráfico plano: el Swoosh sobre negro sí, una foto de zapatilla no (isFlatGraphic)', () => {
+  const r = run(`
+    const sharp = require('sharp');
+    const os = require('os'), path = require('path');
+    const { isFlatGraphic } = require(${mod('renderChecks.ts')});
+    (async () => {
+      const dir = require('fs').mkdtempSync(path.join(os.tmpdir(), 'graf-'));
+      const logo = path.join(dir, 'logo.png');
+      await sharp({ create: { width: 600, height: 300, channels: 3, background: '#000000' } })
+        .composite([{ input: Buffer.from('<svg width="600" height="300"><ellipse cx="300" cy="150" rx="220" ry="60" fill="#fff"/></svg>') }]).png().toFile(logo);
+      const noise = Buffer.alloc(600 * 300 * 3); for (let i = 0; i < noise.length; i++) noise[i] = (i * 2654435761) >>> 24;
+      const photo = path.join(dir, 'foto.png');
+      await sharp(noise, { raw: { width: 600, height: 300, channels: 3 } }).png().toFile(photo);
+      process.stdout.write(JSON.stringify([await isFlatGraphic(logo), await isFlatGraphic(photo)]));
+    })();
+  `);
+  assert.deepEqual(r, [true, false]);
+});
+
+test('Galería: un logo descargado no es ★ ni cuenta como foto; sin fotos reales, la nota pide buscar una del producto', () => {
+  const r = run(`
+    const p = require(${mod('productSheet.ts')});
+    const photos = [{ file: 'foto-1.jpg (1200×680, 6 KB)', from: 'https://c.static-nike.com/x.jpg', width: 1200, height: 680, hero: false, graphic: true }];
+    process.stdout.write(JSON.stringify(p.productSheetNote({ pages: [{ url: 'https://nike.com/', title: null, price: null, shipping: [], images: ['a'], kind: 'gallery' }], photos, contactSheet: null }, 'out')));
+  `);
+  assert.match(r, /LOGO O GRÁFICO/);
+  assert.doesNotMatch(r, /★ candidata/);
+  assert.match(r, /ninguna sirve: busca una foto oficial del producto/);
+  assert.match(r, /El logo o un gráfico de la marca nunca es la imagen principal/);
+});
+
 const BASE_METRICS = { contrast: [], columns: 1, coloredText: false, fullImgs: 1, areas: [] };
 
 test('Legibilidad: contraste bajo en el cuerpo es error; en el pie legal o un pie de foto, aviso', () => {

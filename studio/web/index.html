@@ -153,13 +153,92 @@
           <span class="show-card show-mock"><i></i><b></b><em></em><em></em></span>
         </div>
       </div>
-      <ol id="how-panel" class="how-panel surface-light" hidden>
-        <li><strong>Pides la newsletter.</strong> Con una frase («Instrucción rápida») o, si ya tienes un prompt de dirección creativa, pegándolo entero («Prompt completo»). Elige si las imágenes salen de la marca o se generan con IA.</li>
-        <li><strong>Hermes la hace.</strong> Investiga la marca, escribe el brief creativo si pediste con una frase (lo ves en la página a los pocos minutos y puedes corregirlo sin pararle), diseña la pieza y la corrige. Suele tardar <span data-eta="new">unos 20 minutos</span>, y hace una a la vez: si hay otras delante, te dice cuándo empezará. Puedes cerrar la página y volver con el enlace del trabajo.</li>
-        <li><strong>Pasa una revisión automática.</strong> Enlaces e imágenes que responden, preheader, peso para que Gmail no la recorte y cómo se ve en móvil. Lo que falle sale en la pestaña «Revisión».</li>
-        <li><strong>La ajustas.</strong> «Editar texto» cambia textos al momento, sin Hermes. «Pedir cambios» y «Adaptar a móvil» se los encargan a Hermes y tardan unos minutos. Cada cambio es una versión nueva: ninguna se pierde.</li>
-        <li><strong>La apruebas y la llevas a tu plataforma.</strong> Marca lo que has comprobado, y descarga o copia el HTML preparado para Mailchimp, Brevo, HubSpot, Klaviyo o Salesforce, con UTM si los necesitas.</li>
-      </ol>
+      <!-- «¿Cómo funciona?» rediseñado (2026-10-19): antes, una lista de cinco párrafos largos en un bloque claro que
+           desentonaba con el tema oscuro. Ahora, tarjetas del sistema en rejilla: cada paso con su número, una línea
+           que lo resume y los datos que importan en piezas que se ven de un vistazo. «La ajustas» va ancha porque
+           compara tres herramientas que se confunden (cuál es al momento y cuáles pasan por Hermes). -->
+      <section id="how-panel" class="how-panel" aria-labelledby="how-title" hidden>
+        <header class="how-head">
+          <div>
+            <p class="eyebrow">Cómo funciona</p>
+            <h2 class="how-title" id="how-title">De una frase al HTML listo para enviar</h2>
+          </div>
+          <button type="button" class="how-close" id="how-close" aria-label="Cerrar «Cómo funciona»">×</button>
+        </header>
+        <ol class="how-grid">
+          <li class="how-step">
+            <span class="how-num" aria-hidden="true">01</span>
+            <h3>Pides la newsletter</h3>
+            <p>Elige cómo contarle a Hermes lo que quieres.</p>
+            <div class="how-pair">
+              <div class="how-opt"><b>Instrucción rápida</b><span>Una frase basta</span></div>
+              <div class="how-opt"><b>Prompt completo</b><span>Pegas tu dirección creativa</span></div>
+            </div>
+            <p class="how-foot">Imágenes: <span class="how-tag">De la marca</span> <span class="how-tag">Con IA</span></p>
+          </li>
+          <li class="how-step">
+            <span class="how-num" aria-hidden="true">02</span>
+            <h3>Hermes la hace</h3>
+            <p>Del brief a la pieza corregida, sin que tengas que estar delante.</p>
+            <ol class="how-flow" aria-label="Lo que hace Hermes">
+              <li>Investiga</li><li>Brief</li><li>Diseña</li><li>Corrige</li>
+            </ol>
+            <ul class="how-facts">
+              <li><span class="how-ico" aria-hidden="true">◷</span><span>Suele tardar <strong data-eta="new">unos 20 minutos</strong></span></li>
+              <li><span class="how-ico" aria-hidden="true">↻</span><span>El brief sale a los pocos minutos: puedes corregirlo sin pararle</span></li>
+              <li><span class="how-ico" aria-hidden="true">≡</span><span>Una a la vez: con cola, te dice cuándo empieza</span></li>
+              <li><span class="how-ico" aria-hidden="true">↗</span><span>Cierra la página y vuelve con el enlace del trabajo</span></li>
+            </ul>
+          </li>
+          <li class="how-step">
+            <span class="how-num" aria-hidden="true">03</span>
+            <h3>Revisión automática</h3>
+            <p>Studio comprueba lo que suele fallar al enviar. Lo que no pasa sale en la pestaña «Revisión».</p>
+            <ul class="how-checks">
+              <li>Enlaces que responden</li>
+              <li>Imágenes que cargan</li>
+              <li>Preheader</li>
+              <li>Peso: Gmail no la recorta</li>
+              <li>Cómo se ve en móvil</li>
+            </ul>
+          </li>
+          <li class="how-step how-step-wide">
+            <span class="how-num" aria-hidden="true">04</span>
+            <h3>La ajustas</h3>
+            <p>Tres maneras de cambiarla, según lo que necesites.</p>
+            <div class="how-tools">
+              <div class="how-tool is-instant">
+                <span class="how-badge">Al momento</span>
+                <b>Editar texto</b>
+                <span>Cambias textos tú, directamente sobre la pieza. Sin Hermes, sin esperas.</span>
+              </div>
+              <div class="how-tool">
+                <span class="how-badge is-hermes">Con Hermes</span>
+                <b>Pedir cambios</b>
+                <span>Le explicas qué cambiar y lo rehace: <span data-eta="revision">unos minutos</span>.</span>
+              </div>
+              <div class="how-tool">
+                <span class="how-badge is-hermes">Con Hermes</span>
+                <b>Adaptar a móvil</b>
+                <span>Arregla el móvil sin tocar el escritorio: <span data-eta="mobile-fix">unos minutos</span>.</span>
+              </div>
+            </div>
+            <div class="how-versions" aria-label="Cada cambio es una versión nueva">
+              <span class="how-v">v1</span><span class="how-v">v2</span><span class="how-v is-current">v3</span>
+              <p>Cada cambio es una <strong>versión nueva</strong>: ninguna se pierde y puedes volver a cualquiera.</p>
+            </div>
+          </li>
+          <li class="how-step">
+            <span class="how-num" aria-hidden="true">05</span>
+            <h3>La apruebas y la exportas</h3>
+            <p>Marca lo que has comprobado y descarga o copia el HTML preparado para tu plataforma.</p>
+            <ul class="how-platforms">
+              <li>Mailchimp</li><li>Brevo</li><li>HubSpot</li><li>Klaviyo</li><li>Salesforce</li>
+            </ul>
+            <p class="how-foot"><span class="how-tag">+ UTM</span> si los necesitas</p>
+          </li>
+        </ol>
+      </section>
       <!-- «Ahora mismo» (2026-10-05): lo que espera al equipo y lo que está en marcha, arriba. Antes, la primera
            newsletter en marcha aparecía a 1.738 px, debajo de todo el formulario. Sin nada, no se muestra. -->
       <section id="now-strip" class="now-strip" aria-labelledby="now-title" hidden>

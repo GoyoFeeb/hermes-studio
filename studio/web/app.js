@@ -1370,6 +1370,11 @@ document.getElementById('how-btn').addEventListener('click', (e) => {
   panel.hidden = !panel.hidden;
   e.currentTarget.setAttribute('aria-expanded', String(!panel.hidden));
 });
+document.getElementById('how-close').addEventListener('click', () => {
+  const btn = document.getElementById('how-btn');
+  btn.click();
+  btn.focus({ preventScroll: true });
+});
 document.getElementById('history-jump').addEventListener('click', (e) => {
   e.preventDefault();
   jumpTo(document.getElementById('history'), 'start');

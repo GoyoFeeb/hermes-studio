@@ -679,6 +679,8 @@ function runHermesTurn(
  *  sale ilegible (la pieza sigue sin nota) y la mejora pasa igualmente por la segunda nota y la red de seguridad. */
 export const ART_SCORE_CAP_MS = 5 * 60 * 1000;
 export const ART_IMPROVE_CAP_MS = 8 * 60 * 1000;
+/** El turno que arregla solo los defectos claros de la revisión (2026-10-19): cambios mínimos. */
+export const ART_DEFECT_CAP_MS = 4 * 60 * 1000;
 async function cappedTurn<T>(ms: number, jobId: string, what: string, turn: () => Promise<T>): Promise<T> {
   const timer = setTimeout(() => {
     if (!currentChild) return;
@@ -1076,7 +1078,18 @@ export interface ArtReview {
   problemas: string[];
   /** Lo que subiría a 5 lo que tiene 4 (2026-10-06, punto 5): se corrige si es barato. */
   mejoras: string[];
+  /** Errores objetivos (2026-10-19, ver ART_DEFECTS): se corrigen antes y aparte de las mejoras, y no se descartan con ellas. */
+  defectos?: string[];
 }
+
+/** Qué es un defecto claro (2026-10-19). Cartier ppp83s: la revisión vio una «I» suelta (numeración romana con una sola
+ *  sección), la mejora la quitó junto con cambios de gusto, las dos comparaciones no coincidieron y se entregó la pieza
+ *  con la «I». Lo objetivo se arregla en su propio turno y se queda aunque se descarten las mejoras. */
+export const ART_DEFECTS =
+  'Defectos claros (errores objetivos, no de gusto): un elemento suelto o sobrante (una letra, un número romano o una ' +
+  'viñeta aislados, una numeración con un solo elemento, un separador o una celda vacíos), texto cortado, solapado o que ' +
+  'se sale, una errata, un texto repetido por error, un marcador o un resto de plantilla, una foto rota o deformada. Lo ' +
+  'que es cuestión de gusto (tamaños, orden, tono, otra foto, otro titular) no es un defecto: va en «mejoras».';
 
 /** Cómo se pone cada nota (Q3, 2026-10-07): se parte de 3 y se sube solo con prueba de lo que pide el 4 o el 5; antes,
  *  con «5 = lo firmaría el director de arte… 4 = correcto pero mejorable», el 4 era la nota por defecto. */
@@ -1173,9 +1186,11 @@ export function artReviewQuery(
     'Puntúa de 1 a 5 cada criterio según su descripción:',
     ...Object.entries(ART_CRITERIA).map(([k, v]) => `- ${k}: ${v}`),
     ART_SCALE,
+    ART_DEFECTS,
     '',
     'Formato exacto: {"notas": {"peticion": 3, "texto_imagen": 4, ...todos los criterios}, "pruebas": {"peticion": "qué ves y ' +
-      'dónde que justifica la nota", ...todos los criterios}, "problemas": ["lo que deja un criterio por debajo de 4: qué y ' +
+      'dónde que justifica la nota", ...todos los criterios}, "defectos": ["cada defecto claro: qué, dónde y el arreglo ' +
+      'mínimo (quitarlo o corregirlo); [] si no hay"], "problemas": ["lo que deja un criterio por debajo de 4: qué y ' +
       'dónde"], "mejoras": ["criterio: por cada nota que no sea 5, el cambio concreto que la subiría, empezando por el nombre ' +
       'del criterio (\\"aire: …\\"): qué, dónde y cómo (tamaño, espacio, orden, el texto de un titular, otra de las fotos ya ' +
       'descargadas…), sin rehacer la pieza ni cambiar datos o enlaces"]}',
@@ -1208,7 +1223,7 @@ export function parseArtReview(output: string): ArtReview | null {
     for (const k of Object.keys(notas)) {
       if (notas[k] === 5 && (!pruebas[k] || mejoras.some((m) => m.toLowerCase().replace(/^[\s*-]+/, '').startsWith(`${k}:`)))) notas[k] = 4;
     }
-    return { notas, pruebas, problemas: list(raw.problemas), mejoras };
+    return { notas, pruebas, problemas: list(raw.problemas), mejoras, defectos: list((raw as { defectos?: unknown }).defectos) };
   } catch {
     return null;
   }
@@ -1218,9 +1233,69 @@ export function lowScores(review: ArtReview): string[] {
   return Object.keys(review.notas).filter((k) => review.notas[k] < 4);
 }
 
-/** ¿Hay pasada de mejora? Siempre con notas por debajo de 4; con 4, si la revisión nombra mejoras concretas. */
-export function needsImprovement(review: ArtReview): boolean {
+/** ¿Hay mejora de gusto (la que se compara y se puede descartar)? Con notas por debajo de 4; con 4, si la revisión nombra
+ *  mejoras concretas. */
+export function needsTasteRound(review: ArtReview): boolean {
   return lowScores(review).length > 0 || (review.mejoras.length > 0 && Object.values(review.notas).some((n) => n < 5));
+}
+
+/** ¿Hay pasada de mejora? La de gusto o, aunque no la haya, defectos claros que arreglar. */
+export function needsImprovement(review: ArtReview): boolean {
+  return needsTasteRound(review) || !!review.defectos?.length;
+}
+
+/** El turno que arregla SOLO los defectos claros (2026-10-19), antes de las mejoras de gusto y sin comparación: lo que
+ *  arregla se queda aunque luego se descarten las mejoras. */
+export function defectFixQuery(outputDir: string, brand: string, workRel: string, defects: string[]): string {
+  return [
+    `Arregla los defectos que la revisión de dirección de arte ha visto en la newsletter ${outputDir}/newsletter.html (${brand}).`,
+    `Hoja con la pieza a 600 px, 375 px y en oscuro: ${workRel}/render-hoja.jpg.`,
+    '',
+    'Defectos (OBLIGATORIO arreglarlos, con el cambio mínimo: quitar lo que sobra o corregir lo que está mal):',
+    ...defects.map((d) => `- ${d}`),
+    '',
+    'Solo estos defectos: no cambies titulares, textos, fotos, colores ni la composición por gusto (eso va en otra ronda). ' +
+      'Si al quitar un elemento queda un hueco o una celda vacía, ajústalo para que no se note.',
+    `Después: \`npm run check-newsletter -- ${outputDir}/newsletter.html\` hasta que salga sin errores. ` +
+      `Añade a notas.md una línea por cada defecto arreglado.`,
+    '',
+    SCOPED_FIX,
+    SECRETS_NOTE,
+    '',
+    'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
+  ].join('\n');
+}
+
+/** La pieza y sus notas en un momento de la revisión de arte (2026-10-19): al descartar una mejora se recuperan las dos.
+ *  Antes solo se recuperaba el HTML y notas.md seguía contando los cambios descartados (Cartier ppp83s: «retirada la I»). */
+export interface WorkSnapshot {
+  html: string;
+  notes: string | null;
+}
+
+export function snapshotWork(htmlFile: string, notesFile: string, dest: string): WorkSnapshot {
+  fs.copyFileSync(htmlFile, dest);
+  const notes = dest.replace(/\.html?$/i, '') + '-notas.md';
+  if (!fs.existsSync(notesFile)) return { html: dest, notes: null };
+  fs.copyFileSync(notesFile, notes);
+  return { html: dest, notes };
+}
+
+/** Vuelve a la versión guardada y deja en notas.md, si se da, una línea con lo que se descartó. */
+export function restoreWork(snap: WorkSnapshot, htmlFile: string, notesFile: string, note?: string): void {
+  fs.copyFileSync(snap.html, htmlFile);
+  if (snap.notes) fs.copyFileSync(snap.notes, notesFile);
+  if (note && fs.existsSync(notesFile)) fs.appendFileSync(notesFile, note);
+}
+
+/** Lo que se añade a notas.md cuando se descarta la mejora de gusto. */
+export function discardNote(reason: string, fixedDefects: string[] = []): string {
+  return (
+    `\n\n## Revisión de dirección de arte (Studio)\nSe probó una mejora y se descartó (${reason}): la pieza entregada es la ` +
+    `versión anterior a esa mejora y no lleva los cambios que la mejora describía.` +
+    (fixedDefects.length ? `\nSí lleva los arreglos de defectos de la revisión:\n${fixedDefects.map((d) => `- ${d}`).join('\n')}` : '') +
+    '\n'
+  );
 }
 
 export const scoreTotal = (review: ArtReview): number => Object.values(review.notas).reduce((a, b) => a + b, 0);
@@ -1242,6 +1317,7 @@ function artReviewSummary(review: ArtReview): string {
           .map((k) => `- ${k} ${review.notas[k]}: ${review.pruebas?.[k] || '(sin prueba)'}`)
           .join('\n')}`
       : '') +
+    (review.defectos?.length ? `\n\nDefectos:\n${review.defectos.map((p) => `- ${p}`).join('\n')}` : '') +
     (review.problemas.length ? `\n\nProblemas:\n${review.problemas.map((p) => `- ${p}`).join('\n')}` : '') +
     (review.mejoras.length ? `\n\nMejoras propuestas:\n${review.mejoras.map((p) => `- ${p}`).join('\n')}` : '')
   );
@@ -1758,96 +1834,137 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       );
       if (review && needsImprovement(review) && !cancelled && Date.now() - started < TIMEOUT_MS) {
         const backup = path.join(workDir, 'antes-de-mejora.html');
-        fs.copyFileSync(finalPath, backup);
-        await progressMessage(
-          low.length
-            ? `Revisión de dirección de arte: ${low.join(', ')} por debajo de 4 — Hermes lo corrige y pule lo demás.`
-            : `Revisión de dirección de arte: ${review.mejoras.length} mejora(s) para subir de 4 a 5 — Hermes las aplica.`
-        );
-        watchNewSession();
-        await cappedTurn(ART_IMPROVE_CAP_MS, job.id, 'mejora de arte', () => runHermesTurn(
-          [
-            `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
-            `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg.${web ? ` Portada de la web de la marca: ${rel}/web-marca.jpg.` : ''} Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
-            ...(claimed.request ? [`Petición original del equipo: «${claimed.request}».`] : []),
-            '',
-            `Notas: ${Object.entries(review.notas).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
-            ...(review.problemas.length ? ['Problemas (OBLIGATORIO corregirlos: bajan una nota de 4):', ...review.problemas.map((p) => `- ${p}`)] : []),
-            ...(review.mejoras.length ? ['Mejoras para subir de 4 a 5 (aplica las baratas; si una exige rehacer la pieza, sáltala y dilo):', ...review.mejoras.map((p) => `- ${p}`)] : []),
-            '',
-            'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos ni enlaces. Si un texto ' +
-              'contradice su foto o se aparta de la petición: corrige el texto o cambia la foto por otra de las que ya están en la ' +
-              `carpeta (${job.outputDir}/) que sí muestre lo que dice y que NO esté ya en la pieza (tampoco un recorte de una que ya ` +
-              'sale: Studio lo detecta como foto repetida); no descargues fotos nuevas (Q2). Studio guarda la versión ' +
-              'anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
-            // Nike (2026-10-08): la mejora escribió en la portada «Pieza de marca para corredores que preparan…».
-            'Todo texto que añadas es de la marca para su cliente: nunca escribas en la pieza nada que hable de la propia pieza, ' +
-              'su público o su objetivo («pieza de marca para…», «newsletter para…», «dirigida a…») ni de la investigación ' +
-              '(«la web anuncia», «según su ficha», «pendiente de confirmación»). Si una mejora solo se cumple así, sáltala.',
-            `Después: \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` hasta que salga sin errores y ` +
-              `\`npm run render-newsletter -- ${job.outputDir}/newsletter.html\` para mirar la hoja UNA vez.`,
-            `Añade al final de ${rel}/revision-visual.md lo que cambiaste y un resumen de dos líneas al final de notas.md.`,
-            '',
-            SCOPED_FIX,
-            SECRETS_NOTE,
-            '',
-            'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
-          ].join('\n'),
-          null,
-          () => undefined,
-          MODELS.art
-        ));
-        if (cancelled) return finishCancelled();
-        // La mejora se decide COMPARANDO (2026-10-16), dos veces y con el orden cambiado: se queda solo si las dos
-        // comparaciones la prefieren. Con UNA comparación el veredicto dependía del lado en el que iba cada versión en 8
-        // de 20 parejas (sesgo hacia la de la derecha; _archive/prueba-juez-2026-10-16). Antes decidían dos notas sueltas,
-        // y el registro decía «empeoraba» aunque el total subiera. La segunda nota se mantiene para el panel de calidad.
-        const changed = fs.readFileSync(backup, 'utf8') !== fs.readFileSync(finalPath, 'utf8');
-        const runs: ({ cmp: ArtCompare; afterIs: 'A' | 'B'; output: string } | null)[] = [];
-        if (changed && Date.now() - started < TIMEOUT_MS) {
-          const facts = { before: await factsOf(backup), after: await factsOf(finalPath) };
-          for (const side of ['A', 'B'] as const) {
-            if (cancelled || Date.now() - started >= TIMEOUT_MS) break;
-            watchNewSession();
-            runs.push(await compareOnce(backup, finalPath, side, outAbs, path.join(workDir, `comparar-${side.toLowerCase()}`), job.prompt, claimed.request, job.id, facts).catch(() => null));
-          }
-          if (cancelled) return finishCancelled();
-        }
-        const both = runs.length === 2 && runs[0] && runs[1] ? [runs[0], runs[1]] : null;
-        watchNewSession();
-        const second = Date.now() - started < TIMEOUT_MS ? await reviewOnce().catch(() => ({ review: null, output: '' })) : { review: null, output: '' };
-        const decision = !changed
-          ? { keep: false, reason: 'Hermes no cambió nada en la pieza' }
-          : both
-          ? doubleVerdict(compareVerdict(both[0].cmp, both[0].afterIs), compareVerdict(both[1].cmp, both[1].afterIs))
-          : fallbackVerdict(review, second.review);
-        let keep = decision.keep;
-        // Red de seguridad de Studio (2026-10-08, Tarífalo): la mejora cambió una foto por un recorte de la de apertura;
-        // la nota subió (37 → 39) y se quedó. Si la versión mejorada trae un error de la comprobación que la anterior no
-        // tenía, se descarta aunque la nota suba.
-        let newErrors: string[] = [];
-        if (keep) {
-          const before = new Set((quality?.checks || []).filter((c) => c.status === 'error').map((c) => c.id));
+        const original = snapshotWork(finalPath, notesFile, backup);
+        // Errores de la comprobación que la versión actual trae y la de antes de la revisión no tenía.
+        const errorsBefore = new Set((quality?.checks || []).filter((c) => c.status === 'error').map((c) => c.id));
+        const addedErrors = async (): Promise<string[]> => {
           // Sin tocar el medidor de tiempos (seguimos dentro de la fase de revisión visual).
-          const improvedPath = htmlReady();
-          const afterReport = improvedPath ? (await inspectNewsletter(improvedPath, ROOT, { fix: true, design: !editKind, brandSlug: slug }).catch(() => null))?.report : null;
-          newErrors = (afterReport?.checks || []).filter((c) => c.status === 'error' && !before.has(c.id)).map((c) => c.label.toLowerCase());
-          if (newErrors.length) keep = false;
+          const p = htmlReady();
+          const report = p ? (await inspectNewsletter(p, ROOT, { fix: true, design: !editKind, brandSlug: slug }).catch(() => null))?.report : null;
+          return (report?.checks || []).filter((c) => c.status === 'error' && !errorsBefore.has(c.id)).map((c) => c.label.toLowerCase());
+        };
+        // Defectos claros primero, en su propio turno y sin comparación (2026-10-19): lo que arregla se queda aunque luego
+        // se descarten las mejoras de gusto, que se comparan contra esta versión.
+        let base = original;
+        let fixedDefects: string[] = [];
+        const defects = review.defectos || [];
+        if (defects.length) {
+          await progressMessage(`Revisión de dirección de arte: ${defects.length} defecto(s) claro(s) — Hermes los arregla primero.`);
+          watchNewSession();
+          await cappedTurn(ART_DEFECT_CAP_MS, job.id, 'arreglo de defectos', () =>
+            runHermesTurn(defectFixQuery(job.outputDir, claimed.brand?.name || slug, rel, defects), null, () => undefined, MODELS.art)
+          );
+          if (cancelled) return finishCancelled();
+          const fixedChanged = fs.readFileSync(backup, 'utf8') !== fs.readFileSync(finalPath, 'utf8');
+          const fixErrors = fixedChanged ? await addedErrors() : [];
+          const outcome = !fixedChanged
+            ? 'Hermes no cambió nada'
+            : fixErrors.length
+            ? `se descartan: añadían errores (${fixErrors.join(', ')})`
+            : 'se quedan';
+          if (fixedChanged && fixErrors.length) restoreWork(original, finalPath, notesFile);
+          if (fixedChanged && !fixErrors.length) {
+            base = snapshotWork(finalPath, notesFile, path.join(workDir, 'tras-defectos.html'));
+            fixedDefects = defects;
+          }
+          fs.appendFileSync(reviewFile, `\n## Arreglo de defectos\n\n${defects.map((d) => `- ${d}`).join('\n')}\n\nResultado: ${outcome}.\n`);
+          console.log(`[${stamp()}] ${job.id}: arreglo de defectos de arte — ${outcome}`);
         }
-        if (!keep) fs.copyFileSync(backup, finalPath);
-        if (artResult) artResult = { ...artResult, ...(second.review ? { after: second.review.notas } : {}), kept: keep };
-        const notes = second.review ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}, ` : '';
-        const verdict = newErrors.length
-          ? `${notes}se descarta: añadía errores (${newErrors.join(', ')}), se recupera la versión anterior`
-          : `${notes}${decision.reason}${keep ? '' : ' — se recupera la versión anterior'}`;
-        fs.appendFileSync(
-          reviewFile,
-          `\n## Tras la mejora\n\n${second.review ? artReviewSummary(second.review) : '(sin notas legibles)'}\n\n` +
-            runs.map((r, i) => (r ? `${compareSummary(r.cmp, r.afterIs)}\n\n` : `Comparación ${i + 1}: sin respuesta legible.\n\n`)).join('') +
-            `Resultado: ${verdict}.\n`
-        );
-        console.log(`[${stamp()}] ${job.id}: revisión visual tras la mejora — ${verdict}`);
-        await progressMessage(`Revisión de dirección de arte: ${verdict}.`);
+        if (!needsTasteRound(review) || cancelled || Date.now() - started >= TIMEOUT_MS) {
+          if (artResult) artResult = { ...artResult, kept: fixedDefects.length > 0 };
+          if (fixedDefects.length) await progressMessage(`Revisión de dirección de arte: ${fixedDefects.length} defecto(s) arreglado(s).`);
+        } else {
+          await progressMessage(
+            low.length
+              ? `Revisión de dirección de arte: ${low.join(', ')} por debajo de 4 — Hermes lo corrige y pule lo demás.`
+              : `Revisión de dirección de arte: ${review.mejoras.length} mejora(s) para subir de 4 a 5 — Hermes las aplica.`
+          );
+          watchNewSession();
+          await cappedTurn(ART_IMPROVE_CAP_MS, job.id, 'mejora de arte', () => runHermesTurn(
+            [
+              `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
+              `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg.${web ? ` Portada de la web de la marca: ${rel}/web-marca.jpg.` : ''} Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
+              ...(claimed.request ? [`Petición original del equipo: «${claimed.request}».`] : []),
+              '',
+              `Notas: ${Object.entries(review.notas).map(([k, v]) => `${k} ${v}`).join(', ')}.`,
+              ...(fixedDefects.length ? ['Defectos ya arreglados en la pieza (no los deshagas ni los vuelvas a tocar):', ...fixedDefects.map((p) => `- ${p}`)] : []),
+              ...(review.problemas.length ? ['Problemas (OBLIGATORIO corregirlos: bajan una nota de 4):', ...review.problemas.map((p) => `- ${p}`)] : []),
+              ...(review.mejoras.length ? ['Mejoras para subir de 4 a 5 (aplica las baratas; si una exige rehacer la pieza, sáltala y dilo):', ...review.mejoras.map((p) => `- ${p}`)] : []),
+              '',
+              'Corrige en newsletter.html sin rehacer la pieza, sin investigar de nuevo y sin cambiar datos ni enlaces. Si un texto ' +
+                'contradice su foto o se aparta de la petición: corrige el texto o cambia la foto por otra de las que ya están en la ' +
+                `carpeta (${job.outputDir}/) que sí muestre lo que dice y que NO esté ya en la pieza (tampoco un recorte de una que ya ` +
+                'sale: Studio lo detecta como foto repetida); no descargues fotos nuevas (Q2). Studio guarda la versión ' +
+                'anterior y vuelve a puntuar: si la pieza empeora, se descarta tu cambio.',
+              // Nike (2026-10-08): la mejora escribió en la portada «Pieza de marca para corredores que preparan…».
+              'Todo texto que añadas es de la marca para su cliente: nunca escribas en la pieza nada que hable de la propia pieza, ' +
+                'su público o su objetivo («pieza de marca para…», «newsletter para…», «dirigida a…») ni de la investigación ' +
+                '(«la web anuncia», «según su ficha», «pendiente de confirmación»). Si una mejora solo se cumple así, sáltala.',
+              `Después: \`npm run check-newsletter -- ${job.outputDir}/newsletter.html\` hasta que salga sin errores y ` +
+                `\`npm run render-newsletter -- ${job.outputDir}/newsletter.html\` para mirar la hoja UNA vez.`,
+              `Añade al final de ${rel}/revision-visual.md lo que cambiaste y un resumen de dos líneas al final de notas.md.`,
+              '',
+              SCOPED_FIX,
+              SECRETS_NOTE,
+              '',
+              'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
+            ].join('\n'),
+            null,
+            () => undefined,
+            MODELS.art
+          ));
+          if (cancelled) return finishCancelled();
+          // La mejora se decide COMPARANDO (2026-10-16), dos veces y con el orden cambiado: se queda solo si las dos
+          // comparaciones la prefieren. Con UNA comparación el veredicto dependía del lado en el que iba cada versión en 8
+          // de 20 parejas (sesgo hacia la de la derecha; _archive/prueba-juez-2026-10-16). Antes decidían dos notas sueltas,
+          // y el registro decía «empeoraba» aunque el total subiera. La segunda nota se mantiene para el panel de calidad.
+          // La versión de partida es la de los defectos ya arreglados, si los hubo (2026-10-19).
+          const changed = fs.readFileSync(base.html, 'utf8') !== fs.readFileSync(finalPath, 'utf8');
+          const runs: ({ cmp: ArtCompare; afterIs: 'A' | 'B'; output: string } | null)[] = [];
+          if (changed && Date.now() - started < TIMEOUT_MS) {
+            const facts = { before: await factsOf(base.html), after: await factsOf(finalPath) };
+            for (const side of ['A', 'B'] as const) {
+              if (cancelled || Date.now() - started >= TIMEOUT_MS) break;
+              watchNewSession();
+              runs.push(await compareOnce(base.html, finalPath, side, outAbs, path.join(workDir, `comparar-${side.toLowerCase()}`), job.prompt, claimed.request, job.id, facts).catch(() => null));
+            }
+            if (cancelled) return finishCancelled();
+          }
+          const both = runs.length === 2 && runs[0] && runs[1] ? [runs[0], runs[1]] : null;
+          watchNewSession();
+          const second = Date.now() - started < TIMEOUT_MS ? await reviewOnce().catch(() => ({ review: null, output: '' })) : { review: null, output: '' };
+          const decision = !changed
+            ? { keep: false, reason: 'Hermes no cambió nada en la pieza' }
+            : both
+            ? doubleVerdict(compareVerdict(both[0].cmp, both[0].afterIs), compareVerdict(both[1].cmp, both[1].afterIs))
+            : fallbackVerdict(review, second.review);
+          let keep = decision.keep;
+          // Red de seguridad de Studio (2026-10-08, Tarífalo): la mejora cambió una foto por un recorte de la de apertura;
+          // la nota subió (37 → 39) y se quedó. Si la versión mejorada trae un error de la comprobación que la anterior no
+          // tenía, se descarta aunque la nota suba.
+          let newErrors: string[] = [];
+          if (keep) {
+            newErrors = await addedErrors();
+            if (newErrors.length) keep = false;
+          }
+          const keptWhat = fixedDefects.length ? ' (con los defectos ya arreglados)' : '';
+          const verdictReason = newErrors.length ? `añadía errores: ${newErrors.join(', ')}` : decision.reason;
+          // Al descartar vuelven la pieza Y notas.md de antes de la mejora, con una línea que lo dice (2026-10-19).
+          if (!keep && changed) restoreWork(base, finalPath, notesFile, discardNote(verdictReason, fixedDefects));
+          if (artResult) artResult = { ...artResult, ...(second.review ? { after: second.review.notas } : {}), kept: keep };
+          const notes = second.review ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}, ` : '';
+          const verdict = newErrors.length
+            ? `${notes}se descarta: añadía errores (${newErrors.join(', ')}), se recupera la versión anterior${keptWhat}`
+            : `${notes}${decision.reason}${keep ? '' : ` — se recupera la versión anterior${keptWhat}`}`;
+          fs.appendFileSync(
+            reviewFile,
+            `\n## Tras la mejora\n\n${second.review ? artReviewSummary(second.review) : '(sin notas legibles)'}\n\n` +
+              runs.map((r, i) => (r ? `${compareSummary(r.cmp, r.afterIs)}\n\n` : `Comparación ${i + 1}: sin respuesta legible.\n\n`)).join('') +
+              `Resultado: ${verdict}.\n`
+          );
+          console.log(`[${stamp()}] ${job.id}: revisión visual tras la mejora — ${verdict}`);
+          await progressMessage(`Revisión de dirección de arte: ${verdict}.`);
+        }
       } else if (review && notesReady()) {
         fs.appendFileSync(notesFile, `\n\n## Revisión de dirección de arte (Studio)\n${artReviewSummary(review)}\n`);
       }

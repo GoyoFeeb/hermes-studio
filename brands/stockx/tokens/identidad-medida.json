@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "measuredAt": "2026-10-06T13:38:04.947Z",
+  "version": 2,
+  "measuredAt": "2026-10-14T11:56:12.231Z",
   "url": "https://stockx.com/",
   "title": "StockX: Sneakers, Streetwear, Trading Cards, Handbags, Watches",
   "headings": {
@@ -29,14 +29,15 @@
   "background": "#ffffff",
   "text": "#242424",
   "button": {
-    "background": "#ffffff",
-    "color": "#0f0f0f",
-    "radius": "50%",
+    "background": "#242424",
+    "color": "#ffffff",
+    "radius": "999px",
     "transform": "none"
   },
   "palette": [
     "#006340",
     "#006240",
+    "#1d8751",
     "#c92e1a"
   ],
   "logo": "brands/stockx/design-input/logo-medido.png"
