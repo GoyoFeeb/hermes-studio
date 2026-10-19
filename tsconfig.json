@@ -9,6 +9,6 @@
     "skipLibCheck": true,
     "outDir": "dist"
   },
-  "include": ["scripts/**/*", "react-email-template/**/*", "newsletters/**/*", "studio/server/**/*"],
+  "include": ["scripts/**/*", "studio/scripts/**/*", "react-email-template/**/*", "newsletters/**/*", "studio/server/**/*"],
   "exclude": ["node_modules", "dist"]
 }

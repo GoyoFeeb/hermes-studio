@@ -17,6 +17,17 @@ import * as crypto from 'crypto';
 import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
 import { appendEvent, artPct, createJob, finalArtNotes, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
+import { enqueueStandaloneJob } from './enqueueJob';
+import {
+  CLICKUP_RATE_LIMIT,
+  clickupConfigFromEnv,
+  clickupReadyForClaim,
+  fetchClickupTask,
+  findJobByClickupTaskId,
+  handleClickupWebhook,
+  postClickupComment,
+  type ClickupDeps,
+} from './clickup';
 import type { Job } from './store';
 import { supabase } from './supabase';
 import { SESSION_COOKIE, authConfigFromEnv, clearedCookie, createSessionToken, googleLoginUrl, readCookie, readSessionToken, sessionCookie, userFromSupabaseToken } from './auth';
@@ -127,11 +138,13 @@ const app = express();
 const TRUST_PROXY_HOPS = Number(process.env.TRUST_PROXY_HOPS || 1);
 app.set('trust proxy', Number.isInteger(TRUST_PROXY_HOPS) && TRUST_PROXY_HOPS >= 0 ? TRUST_PROXY_HOPS : 1);
 // Las rutas del worker llevan su propio parser (la newsletter llega con las imágenes en base64).
+// ClickUp firma el cuerpo en bruto: si express.json lo parsea, la firma ya no cuadra.
 const jsonSmall = express.json({ limit: '2mb' });
+function skipsSharedJsonParser(req: Request): boolean {
+  return req.path.startsWith('/api/worker/') || req.path === '/api/integrations/clickup' || /^\/api\/jobs\/[^/]+\/text-edit$/.test(req.path);
+}
 // "Editar" con imagen subida (2026-10-01) también lleva su propio parser, más grande.
-app.use((req: Request, res: Response, next: NextFunction) =>
-  req.path.startsWith('/api/worker/') || /^\/api\/jobs\/[^/]+\/text-edit$/.test(req.path) ? next() : jsonSmall(req, res, next)
-);
+app.use((req: Request, res: Response, next: NextFunction) => (skipsSharedJsonParser(req) ? next() : jsonSmall(req, res, next)));
 
 // Límite de intentos de contraseña (auditoría 2026-09-23, BUG-H09): antes la única barrera de
 // acceso era una contraseña compartida sin ningún límite — fuerza-bruteable sin fricción si el
@@ -305,7 +318,11 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
   if (req.body?.brands) saveWorkerBrands(req.body.brands);
   sweepStaleHermesJobs();
   const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
-  const next = standalone.filter((j) => j.status === 'queued').sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+  // clickupPending: el webhook ya respondió y aún está leyendo la tarea. No se coge hasta que
+  // termine, o pasados dos minutos si esa lectura no vuelve.
+  const next = standalone
+    .filter((j) => j.status === 'queued' && clickupReadyForClaim(j))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
   if (!next) {
     res.status(204).end();
     return;
@@ -611,6 +628,40 @@ app.post('/api/auth/logout', (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
+// Webhook de ClickUp (2026-10-19, ver studio/CLICKUP.md). Va antes del login: ClickUp no tiene sesión.
+// Mismo cupo que POST /api/jobs, con contador propio para no gastarse el del formulario.
+const clickupRateLimit = createRateLimiter(CLICKUP_RATE_LIMIT);
+app.post('/api/integrations/clickup', express.raw({ type: () => true, limit: '2mb' }), clickupRateLimit.middleware, async (req, res) => {
+  try {
+    const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    const header = req.headers['x-signature'];
+    const signature = Array.isArray(header) ? header[0] : header;
+    const outcome = await handleClickupWebhook(raw, signature, clickupDeps());
+    res.status(outcome.status).json(outcome.body);
+  } catch (err) {
+    console.error(`[clickup] ${(err as Error).message}`);
+    if (!res.headersSent) res.status(500).json({ error: 'No se pudo procesar el aviso de ClickUp.' });
+  }
+});
+
+function clickupDeps(): ClickupDeps {
+  const cfg = clickupConfigFromEnv();
+  const workerRecentlySeen = Date.now() - lastWorkerSeen < 2 * 60 * 1000;
+  return {
+    ...cfg,
+    findJob: (taskId) => findJobByClickupTaskId(taskId),
+    createJob: (input) => enqueueStandaloneJob(input, workerRecentlySeen),
+    getJob,
+    updateJob: (id, patch) => {
+      updateJob(id, patch);
+    },
+    fetchTask: fetchClickupTask,
+    postComment: postClickupComment,
+    knownBrand: (slug) => !!readBrandCard(slug)?.card,
+    log: (id, message, level = 'info') => appendEvent(id, { phase: 'studio', level, message }),
+  };
+}
+
 if (ACCESS_PASSWORD || AUTH) {
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (authRateLimit.isLimited(req)) {
@@ -845,7 +896,7 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       });
       return;
     }
-    const job = createJob({
+    const job = enqueueStandaloneJob({
       mode: 'standalone',
       clientSlug,
       clientName: body.clientName,
@@ -857,14 +908,7 @@ app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Respons
       brandUrl,
       imageMode: body.imageMode,
       requesterName: requesterOf(req, res),
-    });
-    // No pasa por la cola interna: lo recoge el worker de Hermes (ver /api/worker/claim).
-    hermesLog(
-      job.id,
-      Date.now() - lastWorkerSeen < 2 * 60 * 1000
-        ? 'En cola: Hermes lo recogerá en unos segundos.'
-        : 'En cola: Hermes no está conectado ahora mismo — empezará en cuanto el Mac del worker se conecte.'
-    );
+    }, Date.now() - lastWorkerSeen < 2 * 60 * 1000);
     res.status(201).json({ id: job.id });
     return;
   }
@@ -1409,6 +1453,7 @@ const server = app.listen(PORT, () => {
   console.log(`Hermes Studio escuchando en http://localhost:${PORT}`);
   console.log(`Cuentas con Google: ${AUTH ? `activadas (${AUTH.domains.map((d) => `@${d}`).join(', ')})` : 'desactivadas (falta AUTH_EMAIL_DOMAIN o las variables de Supabase)'}${ACCESS_PASSWORD ? '; contraseña compartida: activa' : ''}.`);
   console.log(`Copia en Supabase: ${supabase.enabled ? 'activada' : 'desactivada (faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY)'}.`);
+  console.log(`ClickUp: ${process.env.CLICKUP_WEBHOOK_SECRET ? 'activo' : 'desactivado (falta CLICKUP_WEBHOOK_SECRET)'}.`);
 });
 
 // Apagado limpio (2026-10-01): Railway para el contenedor anterior con SIGTERM en cada despliegue. Antes el
