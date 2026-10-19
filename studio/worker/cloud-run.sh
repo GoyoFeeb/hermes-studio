@@ -1,10 +1,13 @@
 #!/bin/sh
 # cloud-run.sh — ya somos uid 1001. Carga la lista blanca, borra el archivo y arranca el worker.
 set -eu
-if [ -f /run/hermes-worker.env ]; then
+# Mismo sitio que cloud-entrypoint.sh. El directorio es de hermes (700), así que
+# este uid puede borrar el archivo después de cargarlo.
+ENV_FILE=/run/hermes/worker.env
+if [ -f "$ENV_FILE" ]; then
   # shellcheck disable=SC1091
-  . /run/hermes-worker.env
-  rm -f /run/hermes-worker.env
+  . "$ENV_FILE"
+  rm -f "$ENV_FILE"
 fi
 cd /app
 if ! command -v hermes >/dev/null 2>&1; then
