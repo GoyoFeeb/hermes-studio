@@ -22,7 +22,6 @@ import { supabase } from './supabase';
 import { SESSION_COOKIE, authConfigFromEnv, clearedCookie, createSessionToken, googleLoginUrl, readCookie, readSessionToken, sessionCookie, userFromSupabaseToken } from './auth';
 import type { SessionUser } from './auth';
 import { acceptCorrection, onWorkerBeat, openBrief } from './earlyBrief';
-import { slugify } from './campaignFs';
 import { createRateLimiter } from './rateLimit';
 import { joinLabels, missingInBrief } from './requestCoverage';
 import {
@@ -58,13 +57,14 @@ import {
   completeStandaloneJob,
   standaloneOutputDir,
   log as hermesLog,
-  promptMentionsBrand,
   sweepStaleHermesJobs,
   saveWorkerBrands,
   readWorkerBrands,
 } from './standalone';
 import { TextEditError, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { runQualityCheck } from '../worker/qualityCheck';
+import { attachChannelB, bearerMatches, ChannelBInputError, parseChannelBBody, readChannelBHtml, readChannelBText } from './channelB';
+import { standaloneInputFromBody } from './standaloneCreate';
 import { clientMatrix } from './clientMatrix';
 import { MAX_TEST_RECIPIENTS, MailError, mailEnabled, parseRecipients, sendTestEmail } from './mail';
 import { brandLogoIndex, knownBrandHashes, listBrandCardSlugs, readBrandCard, readBrandLogo, saveBrandCards } from './brandCards';
@@ -130,7 +130,7 @@ app.set('trust proxy', Number.isInteger(TRUST_PROXY_HOPS) && TRUST_PROXY_HOPS >=
 const jsonSmall = express.json({ limit: '2mb' });
 // "Editar" con imagen subida (2026-10-01) también lleva su propio parser, más grande.
 app.use((req: Request, res: Response, next: NextFunction) =>
-  req.path.startsWith('/api/worker/') || /^\/api\/jobs\/[^/]+\/text-edit$/.test(req.path) ? next() : jsonSmall(req, res, next)
+  req.path.startsWith('/api/worker/') || req.path.startsWith('/api/service/') || /^\/api\/jobs\/[^/]+\/text-edit$/.test(req.path) ? next() : jsonSmall(req, res, next)
 );
 
 // Límite de intentos de contraseña (auditoría 2026-09-23, BUG-H09): antes la única barrera de
@@ -508,6 +508,112 @@ app.post('/api/worker/jobs/:id/thumb', requireWorker, express.json({ limit: '4mb
   res.json({ ok: true });
 });
 
+// --- Canal B / Creas IT (studio/CHANNEL-B.md) ------------------------------------------------
+// Token de servicio distinto del worker. Sin STUDIO_SERVICE_TOKEN estas rutas no existen. Van
+// antes del acceso del equipo: el bot no tiene sesión. El parser grande va detrás del token,
+// para no leer 16 MB de quien no está autorizado.
+const STUDIO_SERVICE_TOKEN = process.env.STUDIO_SERVICE_TOKEN || '';
+const SERVICE_TOKEN = STUDIO_SERVICE_TOKEN && WORKER_TOKEN && STUDIO_SERVICE_TOKEN === WORKER_TOKEN ? '' : STUDIO_SERVICE_TOKEN;
+if (STUDIO_SERVICE_TOKEN && !SERVICE_TOKEN) {
+  console.error('STUDIO_SERVICE_TOKEN coincide con WORKER_TOKEN: el canal B queda desactivado. Usa un secreto distinto.');
+}
+
+function requireService(req: Request, res: Response, next: NextFunction): void {
+  if (!SERVICE_TOKEN) {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  if (!bearerMatches(req.headers.authorization, SERVICE_TOKEN)) {
+    res.status(401).json({ error: 'Token de servicio no válido.' });
+    return;
+  }
+  next();
+}
+
+const serviceWriteLimit = createRateLimiter({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  keyPrefix: 'service-write',
+  message: 'Demasiadas peticiones del canal B. Espera unos minutos.',
+});
+const serviceJson = express.json({ limit: '16mb' });
+
+function logQueued(jobId: string): void {
+  hermesLog(
+    jobId,
+    Date.now() - lastWorkerSeen < 2 * 60 * 1000
+      ? 'En cola: Hermes lo recogerá en unos segundos.'
+      : 'En cola: Hermes no está conectado ahora mismo — empezará en cuanto el Mac del worker se conecte.'
+  );
+}
+
+app.post('/api/service/jobs', requireService, serviceJson, serviceWriteLimit.middleware, async (req: Request, res: Response) => {
+  const body = (req.body || {}) as Record<string, unknown>;
+  const typedName = typeof body.requesterName === 'string' ? body.requesterName.trim().slice(0, 80) : '';
+  const built = standaloneInputFromBody(body, typedName || undefined);
+  if (!built.ok) {
+    res.status(built.status).json({ error: built.error, ...(built.code ? { code: built.code } : {}) });
+    return;
+  }
+  if (body.channelB != null) {
+    try {
+      // Valida antes de crear el trabajo: un HTML malo no deja un job huérfano.
+      parseChannelBBody(body.channelB);
+    } catch (err) {
+      if (err instanceof ChannelBInputError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
+      throw err;
+    }
+  }
+  const job = createJob(built.input);
+  logQueued(job.id);
+  if (body.channelB != null) {
+    try {
+      const updated = await attachChannelB(job, body.channelB);
+      res.status(201).json({
+        id: job.id,
+        channelB: { attached: true, errors: updated.channelB?.quality?.errors ?? 0, warnings: updated.channelB?.quality?.warnings ?? 0 },
+      });
+      return;
+    } catch (err) {
+      if (err instanceof ChannelBInputError) {
+        res.status(201).json({ id: job.id, channelBError: err.message });
+        return;
+      }
+      throw err;
+    }
+  }
+  res.status(201).json({ id: job.id });
+});
+
+app.post('/api/service/jobs/:id/channel-b', requireService, serviceJson, serviceWriteLimit.middleware, async (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job) {
+    res.status(404).json({ error: 'Trabajo no encontrado.' });
+    return;
+  }
+  try {
+    const updated = await attachChannelB(job, req.body);
+    const b = updated.channelB;
+    res.json({
+      ok: true,
+      id: updated.id,
+      subject: b?.subject ?? null,
+      preheader: b?.preheader ?? null,
+      bytes: b?.bytes ?? 0,
+      quality: b?.quality ? { errors: b.quality.errors, warnings: b.quality.warnings, checks: b.quality.checks } : null,
+    });
+  } catch (err) {
+    if (err instanceof ChannelBInputError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+});
+
 /** Página del 401 de /api/auth/password con el aspecto de Studio y una salida (H-01). Sin recursos externos. */
 const PASSWORD_401_PAGE = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Hermes Studio · Entrar</title>
 <style>:root{color-scheme:dark light}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#050c2a;color:#edf3fc;font:16px/1.55 'Work Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif}
@@ -806,71 +912,15 @@ const createJobRateLimit = createRateLimiter({
 });
 
 app.post('/api/jobs', createJobRateLimit.middleware, (req: Request, res: Response) => {
-  const body = req.body || {};
-  if (body.existingBrand && !SLUG_RE.test(String(body.existingBrand))) {
-    res.status(400).json({ error: 'Marca no válida.' });
+  const built = standaloneInputFromBody((req.body || {}) as Record<string, unknown>, requesterOf(req, res));
+  if (!built.ok) {
+    res.status(built.status).json({ error: built.error, ...(built.code ? { code: built.code } : {}) });
     return;
   }
-
-  if (body.mode === 'standalone') {
-    if (!body.promptText || !body.clientName) {
-      res.status(400).json({ error: 'Faltan campos obligatorios: marca y prompt.' });
-      return;
-    }
-    if (body.imageMode !== 'official' && body.imageMode !== 'ai') {
-      res.status(400).json({ error: 'Elige de dónde salen las imágenes: assets oficiales o IA.' });
-      return;
-    }
-    const fromInstruction = body.inputKind === 'instruction';
-    const clientSlug = body.existingBrand || slugify(body.clientName);
-    if (!body.confirmBrand && !promptMentionsBrand(String(body.promptText), String(body.clientName), clientSlug)) {
-      res.status(409).json({
-        code: 'brand_mismatch',
-        error: `${fromInstruction ? 'La instrucción' : 'El prompt'} no menciona "${body.clientName}". ¿Seguro que la marca elegida es la correcta?`,
-      });
-      return;
-    }
-    // Marca nueva (H-04, 2026-10-15): sin web oficial, Studio podía medir otra empresa del mismo nombre («Feebbo» →
-    // feebbo.com, Feebbo Encuestas). Se pide la web o una confirmación expresa de enviar sin ella. También en una marca
-    // conocida sin brand pack cuya web medida no confirmó el equipo (Tesla: tesla.es era otra empresa).
-    const brandUrl = typeof body.brandUrl === 'string' && /^https:\/\/[^\s"'<>]{4,300}$/.test(body.brandUrl.trim()) ? body.brandUrl.trim() : undefined;
-    const knownCard = body.existingBrand ? readBrandCard(clientSlug)?.card : undefined;
-    const unconfirmedKnown = !!body.existingBrand && (!knownCard || (!knownCard.hasPack && !knownCard.web?.confirmed));
-    if ((!body.existingBrand || unconfirmedKnown) && !brandUrl && body.confirmNoBrandUrl !== true) {
-      res.status(409).json({
-        code: 'brand_url_required',
-        error: body.existingBrand
-          ? `"${body.clientName}" no tiene web oficial confirmada: indícala o confirma que la envías sin ella (Hermes la investigará).`
-          : `"${body.clientName}" es una marca nueva: indica su web oficial o confirma que la envías sin ella (Hermes la investigará).`,
-      });
-      return;
-    }
-    const job = createJob({
-      mode: 'standalone',
-      clientSlug,
-      clientName: body.clientName,
-      brandMode: body.existingBrand ? 'existing' : 'new',
-      briefText: fromInstruction ? '' : body.promptText,
-      instruction: fromInstruction ? String(body.promptText).slice(0, 4000) : undefined,
-      reviewBrief: fromInstruction && body.reviewBrief === true ? true : undefined,
-      artReview: body.artReview === true ? true : undefined,
-      brandUrl,
-      imageMode: body.imageMode,
-      requesterName: requesterOf(req, res),
-    });
-    // No pasa por la cola interna: lo recoge el worker de Hermes (ver /api/worker/claim).
-    hermesLog(
-      job.id,
-      Date.now() - lastWorkerSeen < 2 * 60 * 1000
-        ? 'En cola: Hermes lo recogerá en unos segundos.'
-        : 'En cola: Hermes no está conectado ahora mismo — empezará en cuanto el Mac del worker se conecte.'
-    );
-    res.status(201).json({ id: job.id });
-    return;
-  }
-
-  // El pipeline de 9 fases (runner.ts y phases/) se retiró el 2026-10-05: la web solo crea trabajos con Hermes.
-  res.status(400).json({ error: 'Solo se aceptan newsletters hechas con Hermes (mode: "standalone").' });
+  // No pasa por la cola interna: lo recoge el worker de Hermes (ver /api/worker/claim).
+  const job = createJob(built.input);
+  logQueued(job.id);
+  res.status(201).json({ id: job.id });
 });
 
 /** Estado de Hermes para la cabecera (2026-09-28): conectado o no, con qué newsletter está y cuántas esperan. */
@@ -961,6 +1011,7 @@ app.get('/api/jobs/:id', (req: Request, res: Response) => {
     familyTitle: getJob(versionFamily(job)[0]?.id || job.id)?.title || null,
     // Revisión agrupada por programa de correo (2026-10-01, ver clientMatrix.ts).
     clientMatrix: job.quality ? clientMatrix(job.quality) : null,
+    channelBMatrix: job.channelB?.quality ? clientMatrix(job.channelB.quality) : null,
     retriedBy: retriedBy(job),
     hermesOnline: Date.now() - lastWorkerSeen < 2 * 60 * 1000,
   });
@@ -1405,10 +1456,42 @@ app.get('/api/jobs/:id/result', (req: Request, res: Response) => {
   res.sendFile(abs);
 });
 
+/** HTML de la versión B (Creas IT). Misma sesión que el resto de /api/jobs: el token de servicio no hace falta para leer. */
+app.get('/api/jobs/:id/channel-b', (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job?.channelB) {
+    res.status(404).json({ error: 'Creas IT aún no ha enviado su versión.' });
+    return;
+  }
+  if (req.query.text != null && req.query.text !== '0') {
+    const text = readChannelBText(job);
+    if (text == null) {
+      res.status(404).json({ error: 'Esta versión no trae texto plano.' });
+      return;
+    }
+    if (req.query.download) res.setHeader('Content-Disposition', `attachment; filename="${job.input.clientSlug}-${job.id}-creas-it.txt"`);
+    res.type('text/plain; charset=utf-8').send(text);
+    return;
+  }
+  const html = readChannelBHtml(job);
+  if (!html || !job.channelB.resultRelPath) {
+    res.status(404).json({ error: 'Creas IT aún no ha enviado su versión.' });
+    return;
+  }
+  res.set('Content-Security-Policy', 'sandbox');
+  const abs = path.join(ROOT, job.channelB.resultRelPath);
+  if (req.query.download) {
+    res.download(abs, `${job.input.clientSlug}-${job.id}-creas-it.html`);
+    return;
+  }
+  res.sendFile(abs);
+});
+
 const server = app.listen(PORT, () => {
   console.log(`Hermes Studio escuchando en http://localhost:${PORT}`);
   console.log(`Cuentas con Google: ${AUTH ? `activadas (${AUTH.domains.map((d) => `@${d}`).join(', ')})` : 'desactivadas (falta AUTH_EMAIL_DOMAIN o las variables de Supabase)'}${ACCESS_PASSWORD ? '; contraseña compartida: activa' : ''}.`);
   console.log(`Copia en Supabase: ${supabase.enabled ? 'activada' : 'desactivada (faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY)'}.`);
+  console.log(`Canal B (Creas IT): ${SERVICE_TOKEN ? 'token configurado' : 'desactivado (falta STUDIO_SERVICE_TOKEN)'}.`);
 });
 
 // Apagado limpio (2026-10-01): Railway para el contenedor anterior con SIGTERM en cada despliegue. Antes el

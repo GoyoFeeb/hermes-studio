@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { textBlocks, compareVersions } = require('./compare.js');
+const { textBlocks, compareVersions, compareChannels } = require('./compare.js');
 
 // Casos de "Pedir cambios" (2026-09-28): confirmar que Hermes solo tocó lo pedido.
 const BEFORE = `<!doctype html><html><head><title>Asunto</title><style>p{color:red}</style></head><body>
@@ -52,4 +52,34 @@ test('compareVersions: imagen nueva y bloque quitado', () => {
 
 test('compareVersions: versiones idénticas', () => {
   assert.equal(compareVersions(BEFORE, BEFORE).unchanged, true);
+});
+
+test('compareChannels: asunto, peso y la misma comprobación en Hermes y Creas IT', () => {
+  const quality = (status, detail) => ({
+    errors: status === 'error' ? 1 : 0,
+    warnings: status === 'warning' ? 1 : 0,
+    checks: [{ id: 'links', label: 'Enlaces', status, details: detail ? [detail] : [], errorCount: status === 'error' ? 1 : 0 }],
+  });
+  const report = compareChannels(
+    { html: 'a'.repeat(2048), subject: 'Oferta de áticos', preheader: 'Dos terrazas, una sola pieza', quality: quality('error', 'https://ejemplo.test → HTTP 404') },
+    { html: 'b'.repeat(4096), subject: null, preheader: null, quality: quality('ok') }
+  );
+  const byId = Object.fromEntries(report.rows.map((row) => [row.id, row]));
+  assert.equal(byId.subject.aStatus, 'ok');
+  assert.equal(byId.subject.bStatus, 'warning');
+  assert.equal(byId.subject.b, 'Sin asunto');
+  assert.equal(byId.preheader.aStatus, 'ok');
+  assert.match(byId.weight.a, /KB$/);
+  assert.equal(byId.weight.tone, 'ok');
+  assert.equal(byId['check:links'].aStatus, 'error');
+  assert.equal(byId['check:links'].bStatus, 'ok');
+  assert.equal(byId['check:links'].tone, 'error');
+  assert.match(byId['check:links'].a, /HTTP 404/);
+  assert.equal(report.content.unchanged, false);
+
+  const heavy = compareChannels({ html: 'x'.repeat(103 * 1024), subject: 'Cabe', preheader: 'También' }, { html: '<html></html>', subject: 'Ligera', preheader: 'Sí' });
+  const weight = heavy.rows.find((row) => row.id === 'weight');
+  assert.equal(weight.aStatus, 'error');
+  assert.equal(weight.bStatus, 'ok');
+  assert.match(weight.a, /Gmail lo recorta/);
 });

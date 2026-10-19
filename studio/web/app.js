@@ -6879,6 +6879,7 @@ const PHASE_LABELS = {
   standalone: 'Newsletter',
   hermes: 'Hermes',
   system: 'Sistema',
+  creas: 'Creas IT',
 };
 
 let pollTimer = null;
@@ -6921,6 +6922,7 @@ function showJobView(id) {
   resetFrame(document.getElementById('preview-frame'));
   resetFrame(document.getElementById('preview-frame-mobile'));
   resetCompare();
+  resetChannelState();
   document.getElementById('versions').hidden = true;
   document.getElementById('job-parent').hidden = true;
   document.getElementById('brief-box').hidden = true;
@@ -6976,7 +6978,11 @@ async function poll(id) {
     return;
   }
   document.getElementById('job-skeleton').hidden = true;
-  const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy, familyTitle, clientMatrix: matrix } = await res.json();
+  const { job, events, notes, meta, queue, hermesOnline, versions, retriedBy, familyTitle, clientMatrix: matrix, channelBMatrix } = await res.json();
+  savedNotes = notes || null;
+  savedMatrix = matrix || null;
+  savedBMatrix = channelBMatrix || null;
+  savedMeta = meta || null;
   // Recién terminada con la página abierta (2026-10-07): la maqueta vuela a la vista previa y sale el resumen.
   const justDone = liveStatusSeen.get(job.id) === 'running' && job.status === 'completed';
   liveStatusSeen.set(job.id, job.status);
@@ -7078,13 +7084,17 @@ async function poll(id) {
       renderShare(job.share, versions || []);
       renderMeta(meta, job.input.clientName);
       setupExport(job);
-      loadResultHtml(id).then(() => {
+      loadResultHtml(id).then(async () => {
         if (id !== currentJob) return;
+        await ensureChannelB(job);
+        if (id !== currentJob) return;
+        applyChannel(job, true);
         updateThemeHint();
-        renderFrame('after');
         renderExportSummary();
       });
       setupCompare(job, versions || []);
+    } else {
+      void refreshChannel(job);
     }
     return;
   }
@@ -7093,11 +7103,13 @@ async function poll(id) {
   renderBriefReview(job);
   renderEarlyBrief(job);
   if (job.status === 'review') {
+    void refreshChannel(job);
     pollTimer = setTimeout(() => poll(id), 15000); // por si otra persona lo aprueba o lo cancela
     return;
   }
   if (job.status === 'cancelled') {
     document.getElementById('job-cancelled').hidden = false;
+    void refreshChannel(job);
     return;
   }
 
@@ -7111,9 +7123,11 @@ async function poll(id) {
     // "Editar y reintentar" abre el formulario con lo pedido: no aplica a cambios ni adaptaciones de una versión.
     document.getElementById('failed-edit').hidden = !!(job.input.revisionOf || job.input.mobileFixOf || job.input.textEditOf);
     document.getElementById('log-box').open = true;
+    void refreshChannel(job);
     return;
   }
 
+  void refreshChannel(job);
   pollTimer = setTimeout(() => poll(id), 10000);
 }
 
@@ -7157,16 +7171,373 @@ let currentMeta = null;
 /** HTML del resultado, descargado al abrirlo: copiarlo en el mismo clic, sin esperar a la red, evita
  *  que el navegador niegue el portapapeles por haber pasado demasiado tiempo desde el clic. */
 let currentHtml = null;
+/** Las dos piezas del mismo brief. `savedMeta` es la de Hermes; la de Creas IT va en el trabajo. */
+let channelAHtml = null;
+let channelBHtml = null;
+let channelBKey = '';
+let channelBLoading = null;
+let channelView = 'a';
+let channelPaintKey = '';
+let savedMeta = null;
+let savedNotes = null;
+let savedMatrix = null;
+let savedBMatrix = null;
+
+function resetChannelState() {
+  channelView = 'a';
+  channelAHtml = null;
+  channelBHtml = null;
+  channelBKey = '';
+  channelBLoading = null;
+  channelPaintKey = '';
+  channelShown = 'a';
+  channelLeftA = false;
+  savedMeta = null;
+  savedNotes = null;
+  savedMatrix = null;
+  savedBMatrix = null;
+  const radio = document.querySelector('input[name="channelView"][value="a"]');
+  if (radio) radio.checked = true;
+  document.getElementById('channel-bar').hidden = true;
+  document.getElementById('channel-extra').hidden = true;
+  document.getElementById('channel-criteria').hidden = true;
+  document.getElementById('channel-text').hidden = true;
+  document.getElementById('external-review').hidden = true;
+  const stage = document.getElementById('preview-stage');
+  if (stage?.dataset.channelCompare) {
+    delete stage.dataset.channelCompare;
+    stage.classList.remove('is-compare');
+    document.getElementById('preview-col-before').hidden = true;
+    document.getElementById('preview-label-after').hidden = true;
+  }
+}
 
 async function loadResultHtml(id) {
-  currentHtml = null;
   try {
     const res = await apiFetch(`/api/jobs/${encodeURIComponent(id)}/result`);
-    if (res.ok && id === currentJob) currentHtml = await res.text();
+    if (res.ok && id === currentJob) channelAHtml = await res.text();
   } catch {
     // se reintenta al pulsar "Copiar HTML"
   }
+  if (id === currentJob && channelView === 'a') currentHtml = channelAHtml;
 }
+
+async function ensureChannelB(job) {
+  const stamp = job.channelB?.attachedAt || '';
+  const key = `${job.id}:${stamp}`;
+  if (channelBKey === key) return;
+  if (channelBLoading?.key === key) return channelBLoading.promise;
+  const promise = (async () => {
+    channelBHtml = null;
+    if (!stamp) {
+      channelBKey = key;
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/jobs/${encodeURIComponent(job.id)}/channel-b`);
+      if (currentJob === job.id && res.ok) channelBHtml = await res.text();
+    } catch {
+      // la barra sigue diciendo que está lista; la vista previa se reintenta en el siguiente sondeo
+    }
+    if (currentJob === job.id) channelBKey = key;
+  })();
+  channelBLoading = { key, promise };
+  return promise;
+}
+
+async function refreshChannel(job) {
+  const id = job.id;
+  await ensureChannelB(job);
+  if (id !== currentJob) return;
+  applyChannel(currentJobData || job, false);
+}
+
+const CHANNEL_STATE = { ok: 'Correcto', warning: 'Revisar', error: 'Error', missing: 'No medida' };
+let channelShown = 'a';
+let channelLeftA = false;
+
+function channelWho(job) {
+  return job.channelB?.author || 'Creas IT';
+}
+
+function paintChannelBar(job) {
+  const bar = document.getElementById('channel-bar');
+  bar.hidden = false;
+  const b = job.channelB;
+  document.getElementById('channel-note').textContent = b ? `${channelWho(job)} · lista` : 'Creas IT · en preparación';
+  const radio = document.querySelector(`input[name="channelView"][value="${channelView}"]`);
+  if (radio) radio.checked = true;
+  const showText = channelView === 'b' && !!b?.hasText;
+  document.getElementById('channel-text').hidden = !showText;
+  if (showText) document.getElementById('channel-text-link').href = `/api/jobs/${encodeURIComponent(job.id)}/channel-b?text=1&download=1`;
+}
+
+function paintLiveFrame(html) {
+  const frame = document.getElementById('channel-frame');
+  const mark = `${html.length}:${currentTheme()}:${document.getElementById('channel-live-device').classList.contains('is-mobile') ? 'm' : 'd'}`;
+  if (frame.dataset.mark === mark && frame.getAttribute('srcdoc')) return;
+  frame.dataset.mark = mark;
+  frame.onload = () => {
+    const doc = frame.contentDocument;
+    if (!doc?.documentElement) return;
+    frame.style.height = '200px';
+    const h = Math.max(doc.documentElement.scrollHeight, doc.body ? doc.body.scrollHeight : 0);
+    frame.style.height = `${Math.max(200, Math.ceil(h))}px`;
+  };
+  frame.srcdoc = themedHtml(html, currentTheme());
+}
+
+function paintLive(job) {
+  const extra = document.getElementById('channel-extra');
+  const show = job.status !== 'completed' && channelView !== 'a';
+  extra.hidden = !show;
+  if (!show) return;
+  const b = job.channelB;
+  const lead = document.getElementById('channel-extra-lead');
+  const stage = document.getElementById('channel-live-stage');
+  const toggle = document.getElementById('channel-live-toggle');
+  document.getElementById('channel-extra-title').textContent = channelWho(job);
+  if (!b || !channelBHtml) {
+    lead.textContent =
+      channelView === 'compare'
+        ? 'Creas IT está en preparación. La comparativa se abre cuando su HTML llegue y Hermes termine la suya.'
+        : 'En preparación. Creas IT enviará aquí su newsletter del mismo brief. La de Hermes sigue arriba.';
+    stage.hidden = true;
+    toggle.hidden = true;
+    return;
+  }
+  lead.textContent =
+    channelView === 'compare'
+      ? `${channelWho(job)} ya envió su versión. La comparativa con Hermes se abre cuando Hermes termine.`
+      : `${channelWho(job)} · lista. Hermes sigue con la suya.`;
+  stage.hidden = false;
+  toggle.hidden = false;
+  paintLiveFrame(channelBHtml);
+}
+
+function setPieceLinks(job, which) {
+  const base = which === 'b' ? `/api/jobs/${job.id}/channel-b` : `/api/jobs/${job.id}/result`;
+  document.getElementById('download-link').href = `${base}?download=1`;
+  const sticky = document.getElementById('sticky-download');
+  if (sticky) sticky.href = `${base}?download=1`;
+  document.getElementById('open-link').href = base;
+}
+
+function releaseChannelCompare() {
+  const stage = document.getElementById('preview-stage');
+  if (stage.dataset.channelCompare !== '1') return;
+  delete stage.dataset.channelCompare;
+  stage.classList.remove('is-compare');
+  document.getElementById('preview-col-before').hidden = true;
+  document.getElementById('preview-label-after').hidden = true;
+}
+
+function renderChannelDiff(diff) {
+  const list = document.getElementById('channel-diff-list');
+  if (!diff) {
+    list.innerHTML = '';
+    return;
+  }
+  const items = [];
+  const group = (title, rows) => {
+    if (rows.length) items.push(`<li class="group">${escapeHtml(title)}</li>`, ...rows);
+  };
+  const text = diff.text.slice(0, 12).map((d) => `<li class="is-${d.type}"><span>${escapeHtml(d.text)}</span></li>`);
+  group('Texto', text);
+  group(
+    'Enlaces',
+    [...diff.links.removed.slice(0, 6).map((u) => `<li class="is-removed"><span>${escapeHtml(u)}</span></li>`), ...diff.links.added.slice(0, 6).map((u) => `<li class="is-added"><span>${escapeHtml(u)}</span></li>`)]
+  );
+  group(
+    'Imágenes',
+    [
+      ...diff.images.removed.slice(0, 6).map((u) => `<li class="is-removed"><span>${escapeHtml(String(u).split('/').pop())}</span></li>`),
+      ...diff.images.added.slice(0, 6).map((u) => `<li class="is-added"><span>${escapeHtml(String(u).split('/').pop())}</span></li>`),
+    ]
+  );
+  const total = diff.text.length + diff.links.removed.length + diff.links.added.length + diff.images.removed.length + diff.images.added.length;
+  const shown = Math.min(diff.text.length, 12) + Math.min(diff.links.removed.length, 6) + Math.min(diff.links.added.length, 6) + Math.min(diff.images.removed.length, 6) + Math.min(diff.images.added.length, 6);
+  if (total > shown) items.push(`<li class="group">Y ${total - shown} cambios más</li>`);
+  list.innerHTML = items.join('') || '<li>Sin cambios de contenido.</li>';
+}
+
+function renderChannelCriteria(job) {
+  const box = document.getElementById('channel-criteria');
+  const lead = document.getElementById('channel-criteria-lead');
+  const tools = document.getElementById('channel-criteria-tools');
+  const summary = document.getElementById('channel-criteria-summary');
+  const list = document.getElementById('channel-criteria-list');
+  if (channelView !== 'compare' || job.status !== 'completed') {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const b = job.channelB;
+  const bName = channelWho(job);
+  if (!b || !channelBHtml || !channelAHtml || !window.HermesCompare?.compareChannels) {
+    summary.textContent = '';
+    summary.className = 'review-summary';
+    tools.hidden = true;
+    list.innerHTML = '';
+    document.getElementById('channel-diff-list').innerHTML = '';
+    lead.textContent = !b
+      ? 'Creas IT está en preparación. Cuando envíe su HTML, verás el peso, las comprobaciones, el asunto y el preheader de las dos versiones.'
+      : 'Falta el HTML de una de las dos versiones para compararlas.';
+    return;
+  }
+  const report = window.HermesCompare.compareChannels(
+    { html: channelAHtml, subject: savedMeta?.subject, preheader: savedMeta?.preheader, quality: job.quality },
+    { html: channelBHtml, subject: b.subject, preheader: b.preheader, quality: b.quality }
+  );
+  const aErr = job.quality ? job.quality.errors : null;
+  const bErr = b.quality ? b.quality.errors : null;
+  const tone = report.rows.some((r) => r.tone === 'error') ? 'error' : report.rows.some((r) => r.tone === 'warning') ? 'warning' : 'ok';
+  summary.className = `review-summary is-${tone}`;
+  summary.textContent = [
+    aErr == null ? 'Hermes sin revisión' : `Hermes: ${aErr} ${aErr === 1 ? 'error' : 'errores'}`,
+    bErr == null ? `${bName} sin revisión` : `${bName}: ${bErr} ${bErr === 1 ? 'error' : 'errores'}`,
+  ].join(' · ');
+  lead.textContent = 'A la izquierda Hermes y a la derecha Creas IT. El peso y las comprobaciones son los del mismo revisor.';
+  tools.hidden = false;
+  document.getElementById('channel-dl-a').href = `/api/jobs/${job.id}/result?download=1`;
+  document.getElementById('channel-dl-b').href = `/api/jobs/${job.id}/channel-b?download=1`;
+  document.getElementById('channel-dl-b').textContent = `Descargar ${bName}`;
+  list.innerHTML = report.rows
+    .map((row, i) => {
+      const head = `<span class="check-num" aria-hidden="true">${String(i + 1).padStart(2, '0')}</span><span class="check-dot" aria-hidden="true"></span><span class="check-label">${escapeHtml(row.label)}</span><span class="check-state">${escapeHtml(CHANNEL_STATE[row.tone] || row.tone)}</span>`;
+      const details = `<ul class="check-details"><li><span>Hermes · ${escapeHtml(row.a)}</span></li><li><span>${escapeHtml(bName)} · ${escapeHtml(row.b)}</span></li></ul>`;
+      return `<li class="check-${escapeHtml(row.tone)}"><details${row.tone === 'ok' ? '' : ' open'}><summary>${head}</summary>${details}</details></li>`;
+    })
+    .join('');
+  renderChannelDiff(report.content);
+}
+
+function paintExternal(review) {
+  const box = document.getElementById('external-review');
+  if (review == null || channelView !== 'b') {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  document.getElementById('external-review-text').textContent = JSON.stringify(review, null, 2);
+}
+
+function applyChannel(job, force) {
+  const key = [job.id, job.status, channelView, job.channelB?.attachedAt || '', channelAHtml ? channelAHtml.length : 0, channelBHtml ? channelBHtml.length : 0].join('|');
+  paintChannelBar(job);
+  if (!force && key === channelPaintKey) return;
+  channelPaintKey = key;
+  paintLive(job);
+  const changeGroup = document.getElementById('ag-change')?.closest('section');
+  const onA = channelView === 'a';
+  if (changeGroup) changeGroup.hidden = job.status === 'completed' && !onA;
+  if (!onA && job.status === 'completed' && !reviseBox.hidden) {
+    reviseBox.hidden = true;
+    reviseBtn.setAttribute('aria-expanded', 'false');
+  }
+  const entered = channelShown !== channelView;
+  if (!onA) channelLeftA = true;
+  channelShown = channelView;
+  if (job.status !== 'completed' || document.getElementById('job-result').hidden) {
+    document.getElementById('channel-criteria').hidden = true;
+    document.getElementById('external-review').hidden = true;
+    return;
+  }
+  if (!onA && document.getElementById('compare-toggle').checked) document.getElementById('compare-toggle').click();
+  if (!onA) document.getElementById('compare-toggle-wrap').hidden = true;
+  if (entered && !onA && activeJobTab !== 'preview') showJobTab('preview');
+
+  if (onA) {
+    releaseChannelCompare();
+    currentHtml = channelAHtml;
+    setPieceLinks(job, 'a');
+    if (channelAHtml) {
+      renderFrame('after');
+      renderMobileFrame();
+    }
+    renderReview(job.quality, savedNotes, savedMatrix);
+    renderMeta(savedMeta, job.input.clientName);
+    document.getElementById('external-review').hidden = true;
+    document.getElementById('channel-criteria').hidden = true;
+    if (channelLeftA) {
+      channelLeftA = false;
+      setupCompare(job, currentVersions);
+    }
+    return;
+  }
+
+  if (channelView === 'b') {
+    releaseChannelCompare();
+    if (!job.channelB || !channelBHtml) {
+      currentHtml = channelAHtml;
+      setPieceLinks(job, 'a');
+      if (channelAHtml) renderFrame('after');
+      document.getElementById('external-review').hidden = true;
+      const box = document.getElementById('channel-criteria');
+      box.hidden = false;
+      document.getElementById('channel-criteria-summary').textContent = '';
+      document.getElementById('channel-criteria-tools').hidden = true;
+      document.getElementById('channel-criteria-list').innerHTML = '';
+      document.getElementById('channel-diff-list').innerHTML = '';
+      document.getElementById('channel-criteria-lead').textContent =
+        'Creas IT · en preparación. Esta vista mostrará su newsletter cuando la adjunte al trabajo. La de Hermes sigue arriba.';
+      return;
+    }
+    currentHtml = channelBHtml;
+    setPieceLinks(job, 'b');
+    renderFrame('after');
+    renderMobileFrame();
+    renderReview(job.channelB.quality || null, null, savedBMatrix);
+    renderMeta({ subject: job.channelB.subject, preheader: job.channelB.preheader }, channelWho(job));
+    paintExternal(job.channelB.externalReview);
+    document.getElementById('channel-criteria').hidden = true;
+    return;
+  }
+
+  renderChannelCriteria(job);
+  document.getElementById('external-review').hidden = true;
+  renderReview(job.quality, savedNotes, savedMatrix);
+  renderMeta(savedMeta, job.input.clientName);
+  if (job.channelB && channelBHtml && channelAHtml) {
+    const stage = document.getElementById('preview-stage');
+    stage.dataset.channelCompare = '1';
+    stage.classList.add('is-compare');
+    document.getElementById('preview-col-before').hidden = false;
+    document.getElementById('preview-label-after').hidden = false;
+    document.getElementById('preview-label-before').textContent = 'Hermes';
+    document.getElementById('preview-label-after').textContent = channelWho(job);
+    compareBeforeHtml = channelAHtml;
+    currentHtml = channelBHtml;
+    renderFrame('before');
+    renderFrame('after');
+    setPieceLinks(job, 'b');
+  }
+}
+
+document.querySelectorAll('input[name="channelView"]').forEach((r) => {
+  r.addEventListener('change', () => {
+    if (!r.checked) return;
+    if (te.active) {
+      if (r.value !== 'a') {
+        document.querySelector('input[name="channelView"][value="a"]').checked = true;
+        showToast('Termina o cancela la edición de texto antes de cambiar de versión.');
+      }
+      return;
+    }
+    channelView = r.value;
+    channelPaintKey = '';
+    if (currentJobData) applyChannel(currentJobData, true);
+  });
+});
+document.querySelectorAll('input[name="channelPreview"]').forEach((r) => {
+  r.addEventListener('change', () => {
+    if (!r.checked) return;
+    document.getElementById('channel-live-device').classList.toggle('is-mobile', r.value === 'mobile');
+    const frame = document.getElementById('channel-frame');
+    if (frame) delete frame.dataset.mark;
+    if (currentJobData) paintLive(currentJobData);
+  });
+});
 
 function renderMeta(meta, sender) {
   currentMeta = meta;
@@ -8037,6 +8408,7 @@ async function fetchResult(id) {
  *  defecto, la versión de la que sale; en la original, se elige. `baseId`: la elegida en "Comparar con"
  *  (null = ninguna; sin definir = la de por defecto). */
 async function setupCompare(job, versions, baseId) {
+  if (channelView !== 'a') return;
   const self = versions.find((v) => v.id === job.id);
   const others = versions.filter((v) => v.id !== job.id && v.status === 'completed');
   if (!self || !others.length || !window.HermesCompare) return;
@@ -8076,7 +8448,7 @@ async function setupCompare(job, versions, baseId) {
   } catch {
     return;
   }
-  if (id !== currentJob || select.value !== base.id) return;
+  if (id !== currentJob || select.value !== base.id || channelView !== 'a') return;
   const parentOrBase = base;
   compareParent = parentOrBase;
   compareBeforeHtml = before;
@@ -8446,6 +8818,9 @@ document.querySelectorAll('input[name="previewTheme"]').forEach((r) =>
     if (motionOk()) document.getElementById('preview-device')?.animate([{ opacity: 0.25 }, { opacity: 1 }], { duration: 450, easing: 'ease-out' });
     renderFrame('after');
     if (document.getElementById('preview-stage').classList.contains('is-compare')) renderFrame('before');
+    const live = document.getElementById('channel-frame');
+    if (live) delete live.dataset.mark;
+    if (currentJobData && channelView !== 'a' && currentJobData.status !== 'completed') paintLive(currentJobData);
   })
 );
 

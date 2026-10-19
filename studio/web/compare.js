@@ -152,7 +152,106 @@
     };
   }
 
-  var api = { textBlocks: textBlocks, links: links, images: images, diffBlocks: diffBlocks, compareVersions: compareVersions };
+  var GMAIL_CLIP_BYTES = 102 * 1024;
+
+  function utf8Bytes(value) {
+    var text = value || '';
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(text).length;
+    return text.length;
+  }
+
+  function kbLabel(bytes) {
+    var kb = bytes / 1024;
+    var rounded = kb >= 10 ? Math.round(kb) : Math.round(kb * 10) / 10;
+    return String(rounded).replace(/\.0$/, '') + ' KB';
+  }
+
+  /** El peor estado de los dos. «missing» no empeora al otro lado: esa comprobación no se midió ahí. */
+  function worstStatus(a, b) {
+    var rank = { error: 0, warning: 1, ok: 2, missing: 3 };
+    var score = Math.min(rank[a] == null ? 3 : rank[a], rank[b] == null ? 3 : rank[b]);
+    if (score <= 0) return 'error';
+    if (score === 1) return 'warning';
+    return 'ok';
+  }
+
+  function checkMap(quality) {
+    var map = {};
+    var order = [];
+    ((quality && quality.checks) || []).forEach(function (check) {
+      if (!check || !check.id || map[check.id]) return;
+      map[check.id] = check;
+      order.push(check.id);
+    });
+    return { map: map, order: order };
+  }
+
+  function checkText(check) {
+    if (!check) return 'No medida en esta versión';
+    var head = check.status === 'ok' ? 'Correcto' : check.status === 'warning' ? 'Revisar' : 'Error';
+    return check.details && check.details.length ? head + ': ' + check.details[0] : head;
+  }
+
+  /**
+   * Comparativa A (Hermes) contra B (canal externo) con los mismos criterios del revisor:
+   * asunto, preheader, peso del HTML final y cada comprobación de quality.
+   * `a` y `b`: { html, subject, preheader, quality }.
+   */
+  function compareChannels(a, b) {
+    var left = a || {};
+    var right = b || {};
+    var aBytes = utf8Bytes(left.html);
+    var bBytes = utf8Bytes(right.html);
+    var rows = [];
+    function add(id, label, aText, bText, aStatus, bStatus) {
+      rows.push({ id: id, label: label, a: aText, b: bText, aStatus: aStatus, bStatus: bStatus, tone: worstStatus(aStatus, bStatus) });
+    }
+    var aSubject = left.subject || null;
+    var bSubject = right.subject || null;
+    add('subject', 'Asunto', aSubject || 'Sin asunto', bSubject || 'Sin asunto', aSubject ? 'ok' : 'warning', bSubject ? 'ok' : 'warning');
+    var aPre = left.preheader || null;
+    var bPre = right.preheader || null;
+    add(
+      'preheader',
+      'Preheader',
+      aPre ? aPre + ' (' + aPre.length + ')' : 'Sin preheader',
+      bPre ? bPre + ' (' + bPre.length + ')' : 'Sin preheader',
+      aPre ? 'ok' : 'warning',
+      bPre ? 'ok' : 'warning'
+    );
+    add(
+      'weight',
+      'Peso del HTML',
+      kbLabel(aBytes) + (aBytes > GMAIL_CLIP_BYTES ? ' · Gmail lo recorta' : ''),
+      kbLabel(bBytes) + (bBytes > GMAIL_CLIP_BYTES ? ' · Gmail lo recorta' : ''),
+      aBytes > GMAIL_CLIP_BYTES ? 'error' : 'ok',
+      bBytes > GMAIL_CLIP_BYTES ? 'error' : 'ok'
+    );
+    var aChecks = checkMap(left.quality);
+    var bChecks = checkMap(right.quality);
+    var seen = {};
+    aChecks.order.concat(bChecks.order).forEach(function (id) {
+      if (seen[id]) return;
+      seen[id] = true;
+      var ac = aChecks.map[id];
+      var bc = bChecks.map[id];
+      add('check:' + id, (ac && ac.label) || (bc && bc.label) || id, checkText(ac), checkText(bc), ac ? ac.status : 'missing', bc ? bc.status : 'missing');
+    });
+    return {
+      rows: rows,
+      bytes: { a: aBytes, b: bBytes },
+      content: compareVersions(left.html || '', right.html || ''),
+    };
+  }
+
+  var api = {
+    textBlocks: textBlocks,
+    links: links,
+    images: images,
+    diffBlocks: diffBlocks,
+    compareVersions: compareVersions,
+    compareChannels: compareChannels,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HermesCompare = api;
 })(this);

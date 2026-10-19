@@ -498,6 +498,13 @@ Requisitos para producción real:
   en memoria por proceso, sin dependencia nueva — no vale para varias réplicas (ver cabecera del
   archivo), coherente con que Studio hoy es un solo proceso con una cola secuencial.
 
+## Canal B (Creas IT)
+
+En la página de un trabajo, el selector **Hermes | Creas IT | Comparar** enseña la pieza de Hermes y,
+cuando un sistema externo la adjunta, la suya, más la comparativa por los mismos criterios del revisor.
+El progreso de Hermes no cambia. El token es `STUDIO_SERVICE_TOKEN` (Railway, distinto de `WORKER_TOKEN`).
+Contrato, curl y límites: `studio/CHANNEL-B.md`.
+
 ## Verificación antes de anunciarlo al equipo
 
 1. Con una campaña ya construida a mano (p. ej. `newsletters/2026/new-balance/new-balance-premium/`),

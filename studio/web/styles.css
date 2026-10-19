@@ -619,6 +619,15 @@ fieldset legend { padding: 0; margin-bottom: 8px; }
 }
 
 /* Versiones y comparación (2026-09-28) */
+.channel-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 0 0 24px; }
+.channel-bar .hint { margin: 0; }
+#channel-extra { margin-bottom: 24px; }
+#channel-extra .view-toggle { margin: 12px 0; }
+#channel-frame { display: block; width: 800px; height: 720px; border: 0; border-radius: 6px; background: #fff; }
+.preview-device.is-mobile #channel-frame { width: 375px; height: 740px; border-radius: 22px; }
+#channel-criteria { margin-top: 24px; }
+#channel-criteria .review-tools { margin: 8px 0 16px; }
+#external-review-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; margin: 12px 0 0; font: inherit; }
 .versions { margin: -8px 0 24px; }
 .versions .eyebrow { margin-bottom: 8px; }
 .versions ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -740,6 +749,7 @@ body.has-sticky .foot { padding-bottom: 88px; }
 .check-ok .check-dot { background: var(--success); }
 .check-warning .check-dot { background: var(--warning); }
 .check-error .check-dot { background: var(--error); }
+.check-missing .check-dot { background: var(--muted); }
 .check-label { font-weight: 600; }
 .check-state { margin-left: auto; font-size: var(--fs-small); color: var(--muted); }
 .check-error .check-state { color: var(--error); }
