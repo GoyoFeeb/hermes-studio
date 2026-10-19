@@ -15,10 +15,14 @@ El compañero elige la marca, pega el prompt de dirección creativa generado con
 trabajo queda **en cola** en Studio y lo ejecuta **Hermes Agent en el Mac del usuario**:
 
 ```
-Studio (Railway) ──cola──▶ studio/worker/hermes-worker.ts (Mac) ──▶ hermes -z "<prompt + entrega>"
+Studio (Railway) ──cola──▶ studio/worker/hermes-worker.ts (Mac, o el servicio hermes-worker) ──▶ hermes chat -q
       ▲                                                                   │ (cwd = sistema-final/)
       └──────── HTML + imágenes (base64) ◀── newsletters/{año}/{marca}/hermes/{campaña}/newsletter.html
 ```
+
+En producción el worker puede correr en el servicio Railway `hermes-worker` (uid 1001, lista blanca
+de entorno, volumen propio). El flujo de la cola es el mismo. Detalle y pasos manuales en
+`studio/worker/CLOUD.md`. No lo arranques a la vez en el Mac: hay un solo consumidor de la cola.
 
 Es el mismo flujo que pegar el prompt en Hermes a mano, automatizado: misma instalación, config,
 skills, memoria y suscripción de Nous → misma calidad y mismo tiempo (1-2 h por newsletter). Una
@@ -300,8 +304,11 @@ Railway construye la imagen con `studio/Dockerfile`, con la raíz del repo como 
 La configuración del servicio en Railway está escrita en `.railway/railway.ts` (Infrastructure as Code):
 repositorio y rama de los que despliega, construcción con `studio/Dockerfile`, hasta 3 reintentos si se
 cae (`ON_FAILURE`, el valor por defecto de Railway, por eso no aparece en el archivo), una réplica en
-`iad` y el volumen `hermes-studio-volume` montado en `/data`. Las variables **no** se gestionan desde
-ahí (`variables: { managed: false }`): siguen solo en Railway, y los secretos no entran en el repo.
+`iad` y el volumen `hermes-studio-volume` montado en `/data`. El mismo archivo añade el servicio
+`hermes-worker` (`studio/worker/Dockerfile`, healthcheck `/heartbeat`, volumen `hermes-worker-volume`
+en `/data`). Las variables **no** se gestionan desde ahí (`variables: { managed: false }`): siguen
+solo en Railway, y los secretos no entran en el repo. `railway config plan` tiene que añadir el
+worker y su volumen sin quitar Studio; si propone borrarlo, no se aplica. Ver `studio/worker/CLOUD.md`.
 
 El archivo usa el paquete npm `railway` (dependencia de desarrollo; `npm install` lo instala). **El push
 no lo aplica**: Railway no lee `.railway/` al desplegar. Para cambiar la configuración:
