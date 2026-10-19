@@ -88,8 +88,8 @@ curl -sS -X POST "https://hermes-studio-beta.vercel.app/api/service/jobs" \
   -H "Content-Type: application/json" \
   -d '{
     "mode": "standalone",
-    "clientName": "Novo Resort",
-    "promptText": "Newsletter de Novo Resort: oferta de áticos este fin de semana",
+    "clientName": "Casa Lumen",
+    "promptText": "Newsletter de Casa Lumen: la terraza este fin de semana",
     "inputKind": "instruction",
     "imageMode": "official",
     "requesterName": "ClickUp",
