@@ -8,6 +8,7 @@
     "preview-html": "npx tsx scripts/preview-html.ts",
     "build-newsletter": "node engine/build-newsletter.js",
     "studio": "npx tsx studio/server/index.ts",
+    "clickup-webhook": "npx tsx studio/scripts/clickup-webhook.ts",
     "hermes-worker": "caffeinate -i npx tsx studio/worker/hermes-worker.ts",
     "hermes-worker:service": "studio/worker/service.sh",
     "check-newsletter": "npx tsx studio/worker/check-newsletter.ts",

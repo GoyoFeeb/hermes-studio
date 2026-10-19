@@ -1,0 +1,537 @@
+/**
+ * clickup.ts — webhook firmado de ClickUp que abre un trabajo de Studio (2026-10-19).
+ *
+ * ClickUp firma el cuerpo en bruto con HMAC-SHA256 (cabecera X-Signature, hex). Sin
+ * CLICKUP_WEBHOOK_SECRET la ruta responde 401 y no crea nada. El id de tarea deduplica
+ * los reintentos. La descripción se lee después, con CLICKUP_API_TOKEN, para poder
+ * responder enseguida; mientras tanto el trabajo lleva clickupPending y el worker no lo coge.
+ *
+ * Variables solo del servicio hermes-studio. Ver studio/CLICKUP.md.
+ */
+import * as crypto from 'crypto';
+import { slugify } from './campaignFs';
+import { listJobs, type Job, type JobInput } from './store';
+
+export const DEFAULT_CLICKUP_LIST_ID = '901223474074';
+export const DEFAULT_STUDIO_WEB_ORIGIN = 'https://hermes-studio-beta.vercel.app';
+export const DEFAULT_CLICKUP_WEBHOOK_ENDPOINT =
+  'https://hermes-studio-production-761e.up.railway.app/api/integrations/clickup';
+
+/** Mismo cupo que POST /api/jobs (5 cada 10 min), con contador propio. */
+export const CLICKUP_RATE_LIMIT = {
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  keyPrefix: 'clickup-webhook',
+  message: 'Demasiados avisos de ClickUp en poco tiempo. Espera unos minutos.',
+} as const;
+
+/** Pasado este margen, un trabajo que sigue en clickupPending entra en la cola igual. */
+export const CLICKUP_ENRICH_MS = 2 * 60 * 1000;
+
+const INSTRUCTION_MAX = 12_000;
+const CLIENT_FIELDS = new Set(['cliente', 'client']);
+const CAMPAIGN_FIELDS = new Set(['campana', 'campaign']);
+
+export interface ClickupEnv {
+  secret: string;
+  apiToken: string;
+  listId: string;
+  comment: boolean;
+  webBase: string;
+}
+
+export interface ClickupTask {
+  id?: string;
+  name?: string;
+  url?: string;
+  description?: string;
+  text_content?: string;
+  markdown_description?: string;
+  list?: { id?: string | number };
+  creator?: { username?: string };
+  attachments?: { title?: string; name?: string; url?: string }[];
+  custom_fields?: unknown[];
+}
+
+export interface ClickupDeps {
+  secret: string;
+  listId: string;
+  apiToken: string;
+  comment: boolean;
+  webBase: string;
+  findJob: (taskId: string) => { id: string } | null;
+  createJob: (input: JobInput) => { id: string };
+  getJob: (id: string) => Job | null;
+  updateJob: (id: string, patch: Partial<Job>) => void;
+  fetchTask: (taskId: string, token: string) => Promise<ClickupTask | null>;
+  postComment: (taskId: string, token: string, text: string) => Promise<void>;
+  knownBrand: (slug: string) => boolean;
+  log: (id: string, message: string, level?: 'info' | 'error' | 'success') => void;
+}
+
+export interface ClickupOutcome {
+  status: number;
+  body: Record<string, unknown>;
+  /** Lectura de la tarea y comentario. La ruta HTTP no lo espera. */
+  after?: Promise<void>;
+}
+
+interface ClickupPayload {
+  event?: string;
+  task_id?: string | number;
+  history_items?: {
+    field?: string;
+    parent_id?: string | number;
+    before?: unknown;
+    after?: unknown;
+    user?: { username?: string };
+  }[];
+}
+
+type Decision =
+  | { action: 'ignore'; reason: 'event' | 'list' | 'no-task' }
+  | { action: 'create'; taskId: string; confirmList: boolean };
+
+const confirming = new Map<string, Promise<{ id: string; created: boolean } | null>>();
+
+export function clickupConfigFromEnv(env: NodeJS.ProcessEnv = process.env): ClickupEnv {
+  const listId = (env.CLICKUP_LIST_ID || '').trim() || DEFAULT_CLICKUP_LIST_ID;
+  return {
+    secret: env.CLICKUP_WEBHOOK_SECRET || '',
+    apiToken: env.CLICKUP_API_TOKEN || '',
+    listId,
+    comment: env.CLICKUP_COMMENT === '1',
+    webBase: httpsOrigin(env.STUDIO_WEB_URL) || DEFAULT_STUDIO_WEB_ORIGIN,
+  };
+}
+
+export function signClickupBody(raw: Buffer | string, secret: string): string {
+  return crypto.createHmac('sha256', secret).update(raw).digest('hex');
+}
+
+/** HMAC-SHA256 hex del cuerpo en bruto. Longitudes distintas no pasan por timingSafeEqual. */
+export function verifyClickupSignature(rawBody: Buffer, signature: string | undefined, secret: string): boolean {
+  if (!secret || !signature) return false;
+  const provided = signature.trim().toLowerCase().replace(/^sha256=/, '');
+  if (!/^[0-9a-f]{64}$/.test(provided)) return false;
+  const expected = signClickupBody(rawBody, secret);
+  return crypto.timingSafeEqual(Buffer.from(provided, 'utf8'), Buffer.from(expected, 'utf8'));
+}
+
+export function clickupReadyForClaim(job: { input: { clickupPending?: boolean }; createdAt: string }, now = Date.now()): boolean {
+  if (!job.input.clickupPending) return true;
+  const created = Date.parse(job.createdAt);
+  return Number.isFinite(created) && now - created > CLICKUP_ENRICH_MS;
+}
+
+export function findJobByClickupTaskId(taskId: string): Job | null {
+  const hits = listJobs().filter((job) => job.input.clickupTaskId === taskId);
+  hits.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return hits[0] || null;
+}
+
+export function clickupJobPageUrl(webBase: string, jobId: string): string {
+  return `${webBase}/?job=${encodeURIComponent(jobId)}`;
+}
+
+export function clickupJobComment(webBase: string, jobId: string): string {
+  return `Hermes Studio ha creado un trabajo para esta tarea:\n${clickupJobPageUrl(webBase, jobId)}`;
+}
+
+export function clickupWebhookCreateBody(endpoint: string, listId: string): { endpoint: string; events: ['taskCreated']; list_id: number } {
+  if (!/^https:\/\/[^\s]+$/.test(endpoint)) throw new Error('El endpoint del webhook tiene que ser https.');
+  const list_id = Number(listId);
+  if (!Number.isSafeInteger(list_id) || list_id <= 0) throw new Error('CLICKUP_LIST_ID no es un id de lista válido.');
+  return { endpoint, events: ['taskCreated'], list_id };
+}
+
+export async function fetchClickupTask(taskId: string, token: string, doFetch: typeof fetch = fetch): Promise<ClickupTask | null> {
+  const res = await doFetch(
+    `https://api.clickup.com/api/v2/task/${encodeURIComponent(taskId)}?include_markdown_description=true`,
+    { headers: { Authorization: token }, signal: AbortSignal.timeout(8000) }
+  );
+  if (!res.ok) {
+    console.error(`[clickup] GET /task/${taskId} → ${res.status}`);
+    return null;
+  }
+  const data = (await res.json()) as unknown;
+  if (!data || typeof data !== 'object') return null;
+  return data as ClickupTask;
+}
+
+export async function postClickupComment(taskId: string, token: string, text: string, doFetch: typeof fetch = fetch): Promise<void> {
+  const res = await doFetch(`https://api.clickup.com/api/v2/task/${encodeURIComponent(taskId)}/comment`, {
+    method: 'POST',
+    headers: { Authorization: token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comment_text: text, notify_all: false }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`comentario de ClickUp → ${res.status}`);
+}
+
+export async function handleClickupWebhook(raw: Buffer, signature: string | undefined, deps: ClickupDeps): Promise<ClickupOutcome> {
+  if (!deps.secret) return { status: 401, body: { error: 'Integración de ClickUp desactivada.' } };
+  if (!verifyClickupSignature(raw, signature, deps.secret)) return { status: 401, body: { error: 'Firma no válida.' } };
+
+  let payload: ClickupPayload;
+  try {
+    payload = JSON.parse(raw.toString('utf8')) as ClickupPayload;
+  } catch {
+    return { status: 400, body: { error: 'El cuerpo no es JSON.' } };
+  }
+
+  const decision = classifyClickupEvent(payload, deps.listId);
+  if (decision.action === 'ignore') return { status: 200, body: { ignored: true, reason: decision.reason } };
+
+  const existing = deps.findJob(decision.taskId);
+  if (existing) return { status: 200, body: { id: existing.id, deduped: true } };
+
+  if (decision.confirmList) return createAfterListCheck(decision.taskId, payload, deps);
+
+  const job = deps.createJob(provisionalInput(decision.taskId, payload));
+  deps.log(job.id, `Abierto desde la tarea de ClickUp ${decision.taskId}.`);
+  return { status: 201, body: { id: job.id }, after: finishClickupJob(job.id, payload, deps) };
+}
+
+export function classifyClickupEvent(payload: ClickupPayload, listId: string): Decision {
+  const event = payload?.event;
+  if (event !== 'taskCreated' && event !== 'taskUpdated' && event !== 'taskMoved') {
+    return { action: 'ignore', reason: 'event' };
+  }
+  const taskId = taskIdOf(payload?.task_id);
+  if (!taskId) return { action: 'ignore', reason: 'no-task' };
+  if (event === 'taskCreated') {
+    const where = createdInList(payload, listId);
+    if (where === 'no') return { action: 'ignore', reason: 'list' };
+    return { action: 'create', taskId, confirmList: where === 'unknown' };
+  }
+  // taskUpdated / taskMoved: solo si la tarea entra ahora en la lista (field section_moved).
+  if ((event === 'taskUpdated' || event === 'taskMoved') && entersList(payload, listId)) {
+    return { action: 'create', taskId, confirmList: false };
+  }
+  return { action: 'ignore', reason: 'list' };
+}
+
+function finishClickupJob(jobId: string, payload: ClickupPayload, deps: ClickupDeps): Promise<void> {
+  return enrichClickupJob(jobId, payload, deps).catch((err) => {
+    console.error(`[clickup] ${jobId}: ${(err as Error).message}`);
+    try {
+      const job = deps.getJob(jobId);
+      if (job?.input.clickupPending && job.status === 'queued') {
+        deps.updateJob(jobId, { input: { ...job.input, clickupPending: false } });
+      }
+    } catch (inner) {
+      console.error(`[clickup] ${jobId}: ${(inner as Error).message}`);
+    }
+  });
+}
+
+async function enrichClickupJob(jobId: string, payload: ClickupPayload, deps: ClickupDeps): Promise<void> {
+  const current = deps.getJob(jobId);
+  if (!current?.input.clickupPending || !current.input.clickupTaskId) return;
+  const taskId = current.input.clickupTaskId;
+
+  let task: ClickupTask | null = null;
+  if (!deps.apiToken) {
+    deps.log(jobId, 'Sin CLICKUP_API_TOKEN: el encargo no tiene la descripción de la tarea.');
+  } else {
+    let fetchError = false;
+    try {
+      task = await deps.fetchTask(taskId, deps.apiToken);
+    } catch (err) {
+      fetchError = true;
+      deps.log(jobId, `No se pudo leer la tarea en ClickUp: ${(err as Error).message}`, 'error');
+    }
+    if (!fetchError && !task) deps.log(jobId, 'ClickUp no devolvió la tarea; el encargo queda con lo que traía el aviso.', 'error');
+  }
+
+  const fresh = deps.getJob(jobId);
+  if (!fresh || fresh.status !== 'queued' || !fresh.input.clickupPending) return;
+
+  if (task?.list && task.list.id != null && String(task.list.id) !== deps.listId) {
+    deps.updateJob(jobId, {
+      status: 'cancelled',
+      error: 'La tarea de ClickUp no está en la lista configurada.',
+      input: { ...fresh.input, clickupPending: false },
+    });
+    deps.log(jobId, 'Cancelado: la tarea no está en la lista de ClickUp configurada.', 'error');
+    return;
+  }
+
+  const input = task ? inputFromTask(task, payload, deps, taskId) : { ...fresh.input, clickupPending: false };
+  const title = task?.name?.trim().slice(0, 140);
+  deps.updateJob(jobId, { input, ...(title && !fresh.title ? { title } : {}) });
+  if (task) deps.log(jobId, `Encargo actualizado desde ClickUp (${taskId}).`);
+  await commentOnTask(taskId, jobId, deps);
+}
+
+async function createAfterListCheck(taskId: string, payload: ClickupPayload, deps: ClickupDeps): Promise<ClickupOutcome> {
+  if (!deps.apiToken) return { status: 200, body: { ignored: true, reason: 'list' } };
+
+  let pending = confirming.get(taskId);
+  const owner = !pending;
+  if (!pending) {
+    pending = (async () => {
+      const again = deps.findJob(taskId);
+      if (again) return { id: again.id, created: false };
+      const task = await deps.fetchTask(taskId, deps.apiToken);
+      if (!task) throw new Error('fetch-failed');
+      const list = task.list?.id != null ? String(task.list.id) : '';
+      if (list !== deps.listId) return null;
+      const raced = deps.findJob(taskId);
+      if (raced) return { id: raced.id, created: false };
+      const job = deps.createJob(inputFromTask(task, payload, deps, taskId));
+      deps.log(job.id, `Abierto desde la tarea de ClickUp ${taskId}.`);
+      await commentOnTask(taskId, job.id, deps);
+      return { id: job.id, created: true };
+    })();
+    confirming.set(taskId, pending);
+  }
+
+  try {
+    const result = await pending;
+    if (!result) return { status: 200, body: { ignored: true, reason: 'list' } };
+    if (!owner || !result.created) return { status: 200, body: { id: result.id, deduped: true } };
+    return { status: 201, body: { id: result.id } };
+  } catch {
+    return { status: 500, body: { error: 'No se pudo leer la tarea en ClickUp.' } };
+  } finally {
+    if (owner) confirming.delete(taskId);
+  }
+}
+
+async function commentOnTask(taskId: string, jobId: string, deps: ClickupDeps): Promise<void> {
+  if (!deps.comment || !deps.apiToken) return;
+  try {
+    await deps.postComment(taskId, deps.apiToken, clickupJobComment(deps.webBase, jobId));
+    deps.log(jobId, 'Comentario publicado en la tarea de ClickUp.');
+  } catch (err) {
+    deps.log(jobId, `No se pudo comentar en ClickUp: ${(err as Error).message}`, 'error');
+  }
+}
+
+function provisionalInput(taskId: string, payload: ClickupPayload): JobInput {
+  const requesterName = requesterFrom(payload, undefined);
+  return baseInput({
+    clientName: 'Sin marca',
+    instruction: [
+      `Tarea de ClickUp ${taskId}.${requesterName ? ` La abrió ${requesterName}.` : ''}`,
+      `Enlace: https://app.clickup.com/t/${taskId}`,
+      'La descripción y los adjuntos se están leyendo de ClickUp. Si este texto no cambia, falta CLICKUP_API_TOKEN o la API no respondió: completa el encargo a mano.',
+      'No hay web oficial en la tarea. No inventes el dominio de la marca.',
+    ].join('\n'),
+    requesterName,
+    clickupTaskId: taskId,
+    clickupUrl: `https://app.clickup.com/t/${taskId}`,
+    clickupPending: true,
+    brandMode: 'new',
+  });
+}
+
+function inputFromTask(task: ClickupTask, payload: ClickupPayload, deps: ClickupDeps, taskId: string): JobInput {
+  const description = taskDescription(task);
+  const campaignName = customFieldText(task.custom_fields, CAMPAIGN_FIELDS);
+  const clientName = deriveClientName(task.name || '', description, customFieldText(task.custom_fields, CLIENT_FIELDS));
+  const brandUrl = deriveBrandUrl(description);
+  const clientSlug = slugify(clientName);
+  const clickupUrl = clickupTaskUrl(taskId, task.url);
+  return baseInput({
+    clientName,
+    clientSlug,
+    brandMode: deps.knownBrand(clientSlug) ? 'existing' : 'new',
+    brandUrl,
+    instruction: buildInstruction({ name: task.name || taskId, description, attachments: task.attachments, clientName, campaignName, brandUrl, clickupUrl }),
+    requesterName: requesterFrom(payload, task.creator?.username),
+    clickupTaskId: taskId,
+    clickupUrl,
+    campaignName,
+    clickupPending: false,
+  });
+}
+
+function baseInput(fields: JobInput): JobInput {
+  const clientSlug = fields.clientSlug || slugify(fields.clientName);
+  return {
+    mode: 'standalone',
+    imageMode: 'official',
+    artReview: true,
+    briefText: '',
+    brandMode: 'new',
+    ...fields,
+    clientSlug,
+  };
+}
+
+export function deriveClientName(taskName: string, description: string, fromField?: string): string {
+  const field = cleanLabel(fromField || '');
+  if (field) return field;
+  const labeled = `${taskName}\n${description}`.match(/(?:^|\n)\s*(?:marca|brand|cliente|client)\s*[:：]\s*([^\n,]{2,80})/i);
+  const fromLabel = labeled ? cleanLabel(labeled[1]) : undefined;
+  if (fromLabel) return fromLabel;
+  const ofBrand = taskName.match(/\b(?:newsletter|news|email|mailing|pieza)\s+(?:de|para|for)\s+(.+)$/i);
+  const fromPhrase = ofBrand ? cleanLabel(ofBrand[1].split(/\s+[:–—-]\s+/)[0]) : undefined;
+  if (fromPhrase) return fromPhrase;
+  const head = cleanLabel(taskName.split(/\s+[:–—]\s+|\s+-\s+/)[0] || '');
+  if (head) return head;
+  return cleanLabel(taskName) || 'Sin marca';
+}
+
+export function deriveBrandUrl(text: string): string | undefined {
+  const matches = text.match(/https:\/\/[^\s<>"'`)\]}]+/gi) || [];
+  for (const match of matches) {
+    const url = match.replace(/[.,;]+$/g, '');
+    if (!/^https:\/\/[^\s"'<>]{4,300}$/.test(url)) continue;
+    if (isClickupHost(url)) continue;
+    return url;
+  }
+  return undefined;
+}
+
+function buildInstruction(parts: {
+  name: string;
+  description: string;
+  attachments?: ClickupTask['attachments'];
+  clientName: string;
+  campaignName?: string;
+  brandUrl?: string;
+  clickupUrl: string;
+}): string {
+  const meta = [
+    `Marca: ${parts.clientName}`,
+    parts.campaignName ? `Campaña: ${parts.campaignName}` : '',
+    `Tarea ClickUp: ${parts.clickupUrl}`,
+    parts.brandUrl ? `Web oficial: ${parts.brandUrl}` : 'No hay web oficial en la tarea. No inventes el dominio de la marca.',
+  ].filter((line) => line !== '');
+  const head = `${meta.join('\n')}\n\n# ${parts.name.trim() || 'Tarea de ClickUp'}`;
+
+  const files = (parts.attachments || [])
+    .map((file) => ({ title: file?.title || file?.name || 'archivo', url: file?.url || '' }))
+    .filter((file) => /^https:\/\/[^\s"'<>]{4,2000}$/.test(file.url))
+    .slice(0, 15)
+    .map((file) => `- ${cleanLabel(file.title) || 'archivo'}: ${file.url}`);
+  const foot = files.length ? `\n\n## Archivos adjuntos\n${files.join('\n')}` : '';
+  const room = INSTRUCTION_MAX - head.length - foot.length - 2;
+  const body = room > 0 && parts.description ? `\n\n${parts.description.slice(0, room)}` : '';
+  return `${head}${body}${foot}`.slice(0, INSTRUCTION_MAX);
+}
+
+function taskDescription(task: ClickupTask): string {
+  const markdown = task.markdown_description?.trim();
+  if (markdown) return markdown;
+  const text = task.text_content?.trim();
+  if (text) return text;
+  return plainFromHtml(task.description || '');
+}
+
+function customFieldText(fields: unknown, names: Set<string>): string | undefined {
+  if (!Array.isArray(fields)) return undefined;
+  for (const field of fields) {
+    if (!field || typeof field !== 'object') continue;
+    const record = field as { name?: unknown; value?: unknown; type_config?: { options?: unknown } };
+    const name = norm(typeof record.name === 'string' ? record.name : '');
+    if (!names.has(name)) continue;
+    const direct = typeof record.value === 'string' ? cleanLabel(record.value) : undefined;
+    if (direct) return direct;
+    const options = Array.isArray(record.type_config?.options) ? record.type_config.options : [];
+    const picked = options
+      .map((option) => (option && typeof option === 'object' ? (option as { id?: unknown; name?: unknown; orderindex?: unknown }) : null))
+      .filter((option): option is { id?: unknown; name?: unknown; orderindex?: unknown } => !!option);
+    const values = Array.isArray(record.value) ? record.value : [record.value];
+    const labels = values
+      .map((value) => picked.find((option) => option.id === value || option.orderindex === value || String(option.orderindex) === String(value)))
+      .map((option) => (typeof option?.name === 'string' ? cleanLabel(option.name) : undefined))
+      .filter((label): label is string => !!label);
+    if (labels.length) return labels.join(', ').slice(0, 80);
+  }
+  return undefined;
+}
+
+function requesterFrom(payload: ClickupPayload, creator: string | undefined): string | undefined {
+  const fromTask = cleanPerson(creator);
+  if (fromTask) return fromTask;
+  for (const item of payload.history_items || []) {
+    const name = cleanPerson(item?.user?.username);
+    if (name) return name;
+  }
+  return undefined;
+}
+
+function createdInList(payload: ClickupPayload, listId: string): 'yes' | 'no' | 'unknown' {
+  const parents = (payload.history_items || []).map((item) => item?.parent_id).filter((id) => id != null && id !== '').map(String);
+  if (!parents.length) return 'unknown';
+  return parents.some((id) => id === listId) ? 'yes' : 'no';
+}
+
+function entersList(payload: ClickupPayload, listId: string): boolean {
+  return (payload.history_items || []).some((item) => {
+    if (item?.field !== 'section_moved') return false;
+    const after = item.after && typeof item.after === 'object' ? (item.after as { id?: unknown }).id : undefined;
+    const before = item.before && typeof item.before === 'object' ? (item.before as { id?: unknown }).id : undefined;
+    const dest = after != null && after !== '' ? String(after) : item.parent_id != null ? String(item.parent_id) : '';
+    const origin = before != null && before !== '' ? String(before) : '';
+    return dest === listId && origin !== listId;
+  });
+}
+
+function taskIdOf(value: unknown): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const id = String(value);
+  return /^[A-Za-z0-9_-]{3,50}$/.test(id) ? id : null;
+}
+
+function clickupTaskUrl(taskId: string, fromApi: string | undefined): string {
+  const fallback = `https://app.clickup.com/t/${taskId}`;
+  if (!fromApi || !isClickupHost(fromApi) || !fromApi.startsWith('https://')) return fallback;
+  return fromApi;
+}
+
+function isClickupHost(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === 'clickup.com' || host.endsWith('.clickup.com');
+  } catch {
+    return false;
+  }
+}
+
+function plainFromHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function cleanLabel(value: string): string | undefined {
+  const clean = value.replace(/\s+/g, ' ').replace(/[.,;]+$/g, '').trim();
+  if (clean.length < 2) return undefined;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return undefined;
+  return clean.slice(0, 80);
+}
+
+function cleanPerson(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const clean = value.replace(/\s+/g, ' ').trim();
+  if (!clean || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return undefined;
+  return clean.slice(0, 80);
+}
+
+function norm(value: string): string {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+}
+
+function httpsOrigin(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
