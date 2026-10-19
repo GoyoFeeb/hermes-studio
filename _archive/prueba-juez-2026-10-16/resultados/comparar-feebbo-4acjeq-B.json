@@ -1,0 +1,32 @@
+{
+ "dir": "feebbo/hermes/2026-10-15-4acjeq",
+ "identical": false,
+ "afterIs": "B",
+ "ms": 28624,
+ "votes": {
+  "peticion": "mejorada",
+  "texto_imagen": "mejorada",
+  "identidad": "igual",
+  "concepto": "mejorada",
+  "jerarquia": "anterior",
+  "aire": "igual",
+  "originalidad": "mejorada",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "peticion",
+   "texto_imagen",
+   "concepto",
+   "originalidad",
+   "copy"
+  ],
+  "losses": [
+   "jerarquia"
+  ],
+  "reason": "se queda: la comparación la prefiere en peticion, texto_imagen, concepto, originalidad, copy (pierde en jerarquia)"
+ }
+}

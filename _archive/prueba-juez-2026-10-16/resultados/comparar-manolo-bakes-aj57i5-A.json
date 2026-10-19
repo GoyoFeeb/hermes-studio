@@ -1,0 +1,30 @@
+{
+ "dir": "manolo-bakes/hermes/2026-10-16-aj57i5",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 30076,
+ "votes": {
+  "peticion": "mejorada",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "anterior",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "anterior",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": false,
+  "wins": [
+   "peticion",
+   "copy"
+  ],
+  "losses": [
+   "jerarquia",
+   "movil"
+  ],
+  "reason": "se descarta: pierde en movil aunque gana en peticion, copy"
+ }
+}

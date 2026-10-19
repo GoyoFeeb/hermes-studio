@@ -1,0 +1,31 @@
+{
+ "dir": "lacoste/hermes/2026-10-06-idyg6t",
+ "identical": false,
+ "afterIs": "B",
+ "ms": 29009,
+ "votes": {
+  "peticion": "mejorada",
+  "texto_imagen": "mejorada",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "mejorada",
+  "aire": "igual",
+  "originalidad": "anterior",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "peticion",
+   "texto_imagen",
+   "jerarquia",
+   "copy"
+  ],
+  "losses": [
+   "originalidad"
+  ],
+  "reason": "se queda: la comparación la prefiere en peticion, texto_imagen, jerarquia, copy (pierde en originalidad)"
+ }
+}

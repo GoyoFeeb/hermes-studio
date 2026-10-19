@@ -1,0 +1,30 @@
+{
+ "dir": "nike/hermes/2026-10-08-e4e1rw",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 28763,
+ "votes": {
+  "peticion": "mejorada",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "mejorada",
+  "jerarquia": "igual",
+  "aire": "anterior",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "peticion",
+   "concepto",
+   "copy"
+  ],
+  "losses": [
+   "aire"
+  ],
+  "reason": "se queda: la comparación la prefiere en peticion, concepto, copy (pierde en aire)"
+ }
+}

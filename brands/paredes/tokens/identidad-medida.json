@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "measuredAt": "2026-10-05T16:00:17.541Z",
+  "version": 2,
+  "measuredAt": "2026-10-14T11:56:29.502Z",
   "url": "https://www.paredes.es/es/",
   "title": "Paredes - Tus Zapatillas Deportivas Online",
   "headings": {
@@ -40,9 +40,9 @@
   "background": "#ffffff",
   "text": "#25282a",
   "button": {
-    "background": "#25282a",
-    "color": "#ffffff",
-    "radius": "20px 0px 0px 20px",
+    "background": "#ffffff",
+    "color": "#141414",
+    "radius": "4px",
     "transform": "none"
   },
   "palette": [

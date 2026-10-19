@@ -1,0 +1,31 @@
+{
+ "dir": "tarifalo/hermes/2026-10-08-wfyj86",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 25921,
+ "votes": {
+  "peticion": "mejorada",
+  "texto_imagen": "anterior",
+  "identidad": "igual",
+  "concepto": "anterior",
+  "jerarquia": "mejorada",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "mejorada"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "peticion",
+   "jerarquia",
+   "copy"
+  ],
+  "losses": [
+   "texto_imagen",
+   "concepto"
+  ],
+  "reason": "se queda: la comparación la prefiere en peticion, jerarquia, copy (pierde en texto_imagen, concepto)"
+ }
+}

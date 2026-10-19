@@ -166,8 +166,18 @@ const MEASURE_LAYOUT_JS = `function (gapMin) {
     var button = el.tagName === 'A' || (el.tagName === 'TD' && el.querySelector('a') && r.height < 80 && r.width < 400);
     if (area > 15000 || button) areas.push({ hex: hex(c), area: Math.round(area), button: !!button });
   });
+  // Botones: enlaces con fondo propio, con el fondo de lo que los rodea (un botón #111 en una celda #111 no se ve).
+  var buttons = [];
+  document.body.querySelectorAll('a').forEach(function (a) {
+    var c = parse(getComputedStyle(a).backgroundColor), r = a.getBoundingClientRect();
+    if (!c || c.a < 0.5 || !vis(r) || r.height > 80) return;
+    var around = background(a.parentElement);
+    if (around) buttons.push({ text: (a.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 40), bg: hex(c), around: hex(around) });
+  });
+  // Fondo sobre el que va la primera imagen (el logo de la cabecera).
+  var first = document.querySelector('img'), logoBg = first ? background(first.parentElement) : null;
   return { touching: touching, left: left, contrast: contrast, fonts: fonts, columns: columns, coloredText: coloredText,
-    fullImgs: fullImgs, areas: areas, imgWidths: imgWidths, imgTops: imgTops };
+    fullImgs: fullImgs, areas: areas, imgWidths: imgWidths, imgTops: imgTops, buttons: buttons, logoBg: logoBg ? hex(logoBg) : null };
 }`;
 
 interface PageMetrics {
@@ -181,6 +191,8 @@ interface PageMetrics {
   areas: { hex: string; area: number; button: boolean }[];
   imgWidths: number[];
   imgTops: number[];
+  buttons: { text: string; bg: string; around: string }[];
+  logoBg: string | null;
 }
 
 /** Errores (se devuelven a Hermes) y avisos (solo se enseñan) de los inspectores. */
@@ -205,6 +217,26 @@ export interface RenderReport {
   photos: { hero: Findings; variety: Findings };
   /** Lienzo distinguible del fondo exterior y franjas sueltas, medidos por píxeles en claro y oscuro (frameFindings). */
   frame: { canvas: Findings; strips: Findings };
+  /** Tamaño de la letra del texto corrido a 600 y a 375 px (fontSummary), para la revisión de arte. */
+  fonts: { desktop: FontSummary; mobile: FontSummary };
+}
+
+/** Letra del texto corrido (bloques de más de 40 caracteres): cuerpo (antes del último quinto) y pie, en px. */
+export interface FontSummary {
+  bodyMin: number | null;
+  bodyTypical: number | null;
+  footerMin: number | null;
+}
+
+export function fontSummary(fonts: { size: number; at: number }[]): FontSummary {
+  const body = fonts.filter((f) => f.at < 0.8).map((f) => f.size).sort((a, b) => a - b);
+  const footer = fonts.filter((f) => f.at >= 0.8).map((f) => f.size);
+  const round = (n: number): number => Math.round(n * 10) / 10;
+  return {
+    bodyMin: body.length ? round(body[0]) : null,
+    bodyTypical: body.length ? round(body[Math.floor(body.length / 2)]) : null,
+    footerMin: footer.length ? round(Math.min(...footer)) : null,
+  };
 }
 
 // --- Lienzo y franjas (2026-10-06) ---------------------------------------------------------------------
@@ -356,6 +388,7 @@ export function frameFindings(light: FrameMetrics | null, dark: FrameMetrics | n
 export interface GallerySummary {
   photos: number;
   heroCandidates: string[];
+  graphics?: string[];
 }
 
 /** Imagen principal: una foto de al menos este ancho pintado (a 700 px de ventana) … */
@@ -588,6 +621,69 @@ export function darkFindings(dark: PageMetrics['contrast'], light: PageMetrics['
   return { errors, warnings };
 }
 
+/** Un botón cuyo fondo es igual que el de su celda no se ve como botón: solo queda el texto (Nike, 2026-10-19: «Elige tu
+ *  talla» #111 sobre una celda que en oscuro pasaba a #111). Por debajo de 1,1:1 entre los dos fondos, error. Calibrado
+ *  con 14 piezas del 13 al 16-10: los botones flojos pero visibles (Porsche #111113 sobre #202226, Land Rover #e9ecec
+ *  sobre blanco) dan 1,2:1 y no se marcan. */
+export const BUTTON_MIN_CONTRAST = 1.1;
+export function buttonFindings(buttons: PageMetrics['buttons'], mode: 'claro' | 'oscuro'): string[] {
+  const bad = buttons.filter((b) => contrastRatio(b.bg, b.around) < BUTTON_MIN_CONTRAST);
+  if (!bad.length) return [];
+  const list = [...new Set(bad.map((b) => `«${b.text}» (${b.bg} sobre ${b.around})`))];
+  return [
+    `En modo ${mode}, ${list.length} botón(es) tienen el mismo fondo que su celda y no se ven como botón: ${list.slice(0, 3).join('; ')}. ` +
+      (mode === 'oscuro'
+        ? 'En el @media (prefers-color-scheme: dark), dale al botón un fondo claro (y texto oscuro) con una clase y !important, o deja la celda de otro color.'
+        : 'Cambia el color del botón o el de la celda.'),
+  ];
+}
+
+/** El logo de la cabecera con un recuadro de color que no es el fondo donde va (Nike, 2026-10-19: PNG sin
+ *  transparencia, Swoosh blanco sobre un rectángulo negro en una cabecera blanca). Se mira el color de las cuatro
+ *  esquinas del archivo: si son opacas y distintas del fondo de la celda en claro o en oscuro, error. */
+export async function logoBoxFindings(file: string, bgLight: string | null, bgDark: string | null): Promise<string[]> {
+  const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const at = (x: number, y: number) => {
+    const i = (y * info.width + x) * 4;
+    return { hex: '#' + [0, 1, 2].map((c) => data[i + c].toString(16).padStart(2, '0')).join(''), a: data[i + 3] };
+  };
+  const corners = [at(0, 0), at(info.width - 1, 0), at(0, info.height - 1), at(info.width - 1, info.height - 1)];
+  if (corners.some((c) => c.a < 250)) return [];
+  const box = corners[0].hex;
+  if (corners.some((c) => contrastRatio(c.hex, box) > 1.2)) return [];
+  const modes = ([['claro', bgLight], ['oscuro', bgDark]] as const).filter(([, bg]) => bg && contrastRatio(box, bg) > 1.5);
+  if (!modes.length) return [];
+  return [
+    `El logo (${path.basename(file)}) lleva un recuadro ${box} que no es el fondo de la cabecera (${modes.map(([m, bg]) => `${bg} en ${m}`).join(', ')}): se ve como un rectángulo. ` +
+      'Usa la versión del logo con fondo transparente (PNG con alfa) o pon la cabecera del mismo color que el recuadro.',
+  ];
+}
+
+/** Ancho original de cada imagen descargada, en `_trabajo/` (lo escribe fetch-image.ts). */
+export const NATIVE_WIDTHS_FILE = 'anchos-originales.json';
+
+/** Ancho original de cada imagen bajada con fetch-image (`_trabajo/anchos-originales.json`), si existe. */
+function readNativeWidths(dir: string): Record<string, number> {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dir, '_trabajo', NATIVE_WIDTHS_FILE), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+/** Ancho original de una imagen de la pieza: el suyo, o el de la descarga de la que sale si Hermes la recortó con otro
+ *  nombre («vomero-017-detail-email.jpg» sale de «vomero-017-detail.jpg»). */
+export function nativeWidthOf(name: string, widths: Record<string, number>): number | null {
+  if (widths[name]) return widths[name];
+  const stem = name.replace(/\.[a-z0-9]+$/i, '');
+  let best: [string, number] | null = null;
+  for (const [file, w] of Object.entries(widths)) {
+    const s = file.replace(/\.[a-z0-9]+$/i, '');
+    if (stem.startsWith(s) && /^[-_]/.test(stem.slice(s.length)) && (!best || s.length > best[0].length)) best = [s, w];
+  }
+  return best ? best[1] : null;
+}
+
 /** Archivo local de una imagen referenciada en la pieza (relativa al HTML o a la raíz), o null. */
 export function resolveLocal(ref: string, htmlDir: string, root: string): string | null {
   if (/^(https?:|data:|cid:|mailto:|#|\{\{)/i.test(ref)) return null;
@@ -641,14 +737,52 @@ export async function samePhoto(fa: string, fb: string): Promise<boolean> {
   return best < 25;
 }
 
+/** Parte de la imagen que ocupan sus 4 colores más frecuentes (a 96 px, 16 niveles por canal). Un logo o un gráfico
+ *  plano (el Swoosh blanco sobre negro de la portada de nike.com, la palabra «alo» sobre blanco) da 0,95 o más; de las
+ *  197 fotos que Studio bajó del 06 al 19-10, la foto real más plana (zapatilla sobre fondo liso) da 0,888 y las 9 por
+ *  encima de 0,92 eran todas logos marcados como foto (Nike ×4, Jordan ×2, Alo ×3). */
+export const GRAPHIC_MIN_SHARE = 0.92;
+export async function flatColorShare(file: string): Promise<number> {
+  const { data } = await sharp(file).flatten({ background: '#ffffff' }).removeAlpha().resize({ width: 96 }).raw().toBuffer({ resolveWithObject: true });
+  const counts = new Map<number, number>();
+  for (let i = 0; i < data.length; i += 3) {
+    const k = ((data[i] >> 4) << 8) | ((data[i + 1] >> 4) << 4) | (data[i + 2] >> 4);
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  return [...counts.values()].sort((a, b) => b - a).slice(0, 4).reduce((a, b) => a + b, 0) / (data.length / 3);
+}
+export async function isFlatGraphic(file: string): Promise<boolean> {
+  return (await flatColorShare(file).catch(() => 0)) >= GRAPHIC_MIN_SHARE;
+}
+
 export const IMAGE_MAX_BYTES = 600 * 1024;
 export const IMAGES_TOTAL_MAX_BYTES = 2.5 * 1024 * 1024;
 
 /** Peso de las imágenes y fotos con mucho margen vacío (fondo liso) arriba y abajo: la zapatilla de Nike
  *  (2026-09-28) dejaba más de 400 px de blanco. Solo se miran las que se pintan a más de 300 px. */
-export async function imageFindings(html: string, htmlDir: string, root: string, widths: number[] = []): Promise<Findings> {
+export async function imageFindings(html: string, htmlDir: string, root: string, widths: number[] = [], tops: number[] = []): Promise<Findings> {
   const errors: string[] = [];
   const warnings: string[] = [];
+  // Logo o gráfico usado como foto (Nike, 2026-10-19: el Swoosh de la portada como imagen principal) y miniaturas
+  // ampliadas (la suela de 144 px pintada a 520). La primera imagen es el logo de la cabecera: no cuenta.
+  const natives = readNativeWidths(htmlDir);
+  const tagList = [...html.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
+  for (let i = 1; i < tagList.length; i++) {
+    const src = tagList[i].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1] || '';
+    const file = resolveLocal(src, htmlDir, root);
+    const painted = widths[i] || 0;
+    if (!file || painted < 300 || /\.svg$/i.test(file)) continue;
+    const name = path.basename(file);
+    if (await isFlatGraphic(file)) {
+      const heroSpot = painted >= HERO_MIN_PAINTED && (tops[i] ?? Infinity) <= HERO_MAX_TOP;
+      const msg = `${name} es un logo o un gráfico plano, no una foto${heroSpot ? ', y está como imagen principal' : ''}. El logo va solo en la cabecera; usa una foto oficial del producto o de la campaña.`;
+      (heroSpot ? errors : warnings).push(msg);
+    }
+    const native = nativeWidthOf(name, natives);
+    if (native && native < painted) {
+      errors.push(`${name} sale de una imagen de ${native} px de ancho y se pinta a ${painted} px: se ve borrosa (miniatura ampliada). Busca la misma foto en grande o usa otra.`);
+    }
+  }
   const tags = [...html.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
   const seen = new Set<string>();
   // Fotos repetidas (Nike y Tarífalo, 2026-10-08): el mismo archivo con otro nombre («suela-crop.jpg») o un recorte de
@@ -713,6 +847,12 @@ export async function imageFindings(html: string, htmlDir: string, root: string,
   return { errors, warnings };
 }
 
+/** Archivo del logo de la cabecera: la primera imagen de la pieza. */
+function logoFile(html: string, htmlDir: string, root: string): string | null {
+  const src = html.match(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/i)?.[1];
+  return src ? resolveLocal(src, htmlDir, root) : null;
+}
+
 /** La galería de campaña del trabajo, si el worker la dejó. */
 export function readGallery(dir: string): GallerySummary | null {
   try {
@@ -733,7 +873,9 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
     const small = await measure(browser, htmlPath, MOBILE_WIDTH);
     const html = fs.readFileSync(htmlPath, 'utf8');
     const darkCss = /prefers-color-scheme\s*:\s*dark/i.test(html);
-    const dark = darkCss ? darkFindings((await measure(browser, htmlPath, DESKTOP_WIDTH, true)).contrast, desktop.contrast) : null;
+    const darkM = darkCss ? await measure(browser, htmlPath, DESKTOP_WIDTH, true) : null;
+    const dark = darkM ? darkFindings(darkM.contrast, desktop.contrast) : null;
+    if (dark && darkM) dark.errors.push(...buttonFindings(darkM.buttons, 'oscuro'));
     return {
       dark,
       mobile,
@@ -743,11 +885,16 @@ export async function renderChecks(htmlPath: string, root: string, palette: stri
         ...(await spacingFindingsWith(browser, htmlPath, DESKTOP_WIDTH, MOBILE_WIDTH).catch(() => [])),
       ],
       alignment: await alignmentFindingsWith(browser, htmlPath, DESKTOP_WIDTH, MOBILE_WIDTH).catch(() => []),
-      design: designFindings(desktop, small.fonts, palette),
-      images: await imageFindings(html, path.dirname(htmlPath), root, desktop.imgWidths),
+      design: ((d) => (d.errors.push(...buttonFindings(desktop.buttons, 'claro')), d))(designFindings(desktop, small.fonts, palette)),
+      images: await imageFindings(html, path.dirname(htmlPath), root, desktop.imgWidths, desktop.imgTops).then(async (f) => {
+        const logo = logoFile(html, path.dirname(htmlPath), root);
+        if (logo) f.errors.push(...(await logoBoxFindings(logo, desktop.logoBg, darkM?.logoBg ?? null).catch(() => [])));
+        return f;
+      }),
       imgWidths: desktop.imgWidths,
       photos: photoFindings(html, desktop.imgWidths, desktop.imgTops, readGallery(path.dirname(htmlPath))),
       frame: frameFindings(await frameMetrics(browser, htmlPath, false).catch(() => null), darkCss ? await frameMetrics(browser, htmlPath, true).catch(() => null) : null),
+      fonts: { desktop: fontSummary(desktop.fonts), mobile: fontSummary(small.fonts) },
     };
   } catch (err) {
     console.log(`No se pudo renderizar la pieza para medirla: ${(err as Error).message.slice(0, 200)}`);

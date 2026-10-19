@@ -1,0 +1,31 @@
+{
+ "dir": "manolo-bakes/hermes/2026-10-16-7h0z76",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 28964,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "mejorada",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "anterior",
+  "aire": "mejorada",
+  "originalidad": "mejorada",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "anterior"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "texto_imagen",
+   "aire",
+   "originalidad"
+  ],
+  "losses": [
+   "jerarquia",
+   "copy"
+  ],
+  "reason": "se queda: la comparación la prefiere en texto_imagen, aire, originalidad (pierde en jerarquia, copy)"
+ }
+}

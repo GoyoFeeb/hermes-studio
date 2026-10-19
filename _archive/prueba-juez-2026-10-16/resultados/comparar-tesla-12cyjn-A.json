@@ -1,0 +1,28 @@
+{
+ "dir": "tesla/hermes/2026-10-15-12cyjn",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 35595,
+ "votes": {
+  "peticion": "mejorada",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "igual",
+  "jerarquia": "igual",
+  "aire": "igual",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "anterior"
+ },
+ "verdict": {
+  "keep": false,
+  "wins": [
+   "peticion"
+  ],
+  "losses": [
+   "copy"
+  ],
+  "reason": "se descarta: la comparación prefiere la anterior (gana en peticion, pierde en copy)"
+ }
+}

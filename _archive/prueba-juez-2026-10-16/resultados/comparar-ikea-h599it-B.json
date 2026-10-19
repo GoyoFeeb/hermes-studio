@@ -1,0 +1,31 @@
+{
+ "dir": "ikea/hermes/2026-10-07-h599it",
+ "identical": false,
+ "afterIs": "B",
+ "ms": 27129,
+ "votes": {
+  "peticion": "anterior",
+  "texto_imagen": "igual",
+  "identidad": "igual",
+  "concepto": "mejorada",
+  "jerarquia": "mejorada",
+  "aire": "mejorada",
+  "originalidad": "igual",
+  "movil": "igual",
+  "oscuro": "igual",
+  "copy": "anterior"
+ },
+ "verdict": {
+  "keep": true,
+  "wins": [
+   "concepto",
+   "jerarquia",
+   "aire"
+  ],
+  "losses": [
+   "peticion",
+   "copy"
+  ],
+  "reason": "se queda: la comparación la prefiere en concepto, jerarquia, aire (pierde en peticion, copy)"
+ }
+}

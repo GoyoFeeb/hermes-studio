@@ -1,0 +1,32 @@
+{
+ "dir": "mcdonald-s/hermes/2026-10-16-q4ikwq",
+ "identical": false,
+ "afterIs": "A",
+ "ms": 38172,
+ "votes": {
+  "peticion": "igual",
+  "texto_imagen": "anterior",
+  "identidad": "igual",
+  "concepto": "mejorada",
+  "jerarquia": "anterior",
+  "aire": "anterior",
+  "originalidad": "igual",
+  "movil": "anterior",
+  "oscuro": "igual",
+  "copy": "anterior"
+ },
+ "verdict": {
+  "keep": false,
+  "wins": [
+   "concepto"
+  ],
+  "losses": [
+   "texto_imagen",
+   "jerarquia",
+   "aire",
+   "movil",
+   "copy"
+  ],
+  "reason": "se descarta: pierde en movil aunque gana en concepto"
+ }
+}

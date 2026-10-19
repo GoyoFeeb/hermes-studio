@@ -22,7 +22,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import sharp from 'sharp';
-import { launchBrowser } from './renderChecks';
+import { isFlatGraphic, launchBrowser } from './renderChecks';
 import { fetchImage, saveImage } from './fetch-image';
 
 export const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
@@ -70,7 +70,8 @@ export interface GalleryPhoto {
   hero?: boolean;
   /** Foto de la galería (portada o campaña) en una pieza de producto: ambiente, NO es el producto de la ficha
    *  (Paredes, prueba A/B del 2026-10-06: zapatillas de otros modelos presentadas como la Eden negro). */
-  ambient?: boolean;
+  ambient?: boolean;  /** Logo o gráfico plano, no una foto (Nike, 2026-10-19: el Swoosh de la portada salió ★ y fue la imagen principal). */
+  graphic?: boolean;
 }
 
 export interface ProductSheet {
@@ -425,7 +426,14 @@ export async function buildProductSheet(urls: string[], outAbs: string, opts: { 
         const name = `foto-${photos.length + 1}`;
         const got = received.get(img);
         const saved = got ? await saveImage(got, img, outAbs, name).catch(() => fetchImage(img, outAbs, name)) : await fetchImage(img, outAbs, name);
-        photos.push({ file: saved, from: img, ...photoSize(saved), ...(gallery && productPages.some((p) => p.price || p.images.length) ? { ambient: true } : {}) });
+        const graphic = await isFlatGraphic(path.join(outAbs, saved.split(' ')[0]));
+        photos.push({
+          file: saved,
+          from: img,
+          ...photoSize(saved),
+          ...(graphic ? { hero: false, graphic: true } : {}),
+          ...(gallery && productPages.some((p) => p.price || p.images.length) ? { ambient: true } : {}),
+        });
         if (gallery) perPage.set(from, (perPage.get(from) || 0) + 1);
         else fromProducts++;
       } catch {
@@ -441,7 +449,12 @@ export async function buildProductSheet(urls: string[], outAbs: string, opts: { 
     fs.writeFileSync(
       path.join(outAbs, '_trabajo', GALLERY_FILE),
       JSON.stringify(
-        { photos: photos.length, heroCandidates: photos.filter((p) => p.hero).map((p) => p.file.split(' ')[0]), blocked: pages.filter((p) => p.blocked).map((p) => p.url) },
+        {
+          photos: photos.filter((p) => !p.graphic).length,
+          heroCandidates: photos.filter((p) => p.hero).map((p) => p.file.split(' ')[0]),
+          graphics: photos.filter((p) => p.graphic).map((p) => p.file.split(' ')[0]),
+          blocked: pages.filter((p) => p.blocked).map((p) => p.url),
+        },
         null,
         2
       )
@@ -480,7 +493,9 @@ export function productSheetNote(sheet: ProductSheet, outputDir: string): string
     if (gallery.length) lines.push(`- Galería de campaña leída de: ${gallery.join(', ')}`);
     lines.push(`- Fotos oficiales ya descargadas en ${outputDir}/ (enlázalas con esa ruta relativa, ya comprobadas y comprimidas):`);
     for (const ph of sheet.photos) {
-      lines.push(`  · ${ph.file}${ph.hero ? ' ★ candidata a imagen principal' : ''}${ph.ambient ? ' — AMBIENTE de la marca, NO es el producto de la ficha' : ''} — de ${ph.from}`);
+      lines.push(
+        `  · ${ph.file}${ph.hero ? ' ★ candidata a imagen principal' : ''}${ph.graphic ? ' — LOGO O GRÁFICO de la marca, NO es una foto: no la uses como imagen' : ''}${ph.ambient ? ' — AMBIENTE de la marca, NO es el producto de la ficha' : ''} — de ${ph.from}`
+      );
     }
     if (sheet.photos.some((p) => p.ambient)) {
       lines.push(
@@ -494,12 +509,16 @@ export function productSheetNote(sheet: ProductSheet, outputDir: string): string
       lines.push(`- Hoja de contacto numerada con todas (★ = candidata a imagen principal): ${outputDir}/_trabajo/fotos-producto.png. Mírala UNA vez para elegir.`);
     }
     const heroes = sheet.photos.filter((p) => p.hero).length;
+    const real = sheet.photos.filter((p) => !p.graphic).length;
     lines.push(
       heroes
         ? '- Imagen principal OBLIGATORIA: el primer bloque tras el logo es una foto a todo el ancho (600 px) elegida entre las ★ (Studio lo comprueba).'
-        : '- Imagen principal OBLIGATORIA: el primer bloque tras el logo es una foto a todo el ancho (600 px); ninguna es horizontal grande, así que recorta la que mejor funcione.'
+        : real
+          ? '- Imagen principal OBLIGATORIA: el primer bloque tras el logo es una foto a todo el ancho (600 px); ninguna es horizontal grande, así que recorta la que mejor funcione.'
+          : '- Imagen principal OBLIGATORIA: el primer bloque tras el logo es una foto a todo el ancho (600 px), y aquí ninguna sirve: busca una foto oficial del producto o de su campaña (ficha, sala de prensa) y bájala con `npm run fetch-image`.'
     );
-    if (sheet.photos.length >= 5) lines.push('- Usa al menos 3 fotos distintas de la galería y no repitas ninguna: una pieza de una sola foto parece una plantilla.');
+    lines.push('- El logo o un gráfico de la marca nunca es la imagen principal ni la foto de una escena: va solo arriba (y en el pie si lo pones). Studio lo comprueba.');
+    if (real >= 5) lines.push('- Usa al menos 3 fotos distintas de la galería y no repitas ninguna: una pieza de una sola foto parece una plantilla.');
     lines.push('- Si te falta una foto concreta, `npm run fetch-image` una vez; para lo demás, no navegues.');
   }
   return lines.join('\n');

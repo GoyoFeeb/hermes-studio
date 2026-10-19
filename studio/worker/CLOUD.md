@@ -39,6 +39,8 @@ Nombres en `env.example`. Valores solo en Railway, en el servicio `hermes-worker
 - `WORKER_TOKEN` — el mismo secreto que en `hermes-studio`.
 - Una clave de proveedor si Hermes no tiene ya sesión en el volumen (`OPENROUTER_API_KEY`,
   `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` o `NOUS_API_KEY`).
+- `HERMES_MODEL_ART` — opcional. Vacío = el mismo modelo que `HERMES_MODEL_DRAFT`. La revisión de
+  arte de main (2026-10-19) lee ese nombre; si no está en la lista blanca, el entrypoint lo tira.
 
 `PORT` lo inyecta Railway. No pongas los secretos de Studio en este servicio.
 
