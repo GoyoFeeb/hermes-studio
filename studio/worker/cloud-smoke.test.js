@@ -79,6 +79,7 @@ test('el entrypoint suelta privilegios con los mismos flags y la imagen no se qu
   }
   assert.match(entry, /exec setpriv/);
   assert.match(docker, /useradd --uid 1001 --gid 1001/);
+  assert.match(docker, /libatomic1/);
   assert.match(docker, /ENTRYPOINT \["studio\/worker\/cloud-entrypoint\.sh"\]/);
   assert.match(docker, /\nUSER root\n/);
   assert.doesNotMatch(docker, /USER hermes\nENV NODE_ENV/);

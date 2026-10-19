@@ -5,8 +5,13 @@
 
 FROM node:22-slim
 
+# El Node que instala Hermes (tarball de nodejs.org, no el de esta imagen) enlaza
+# libatomic.so.1. bookworm-slim no la trae, y el instalador corre como uid 1001
+# sin sudo, así que pm/libatomic.py no puede hacer `apt-get install libatomic1`.
+# Sin la librería, `node --version` sale 127, pm.cli install devuelve 1 e
+# install.sh (bootstrap_pm) termina en "pm install failed".
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl git bash util-linux \
+ && apt-get install -y --no-install-recommends ca-certificates curl git bash util-linux libatomic1 \
  && rm -rf /var/lib/apt/lists/*
 
 # Chromium de Playwright (miniaturas, identidad medida, revisión). Fuera de /root para que uid 1001 lo lea.
