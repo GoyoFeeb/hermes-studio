@@ -28,6 +28,7 @@ import { createJob } from './store';
 import { joinLabels, requestTerms } from './requestCoverage';
 import { CLAIMS_BRIEF_RULE, CLAIMS_PIECE_RULE } from '../worker/claims';
 import { COPY_RULES } from '../worker/copyCheck';
+import { MOBILE_NOTES_TEMPLATE, NOTES_TEMPLATE, REVISION_NOTES_TEMPLATE, notesFileRule } from '../worker/selfAudit';
 import { PATTERNS_GUIDE, catalogIndex } from '../hermes/catalog';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
@@ -178,16 +179,8 @@ export function buildHermesPrompt(job: Job): string {
     '  que hace Studio al recibir la pieza (móvil, espacios, contraste, letra, estructura, enlaces, imágenes, tipografía,',
     '  logo, Outlook, modo oscuro, marcadores): aplica sola los arreglos mecánicos y te dice el resto. Corrige y repítela',
     '  hasta que salga sin errores. Si sale limpia, Studio no te devolverá la pieza.',
-    `- Autoauditoría por escrito, OBLIGATORIA: antes de terminar, escribe ${outDir}/notas.md con:`,
-    '  1. Concepto (una frase) y titular principal de la pieza; explica cómo deriva el titular del',
-    '     concepto. Si no deriva de él, corrige el titular antes de entregar.',
-    '  2. Cada precio, cifra, nombre de modelo o dato técnico que aparezca en la pieza, con su fuente',
-    '     (URL oficial). Lo que no tenga fuente no puede estar en la pieza: quítalo o reescríbelo.',
-    '  3. Cada imagen: su origen (URL oficial, brand pack o generada con IA), la escena donde va y qué se ve en ella.',
-    '  3b. Tipografía y colores usados, con su origen (web oficial o brand pack), y el módulo propio del concepto.',
-    '  4. Resultado de npm run check-newsletter y de tu revisión de la hoja de render-newsletter (qué corregiste).',
-    '  5. Las preguntas de autoauditoría del prompt con su respuesta.',
-    '- Respuesta final: breve — concepto y lo que quede pendiente.',
+    ...notesFileRule(outDir, NOTES_TEMPLATE),
+    '- Respuesta final: breve — concepto y lo que quede pendiente. La autoauditoría va en el archivo, no solo en esta respuesta.',
   ].join('\n');
 }
 
@@ -361,7 +354,7 @@ export function buildMobileFixPrompt(job: Job): string {
     '  600 px debe verse igual que el original.',
     `- Antes de terminar: \`npm run check-newsletter -- ${outDir}/newsletter.html --retoque\` (lo mismo que mide Studio al`,
     '  recibirlo). Corrige lo que diga del móvil y repítelo hasta que salga sin errores de móvil.',
-    `- Escribe ${outDir}/notas.md con los cambios hechos y el resultado de las comprobaciones a 375 y 600 px.`,
+    ...notesFileRule(outDir, MOBILE_NOTES_TEMPLATE),
     '- Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
   ].join('\n');
 }
@@ -411,8 +404,7 @@ export function buildRevisionPrompt(job: Job): string {
     '  al recibirlo: móvil, enlaces, imágenes, preheader…). Corrige lo que hayas introducido tú y repítelo.',
     `- Imagen nueva: \`npm run fetch-image -- <url> ${outDir} [nombre]\` (la descarga aunque la web bloquee el enlace`,
     '  directo, convierte SVG a PNG y comprime); enlázala con ruta local.',
-    `- Escribe ${outDir}/notas.md: qué cambiaste y dónde, la fuente de cada dato nuevo, el origen de cada`,
-    '  imagen nueva y lo que no pudiste aplicar (y por qué).',
+    ...notesFileRule(outDir, REVISION_NOTES_TEMPLATE),
     '- Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
     '',
     '## Referencia: brief original de la pieza',

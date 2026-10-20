@@ -1,0 +1,25 @@
+Sure — here is the score. I wrapped it so it is easy to read.
+
+```json
+{
+  "scores": {
+    "request": "5",
+    "text_image": "4",
+    "identity": "4",
+    "concept": "3",
+    "hierarchy": "4",
+    "spacing": "4/5",
+    "originality": "3",
+    "mobile": "4",
+    "dark": "2",
+    "copy": "cuatro",
+  },
+  "evidence": {
+    "request": "Black Friday en el titular",
+  },
+  "problems": ["Modo oscuro: el logo desaparece"],
+  "improvements": ["spacing: 8 px más entre la escena 2 y la 3"],
+}
+```
+
+Hope that helps.

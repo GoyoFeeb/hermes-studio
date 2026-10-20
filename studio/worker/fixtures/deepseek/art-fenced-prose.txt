@@ -1,0 +1,35 @@
+He revisado la hoja (600, 375 y oscuro) y la portada de la marca. Si el criterio {oscuro} estuviera peor, lo bajaría todavía más.
+
+```json
+{
+  "notas": {
+    "peticion": "4",
+    "texto_imagen": 5,
+    "identidad": "4",
+    "concepto": "4",
+    "jerarquia": "4",
+    "aire": "4",
+    "originalidad": "3",
+    "movil": "4",
+    "oscuro": "2",
+    "copy": "4"
+  },
+  "pruebas": {
+    "peticion": "Black Friday en el primer titular",
+    "texto_imagen": "el titular nombra el coche de la foto",
+    "identidad": "granate y tipografía de la web",
+    "concepto": "la noche ordena las tres escenas",
+    "jerarquia": "titular, apoyo y botón",
+    "aire": "márgenes parejos salvo el pie",
+    "originalidad": "módulos habituales",
+    "movil": "se lee a 375",
+    "oscuro": "el logo desaparece sobre el hero",
+    "copy": "el botón dice Ver el CX-60"
+  },
+  "defectos": [],
+  "problemas": ["En oscuro el logo desaparece sobre el hero"],
+  "mejoras": ["originalidad: un módulo de ficha técnica sobre granate"]
+}
+```
+
+Conclusión: la pieza aguanta, salvo el {pie}.
