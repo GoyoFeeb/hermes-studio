@@ -453,10 +453,18 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
   }
 });
 
+/** El fallo de Hermes trae las últimas líneas al final: si no caben, se conserva ese final. */
+function clipWorkerError(error: string): string {
+  const max = 12_000;
+  if (error.length <= max) return error;
+  const head = error.slice(0, 500);
+  return `${head}\n…\n${error.slice(-(max - head.length - 3))}`;
+}
+
 app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {
   const job = standaloneJobForWorker(req, res);
   if (!job) return;
-  const error = String(req.body?.error || 'Hermes no pudo terminar la newsletter.').slice(0, 4000);
+  const error = clipWorkerError(String(req.body?.error || 'Hermes no pudo terminar la newsletter.'));
   hermesLog(job.id, error, 'error');
   const timings = sanitizeTimings(req.body?.timings);
   updateJob(job.id, { status: 'failed', error, ...(timings ? { timings } : {}) });
@@ -638,6 +646,8 @@ app.post('/api/integrations/clickup', express.raw({ type: () => true, limit: '2m
     const signature = Array.isArray(header) ? header[0] : header;
     const outcome = await handleClickupWebhook(raw, signature, clickupDeps());
     res.status(outcome.status).json(outcome.body);
+    // La lectura de la tarea ya va en marcha (no se espera para responder).
+    if (outcome.after) void outcome.after;
   } catch (err) {
     console.error(`[clickup] ${(err as Error).message}`);
     if (!res.headersSent) res.status(500).json({ error: 'No se pudo procesar el aviso de ClickUp.' });

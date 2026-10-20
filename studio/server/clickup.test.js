@@ -228,6 +228,89 @@ test('un reintento con el mismo task id devuelve el trabajo ya creado', () => {
   assert.equal(out.n, 2);
 });
 
+test('el aviso solo trae el id: el brief es nombre, descripción, adjuntos y enlaces', () => {
+  const out = run(`
+    const calls = [];
+    const fetched = await clickup.fetchClickupTask('abc1234', 'pk_test_token', async (url, init) => {
+      calls.push({ url: String(url), authorization: init.headers.Authorization, method: init.method || 'GET' });
+      return { ok: true, json: async () => ({ name: 'Porsche', markdown_description: 'Cuerpo en markdown', description: '<p>html</p>', text_content: 'plano' }) };
+    });
+    const htmlOnly = clickup.briefFromClickupTask({
+      name: 'Solo html',
+      description: '<p>Mira <a href="https://www.porsche.com/spain/">la web</a> y <a href="https://app.clickup.com/t/abc1234">la tarea</a></p>',
+    });
+    const textOnly = clickup.briefFromClickupTask({ name: 'Solo texto', text_content: 'Descripción plana', description: '<p>no esta</p>' });
+    const markdown = clickup.briefFromClickupTask({
+      name: 'Nike — Verano',
+      markdown_description: 'Pieza de verano. Ficha: https://www.nike.com/es/producto',
+      text_content: 'no usar',
+      attachments: [{ title: 'brief.pdf', url: 'https://files.example.com/brief.pdf' }, { title: 'mal', url: 'http://inseguro.example/x' }],
+    });
+    const { jobs, deps } = memory();
+    deps.fetchTask = async (id, token) => {
+      calls.push({ task: id, token });
+      return {
+        id,
+        name: 'Porsche 911',
+        list: { id: listId },
+        markdown_description: 'Newsletter del 911. https://www.porsche.com/spain/',
+        attachments: [{ name: 'foto.jpg', url: 'https://cdn.example.com/foto.jpg' }],
+      };
+    };
+    const body = createdPayload('task911');
+    const res = await clickup.handleClickupWebhook(Buffer.from(body), sign(body), deps);
+    await res.after;
+    const job = jobs[0];
+    const empty = clickup.briefFromClickupTask({ id: 'x' });
+    console.log(JSON.stringify({
+      fetchUrl: calls[0].url,
+      fetchAuth: calls[0].authorization,
+      fetchMethod: calls[0].method,
+      fetchedName: fetched.name,
+      fetchedKeepsMarkdown: fetched.markdown_description,
+      htmlHasLink: htmlOnly.includes('https://www.porsche.com/spain/'),
+      htmlDropsClickup: !htmlOnly.includes('app.clickup.com'),
+      textUsesPlain: textOnly.includes('Descripción plana') && !textOnly.includes('no esta'),
+      markdownName: markdown.startsWith('# Nike — Verano'),
+      markdownBody: markdown.includes('Pieza de verano'),
+      markdownSkipsText: !markdown.includes('no usar'),
+      markdownFile: markdown.includes('https://files.example.com/brief.pdf'),
+      markdownLink: markdown.includes('https://www.nike.com/es/producto'),
+      markdownDropsHttp: !markdown.includes('http://inseguro.example'),
+      status: res.status,
+      payloadHadNoName: !body.includes('Porsche'),
+      webhookFetch: calls.some((c) => c.task === 'task911' && c.token === 'pk_test'),
+      brief: job.input.briefText,
+      reused: job.input.briefReused,
+      pending: job.input.clickupPending,
+      empty,
+    }));
+  `);
+  assert.equal(out.fetchUrl, 'https://api.clickup.com/api/v2/task/abc1234?include_markdown_description=true');
+  assert.equal(out.fetchAuth, 'pk_test_token');
+  assert.equal(out.fetchMethod, 'GET');
+  assert.equal(out.fetchedName, 'Porsche');
+  assert.equal(out.fetchedKeepsMarkdown, 'Cuerpo en markdown');
+  assert.equal(out.htmlHasLink, true);
+  assert.equal(out.htmlDropsClickup, true);
+  assert.equal(out.textUsesPlain, true);
+  assert.equal(out.markdownName, true);
+  assert.equal(out.markdownBody, true);
+  assert.equal(out.markdownSkipsText, true);
+  assert.equal(out.markdownFile, true);
+  assert.equal(out.markdownLink, true);
+  assert.equal(out.markdownDropsHttp, true);
+  assert.equal(out.status, 201);
+  assert.equal(out.payloadHadNoName, true);
+  assert.equal(out.webhookFetch, true);
+  assert.match(out.brief, /^# Porsche 911\n\nNewsletter del 911/);
+  assert.match(out.brief, /https:\/\/cdn\.example\.com\/foto\.jpg/);
+  assert.match(out.brief, /https:\/\/www\.porsche\.com\/spain\//);
+  assert.equal(out.reused, true);
+  assert.equal(out.pending, false);
+  assert.equal(out.empty, '');
+});
+
 test('el cupo es el de POST /api/jobs y el webhook no entra en el worker', () => {
   const out = run(`
     const body = clickup.clickupWebhookCreateBody(clickup.DEFAULT_CLICKUP_WEBHOOK_ENDPOINT, clickup.DEFAULT_CLICKUP_LIST_ID);

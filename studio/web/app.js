@@ -8695,6 +8695,8 @@ function renderProgress(job, queue, hermesOnline) {
       : job.input.briefReused
       ? job.input.retryOf
         ? 'Parte del brief que ya escribió en el intento anterior.'
+        : job.input.clickupTaskId
+        ? 'Hará la newsletter con el nombre y la descripción de la tarea de ClickUp.'
         : 'Hará la newsletter con el brief aprobado.'
       : job.input.instruction
       ? 'Primero escribirá el brief creativo.'

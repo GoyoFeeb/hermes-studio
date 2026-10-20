@@ -2,9 +2,9 @@
  * hermes-worker.ts — el mismo proceso en el Mac o en el servicio Railway `hermes-worker` (2026-10-16).
  *
  * Pregunta a Hermes Studio si hay newsletters standalone en cola, ejecuta cada una con
- * `hermes chat -q` (no interactivo) usando Hermes Agent (config, skills, memoria, suscripción
- * de Nous) dentro de sistema-final/, y sube el HTML resultante. Es exactamente el flujo manual
- * del usuario (pegar el prompt en Hermes), automatizado: por eso la calidad es la misma.
+ * `hermes chat -q` (no interactivo) usando Hermes Agent (config, skills, memoria y, en
+ * Railway, NOUS_API_KEY en vez de la sesión del Mac) dentro de sistema-final/, y sube el HTML.
+ * Es el flujo manual (pegar el prompt en Hermes), automatizado: por eso la calidad es la misma.
  *
  * En el Mac: `npm run hermes-worker`. En Railway lo arranca studio/worker/cloud-entrypoint.sh
  * (uid 1001, HERMES_CLOUD=1, lista blanca). Ver studio/worker/CLOUD.md. No los dos a la vez.
@@ -40,6 +40,8 @@ import { chosenModulesNote } from '../hermes/catalog';
 import { FACTS_RULE, artCompareQuery, briefDigest, compareVerdict, doubleVerdict, judgeFacts, parseArtCompare, type ArtCompare } from './artJudge';
 import { renderChecks } from './renderChecks';
 import { startHeartbeat } from './heartbeat';
+import { cloudHermesSettings, hermesVolumeHasAuth, seedHermesCloudProfile } from './hermesCloudProfile';
+import { HERMES_TRACE_LINES, hermesTraceExcerpt, redactSecrets, secretValues } from './hermesTrace';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del proceso, SIN lo que usa este worker para hablar con Studio.
@@ -646,6 +648,39 @@ function modelArgs(model?: string): string[] {
   return modelFlag ? [modelFlag, model] : [];
 }
 
+let providerFlag: string | null | undefined;
+
+function providerArgs(provider: string): string[] {
+  if (!provider) return [];
+  if (providerFlag === undefined) {
+    try {
+      const help = execFileSync(HERMES_BIN, ['chat', '--help'], { encoding: 'utf8', timeout: 15000, env: HERMES_ENV });
+      providerFlag = /--provider\b/.test(help) ? '--provider' : null;
+    } catch {
+      providerFlag = null;
+    }
+    if (!providerFlag && process.env.HERMES_CLOUD === '1') {
+      console.log(`[${stamp()}] AVISO: hermes chat no admite --provider; se usa config.yaml en HERMES_HOME.`);
+    }
+  }
+  return providerFlag ? [providerFlag, provider] : [];
+}
+
+/** En la nube, proveedor y modelo van en el turno. En el Mac no se añade nada. */
+function cloudTurn(phaseModel?: string): { args: string[]; env: NodeJS.ProcessEnv } {
+  const env = { ...HERMES_ENV };
+  if (process.env.HERMES_CLOUD !== '1') return { args: [], env };
+  const home = (process.env.HERMES_HOME || '').trim();
+  const hasAuth = hermesVolumeHasAuth(home);
+  const settings = cloudHermesSettings(process.env, { hasAuth });
+  if (!phaseModel && settings.model && !env.HERMES_INFERENCE_MODEL) env.HERMES_INFERENCE_MODEL = settings.model;
+  return { args: providerArgs(settings.provider), env };
+}
+
+function hermesTrace(turn: { output: string; stderr: string }): string {
+  return hermesTraceExcerpt(turn.output, turn.stderr, secretValues(process.env));
+}
+
 /** Sin el AGENTS.md del repo, la memoria ni SOUL.md (2026-10-06): cada sesión recibía 15 K caracteres que le decían
  *  «eres el Orchestrator del pipeline 00-09» (production-gate, 4 archivos de control), justo lo que Studio no usa, y
  *  el razonamiento se alargaba conciliándolo con el encargo. El encargo de Studio es autocontenido. Con
@@ -663,8 +698,9 @@ function runHermesTurn(
 ): Promise<{ code: number | null; output: string; stderr: string }> {
   if (cancelled) return Promise.resolve({ code: null, output: '', stderr: 'Trabajo cancelado.' });
   if (loopStopped) return Promise.resolve({ code: null, output: '', stderr: `Hermes se quedó en bucle: ${loopStopped}.` });
-  const args = ['chat', '-q', query, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...extraArgs];
-  const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: HERMES_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
+  const cloud = cloudTurn(model);
+  const args = ['chat', '-q', query, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...cloud.args, ...extraArgs];
+  const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: cloud.env, stdio: ['ignore', 'pipe', 'pipe'] });
   currentChild = child;
   let stdout = '';
   let stderr = '';
@@ -673,7 +709,7 @@ function runHermesTurn(
     const m = stdout.match(/session_id:\s*(\S+)/);
     if (m) onSession(m[1]);
   });
-  child.stderr!.on('data', (d) => (stderr = (stderr + d).slice(-8000)));
+  child.stderr!.on('data', (d) => (stderr = (stderr + d).slice(-24_000)));
   return new Promise((resolve) => {
     child.on('close', (code) => {
       currentChild = null;
@@ -1006,7 +1042,11 @@ async function runBriefStep(
         error: `Hermes se quedó en bucle mientras escribía el brief (${loopStopped}), también después de pedirle que escribiera. Se ha parado para no gastar más tiempo: vuelve a lanzarlo con «Reintentar».`,
       };
     }
-    return { error: `Hermes no llegó a escribir el brief (${job.outputDir}/brief.md).\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2000)}` };
+    return {
+      error:
+        `Hermes no llegó a escribir el brief (${job.outputDir}/brief.md).\n\n` +
+        `Salida de Hermes (últimas ${HERMES_TRACE_LINES} líneas):\n${hermesTrace(turn)}`,
+    };
   }
   // canPause (2026-10-01): si el equipo pidió revisar el brief, Studio responde { pause: true } y el trabajo
   // espera su aprobación; al aprobarlo vuelve a la cola y llega con el encargo final, sin paso de brief.
@@ -1465,7 +1505,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     if ('error' in brief) {
       await fail(brief.error);
       setAsideFolder(outAbs, 'fallido');
-      console.log(`[${stamp()}] ✗ ${claimed.id}: sin brief`);
+      console.error(`[${stamp()}] ✗ ${claimed.id}: sin brief\n${brief.error}`);
       current = null;
       return;
     }
@@ -2012,8 +2052,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       : Date.now() - started >= TIMEOUT_MS
       ? `se agotó el tiempo (${minutes} min)`
       : `terminó (código ${turn.code}) sin dejar el HTML en ${job.outputDir}/`;
-    await fail(loopStopped ? `Hermes ${why}.` : `Hermes ${why}.\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2500)}`);
-    console.log(`[${stamp()}] ✗ ${job.id}: ${why}`);
+    const trace = hermesTrace(turn);
+    const detail = `Hermes ${why}.\n\nSalida de Hermes (últimas ${HERMES_TRACE_LINES} líneas):\n${trace}`;
+    await fail(loopStopped ? `Hermes ${why}.` : detail);
+    console.error(`[${stamp()}] ✗ ${job.id}: ${why}${loopStopped ? '' : `\n${trace}`}`);
     setAsideFolder(outAbs, 'fallido');
     current = null;
     return;
@@ -2207,6 +2249,19 @@ async function main(): Promise<void> {
         .catch(() => undefined);
     }, 30_000);
     beat.unref();
+  }
+  if (cloud) {
+    const home = (process.env.HERMES_HOME || '').trim();
+    if (!home) {
+      console.error(`[${stamp()}] AVISO: HERMES_HOME no está definido. En Railway lo deja el entrypoint (volumen en /data/hermes).`);
+    } else {
+      try {
+        const report = seedHermesCloudProfile(process.env, home);
+        console.log(`[${stamp()}] Hermes: ${report.log}`);
+      } catch (err) {
+        console.error(`[${stamp()}] No se pudo preparar HERMES_HOME: ${redactSecrets((err as Error).message, secretValues(process.env)).slice(0, 300)}`);
+      }
+    }
   }
   await acquireLock();
   // Trabajos que este worker dejó a medias en una ejecución anterior (el aviso de Ctrl+C no
