@@ -38,7 +38,17 @@ Nombres en `env.example`. Valores solo en Railway, en el servicio `hermes-worker
 - `STUDIO_WORKER_URL` — URL pública `https://…` de Studio (sin barra final).
 - `WORKER_TOKEN` — el mismo secreto que en `hermes-studio`.
 - Una clave de proveedor si Hermes no tiene ya sesión en el volumen (`OPENROUTER_API_KEY`,
-  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` o `NOUS_API_KEY`).
+  `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` o `NOUS_API_KEY`). La sesión OAuth del Mac
+  (`~/.hermes/auth.json`) no viaja con la imagen. Con `NOUS_API_KEY` y sin `auth.json` en el
+  volumen, el worker escribe `HERMES_HOME/config.yaml` con `provider: nous-api` y el modelo
+  `deepseek/deepseek-v4-flash`, copia la clave a `HERMES_HOME/.env` (Hermes lee los secretos de
+  ahí) y, si el CLI lo admite, pasa `--provider nous-api`. `provider: nous` a secas es el login
+  OAuth: sin `auth.json`, `hermes chat` sale en segundos con código 1 y no deja HTML.
+- `HERMES_PROVIDER` — opcional. Vacío = `nous-api` si hay `NOUS_API_KEY` y no hay `auth.json`.
+  `nous` solo si el volumen tiene la sesión OAuth. Otro valor (`openrouter`, `anthropic`, …) pisa
+  el `config.yaml`.
+- `HERMES_INFERENCE_MODEL` — opcional. Vacío = `deepseek/deepseek-v4-flash` cuando el proveedor es
+  Nous. Si el nombre no está en la lista blanca de `cloudEnv.ts`, el entrypoint lo tira.
 - `HERMES_MODEL_ART` — opcional. Vacío = el mismo modelo que `HERMES_MODEL_DRAFT`. La revisión de
   arte de main (2026-10-19) lee ese nombre; si no está en la lista blanca, el entrypoint lo tira.
 

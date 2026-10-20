@@ -3,8 +3,9 @@
  *
  * ClickUp firma el cuerpo en bruto con HMAC-SHA256 (cabecera X-Signature, hex). Sin
  * CLICKUP_WEBHOOK_SECRET la ruta responde 401 y no crea nada. El id de tarea deduplica
- * los reintentos. La descripción se lee después, con CLICKUP_API_TOKEN, para poder
- * responder enseguida; mientras tanto el trabajo lleva clickupPending y el worker no lo coge.
+ * los reintentos. taskCreated solo trae task_id: el nombre y la descripción se leen
+ * después con CLICKUP_API_TOKEN (GET /api/v2/task/{id}) y pasan al brief del trabajo.
+ * Mientras tanto el trabajo lleva clickupPending y el worker no lo coge.
  *
  * Variables solo del servicio hermes-studio. Ver studio/CLICKUP.md.
  */
@@ -156,7 +157,19 @@ export async function fetchClickupTask(taskId: string, token: string, doFetch: t
   }
   const data = (await res.json()) as unknown;
   if (!data || typeof data !== 'object') return null;
-  return data as ClickupTask;
+  const record = data as ClickupTask & { task?: ClickupTask };
+  const nested = record.task;
+  if (
+    nested &&
+    typeof nested === 'object' &&
+    !record.name &&
+    !record.description &&
+    !record.text_content &&
+    !record.markdown_description
+  ) {
+    return nested;
+  }
+  return record;
 }
 
 export async function postClickupComment(taskId: string, token: string, text: string, doFetch: typeof fetch = fetch): Promise<void> {
@@ -261,6 +274,9 @@ async function enrichClickupJob(jobId: string, payload: ClickupPayload, deps: Cl
   const input = task ? inputFromTask(task, payload, deps, taskId) : { ...fresh.input, clickupPending: false };
   const title = task?.name?.trim().slice(0, 140);
   deps.updateJob(jobId, { input, ...(title && !fresh.title ? { title } : {}) });
+  if (task && !taskDescription(task)) {
+    deps.log(jobId, 'La tarea de ClickUp no trae descripción: el brief es solo el nombre.', 'error');
+  }
   if (task) deps.log(jobId, `Encargo actualizado desde ClickUp (${taskId}).`);
   await commentOnTask(taskId, jobId, deps);
 }
@@ -346,7 +362,50 @@ function inputFromTask(task: ClickupTask, payload: ClickupPayload, deps: Clickup
     clickupUrl,
     campaignName,
     clickupPending: false,
+    ...clickupBriefFields(task, taskId),
   });
+}
+
+/** Nombre + descripción + adjuntos y enlaces. Vacío si la tarea no trae nada de eso. */
+export function briefFromClickupTask(task: ClickupTask, taskId = ''): string {
+  const name = (task.name || '').trim();
+  const description = taskDescription(task);
+  const files = attachmentLines(task.attachments);
+  if (!name && !description && !files.length) return '';
+  const title = name || (taskId ? `Tarea ${taskId}` : 'Tarea de ClickUp');
+  const known = new Set(files.map((file) => file.url));
+  const links = externalLinks(`${description}\n${name}`, known);
+  const foot = [
+    files.length ? `\n\n## Adjuntos\n${files.map((file) => `- ${file.title}: ${file.url}`).join('\n')}` : '',
+    links.length ? `\n\n## Enlaces\n${links.map((url) => `- ${url}`).join('\n')}` : '',
+  ].join('');
+  const head = `# ${title}`;
+  const room = INSTRUCTION_MAX - head.length - foot.length - 2;
+  const body = description && room > 0 ? `\n\n${description.slice(0, room)}` : '';
+  return `${head}${body}${foot}`.slice(0, INSTRUCTION_MAX);
+}
+
+function clickupBriefFields(task: ClickupTask, taskId: string): { briefText: string; briefReused?: boolean } {
+  const briefText = briefFromClickupTask(task, taskId);
+  return briefText ? { briefText, briefReused: true } : { briefText: '' };
+}
+
+function attachmentLines(attachments: ClickupTask['attachments']): { title: string; url: string }[] {
+  return (attachments || [])
+    .map((file) => ({ title: cleanLabel(file?.title || file?.name || '') || 'archivo', url: (file?.url || '').trim() }))
+    .filter((file) => /^https:\/\/[^\s"'<>]{4,2000}$/.test(file.url))
+    .slice(0, 15);
+}
+
+function externalLinks(text: string, skip: Set<string>): string[] {
+  const matches = text.match(/https:\/\/[^\s<>"'`)\]}]+/gi) || [];
+  const out: string[] = [];
+  for (const match of matches) {
+    const url = match.replace(/[.,;]+$/g, '');
+    if (!/^https:\/\/[^\s"'<>]{4,2000}$/.test(url) || isClickupHost(url) || skip.has(url) || out.includes(url)) continue;
+    out.push(url);
+  }
+  return out.slice(0, 15);
 }
 
 function baseInput(fields: JobInput): JobInput {
@@ -495,7 +554,8 @@ function isClickupHost(value: string): boolean {
 }
 
 function plainFromHtml(html: string): string {
-  return html
+  const hrefs = [...html.matchAll(/href\s*=\s*["'](https:\/\/[^"'<>]+)["']/gi)].map((match) => match[1]);
+  const text = html
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<[^>]+>/g, '')
@@ -505,6 +565,8 @@ function plainFromHtml(html: string): string {
     .replace(/&gt;/gi, '>')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+  const missing = hrefs.filter((url) => !text.includes(url) && !isClickupHost(url));
+  return missing.length ? `${text}\n${missing.join('\n')}`.trim() : text;
 }
 
 function cleanLabel(value: string): string | undefined {
