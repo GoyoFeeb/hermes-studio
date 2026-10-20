@@ -12,6 +12,8 @@
  * (artCompareQuery, parseArtCompare, compareVerdict), que sustituye a las dos notas sueltas para decidir.
  */
 import type { RenderReport } from './renderChecks';
+import { COMPARE_BAG_ALIASES, REASON_ALIASES, aliasesFor, asRecord, field, normalizeKey } from './artParse';
+import { jsonObjects, redactedSnippet } from './looseJson';
 
 /** Lo que la revisión puede leer del brief o del prompt. */
 export const BRIEF_DIGEST_MAX = 3500;
@@ -118,30 +120,105 @@ export function artCompareQuery(
     'puedes señalar qué cambia y dónde. Que una versión sea distinta no la hace mejor. Si dudas, «igual».',
     'Formato exacto: {"criterios": {"peticion": "igual", "texto_imagen": "B", ...todos los criterios}, "razones": {"texto_imagen": ' +
       '"qué cambia y dónde", ...solo los que no sean igual}}',
+    'Esquema JSON obligatorio (claves exactas; cada valor es "A", "B" o "igual", no un número):',
+    artCompareSchema(Object.keys(criteria)),
   ].join('\n');
 }
 
-/** El JSON de la comparación; null si falta algún criterio o un valor no es A, B o igual. */
-export function parseArtCompare(output: string, criteria: string[]): ArtCompare | null {
-  const start = output.indexOf('{');
-  const end = output.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try {
-    const raw = JSON.parse(output.slice(start, end + 1)) as { criterios?: Record<string, unknown>; razones?: Record<string, unknown> };
-    const criterios: Record<string, Pick3> = {};
-    for (const k of criteria) {
-      const v = String(raw.criterios?.[k] ?? '').trim().toLowerCase();
-      if (v === 'a') criterios[k] = 'A';
-      else if (v === 'b') criterios[k] = 'B';
-      else if (v === 'igual' || v === 'iguales' || v === 'empate') criterios[k] = 'igual';
-      else return null;
-    }
-    const razones: Record<string, string> = {};
-    for (const [k, v] of Object.entries(raw.razones || {})) if (typeof v === 'string' && v.trim()) razones[k] = v.trim().slice(0, 300);
-    return { criterios, razones };
-  } catch {
-    return null;
+/** El JSON que tiene que devolver la comparación. */
+export function artCompareSchema(criteria: string[]): string {
+  const criterios = Object.fromEntries(criteria.map((k) => [k, 'igual']));
+  return JSON.stringify({ criterios, razones: { [criteria[0] || 'criterio']: 'qué cambia y dónde' } });
+}
+
+/** Segundo intento, sin herramientas, cuando la comparación no era JSON legible. */
+export function artCompareRepairPrompt(bad: string, criteria: string[], secrets: string[] = []): string {
+  return [
+    'Tu respuesta anterior no se pudo leer como JSON con todos los criterios. No llames a ninguna herramienta.',
+    'Responde SOLO con un JSON válido, sin markdown y sin texto antes ni después, que cumpla este esquema:',
+    artCompareSchema(criteria),
+    'Cada valor de "criterios" es "A", "B" o "igual". "razones" solo en los que no sean "igual".',
+    'Si no viste las imágenes, responde exactamente {"sin_imagen": true}.',
+    '',
+    'Respuesta anterior, recortada:',
+    redactedSnippet(bad, secrets, 4000),
+  ].join('\n');
+}
+
+function pickValue(value: unknown): Pick3 | null {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const row = value as Record<string, unknown>;
+    return pickValue(row.pick ?? row.valor ?? row.value ?? row.winner ?? row.gana);
   }
+  const text = String(value ?? '').trim().toLowerCase();
+  const head = text.match(/^(a|b|igual(?:es)?|empate|equal|tie|same|draw|versi[oó]n a|versi[oó]n b)\b/);
+  if (!head) return null;
+  if (head[1] === 'a' || head[1] === 'versión a' || head[1] === 'version a') return 'A';
+  if (head[1] === 'b' || head[1] === 'versión b' || head[1] === 'version b') return 'B';
+  return 'igual';
+}
+
+function compareFromRecord(raw: Record<string, unknown>, criteria: string[]): ArtCompare | null {
+  const bag = asRecord(field(raw, COMPARE_BAG_ALIASES)) || raw;
+  const criterios: Record<string, Pick3> = {};
+  const fromValues: Record<string, string> = {};
+  for (const k of criteria) {
+    const value = field(bag, aliasesFor(k));
+    const pick = pickValue(value);
+    if (!pick) return null;
+    criterios[k] = pick;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const reason = (value as Record<string, unknown>).reason ?? (value as Record<string, unknown>).razon ?? (value as Record<string, unknown>).porque;
+      if (typeof reason === 'string' && reason.trim()) fromValues[k] = reason.trim().slice(0, 300);
+    }
+  }
+  const reasonsRaw = asRecord(field(raw, REASON_ALIASES)) || {};
+  const razones: Record<string, string> = { ...fromValues };
+  for (const k of criteria) {
+    const reason = field(reasonsRaw, aliasesFor(k));
+    if (typeof reason === 'string' && reason.trim()) razones[k] = reason.trim().slice(0, 300);
+  }
+  for (const [key, value] of Object.entries(reasonsRaw)) {
+    if (typeof value === 'string' && value.trim() && !razones[key]) razones[key] = value.trim().slice(0, 300);
+  }
+  return { criterios, razones };
+}
+
+function compareFromMarkdown(text: string, criteria: string[]): ArtCompare | null {
+  const flat = text.replace(/```(?:json|javascript|js|markdown|md|text)?[^\n]*\r?\n([\s\S]*?)```/gi, '\n$1\n');
+  const canonOf = new Map<string, string>();
+  for (const canon of criteria) for (const alias of aliasesFor(canon)) canonOf.set(normalizeKey(alias), canon);
+  const criterios: Record<string, Pick3> = {};
+  const razones: Record<string, string> = {};
+  for (const raw of flat.split('\n')) {
+    const row = raw.replace(/\*\*/g, '').replace(/`/g, '').trim().replace(/^[-*+|]\s*/, '');
+    const heading = row.match(/^#{1,4}\s+(.+)$/);
+    const body = heading ? heading[1] : row;
+    const split = body.match(/^([^:]{1,48}?)\s*[:|]\s*(.+)$/);
+    if (!split) continue;
+    const canon = canonOf.get(normalizeKey(split[1]));
+    if (!canon || criterios[canon]) continue;
+    const pick = pickValue(split[2]);
+    if (!pick) continue;
+    criterios[canon] = pick;
+    const reason = split[2].replace(/^(a|b|igual|iguales|empate|equal|tie|same|draw|versi[oó]n a|versi[oó]n b)\b\s*[—–:-]?\s*/i, '').trim();
+    if (reason && normalizeKey(reason) !== normalizeKey(split[2])) razones[canon] = reason.slice(0, 300);
+  }
+  if (criteria.some((k) => !criterios[k])) return null;
+  return { criterios, razones };
+}
+
+/** La comparación; null si falta algún criterio o un valor no es A, B o igual. Tolera vallas, prosa y claves en inglés. */
+export function parseArtCompare(output: string, criteria: string[]): ArtCompare | null {
+  if (!output?.trim() || !criteria.length) return null;
+  const objects = jsonObjects(output);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const raw = asRecord(objects[i]);
+    if (!raw || raw.sin_imagen === true || raw.no_image === true) continue;
+    const parsed = compareFromRecord(raw, criteria);
+    if (parsed) return parsed;
+  }
+  return compareFromMarkdown(output, criteria);
 }
 
 /** Criterios que la mejora no puede empeorar aunque gane en otros: lo que rompe la lectura. */

@@ -23,7 +23,7 @@ import * as path from 'path';
 import { spawn, execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
-import { describeErrors, staticChecks, type QualityReport } from './qualityCheck';
+import { checkFailureLines, staticChecks, type QualityReport } from './qualityCheck';
 import { REQUEST_FILE, brandPalette, inspectNewsletter } from './inspect';
 import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote, hasConfirmedUrl, sameSite } from './measureBrand';
 import { Timeline, summarize, type JobTimings, type PhasePart } from './timeline';
@@ -37,7 +37,24 @@ import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
-import { FACTS_RULE, artCompareQuery, briefDigest, compareVerdict, doubleVerdict, judgeFacts, parseArtCompare, type ArtCompare } from './artJudge';
+import { FACTS_RULE, artCompareQuery, artCompareRepairPrompt, briefDigest, compareVerdict, doubleVerdict, judgeFacts, parseArtCompare, type ArtCompare } from './artJudge';
+import {
+  CRITERION_ALIASES,
+  DEFECT_ALIASES,
+  IMPROVE_ALIASES,
+  NOTE_BAG_ALIASES,
+  PROBLEM_ALIASES,
+  PROOF_ALIASES,
+  aliasesFor,
+  asRecord,
+  field,
+  normalizeKey,
+  parseScore,
+  proofTail,
+  stringList,
+} from './artParse';
+import { jsonObjects, parseWithOneRepair, redactedSnippet } from './looseJson';
+import { notesAreReady, recoverSelfAudit, selfAuditPrompt } from './selfAudit';
 import { renderChecks } from './renderChecks';
 import { startHeartbeat } from './heartbeat';
 import { cloudHermesSettings, hermesVolumeHasAuth, probeInstalledHermes, seedHermesCloudProfile } from './hermesCloudProfile';
@@ -522,7 +539,8 @@ export function selfContainedNote(outputDir: string, root = ROOT, briefDone = tr
           '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
           `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
           '  write_file partiendo de la base, 3) `npm run check-newsletter` y `npm run render-newsletter`, 4) corrige,',
-          '  5) notas.md. No investigues lo que el brief deja pendiente: queda fuera de la pieza.',
+          `  5) escribe exactamente ${outputDir}/notas.md con write_file y la plantilla de autoauditoría (no la dejes solo en el chat).`,
+          '  No investigues lo que el brief deja pendiente: queda fuera de la pieza.',
         ]
       : [
           // «Prompt completo» (2026-10-07, recuperado el 08-10): sin brief, la investigación que pide el prompt la hace
@@ -532,7 +550,8 @@ export function selfContainedNote(outputDir: string, root = ROOT, briefDone = tr
           '  módulos están abajo (contenido completo): no los leas del disco, no listes el repo ni leas package.json o scripts.',
           '- Orden: 1) investiga lo que pide el prompt y descarga las fotos oficiales (`npm run fetch-image`), 2) mira las fotos,',
           `  3) escribe ${outputDir}/newsletter.html entero con write_file partiendo de la base, 4) \`npm run check-newsletter\``,
-          '  y `npm run render-newsletter`, 5) corrige, 6) notas.md. Lo que no verifiques queda fuera de la pieza.',
+          `  y \`npm run render-newsletter\`, 5) corrige, 6) escribe exactamente ${outputDir}/notas.md con write_file y la plantilla de autoauditoría (no la dejes solo en el chat).`,
+          '  Lo que no verifiques queda fuera de la pieza.',
         ]),
     ...(base ? ['', '### Base técnica: studio/hermes/email-base.html (contenido completo)', '```html', base, '```'] : []),
     ...(modules ? ['', '### Módulos técnicos de ejemplo: studio/hermes/email-modulos.md (contenido completo)', modules] : []),
@@ -729,6 +748,23 @@ export const ART_SCORE_CAP_MS = 5 * 60 * 1000;
 export const ART_IMPROVE_CAP_MS = 8 * 60 * 1000;
 /** El turno que arregla solo los defectos claros de la revisión (2026-10-19): cambios mínimos. */
 export const ART_DEFECT_CAP_MS = 4 * 60 * 1000;
+function logUnparseable(jobId: string, what: string, output: string): void {
+  const snippet = redactedSnippet(output, secretValues(process.env), 500);
+  console.log(`[${stamp()}] ${jobId}: ${what} — respuesta no parseable: ${snippet || '(vacía)'}`);
+}
+
+/** Pide la nota, y si no se puede leer, un solo reintento con el esquema. */
+async function readArtReview(jobId: string, what: string, query: string): Promise<{ review: ArtReview | null; output: string }> {
+  const look = await cappedTurn(ART_SCORE_CAP_MS, jobId, what, () => runHermesTurn(query, null, () => undefined, MODELS.art));
+  const secrets = secretValues(process.env);
+  const parsed = await parseWithOneRepair(look.output, parseArtReview, (bad) => artReviewRepairPrompt(bad, secrets), async (prompt) => {
+    const again = await cappedTurn(ART_SCORE_CAP_MS, jobId, `${what} (reintento)`, () => runHermesTurn(prompt, null, () => undefined, MODELS.art));
+    return again.output;
+  });
+  parsed.unparsed.forEach((bad, index) => logUnparseable(jobId, index === 0 ? what : `${what} (reintento)`, bad));
+  return { review: parsed.value, output: parsed.output };
+}
+
 async function cappedTurn<T>(ms: number, jobId: string, what: string, turn: () => Promise<T>): Promise<T> {
   const timer = setTimeout(() => {
     if (!currentChild) return;
@@ -777,6 +813,40 @@ const FIX_GUIDE =
   'width:100% en móvil) de las candidatas ★ de la galería ya descargada; no busques fotos nuevas. ' +
   'Foto con mucho vacío → recórtala (sharp o el script que prefieras) dejando ~10 % de margen. Marcador sin rellenar → ' +
   'sustitúyelo por el contenido real o quita el elemento.';
+
+/** Encargo de una ronda de corrección. Cada error lleva id, nombre y el detalle medido, el mismo texto que el log. */
+export function buildCorrectionMessage(opts: {
+  outputDir: string;
+  brand: string;
+  report: QualityReport;
+  checkCmd: string;
+  mobileFix: boolean;
+  continued: boolean;
+}): string {
+  const failures = checkFailureLines(opts.report).map((line) => `- ${line}`).join('\n');
+  if (opts.continued) {
+    return `Siguen estos errores tras tu corrección:\n\n${failures}\n\nCorrígelos con el mismo alcance y vuelve a ejecutar \`${opts.checkCmd}\`.\n\n${SCOPED_FIX}`;
+  }
+  return [
+    `Corrige la newsletter ${opts.outputDir}/newsletter.html (${opts.brand}). La pieza ya está hecha y revisada; ` +
+      'el control automático de Studio (medido, no declarado) ha encontrado esto:',
+    '',
+    failures,
+    '',
+    `Contexto, solo si un error lo necesita: autoauditoría en ${opts.outputDir}/notas.md; encargo original en ${opts.outputDir}/_trabajo/encargo.md` +
+      (opts.mobileFix ? '. Es una adaptación a móvil: no cambies textos, imágenes ni enlaces.' : '.'),
+    '',
+    FIX_GUIDE,
+    '',
+    `Cuando termines, ejecuta \`${opts.checkCmd}\` (aplica los arreglos mecánicos y te dice lo que queda) y repite hasta que salga sin errores, como mucho 3 veces. Añade a notas.md una línea por cada corrección.`,
+    '',
+    SCOPED_FIX,
+    WEB_ACCESS_NOTE,
+    SECRETS_NOTE,
+    '',
+    'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
+  ].join('\n');
+}
 
 /** Errores que Hermes puede corregir en la ronda. En «Adaptar a móvil» solo el móvil (no puede tocar textos ni
  *  enlaces); en «Pedir cambios», no los que ya traía la original (`inherited`). */
@@ -1246,39 +1316,194 @@ export function artReviewQuery(
       'dónde"], "mejoras": ["criterio: por cada nota que no sea 5, el cambio concreto que la subiría, empezando por el nombre ' +
       'del criterio (\\"aire: …\\"): qué, dónde y cómo (tamaño, espacio, orden, el texto de un titular, otra de las fotos ya ' +
       'descargadas…), sin rehacer la pieza ni cambiar datos o enlaces"]}',
+    'Esquema JSON obligatorio (claves exactas; cada nota es un número del 1 al 5, no un texto ni una valla):',
+    artReviewSchema(),
   ].join('\n');
 }
 
-/** El primer objeto JSON de la respuesta con las notas de todos los criterios; null si no lo hay. */
-export function parseArtReview(output: string): ArtReview | null {
-  const start = output.indexOf('{');
-  const end = output.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try {
-    const raw = JSON.parse(output.slice(start, end + 1)) as { notas?: Record<string, unknown>; problemas?: unknown };
-    const notas: Record<string, number> = {};
-    for (const k of Object.keys(ART_CRITERIA)) {
-      const n = Number(raw.notas?.[k]);
-      if (!(n >= 1 && n <= 5)) return null;
-      notas[k] = n;
-    }
-    const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((p): p is string => typeof p === 'string' && !!p.trim()).slice(0, 10) : []);
-    const pruebasRaw = (raw as { pruebas?: Record<string, unknown> }).pruebas || {};
-    const pruebas: Record<string, string> = {};
-    for (const k of Object.keys(ART_CRITERIA)) {
-      const p = pruebasRaw[k];
-      if (typeof p === 'string' && p.trim()) pruebas[k] = p.trim().slice(0, 400);
-    }
-    const mejoras = list((raw as { mejoras?: unknown }).mejoras);
-    // Un 5 se gana (Q3, 2026-10-07; la primera validación dio 21 cincos en 8 piezas): con una mejora de su mismo
-    // criterio o sin prueba, cuenta como 4.
-    for (const k of Object.keys(notas)) {
-      if (notas[k] === 5 && (!pruebas[k] || mejoras.some((m) => m.toLowerCase().replace(/^[\s*-]+/, '').startsWith(`${k}:`)))) notas[k] = 4;
-    }
-    return { notas, pruebas, problemas: list(raw.problemas), mejoras, defectos: list((raw as { defectos?: unknown }).defectos) };
-  } catch {
-    return null;
+/** El JSON que tiene que devolver la revisión. Mismas claves que ART_CRITERIA. */
+export function artReviewSchema(): string {
+  const notas = Object.fromEntries(Object.keys(ART_CRITERIA).map((k) => [k, 3]));
+  const pruebas = Object.fromEntries(Object.keys(ART_CRITERIA).map((k) => [k, 'qué se ve y dónde']));
+  return JSON.stringify({
+    notas,
+    pruebas,
+    defectos: ['qué, dónde y el arreglo mínimo'],
+    problemas: ['qué deja un criterio por debajo de 4'],
+    mejoras: ['criterio: cambio concreto que sube la nota'],
+  });
+}
+
+/** Segundo intento, sin herramientas: el modelo solo reescribe en JSON lo que ya contestó. */
+export function artReviewRepairPrompt(bad: string, secrets: string[] = []): string {
+  return [
+    'Tu respuesta anterior no se pudo leer como JSON con todos los criterios. No llames a ninguna herramienta.',
+    'Responde SOLO con un JSON válido, sin markdown y sin texto antes ni después, que cumpla este esquema:',
+    artReviewSchema(),
+    `Reglas: "notas" incluye todas estas claves: ${Object.keys(ART_CRITERIA).join(', ')}. Cada nota es un número del 1 al 5, no un string. "pruebas" usa las mismas claves. "defectos", "problemas" y "mejoras" son arrays de strings (vacíos si no hay).`,
+    'Si no viste la imagen, responde exactamente {"sin_imagen": true}.',
+    '',
+    'Respuesta anterior, recortada:',
+    redactedSnippet(bad, secrets, 4000),
+  ].join('\n');
+}
+
+function capEarnedFives(notas: Record<string, number>, pruebas: Record<string, string>, mejoras: string[]): void {
+  // Un 5 se gana (Q3, 2026-10-07; la primera validación dio 21 cincos en 8 piezas): con una mejora de su mismo
+  // criterio o sin prueba, cuenta como 4.
+  for (const k of Object.keys(notas)) {
+    const hits = mejoras.some((m) => mejoraHitsCriterion(m, k));
+    if (notas[k] === 5 && (!pruebas[k] || hits)) notas[k] = 4;
   }
+}
+
+function mejoraHitsCriterion(mejora: string, criterion: string): boolean {
+  const stripped = mejora.toLowerCase().replace(/^[\s*-]+/, '');
+  if (stripped.startsWith(`${criterion}:`)) return true;
+  const head = normalizeKey(stripped.split(':')[0] || '');
+  return (CRITERION_ALIASES[criterion] || []).some((alias) => normalizeKey(alias) === head);
+}
+
+function proofsFrom(raw: Record<string, unknown>, bag: Record<string, unknown> | null): Record<string, string> {
+  const pruebasRaw = asRecord(field(raw, PROOF_ALIASES)) || (bag ? asRecord(field(bag, PROOF_ALIASES)) : null) || {};
+  const pruebas: Record<string, string> = {};
+  for (const k of Object.keys(ART_CRITERIA)) {
+    const proof = field(pruebasRaw, aliasesFor(k));
+    if (typeof proof === 'string' && proof.trim()) pruebas[k] = proof.trim().slice(0, 400);
+  }
+  return pruebas;
+}
+
+function reviewFromFlat(raw: Record<string, unknown>): ArtReview | null {
+  const bag = asRecord(field(raw, NOTE_BAG_ALIASES));
+  const source = bag || raw;
+  const notas: Record<string, number> = {};
+  const inline: Record<string, string> = {};
+  for (const k of Object.keys(ART_CRITERIA)) {
+    const value = field(source, aliasesFor(k));
+    const n = parseScore(value);
+    if (n == null) return null;
+    notas[k] = n;
+    if (typeof value === 'string') {
+      const tail = proofTail(value);
+      if (tail) inline[k] = tail;
+    }
+  }
+  const pruebas = proofsFrom(raw, bag);
+  for (const k of Object.keys(inline)) if (!pruebas[k]) pruebas[k] = inline[k];
+  const mejoras = stringList(field(raw, IMPROVE_ALIASES));
+  capEarnedFives(notas, pruebas, mejoras);
+  return {
+    notas,
+    pruebas,
+    problemas: stringList(field(raw, PROBLEM_ALIASES)),
+    mejoras,
+    defectos: stringList(field(raw, DEFECT_ALIASES)),
+  };
+}
+
+function reviewFromRecord(raw: Record<string, unknown>): ArtReview | null {
+  const direct = reviewFromFlat(raw);
+  if (direct) return direct;
+  for (const value of Object.values(raw)) {
+    const nested = asRecord(value);
+    if (!nested) continue;
+    const inner = reviewFromFlat(nested);
+    if (inner) return inner;
+  }
+  return null;
+}
+
+function aliasToCriterion(): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const canon of Object.keys(ART_CRITERIA)) {
+    for (const alias of aliasesFor(canon)) map.set(normalizeKey(alias), canon);
+  }
+  return map;
+}
+
+function sectionBullets(text: string, titles: string[]): string[] {
+  const wanted = new Set(titles.map((title) => normalizeKey(title)));
+  let on = false;
+  const out: string[] = [];
+  for (const raw of text.split('\n')) {
+    const heading = raw.trim().replace(/\*\*/g, '').match(/^#{1,4}\s+(.+)/);
+    if (heading) {
+      const name = normalizeKey(heading[1]);
+      on = [...wanted].some((title) => name === title || name.startsWith(`${title}_`));
+      continue;
+    }
+    if (!on) continue;
+    const bullet = raw.replace(/\*\*/g, '').match(/^\s*[-*]\s+(.+)/);
+    if (bullet?.[1].trim()) out.push(bullet[1].trim().slice(0, 400));
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
+/** Lista o títulos (`- oscuro: 2`, `## Dark` y en la línea siguiente `2`) cuando no hay JSON. */
+function reviewFromMarkdown(text: string): ArtReview | null {
+  const flat = text.replace(/```(?:json|javascript|js|markdown|md|text)?[^\n]*\r?\n([\s\S]*?)```/gi, '\n$1\n');
+  const canonOf = aliasToCriterion();
+  const notas: Record<string, number> = {};
+  const pruebas: Record<string, string> = {};
+  const lines = flat.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const clean = lines[i].replace(/\*\*/g, '').replace(/`/g, '').trim();
+    const heading = clean.match(/^#{1,4}\s+(.+)$/);
+    let label = '';
+    let rest = '';
+    if (heading) {
+      const split = heading[1].match(/^(.+?)\s*[:|]\s*(.*)$/);
+      label = (split?.[1] || heading[1]).trim();
+      rest = split?.[2] || '';
+    } else {
+      const row = clean.replace(/^[-*+|]\s*/, '').replace(/^\|/, '').trim();
+      const split = row.match(/^([^:]{1,48}?)\s*[:|]\s*(.+)$/);
+      if (!split) continue;
+      label = split[1].trim();
+      rest = split[2].trim();
+    }
+    const canon = canonOf.get(normalizeKey(label));
+    if (!canon || notas[canon] != null) continue;
+    let score = parseScore(rest);
+    let proof = rest ? proofTail(rest) : '';
+    if (score == null && heading) {
+      const next = (lines[i + 1] || '').replace(/\*\*/g, '').trim();
+      score = parseScore(next);
+      proof = proofTail(next);
+    }
+    if (score == null) continue;
+    notas[canon] = score;
+    if (proof) pruebas[canon] = proof;
+  }
+  if (Object.keys(ART_CRITERIA).some((k) => notas[k] == null)) return null;
+  const mejoras = sectionBullets(flat, ['mejoras', 'improvements', 'suggestions', 'sugerencias']);
+  capEarnedFives(notas, pruebas, mejoras);
+  return {
+    notas,
+    pruebas,
+    problemas: sectionBullets(flat, ['problemas', 'problems', 'issues']),
+    mejoras,
+    defectos: sectionBullets(flat, ['defectos', 'defects']),
+  };
+}
+
+/**
+ * Notas de la revisión. Acepta el JSON del esquema y lo que DeepSeek escribe en su lugar: valla,
+ * prosa con llaves, claves en inglés, notas entre comillas y una lista con títulos. Null si falta
+ * algún criterio o la respuesta es `{"sin_imagen": true}`.
+ */
+export function parseArtReview(output: string): ArtReview | null {
+  if (!output?.trim()) return null;
+  const objects = jsonObjects(output);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const raw = asRecord(objects[i]);
+    if (!raw || raw.sin_imagen === true || raw.no_image === true) continue;
+    const review = reviewFromRecord(raw);
+    if (review) return review;
+  }
+  return reviewFromMarkdown(output);
 }
 
 export function lowScores(review: ArtReview): string[] {
@@ -1403,9 +1628,15 @@ export async function compareOnce(
     request,
     afterIs === 'A' ? { a: facts.after, b: facts.before } : { a: facts.before, b: facts.after }
   );
+  const criteria = Object.keys(ART_CRITERIA);
   const look = await cappedTurn(ART_SCORE_CAP_MS, jobId, 'comparación de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
-  const cmp = parseArtCompare(look.output, Object.keys(ART_CRITERIA));
-  return cmp ? { cmp, afterIs, output: look.output } : null;
+  const secrets = secretValues(process.env);
+  const parsed = await parseWithOneRepair(look.output, (output) => parseArtCompare(output, criteria), (bad) => artCompareRepairPrompt(bad, criteria, secrets), async (prompt) => {
+    const again = await cappedTurn(ART_SCORE_CAP_MS, jobId, 'comparación de arte (reintento)', () => runHermesTurn(prompt, null, () => undefined, MODELS.art));
+    return again.output;
+  });
+  parsed.unparsed.forEach((bad, index) => logUnparseable(jobId, index === 0 ? 'comparación de arte' : 'comparación de arte (reintento)', bad));
+  return parsed.value ? { cmp: parsed.value, afterIs, output: parsed.output } : null;
 }
 
 /** Sin las dos comparaciones legibles: las dos notas, como antes, pero diciendo el motivo de verdad (el 08-16-10 el registro ponía
@@ -1712,7 +1943,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // Brief temprano (H-17): con brief propio, la primera versión puede volver a empezar si el equipo lo corrige.
   const briefOpen = !editKind && !!claimed.briefPrompt;
   const notesFile = path.join(outAbs, 'notas.md');
-  const notesReady = (): boolean => fs.existsSync(notesFile) && fs.statSync(notesFile).mtimeMs >= started;
+  const notesReady = (): boolean => notesAreReady(notesFile, started);
   let turn: Awaited<ReturnType<typeof runHermesTurn>>;
   for (let attempt = 1; ; attempt++) {
   inDraft = briefOpen;
@@ -1737,19 +1968,22 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     );
   }
   // La autoauditoría por escrito es parte de la entrega (Adidas, 2026-09-24: titular que no salía
-  // del concepto y precio sin fuente). Si falta, un turno más para escribirla y corregir la pieza.
+  // del concepto y precio sin fuente). DeepSeek V4 Flash (chat_completions) a menudo la deja en el
+  // mensaje y no llama a write_file: primero se recupera de stdout; si no está, un turno con la ruta
+  // y la plantilla exactas, y otra vez el mensaje.
   if (cancelled) return finishCancelled();
+  if (!pendingBrief && htmlReady() && !notesReady() && recoverSelfAudit(notesFile, turn.output, started)) {
+    console.log(`[${stamp()}] ${job.id}: notas.md no estaba en disco; recuperadas del mensaje de Hermes`);
+  }
   if (!pendingBrief && htmlReady() && !notesReady() && sessionId && Date.now() - started < TIMEOUT_MS) {
     console.log(`[${stamp()}] ${job.id}: falta notas.md — se pide la autoauditoría`);
     await progressMessage('Falta la autoauditoría por escrito: se le pide a Hermes.');
-    await runHermesTurn(
-      `Falta ${job.outputDir}/notas.md, obligatorio. Escríbelo AHORA (write_file) con los puntos de la ` +
-        'autoauditoría: concepto y titular (y cómo deriva), fuente de cada precio/cifra/dato de la pieza, ' +
-        'origen de cada imagen, tipografía y colores con su origen, y las preguntas de autoauditoría. Si algo no cumple, corrige la newsletter.html antes.',
-      sessionId,
-      () => undefined,
-      model
-    );
+    const audit = await runHermesTurn(selfAuditPrompt(job.outputDir, kind), sessionId, () => undefined, model);
+    if (!notesReady() && recoverSelfAudit(notesFile, audit.output, started)) {
+      console.log(`[${stamp()}] ${job.id}: notas.md recuperadas del mensaje (sin write_file)`);
+    } else if (!notesReady()) {
+      console.log(`[${stamp()}] ${job.id}: notas.md sigue sin archivo ni notas legibles en la respuesta`);
+    }
   }
   const draftFrom = timeline.openedAt();
   timeline.end(Math.max(0, lastCount));
@@ -1811,38 +2045,36 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   for (let i = 1; i <= FIX_ROUNDS && quality && fixableErrors(quality, kind, inherited).errors && !cancelled && Date.now() - started < TIMEOUT_MS; i++) {
     const fixable = fixableErrors(quality, kind, inherited);
     console.log(`[${stamp()}] ${job.id}: ${fixable.errors} comprobación(es) con errores — corrección ${i}/${FIX_ROUNDS}`);
+    for (const line of checkFailureLines(fixable)) {
+      console.log(`[${stamp()}] ${job.id}: comprobación con error — ${redactSecrets(line, secretValues(process.env))}`);
+    }
     await progressMessage(`Control de Studio: ${fixable.checks.map((c) => c.label.toLowerCase()).join(', ')} con errores — se le devuelven a Hermes (${i}/${FIX_ROUNDS}).`);
     timeline.round();
     timeline.start(`fix-${i}`, `Corrección ${i}`);
     watchNewSession();
     const checkCmd = `npm run check-newsletter -- ${job.outputDir}/newsletter.html${checkFlag}`;
-    const message =
-      i === 1 || !fixSession
-        ? [
-            `Corrige la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}). La pieza ya está hecha y revisada; ` +
-              'el control automático de Studio (medido, no declarado) ha encontrado esto:',
-            '',
-            describeErrors(fixable),
-            '',
-            `Contexto, solo si un error lo necesita: autoauditoría en ${job.outputDir}/notas.md; encargo original en ${job.outputDir}/_trabajo/encargo.md` +
-              (isMobileFix ? '. Es una adaptación a móvil: no cambies textos, imágenes ni enlaces.' : '.'),
-            '',
-            FIX_GUIDE,
-            '',
-            `Cuando termines, ejecuta \`${checkCmd}\` (aplica los arreglos mecánicos y te dice lo que queda) y repite hasta que salga sin errores, como mucho 3 veces. Añade a notas.md una línea por cada corrección.`,
-            '',
-            SCOPED_FIX,
-            WEB_ACCESS_NOTE,
-            SECRETS_NOTE,
-            '',
-            'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
-          ].join('\n')
-        : `Siguen estos errores tras tu corrección:\n\n${describeErrors(fixable)}\n\nCorrígelos con el mismo alcance y vuelve a ejecutar \`${checkCmd}\`.\n\n${SCOPED_FIX}`;
+    const message = buildCorrectionMessage({
+      outputDir: job.outputDir,
+      brand: claimed.brand?.name || slug,
+      report: fixable,
+      checkCmd,
+      mobileFix: isMobileFix,
+      continued: !(i === 1 || !fixSession),
+    });
     await runHermesTurn(message, fixSession, (id) => (fixSession = fixSession || id), MODELS.fix);
     fixSession = fixSession || watched;
     timeline.end(Math.max(0, lastCount));
     if (cancelled) return finishCancelled();
     quality = await check();
+  }
+  if (quality && !cancelled) {
+    const left = fixableErrors(quality, kind, inherited);
+    if (left.errors) {
+      console.log(`[${stamp()}] ${job.id}: tras la corrección quedan ${left.errors} comprobación(es) con errores`);
+      for (const line of checkFailureLines(left)) console.log(`[${stamp()}] ${job.id}: sigue con error — ${redactSecrets(line, secretValues(process.env))}`);
+    } else {
+      console.log(`[${stamp()}] ${job.id}: tras la corrección no quedan errores`);
+    }
   }
 
   // 5. Revisión de dirección de arte (2026-10-06): UNA llamada con la hoja (600, 375 y oscuro) y, si la web deja, la
@@ -1872,8 +2104,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         const s2 = ready || (await renderSheet(finalPath, workDir));
         const html = fs.readFileSync(finalPath, 'utf8');
         const query = artReviewQuery(claimed.request, job.prompt, html, s2.sheet, await imageSize(s2.sheet), web, copyFindings(html).found, s2.desktop, await factsOf(finalPath));
-        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
-        return { review: parseArtReview(look.output), output: look.output };
+        return readArtReview(job.id, 'revisión visual', query);
       };
       const first = await reviewOnce(sheet);
       const review = first.review;
@@ -2145,8 +2376,8 @@ async function backfillArtReviews(): Promise<void> {
       const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
       const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
       const facts = judgeFacts(await renderChecks(htmlPath, ROOT, brandPalette(ROOT, j.slug)).catch(() => null));
-      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found, sheet.desktop, facts), null, () => undefined, MODELS.art);
-      const review = parseArtReview(look.output);
+      const query = artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found, sheet.desktop, facts);
+      const review = (await readArtReview(j.id, 'nota de calidad', query)).review;
       await api(
         `/api/worker/jobs/${j.id}/art-review`,
         review ? { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras } : { failed: true },

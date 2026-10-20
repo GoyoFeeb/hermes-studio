@@ -787,3 +787,17 @@ export function describeErrors(report: QualityReport): string {
     .map((c) => `- ${c.label}:\n${c.details.slice(0, c.errorCount).map((d) => `  · ${d}`).join('\n')}`)
     .join('\n');
 }
+
+/** Una línea por error, con el id, el nombre y el detalle. Va al log de la ronda y al encargo de corrección. */
+export function checkFailureLines(report: QualityReport): string[] {
+  return report.checks
+    .filter((c) => c.status === 'error')
+    .map((c) => {
+      const detail = c.details
+        .slice(0, c.errorCount > 0 ? c.errorCount : c.details.length)
+        .map((line) => line.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join(' | ');
+      return `${c.id} — ${c.label}: ${detail || '(sin detalle)'}`;
+    });
+}
