@@ -386,3 +386,22 @@ test('el cupo es el de POST /api/jobs y el webhook no entra en el worker', () =>
   assert.match(index, /enqueueStandaloneJob\(/);
   assert.equal(cloud.includes('CLICKUP'), false);
 });
+
+test('el requester es creator.username, no el usuario del historial del webhook', () => {
+  const out = run(`
+    const { jobs, deps } = memory();
+    deps.fetchTask = async () => ({
+      id: 'abc1234', name: 'Nike', list: { id: listId }, text_content: 'Hola',
+      creator: { username: 'Laura' },
+    });
+    const body = JSON.stringify({
+      event: 'taskCreated', task_id: 'abc1234',
+      history_items: [{ field: 'task_creation', parent_id: listId, user: { username: 'Bot' } }],
+    });
+    const res = await clickup.handleClickupWebhook(Buffer.from(body), sign(body), deps);
+    await res.after;
+    console.log(JSON.stringify({ status: res.status, requester: jobs[0].input.requesterName }));
+  `);
+  assert.equal(out.status, 201);
+  assert.equal(out.requester, 'Laura');
+});

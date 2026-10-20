@@ -107,6 +107,16 @@ export interface Job {
   /** Cuándo lo recogió Hermes y cuándo terminó (2026-09-28): la duración real, sin la espera en cola. */
   startedAt?: string;
   finishedAt?: string;
+  /** Tokens y coste (2026-10-20). El worker los manda al terminar, fallar o pausar el brief.
+   *  Sin definir en los trabajos anteriores. El coste es null si el modelo no tiene tarifa. */
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  cacheTokens?: number | null;
+  costUsd?: number | null;
+  costEur?: number | null;
+  /** Modelo y proveedor con los que corrió. */
+  model?: string | null;
+  provider?: string | null;
   /** Brief a revisar (2026-10-05, Paredes: «lleva como una hora» con 13 min esperando la aprobación): cuándo quedó
    *  listo y cuánto esperó hasta que Hermes volvió a recogerlo. Esa espera no es trabajo de Hermes: la página la
    *  enseña aparte y no entra en «tardó». */

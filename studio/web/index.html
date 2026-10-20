@@ -12,7 +12,7 @@
     } catch (e) {}
     // Enlace directo a una newsletter o a una ficha (2026-10-05): la portada se pintaba ~70 ms (o más en móvil)
     // antes de que app.js cambiara de vista. Con esta clase no se pinta; route() la quita al decidir la vista.
-    if (/[?&](job|brand)=/.test(location.search)) document.documentElement.classList.add('deep-link');
+    if (/[?&](job|brand|costes)=/.test(location.search)) document.documentElement.classList.add('deep-link');
   </script>
   <title>Hermes Studio · Feebbo</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
@@ -60,6 +60,7 @@
            solo en móvil, donde el botón de la cabecera no cabe. Los números los pone renumberMenu() (app.js). -->
       <li><button type="button" data-menu="new"><span class="menu-num"></span>Nueva newsletter</button></li>
       <li><button type="button" data-menu="history"><span class="menu-num"></span>Historial</button></li>
+      <li><button type="button" data-menu="costes"><span class="menu-num"></span>Costes</button></li>
       <li><button type="button" data-menu="brands"><span class="menu-num"></span>Marcas</button></li>
       <li><button type="button" data-menu="how"><span class="menu-num"></span>Cómo funciona</button></li>
       <li id="menu-shortcuts-item" hidden><button type="button" data-menu="shortcuts" aria-haspopup="dialog"><span class="menu-num"></span>Atajos de teclado</button></li>
@@ -1031,6 +1032,48 @@
       </div>
     </section>
 
+    <!-- Costes (2026-10-20): tokens y euros de cada trabajo. La tabla la pinta app.js con costes.js. -->
+    <section id="view-costes" class="card" hidden>
+      <a href="/" id="costes-back" class="back-link">← Todas las newsletters</a>
+      <div class="section-head">
+        <div class="section-title">
+          <span class="section-num" aria-hidden="true">02</span>
+          <h2 id="costes-title" tabindex="-1">Costes</h2>
+        </div>
+      </div>
+      <div class="costes-tools">
+        <label>Desde <input type="date" id="costes-from" /></label>
+        <label>Hasta <input type="date" id="costes-to" /></label>
+        <label>Quién
+          <select id="costes-who"><option value="">Todos</option></select>
+        </label>
+        <button type="button" id="costes-csv" class="btn btn-secondary btn-sm">Exportar CSV</button>
+      </div>
+      <p id="costes-totals" class="hint"></p>
+      <p id="costes-status" class="form-warning" role="status" hidden></p>
+      <div class="costes-scroll">
+        <table class="costes-table">
+          <thead>
+            <tr>
+              <th>Trabajo</th>
+              <th>Marca</th>
+              <th>Quién</th>
+              <th>Fecha</th>
+              <th>Inicio</th>
+              <th>Fin</th>
+              <th>Duración</th>
+              <th>Estado</th>
+              <th class="num">Entrada</th>
+              <th class="num">Salida</th>
+              <th class="num">Caché</th>
+              <th class="num">Coste</th>
+            </tr>
+          </thead>
+          <tbody id="costes-body"></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- Ficha de marca (2026-10-01, ver studio/worker/brandCard.ts): lo que Hermes sabe de la marca, de solo lectura. -->
     <section id="view-brand" class="card" hidden>
       <a href="/" id="brand-back" class="back-link">← Todas las newsletters</a>
@@ -1126,6 +1169,7 @@
   <script src="/metacheck.js"></script>
   <script src="/textedit.js"></script>
   <script src="/export.js"></script>
+  <script src="/costes.js"></script>
   <script src="/auth.js"></script>
   <script src="/app.js"></script>
   <!-- Reproductor Lottie (versión ligera, solo SVG) para el logo y la hamburguesa de la web. defer: no retrasa nada. -->

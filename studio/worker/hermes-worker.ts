@@ -57,8 +57,9 @@ import { jsonObjects, parseWithOneRepair, redactedSnippet } from './looseJson';
 import { notesAreReady, recoverSelfAudit, selfAuditPrompt } from './selfAudit';
 import { renderChecks } from './renderChecks';
 import { startHeartbeat } from './heartbeat';
-import { cloudHermesSettings, hermesVolumeHasAuth, probeInstalledHermes, seedHermesCloudProfile } from './hermesCloudProfile';
+import { cloudHermesSettings, hermesVolumeHasAuth, probeInstalledHermes, providerArgs, seedHermesCloudProfile } from './hermesCloudProfile';
 import { HERMES_TRACE_LINES, hermesTraceExcerpt, redactSecrets, secretValues } from './hermesTrace';
+import { UsageLedger } from './usage';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del proceso, SIN lo que usa este worker para hablar con Studio.
@@ -427,6 +428,10 @@ let current: string | null = null;
 /** Carpeta del trabajo en curso (para apartarla si el worker se detiene a medias). */
 let currentOutAbs: string | null = null;
 let currentChild: ReturnType<typeof spawn> | null = null;
+/** Tokens del trabajo en curso. Se vacía al salir del claim: el catch de main aún los lee. */
+let jobUsage: UsageLedger | null = null;
+/** Tiempos del trabajo en curso, por si el fallo ocurre fuera de runJob. */
+let activeTimeline: Timeline | null = null;
 /** El trabajo en curso se canceló desde la web (2026-09-28): se detiene a Hermes, no se le piden
  *  más turnos y no se sube nada. Lo detecta api() con el 409 de Studio (el progreso va cada 30 s). */
 let cancelled = false;
@@ -669,8 +674,8 @@ function modelArgs(model?: string): string[] {
 
 let providerFlag: string | null | undefined;
 
-function providerArgs(provider: string): string[] {
-  if (!provider) return [];
+/** True si `hermes chat --help` anuncia `--provider`. Sin el binario, no se pasa el flag. */
+function providerFlagSupported(): boolean {
   if (providerFlag === undefined) {
     try {
       const help = execFileSync(HERMES_BIN, ['chat', '--help'], { encoding: 'utf8', timeout: 15000, env: HERMES_ENV });
@@ -682,7 +687,27 @@ function providerArgs(provider: string): string[] {
       console.log(`[${stamp()}] AVISO: hermes chat no admite --provider; se usa config.yaml en HERMES_HOME.`);
     }
   }
-  return providerFlag ? [providerFlag, provider] : [];
+  return providerFlag === '--provider';
+}
+
+/** Proveedor que verá el turno: en la nube, el de HERMES_PROVIDER (anthropic o custom:nous-api). */
+function primaryProvider(): string {
+  if (process.env.HERMES_CLOUD === '1') {
+    const home = (process.env.HERMES_HOME || '').trim();
+    const settings = cloudHermesSettings(process.env, { hasAuth: hermesVolumeHasAuth(home) });
+    if (settings.provider) return settings.provider;
+  }
+  return (process.env.HERMES_PROVIDER || '').trim();
+}
+
+/** Modelo del trabajo cuando la fase no trae HERMES_MODEL_*. */
+function primaryModel(): string {
+  if (process.env.HERMES_CLOUD === '1') {
+    const home = (process.env.HERMES_HOME || '').trim();
+    const settings = cloudHermesSettings(process.env, { hasAuth: hermesVolumeHasAuth(home) });
+    if (settings.model) return settings.model;
+  }
+  return (process.env.HERMES_INFERENCE_MODEL || MODELS.draft || '').trim();
 }
 
 /** En la nube, proveedor y modelo van en el turno. En el Mac no se añade nada. */
@@ -693,7 +718,7 @@ function cloudTurn(phaseModel?: string): { args: string[]; env: NodeJS.ProcessEn
   const hasAuth = hermesVolumeHasAuth(home);
   const settings = cloudHermesSettings(process.env, { hasAuth });
   if (!phaseModel && settings.model && !env.HERMES_INFERENCE_MODEL) env.HERMES_INFERENCE_MODEL = settings.model;
-  return { args: providerArgs(settings.provider), env };
+  return { args: providerArgs(settings.provider, providerFlagSupported()), env };
 }
 
 function hermesTrace(turn: { output: string; stderr: string }): string {
@@ -705,6 +730,32 @@ function hermesTrace(turn: { output: string; stderr: string }): string {
  *  el razonamiento se alargaba conciliándolo con el encargo. El encargo de Studio es autocontenido. Con
  *  HERMES_KEEP_RULES=1 vuelve a cargarse todo. */
 const RULES_ARGS = process.env.HERMES_KEEP_RULES === '1' ? [] : ['--ignore-rules'];
+
+/** Suma el uso de la sesión al libro del trabajo. Un export fallido no tumba el turno. */
+async function recordTurnUsage(sessionId: string | null, model?: string): Promise<void> {
+  if (!jobUsage || !sessionId) return;
+  try {
+    const session = await exportSession(sessionId);
+    jobUsage.note(sessionId, session, activeTimeline?.currentId() || 'otro', model || primaryModel(), primaryProvider());
+  } catch (err) {
+    console.log(`[${stamp()}] No se pudo leer el uso de la sesión ${sessionId}: ${(err as Error).message.slice(0, 200)}`);
+  }
+}
+
+/** Cuerpo de /complete, /fail y /brief: tokens, coste, modelo y proveedor de este proceso. */
+function usageBody(): Record<string, unknown> {
+  if (!jobUsage) return {};
+  const report = jobUsage.report(process.env);
+  return {
+    inputTokens: report.inputTokens,
+    outputTokens: report.outputTokens,
+    cacheTokens: report.cacheTokens,
+    costUsd: report.costUsd,
+    costEur: report.costEur,
+    model: report.model,
+    provider: report.provider,
+  };
+}
 
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
  *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
@@ -730,13 +781,18 @@ function runHermesTurn(
   });
   child.stderr!.on('data', (d) => (stderr = (stderr + d).slice(-24_000)));
   return new Promise((resolve) => {
-    child.on('close', (code) => {
+    const finish = (code: number | null, output: string, stderrText: string): void => {
       currentChild = null;
-      resolve({ code, output: stdout.replace(/^\s*session_id:.*$/m, '').trim(), stderr });
+      const seen = stdout.match(/session_id:\s*(\S+)/);
+      void recordTurnUsage(seen?.[1] || resumeId, model).finally(() => {
+        resolve({ code, output, stderr: stderrText });
+      });
+    };
+    child.on('close', (code) => {
+      finish(code, stdout.replace(/^\s*session_id:.*$/m, '').trim(), stderr);
     });
     child.on('error', (err) => {
-      currentChild = null;
-      resolve({ code: -1, output: stdout, stderr: `${stderr}\n${err.message}` });
+      finish(-1, stdout, `${stderr}\n${err.message}`);
     });
   });
 }
@@ -876,6 +932,14 @@ interface ClaimedJob {
   artReview?: boolean;
   /** Petición del equipo (instrucción básica): lo que pide tiene que llegar al brief y a la pieza (requestCoverage.ts). */
   request?: string;
+  /** Tokens ya guardados (el brief que esperó aprobación). El libro los suma antes de los turnos nuevos. */
+  priorUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    cacheTokens?: number;
+    model?: string | null;
+    provider?: string | null;
+  };
 }
 
 /** Una adaptación a móvil es un retoque, no una newsletter: la barra estima con esto. */
@@ -1121,7 +1185,7 @@ async function runBriefStep(
   // canPause (2026-10-01): si el equipo pidió revisar el brief, Studio responde { pause: true } y el trabajo
   // espera su aprobación; al aprobarlo vuelve a la cola y llega con el encargo final, sin paso de brief.
   // canRestart (2026-10-14, H-17): este worker sabe rehacer la pieza si el equipo corrige el brief mientras trabaja.
-  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true, canRestart: true }, 6);
+  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true, canRestart: true, ...usageBody() }, 6);
   if (!res.ok) return { error: `Studio no aceptó el brief: ${res.status} ${(await res.text()).slice(0, 300)}` };
   const reply = (await res.json()) as { prompt?: string; pause?: boolean };
   if (reply.pause) {
@@ -1516,6 +1580,21 @@ export function needsTasteRound(review: ArtReview): boolean {
   return lowScores(review).length > 0 || (review.mejoras.length > 0 && Object.values(review.notas).some((n) => n < 5));
 }
 
+/** Pasadas de reescritura de gusto. 0 (por defecto) deja la nota y el arreglo de defectos.
+ *  1 o más restaura la pasada de siempre: una reescritura y dos comparaciones A/B, no un bucle. */
+export function artRevisePasses(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = (env.HERMES_ART_REVISE_PASSES ?? '').trim();
+  if (!raw) return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return 0;
+  return Math.min(20, Math.floor(n));
+}
+
+/** La reescritura de gusto y las comparaciones. Con 0 pasadas no se hacen. */
+export function shouldRunTasteRound(review: ArtReview, passes = artRevisePasses()): boolean {
+  return passes >= 1 && needsTasteRound(review);
+}
+
 /** ¿Hay pasada de mejora? La de gusto o, aunque no la haya, defectos claros que arreglar. */
 export function needsImprovement(review: ArtReview): boolean {
   return needsTasteRound(review) || !!review.defectos?.length;
@@ -1675,8 +1754,19 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   fs.mkdirSync(outAbs, { recursive: true });
   console.log(`[${stamp()}] Trabajo ${claimed.id} → ${claimed.outputDir}${claimed.briefPrompt ? ' (desde instrucción: primero el brief)' : ''}`);
   const timeline = new Timeline();
+  activeTimeline = timeline;
+  jobUsage = new UsageLedger({ model: primaryModel(), provider: primaryProvider() });
+  if (claimed.priorUsage) {
+    jobUsage.seed({
+      input: claimed.priorUsage.inputTokens,
+      output: claimed.priorUsage.outputTokens,
+      cache: claimed.priorUsage.cacheTokens,
+      model: claimed.priorUsage.model,
+      provider: claimed.priorUsage.provider,
+    });
+  }
   const fail = async (error: string): Promise<void> => {
-    await api(`/api/worker/jobs/${claimed.id}/fail`, { error, timings: timeline.toJSON() }).catch(() => undefined);
+    await api(`/api/worker/jobs/${claimed.id}/fail`, { error, timings: timeline.toJSON(), ...usageBody() }).catch(() => undefined);
   };
   const editKind = claimed.editKind || (claimed.sourceHtml !== undefined ? 'mobile-fix' : undefined);
   const isMobileFix = editKind === 'mobile-fix';
@@ -2153,7 +2243,14 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           fs.appendFileSync(reviewFile, `\n## Arreglo de defectos\n\n${defects.map((d) => `- ${d}`).join('\n')}\n\nResultado: ${outcome}.\n`);
           console.log(`[${stamp()}] ${job.id}: arreglo de defectos de arte — ${outcome}`);
         }
-        if (!needsTasteRound(review) || cancelled || Date.now() - started >= TIMEOUT_MS) {
+        const taste = shouldRunTasteRound(review);
+        if (!taste || cancelled || Date.now() - started >= TIMEOUT_MS) {
+          if (!taste && needsTasteRound(review) && !cancelled) {
+            const skip =
+              'Pasada de gusto omitida (HERMES_ART_REVISE_PASSES=0): se queda la nota y, si los hubo, los defectos arreglados. Con 1 o más vuelve la reescritura y las comparaciones A/B.';
+            fs.appendFileSync(reviewFile, `\n## Pasada de gusto\n\n${skip}\n`);
+            console.log(`[${stamp()}] ${job.id}: ${skip}`);
+          }
           if (artResult) artResult = { ...artResult, kept: fixedDefects.length > 0 };
           if (fixedDefects.length) await progressMessage(`Revisión de dirección de arte: ${fixedDefects.length} defecto(s) arreglado(s).`);
         } else {
@@ -2303,7 +2400,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
     // Miniatura para el historial: si no sale, la newsletter se entrega igual.
     const thumbs = await renderThumbnails({ path: htmlPath });
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult }, 6);
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult, ...usageBody() }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;
@@ -2529,9 +2626,16 @@ async function main(): Promise<void> {
           // Un error inesperado no debe dejar el trabajo colgado en "running" ni tumbar el worker.
           currentChild?.kill('SIGTERM');
           console.error(`[${stamp()}] ✗ ${job.id}: ${(err as Error).message}`);
-          await api(`/api/worker/jobs/${job.id}/fail`, { error: `Error del worker: ${(err as Error).message}` }).catch(() => undefined);
+          await api(`/api/worker/jobs/${job.id}/fail`, {
+            error: `Error del worker: ${(err as Error).message}`,
+            ...(activeTimeline ? { timings: activeTimeline.toJSON() } : {}),
+            ...usageBody(),
+          }).catch(() => undefined);
           setAsideFolder(path.join(ROOT, job.outputDir), 'fallido');
           current = null;
+        } finally {
+          jobUsage = null;
+          activeTimeline = null;
         }
         continue;
       }
@@ -2555,7 +2659,11 @@ async function main(): Promise<void> {
 async function shutdown(): Promise<void> {
   currentChild?.kill('SIGTERM');
   if (current) {
-    await api(`/api/worker/jobs/${current}/fail`, { error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.' }, 1).catch(() => undefined);
+    await api(`/api/worker/jobs/${current}/fail`, {
+      error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.',
+      ...(activeTimeline ? { timings: activeTimeline.toJSON() } : {}),
+      ...usageBody(),
+    }, 1).catch(() => undefined);
     if (currentOutAbs) setAsideFolder(currentOutAbs, 'fallido');
   }
   releaseLock();

@@ -616,6 +616,7 @@ function customFieldText(fields: unknown, names: Set<string>): string | undefine
 }
 
 function requesterFrom(payload: ClickupPayload, creator: string | undefined): string | undefined {
+  // El creador de la tarea (creator.username) manda sobre quien disparó el webhook.
   const fromTask = cleanPerson(creator);
   if (fromTask) return fromTask;
   for (const item of payload.history_items || []) {

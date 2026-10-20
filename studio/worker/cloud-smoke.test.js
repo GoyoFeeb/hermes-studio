@@ -246,3 +246,36 @@ test('el entrypoint del worker es ejecutable', () => {
     assert.ok(mode & 0o111, name);
   }
 });
+
+test('el entorno de la nube deja pasar tarifas, el cambio y las pasadas de arte', () => {
+  const out = execFileSync(
+    TSX_BIN,
+    ['-e', `const { filterCloudEnv, allowlistOverlapsDeny } = require(${JSON.stringify(path.join(WORKER, 'cloudEnv.ts'))});
+      const env = filterCloudEnv({
+        USD_EUR: '0.86',
+        HERMES_ART_REVISE_PASSES: '0',
+        HERMES_PRICE_ANTHROPIC_CLAUDE_SONNET_5_5: '2,10,0.1',
+        hermes_price_lower: '1,1,1',
+        RANDOM_SECRET: 'no',
+        APP_ACCESS_PASSWORD: 'no',
+      });
+      process.stdout.write(JSON.stringify({
+        overlap: allowlistOverlapsDeny(),
+        usd: env.USD_EUR,
+        passes: env.HERMES_ART_REVISE_PASSES,
+        price: env.HERMES_PRICE_ANTHROPIC_CLAUDE_SONNET_5_5,
+        lower: Object.prototype.hasOwnProperty.call(env, 'hermes_price_lower'),
+        random: Object.prototype.hasOwnProperty.call(env, 'RANDOM_SECRET'),
+        password: Object.prototype.hasOwnProperty.call(env, 'APP_ACCESS_PASSWORD'),
+      }));`],
+    { cwd: ROOT, encoding: 'utf8', env: { ...process.env, HERMES_WORKER_ENV_DIR: '/nonexistent' } }
+  );
+  const body = JSON.parse(out);
+  assert.deepEqual(body.overlap, []);
+  assert.equal(body.usd, '0.86');
+  assert.equal(body.passes, '0');
+  assert.equal(body.price, '2,10,0.1');
+  assert.equal(body.lower, false);
+  assert.equal(body.random, false);
+  assert.equal(body.password, false);
+});

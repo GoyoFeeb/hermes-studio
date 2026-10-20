@@ -62,6 +62,11 @@ export class Timeline {
     return this.open?.at ?? null;
   }
 
+  /** Fase abierta. Un turno que cae fuera de una fase se anota como «otro». */
+  currentId(): string {
+    return this.open?.id || 'otro';
+  }
+
   /** Desglose de la última fase cerrada. La última parte se ajusta para que sumen lo que midió la fase. */
   splitLast(parts: PhasePart[]): void {
     const last = this.phases[this.phases.length - 1];

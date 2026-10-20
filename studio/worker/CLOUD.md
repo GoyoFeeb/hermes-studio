@@ -50,11 +50,21 @@ Nombres en `env.example`. Valores solo en Railway, en el servicio `hermes-worker
   lo deja en el log, con la clave redactada. Si el CLI no está, solo avisa.
 - `HERMES_PROVIDER` — opcional. Vacío = `custom:nous-api` si hay `NOUS_API_KEY` y no hay `auth.json`.
   `nous-api` se acepta como alias de `custom:nous-api`. `nous` solo si el volumen tiene la sesión
-  OAuth. Otro valor (`openrouter`, `anthropic`, …) pisa el `config.yaml`.
-- `HERMES_INFERENCE_MODEL` — opcional. Vacío = `deepseek/deepseek-v4-flash` cuando el proveedor es
-  Nous. Si el nombre no está en la lista blanca de `cloudEnv.ts`, el entrypoint lo tira.
-- `HERMES_MODEL_ART` — opcional. Vacío = el mismo modelo que `HERMES_MODEL_DRAFT`. La revisión de
-  arte de main (2026-10-19) lee ese nombre; si no está en la lista blanca, el entrypoint lo tira.
+  OAuth. `anthropic` es el proveedor nativo de Hermes Agent (v0.22.2): `model.provider: anthropic`,
+  sin bloque `providers` y sin `base_url`. `ANTHROPIC_API_KEY` se queda en el entorno del proceso;
+  no se escribe en `config.yaml` ni en `HERMES_HOME/.env`. Al arrancar, si esa clave no llega al CLI,
+  el worker lo marca como proveedor no aceptado. Otro valor (`openrouter`, …) pisa el `config.yaml`.
+- `HERMES_INFERENCE_MODEL` — opcional. Con Nous y vacío = `deepseek/deepseek-v4-flash`. Con Anthropic,
+  el modelo (p. ej. `claude-sonnet-5-5`). Si el nombre no está en la lista blanca de `cloudEnv.ts`,
+  el entrypoint lo tira.
+- `HERMES_MODEL_BRIEF`, `HERMES_MODEL_DRAFT`, `HERMES_MODEL_FIX`, `HERMES_MODEL_ART` — opcionales.
+  Siguen pasando como `--model` en su fase, junto a `--provider`. Vacío = el modelo de arriba.
+  `HERMES_MODEL_ART` vacío = el de `HERMES_MODEL_DRAFT`.
+- `HERMES_ART_REVISE_PASSES` — opcional. Vacío o `0` = nota visual y arreglo de defectos, sin
+  reescritura de gusto ni comparaciones A/B. `1` o más restaura esa pasada (una sola vez).
+- `USD_EUR` — opcional. Cambio para el coste en euros (por defecto `0.86`).
+- `HERMES_PRICE_<PROVEEDOR>_<MODELO>` — opcional. Tres números `entrada,salida,cache` en USD por
+  millón de tokens. El nombre no va en la lista blanca fija: el entrypoint deja pasar el patrón.
 
 `PORT` lo inyecta Railway. No pongas los secretos de Studio en este servicio.
 
