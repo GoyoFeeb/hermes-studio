@@ -511,6 +511,17 @@
         <ol id="versions-list"></ol>
       </nav>
 
+      <!-- Mismo brief, dos piezas (Hermes y Creas IT). El selector usa el mismo control segmentado que el tamaño de la vista. -->
+      <div class="channel-bar" id="channel-bar" hidden>
+        <div class="segmented channel-toggle" role="radiogroup" aria-label="Versión de la newsletter">
+          <label><input type="radio" name="channelView" value="a" checked /><span>Hermes</span></label>
+          <label><input type="radio" name="channelView" value="b" /><span>Creas IT</span></label>
+          <label><input type="radio" name="channelView" value="compare" /><span>Comparar</span></label>
+        </div>
+        <p class="hint" id="channel-note"></p>
+        <p class="hint" id="channel-text" hidden><a id="channel-text-link" href="#">Versión en texto plano</a></p>
+      </div>
+
       <div id="job-progress" hidden>
         <!-- Pieza en marcha (2026-10-07): la maqueta que se construye en grande, al lado de la fase y los pasos, y las
              últimas acciones de Hermes debajo. Durante 10-15 min es lo que mira el equipo. -->
@@ -564,6 +575,21 @@
         <div class="actions" id="early-brief-edit-actions" hidden>
           <button type="button" id="early-brief-save" class="btn btn-primary">Guardar y rehacer la pieza</button>
           <button type="button" id="early-brief-cancel" class="btn btn-ghost">Cancelar</button>
+        </div>
+      </section>
+
+      <!-- Mientras Hermes trabaja, la B (si ya llegó) se ve debajo del progreso, sin sustituirlo. -->
+      <section id="channel-extra" class="job-review" hidden>
+        <h3 class="review-title panel-title" id="channel-extra-title">Creas IT</h3>
+        <p class="hint" id="channel-extra-lead"></p>
+        <div class="segmented view-toggle" id="channel-live-toggle" role="radiogroup" aria-label="Tamaño de la vista de Creas IT" hidden>
+          <label><input type="radio" name="channelPreview" value="desktop" checked /><span>Escritorio</span></label>
+          <label><input type="radio" name="channelPreview" value="mobile" /><span>Móvil</span></label>
+        </div>
+        <div class="preview-stage" id="channel-live-stage" hidden>
+          <div class="preview-device" id="channel-live-device">
+            <iframe id="channel-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Versión de Creas IT"></iframe>
+          </div>
         </div>
       </section>
 
@@ -856,6 +882,19 @@
               </div>
             </div>
           </div>
+          <section class="review" id="channel-criteria" hidden aria-labelledby="channel-criteria-title">
+            <div class="review-head">
+              <h3 id="channel-criteria-title">Hermes y Creas IT</h3>
+              <span id="channel-criteria-summary" class="review-summary"></span>
+            </div>
+            <p class="hint" id="channel-criteria-lead"></p>
+            <div class="review-tools" id="channel-criteria-tools" hidden>
+              <a class="btn btn-ghost btn-sm" id="channel-dl-a" href="#">Descargar Hermes</a>
+              <a class="btn btn-ghost btn-sm" id="channel-dl-b" href="#">Descargar Creas IT</a>
+            </div>
+            <ul id="channel-criteria-list" class="review-list"></ul>
+            <ul id="channel-diff-list" class="compare-list"></ul>
+          </section>
         </div>
         <div class="job-panel" role="tabpanel" id="panel-review" aria-labelledby="tab-review" hidden>
           <section class="review" id="review" aria-labelledby="auto-review-title">
@@ -884,6 +923,10 @@
             <p class="hint review-disclaimer" id="review-disclaimer" hidden>Comprobaciones del código de la pieza, no capturas de cada programa.</p>
             <div id="review-clients" class="review-clients"></div>
             <ul id="review-list" class="review-list"></ul>
+            <details class="notes-box" id="external-review" hidden>
+              <summary>Informe de Creas IT <span>lo que envió el canal, aparte de la revisión de Studio</span></summary>
+              <pre id="external-review-text"></pre>
+            </details>
             <details class="notes-box" id="notes-box" hidden>
               <summary>Autoauditoría de Hermes <span>fuente de cada dato y origen de cada imagen</span></summary>
               <div id="notes-text" class="md surface-light"></div>

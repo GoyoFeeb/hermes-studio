@@ -149,8 +149,29 @@ export interface Job {
   artReview?: JobArtReview;
   /** El worker no pudo puntuarla después (sin HTML o sin notas legibles): no se le vuelve a pedir. */
   artReviewFailed?: boolean;
+  /** Versión B del mismo brief (Creas IT u otro canal), adjunta por API. Sin ella, la página dice «en preparación». */
+  channelB?: JobChannelB;
   /** Arrendamiento del worker que lo está haciendo (2026-10-20). Sin él, el barrido de 10 min sigue valiendo. */
   lease?: { workerId: string; slot: number; until: string };
+}
+
+/** HTML externo del mismo trabajo (studio/server/channelB.ts). No es un trabajo hijo. */
+export interface JobChannelB {
+  status: 'ready';
+  attachedAt: string;
+  /** Identificador del canal, p. ej. `creas-it`. */
+  channel: string;
+  author?: string;
+  subject: string | null;
+  preheader: string | null;
+  hasText: boolean;
+  /** Peso del HTML ya publicado (imágenes en /assets), el que cuenta para el recorte de Gmail. */
+  bytes: number;
+  resultRelPath: string;
+  textRelPath?: string;
+  quality?: QualityReport;
+  /** Informe que manda el canal, ya acotado. La revisión de Studio va en `quality`. */
+  externalReview?: unknown;
 }
 
 export interface JobArtReview {
