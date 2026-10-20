@@ -78,7 +78,14 @@ test('el entrypoint suelta privilegios con los mismos flags y la imagen no se qu
     assert.ok(entry.includes(flag), flag);
   }
   assert.match(entry, /exec setpriv/);
+  assert.match(entry, /\/run\/hermes/);
+  assert.match(entry, /chmod 700/);
+  const run = fs.readFileSync(path.join(WORKER, 'cloud-run.sh'), 'utf8');
+  assert.match(run, /\/run\/hermes\/worker\.env/);
+  assert.match(run, /rm -f "\$ENV_FILE"/);
+  assert.doesNotMatch(entry + run, /\/run\/hermes-worker\.env/);
   assert.match(docker, /useradd --uid 1001 --gid 1001/);
+  assert.match(docker, /libatomic1/);
   assert.match(docker, /ENTRYPOINT \["studio\/worker\/cloud-entrypoint\.sh"\]/);
   assert.match(docker, /\nUSER root\n/);
   assert.doesNotMatch(docker, /USER hermes\nENV NODE_ENV/);
@@ -170,6 +177,67 @@ test('Hermes no hereda WORKER_TOKEN ni la URL de Studio', () => {
   assert.equal('WORKER_TOKEN' in env, false);
   assert.equal('STUDIO_WORKER_URL' in env, false);
   assert.equal('HERMES_WORKER_ENV_DIR' in env, false);
+});
+
+test('en la nube, sin WORKER_TOKEN, el latido sigue y no se pide cola', async () => {
+  const { spawn } = require('node:child_process');
+  const port = 18766;
+  const child = spawn(TSX_BIN, [path.join(WORKER, 'hermes-worker.ts')], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      HERMES_CLOUD: '1',
+      HERMES_WORKER_ENV_DIR: '/nonexistent',
+      STUDIO_WORKER_URL: 'https://studio.example',
+      WORKER_TOKEN: '',
+      PORT: String(port),
+    },
+  });
+  let out = '';
+  child.stdout.on('data', (buf) => { out += buf; });
+  child.stderr.on('data', (buf) => { out += buf; });
+  const started = Date.now();
+  while (!out.includes('El latido sigue') && Date.now() - started < 20000) {
+    if (child.exitCode !== null) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  try {
+    assert.match(out, /El latido sigue; no pido trabajos/);
+    assert.doesNotMatch(out, /conectado a/);
+    const beat = await fetch('http://127.0.0.1:' + port + '/heartbeat');
+    assert.equal(beat.status, 200);
+    assert.deepEqual(await beat.json(), { ok: true });
+    await new Promise((r) => setTimeout(r, 400));
+    assert.equal(child.exitCode, null);
+  } finally {
+    child.kill('SIGTERM');
+    await new Promise((r) => child.once('exit', r));
+  }
+});
+
+test('en el Mac, sin credenciales, el worker sale y no abre el latido', () => {
+  let failed;
+  try {
+    execFileSync(TSX_BIN, [path.join(WORKER, 'hermes-worker.ts')], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        HERMES_CLOUD: '',
+        HERMES_WORKER_ENV_DIR: '/nonexistent',
+        STUDIO_WORKER_URL: '',
+        WORKER_TOKEN: '',
+        PORT: '18767',
+      },
+    });
+  } catch (err) {
+    failed = err;
+  }
+  assert.ok(failed);
+  assert.equal(failed.status, 1);
+  const text = `${failed.stdout || ''}${failed.stderr || ''}`;
+  assert.match(text, /Faltan STUDIO_WORKER_URL y\/o WORKER_TOKEN en .*\/\.env/);
+  assert.doesNotMatch(text, /Latido del worker/);
 });
 
 test('el entrypoint del worker es ejecutable', () => {

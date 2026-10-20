@@ -52,6 +52,18 @@ export interface JobInput {
   reviewBrief?: boolean;
   /** Revisión de dirección de arte al final (2026-10-05): Hermes mira capturas y corrige lo que baje la nota. */
   artReview?: boolean;
+  /** Tarea de ClickUp que abrió este trabajo (2026-10-19). Si ya existe, el webhook no crea otro. */
+  clickupTaskId?: string;
+  /** URL de esa tarea en ClickUp. */
+  clickupUrl?: string;
+  /** True mientras se lee la tarea en la API: el worker no lo recoge todavía. */
+  clickupPending?: boolean;
+  /** Nombre de campaña leído de ClickUp (campo Campaña/Campaign). No es un id de Studio. */
+  campaignName?: string;
+  /** Reservado para cuando el trabajo se vincule a un cliente. Hoy no se rellena: no hay tabla ni migración. */
+  clientId?: string;
+  /** Reservado para cuando el trabajo se vincule a una campaña. Hoy no se rellena. */
+  campaignId?: string;
 }
 
 export interface Job {

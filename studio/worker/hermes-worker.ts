@@ -2177,18 +2177,27 @@ function releaseLock(): void {
 }
 
 async function main(): Promise<void> {
-  if (!BASE || !TOKEN) {
-    console.error(
-      process.env.HERMES_CLOUD === '1'
-        ? 'Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en las variables del servicio hermes-worker — ver studio/worker/CLOUD.md.'
-        : `Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en ${WORKER_ENV_DIR}/.env — ver studio/README.md.`
-    );
-    process.exit(1);
-  }
-  if (process.env.HERMES_CLOUD === '1') {
+  const cloud = process.env.HERMES_CLOUD === '1';
+  // En Railway el healthcheck es /heartbeat. Si faltan credenciales y salimos, el
+  // contenedor entra en bucle. El latido arranca igual; sin token no se pide cola.
+  if (cloud) {
     const port = Number(process.env.PORT || 8080);
     await startHeartbeat(port);
     console.log(`Latido del worker en 0.0.0.0:${port}/heartbeat`);
+  }
+  if (!BASE || !TOKEN) {
+    console.error(
+      cloud
+        ? 'Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en las variables del servicio hermes-worker — ver studio/worker/CLOUD.md. El latido sigue; no pido trabajos hasta que estén.'
+        : `Faltan STUDIO_WORKER_URL y/o WORKER_TOKEN en ${WORKER_ENV_DIR}/.env — ver studio/README.md.`
+    );
+    if (cloud) {
+      await new Promise(() => undefined);
+      return;
+    }
+    process.exit(1);
+  }
+  if (cloud) {
     // Además del /claim y del progreso: Railway puede tardar en un render y la web deja de ver a Hermes a los 2 min.
     const beat = setInterval(() => {
       api('/api/worker/heartbeat', {}, 1)

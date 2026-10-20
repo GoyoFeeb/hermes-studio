@@ -15,7 +15,12 @@ if ! id hermes >/dev/null 2>&1; then
 fi
 
 DATA="${RAILWAY_VOLUME_MOUNT_PATH:-/data}"
-mkdir -p "$DATA/hermes" /home/hermes /run
+mkdir -p "$DATA/hermes" /home/hermes /run/hermes
+# /run es de root (755): uid 1001 puede leer un archivo suyo ahí, pero no borrarlo.
+# El env lleva secretos; cloud-run.sh tiene que poder hacer rm. Un directorio propio,
+# 700 y de hermes, se lo permite. No vive en el volumen.
+chown hermes:hermes /run/hermes
+chmod 700 /run/hermes
 if [ -d /opt/hermes/hermes-agent ] && [ ! -e "$DATA/hermes/hermes-agent" ]; then
   ln -s /opt/hermes/hermes-agent "$DATA/hermes/hermes-agent"
 fi
@@ -28,9 +33,9 @@ ln -sfn "$DATA/hermes" /home/hermes/.hermes
 # El código queda legible (755 de root). Escritura solo donde el trabajo deja archivos.
 chown -R hermes:hermes "$DATA" /home/hermes /app/newsletters /app/brands /app/studio/worker
 
-node --import tsx studio/worker/cloud-launch.ts --write /run/hermes-worker.env
-chown hermes:hermes /run/hermes-worker.env
-chmod 400 /run/hermes-worker.env
+node --import tsx studio/worker/cloud-launch.ts --write /run/hermes/worker.env
+chown hermes:hermes /run/hermes/worker.env
+chmod 400 /run/hermes/worker.env
 
 # Mismos flags que SETPRIV_ARGS en cloudEnv.ts. --reset-env vacía el entorno de root;
 # cloud-run.sh carga solo el archivo filtrado y lo borra.
