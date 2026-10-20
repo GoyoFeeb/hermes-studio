@@ -1,0 +1,24 @@
+La versión B mejora el titular. Hay una {nota} suelta en la prosa que no es el JSON.
+
+```json
+{
+  "criteria": {
+    "request": "equal",
+    "text_image": "B",
+    "identity": "tie",
+    "concept": "same",
+    "hierarchy": "A",
+    "spacing": "B — más aire entre la escena 2 y la 3",
+    "originality": "igual",
+    "mobile": "equal",
+    "dark": "igual",
+    "copy": "B"
+  },
+  "reasons": {
+    "copy": "el titular nombra el CX-60",
+    "text_image": "la foto y el texto coinciden"
+  }
+}
+```
+
+Eso es todo.

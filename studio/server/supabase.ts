@@ -25,6 +25,30 @@ const DEFAULT_RETRY_DELAYS_MS = [500, 2000, 8000, 30000];
 /** Con Supabase caído mucho rato la cola no debe crecer sin fin: a partir de aquí se descarta lo nuevo. */
 const MAX_PENDING = 5000;
 
+/** Fila de `jobs` en Supabase. Las columnas nuevas quedan null hasta que el worker las manda.
+ *  Hay que aplicar studio/supabase/002-costes.sql antes de desplegar: si faltan, el upsert falla. */
+export function jobBackupRow(job: Job): Record<string, unknown> {
+  return {
+    id: job.id,
+    created_at: job.createdAt,
+    updated_at: job.updatedAt,
+    status: job.status,
+    client_slug: job.input.clientSlug,
+    requester: job.input.requesterName ?? null,
+    archived_at: job.archivedAt ?? null,
+    started_at: job.startedAt ?? null,
+    finished_at: job.finishedAt ?? null,
+    input_tokens: job.inputTokens ?? null,
+    output_tokens: job.outputTokens ?? null,
+    cache_tokens: job.cacheTokens ?? null,
+    cost_usd: job.costUsd ?? null,
+    cost_eur: job.costEur ?? null,
+    model: job.model ?? null,
+    provider: job.provider ?? null,
+    data: job,
+  };
+}
+
 /** Las rutas llegan como rutas de disco relativas: cada tramo se codifica por separado. */
 function objectPath(relPath: string): string {
   return relPath.split(/[\\/]+/).filter(Boolean).map(encodeURIComponent).join('/');
@@ -127,16 +151,7 @@ export function createSupabase(opts: SupabaseOptions = {}) {
           sending = next;
         }
         if (!sending) return;
-        await upsert('jobs', 'id', {
-          id: sending.id,
-          created_at: sending.createdAt,
-          updated_at: sending.updatedAt,
-          status: sending.status,
-          client_slug: sending.input.clientSlug,
-          requester: sending.input.requesterName ?? null,
-          archived_at: sending.archivedAt ?? null,
-          data: sending,
-        });
+        await upsert('jobs', 'id', jobBackupRow(sending));
       });
     },
 

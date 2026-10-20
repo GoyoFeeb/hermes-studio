@@ -28,6 +28,10 @@ import { createJob } from './store';
 import { joinLabels, requestTerms } from './requestCoverage';
 import { CLAIMS_BRIEF_RULE, CLAIMS_PIECE_RULE } from '../worker/claims';
 import { COPY_RULES } from '../worker/copyCheck';
+import { forecastStart, runningRemainingSec, type QueueActor } from './queueEta';
+import { workerCapacity } from './workerPool';
+import { leaseExpired } from './claimQueue';
+import { MOBILE_NOTES_TEMPLATE, NOTES_TEMPLATE, REVISION_NOTES_TEMPLATE, notesFileRule } from '../worker/selfAudit';
 import { PATTERNS_GUIDE, catalogIndex } from '../hermes/catalog';
 
 /** Gmail recorta los emails de más de ~102 KB de HTML ("Mensaje recortado"). */
@@ -178,16 +182,8 @@ export function buildHermesPrompt(job: Job): string {
     '  que hace Studio al recibir la pieza (móvil, espacios, contraste, letra, estructura, enlaces, imágenes, tipografía,',
     '  logo, Outlook, modo oscuro, marcadores): aplica sola los arreglos mecánicos y te dice el resto. Corrige y repítela',
     '  hasta que salga sin errores. Si sale limpia, Studio no te devolverá la pieza.',
-    `- Autoauditoría por escrito, OBLIGATORIA: antes de terminar, escribe ${outDir}/notas.md con:`,
-    '  1. Concepto (una frase) y titular principal de la pieza; explica cómo deriva el titular del',
-    '     concepto. Si no deriva de él, corrige el titular antes de entregar.',
-    '  2. Cada precio, cifra, nombre de modelo o dato técnico que aparezca en la pieza, con su fuente',
-    '     (URL oficial). Lo que no tenga fuente no puede estar en la pieza: quítalo o reescríbelo.',
-    '  3. Cada imagen: su origen (URL oficial, brand pack o generada con IA), la escena donde va y qué se ve en ella.',
-    '  3b. Tipografía y colores usados, con su origen (web oficial o brand pack), y el módulo propio del concepto.',
-    '  4. Resultado de npm run check-newsletter y de tu revisión de la hoja de render-newsletter (qué corregiste).',
-    '  5. Las preguntas de autoauditoría del prompt con su respuesta.',
-    '- Respuesta final: breve — concepto y lo que quede pendiente.',
+    ...notesFileRule(outDir, NOTES_TEMPLATE),
+    '- Respuesta final: breve — concepto y lo que quede pendiente. La autoauditoría va en el archivo, no solo en esta respuesta.',
   ].join('\n');
 }
 
@@ -361,7 +357,7 @@ export function buildMobileFixPrompt(job: Job): string {
     '  600 px debe verse igual que el original.',
     `- Antes de terminar: \`npm run check-newsletter -- ${outDir}/newsletter.html --retoque\` (lo mismo que mide Studio al`,
     '  recibirlo). Corrige lo que diga del móvil y repítelo hasta que salga sin errores de móvil.',
-    `- Escribe ${outDir}/notas.md con los cambios hechos y el resultado de las comprobaciones a 375 y 600 px.`,
+    ...notesFileRule(outDir, MOBILE_NOTES_TEMPLATE),
     '- Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
   ].join('\n');
 }
@@ -411,8 +407,7 @@ export function buildRevisionPrompt(job: Job): string {
     '  al recibirlo: móvil, enlaces, imágenes, preheader…). Corrige lo que hayas introducido tú y repítelo.',
     `- Imagen nueva: \`npm run fetch-image -- <url> ${outDir} [nombre]\` (la descarga aunque la web bloquee el enlace`,
     '  directo, convierte SVG a PNG y comprime); enlázala con ruta local.',
-    `- Escribe ${outDir}/notas.md: qué cambiaste y dónde, la fuente de cada dato nuevo, el origen de cada`,
-    '  imagen nueva y lo que no pudiste aplicar (y por qué).',
+    ...notesFileRule(outDir, REVISION_NOTES_TEMPLATE),
     '- Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
     '',
     '## Referencia: brief original de la pieza',
@@ -436,11 +431,17 @@ export function promptMentionsBrand(prompt: string, clientName: string, clientSl
 export const HERMES_STALE_MS = 10 * 60 * 1000;
 
 export function sweepStaleHermesJobs(): void {
+  const now = Date.now();
   for (const j of listJobs()) {
-    if (j.input.mode === 'standalone' && j.status === 'running' && Date.now() - Date.parse(j.updatedAt) > HERMES_STALE_MS) {
-      log(j.id, 'Hermes dejó de dar señales de vida (¿Mac apagado, dormido o worker cerrado?).', 'error');
-      updateJob(j.id, { status: 'failed', error: 'Hermes dejó de responder (¿Mac apagado, dormido o worker cerrado?). Vuelve a enviarlo.' });
-    }
+    if (j.input.mode !== 'standalone' || j.status !== 'running') continue;
+    const leaseDead = leaseExpired(j.lease?.until, now);
+    const stale = now - Date.parse(j.updatedAt) > HERMES_STALE_MS;
+    if (!leaseDead && !stale) continue;
+    const error = leaseDead
+      ? 'El worker dejó de renovar este trabajo (el arrendamiento caducó). Vuelve a enviarlo.'
+      : 'Hermes dejó de responder (¿Mac apagado, dormido o worker cerrado?). Vuelve a enviarlo.';
+    log(j.id, error, 'error');
+    updateJob(j.id, { status: 'failed', error });
   }
 }
 
@@ -552,6 +553,110 @@ export function sanitizeTimings(raw: unknown): JobTimings | undefined {
   };
 }
 
+const COST_MODEL_RE = /^[A-Za-z0-9._:@/+-]{1,160}$/;
+const COST_PROVIDER_RE = /^[\w.:/+-]{1,80}$/;
+
+function costPick(raw: Record<string, unknown>, camel: string, snake: string): unknown {
+  return raw[camel] !== undefined ? raw[camel] : raw[snake];
+}
+
+function costTokens(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.min(1e15, Math.round(n));
+}
+
+function costMoney(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 1e6) / 1e6;
+}
+
+/** Tokens y coste que manda el worker. Undefined si el cuerpo no trae ninguno (worker anterior). */
+export function sanitizeJobCost(raw: unknown): Pick<Job, 'inputTokens' | 'outputTokens' | 'cacheTokens' | 'costUsd' | 'costEur' | 'model' | 'provider'> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const keys: [string, string][] = [
+    ['inputTokens', 'input_tokens'],
+    ['outputTokens', 'output_tokens'],
+    ['cacheTokens', 'cache_tokens'],
+    ['costUsd', 'cost_usd'],
+    ['costEur', 'cost_eur'],
+    ['model', 'model'],
+    ['provider', 'provider'],
+  ];
+  if (!keys.some(([camel, snake]) => r[camel] !== undefined || r[snake] !== undefined)) return undefined;
+  const modelRaw = costPick(r, 'model', 'model');
+  const providerRaw = costPick(r, 'provider', 'provider');
+  const model = typeof modelRaw === 'string' && COST_MODEL_RE.test(modelRaw.trim()) ? modelRaw.trim() : null;
+  const provider = typeof providerRaw === 'string' && COST_PROVIDER_RE.test(providerRaw.trim()) ? providerRaw.trim() : null;
+  return {
+    inputTokens: costTokens(costPick(r, 'inputTokens', 'input_tokens')),
+    outputTokens: costTokens(costPick(r, 'outputTokens', 'output_tokens')),
+    cacheTokens: costTokens(costPick(r, 'cacheTokens', 'cache_tokens')),
+    costUsd: costMoney(costPick(r, 'costUsd', 'cost_usd')),
+    costEur: costMoney(costPick(r, 'costEur', 'cost_eur')),
+    model,
+    provider,
+  };
+}
+
+/** Fila de la vista Costes. Incluye archivados: el listado no recorta el historial. */
+export function costJobSummary(job: Job): {
+  id: string;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  status: Job['status'];
+  clientName: string;
+  clientSlug: string;
+  requester: string | null;
+  durationSec: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheTokens: number | null;
+  costUsd: number | null;
+  costEur: number | null;
+  model: string | null;
+  provider: string | null;
+} {
+  return {
+    id: job.id,
+    createdAt: job.createdAt,
+    startedAt: job.startedAt || null,
+    finishedAt: job.finishedAt || null,
+    status: job.status,
+    clientName: job.input.clientName,
+    clientSlug: job.input.clientSlug,
+    requester: job.input.requesterName || null,
+    durationSec: durationSec(job),
+    inputTokens: job.inputTokens ?? null,
+    outputTokens: job.outputTokens ?? null,
+    cacheTokens: job.cacheTokens ?? null,
+    costUsd: job.costUsd ?? null,
+    costEur: job.costEur ?? null,
+    model: job.model ?? null,
+    provider: job.provider ?? null,
+  };
+}
+
+/** `?fields=cost` (también si llega repetido). El historial normal no lo pide. */
+export function wantsCostFields(fields: unknown): boolean {
+  if (fields === 'cost') return true;
+  return Array.isArray(fields) && fields.includes('cost');
+}
+
+/** Lo ya gastado, para que el siguiente proceso del mismo trabajo no lo pierda. */
+export function priorUsageOf(job: Job): { inputTokens: number; outputTokens: number; cacheTokens: number; model: string | null; provider: string | null } | undefined {
+  const inputTokens = job.inputTokens || 0;
+  const outputTokens = job.outputTokens || 0;
+  const cacheTokens = job.cacheTokens || 0;
+  if (inputTokens + outputTokens + cacheTokens <= 0) return undefined;
+  return { inputTokens, outputTokens, cacheTokens, model: job.model ?? null, provider: job.provider ?? null };
+}
+
 /** Revisión de dirección de arte que manda el worker: notas 1-5 por criterio y listas de texto cortas. */
 export function sanitizeArtReview(raw: unknown): JobArtReview | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -659,26 +764,57 @@ export function typicalSeconds(job: Job): number {
   return kind ? typicalDurations()[kind].sec : 0;
 }
 
-/** Cuánto falta para que Hermes quede libre, estimado: lo que le queda al que está en marcha más lo
- *  que suelen tardar los que esperan (los creados antes de `before`, o todos). Hermes hace uno a la vez. */
-export function queueWait(before?: string): { ahead: number; seconds: number } {
-  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
-  const running = standalone.filter((j) => j.status === 'running');
-  const queuedAhead = standalone.filter((j) => j.status === 'queued' && (!before || j.createdAt < before));
-  let seconds = 0;
-  for (const r of running) {
-    // Sin estimación (recta final) o sin progreso todavía: lo que suele tardar menos lo transcurrido.
-    seconds += r.progress?.etaSec ?? Math.max(120, typicalSeconds(r) - (r.progress?.elapsedSec ?? 0));
+function queueActors(): QueueActor[] {
+  const durations = typicalDurations();
+  const now = Date.now();
+  const out: QueueActor[] = [];
+  for (const j of listJobs()) {
+    if (j.input.mode !== 'standalone') continue;
+    const kind = jobKind(j);
+    const typical = kind ? durations[kind].sec : 0;
+    if (j.status === 'running') {
+      const elapsed = j.startedAt
+        ? Math.max(0, (now - Date.parse(j.startedAt)) / 1000 - (j.briefWaitSec || 0))
+        : (j.progress?.elapsedSec ?? 0);
+      out.push({
+        id: j.id,
+        status: 'running',
+        createdAt: j.createdAt,
+        sec: runningRemainingSec(typical, elapsed, j.progress?.etaSec),
+      });
+    } else if (j.status === 'queued') {
+      out.push({ id: j.id, status: 'queued', createdAt: j.createdAt, sec: typical });
+    }
   }
-  for (const q of queuedAhead) seconds += typicalSeconds(q);
-  return { ahead: running.length + queuedAhead.length, seconds };
+  return out;
 }
 
-/** Posición en la cola de un trabajo standalone en espera y cuándo empezará (ver queueWait). */
-export function queueInfo(job: Job): { ahead: number; startsInSec: number } | null {
+/** Cuánto falta para que haya un hueco para un trabajo nuevo (o para los creados antes de `before`).
+ *  La capacidad es la que anuncian los workers; sin avisos, STUDIO_WORKER_SLOTS (defecto 2). */
+export function queueWait(before?: string): { ahead: number; seconds: number } {
+  const actors = queueActors().filter((a) => a.status === 'running' || !before || a.createdAt < before);
+  const synthetic: QueueActor = {
+    id: '__wait__',
+    status: 'queued',
+    createdAt: before || '9999-01-01T00:00:00.000Z',
+    sec: 0,
+  };
+  const forecast = forecastStart([...actors, synthetic], '__wait__', workerCapacity());
+  return { ahead: forecast?.ahead ?? 0, seconds: forecast?.startsInSec ?? 0 };
+}
+
+/** Posición en la cola de un trabajo standalone en espera y cuándo empezará. */
+export function queueInfo(job: Job): { ahead: number; startsInSec: number; runningAhead: number; queuedAhead: number; message: string } | null {
   if (job.status !== 'queued' || job.input.mode !== 'standalone') return null;
-  const { ahead, seconds } = queueWait(job.createdAt);
-  return { ahead, startsInSec: seconds };
+  const forecast = forecastStart(queueActors(), job.id, workerCapacity());
+  if (!forecast) return null;
+  return {
+    ahead: forecast.ahead,
+    startsInSec: forecast.startsInSec,
+    runningAhead: forecast.runningAhead,
+    queuedAhead: forecast.queuedAhead,
+    message: forecast.message,
+  };
 }
 
 export interface JobVersion {

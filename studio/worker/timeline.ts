@@ -40,7 +40,10 @@ export class Timeline {
   private rounds = 0;
   private readonly startedAt: number;
 
-  constructor(private readonly now: () => number = Date.now) {
+  constructor(
+    private readonly now: () => number = Date.now,
+    private readonly log?: (message: string) => void
+  ) {
     this.startedAt = now();
   }
 
@@ -48,18 +51,32 @@ export class Timeline {
   start(id: string, label: string): void {
     if (this.open) this.end();
     this.open = { id, label, at: this.now() };
+    this.log?.(`fase «${label}» empieza`);
   }
 
   end(actions?: number): void {
     if (!this.open) return;
     const sec = Math.max(0, Math.round((this.now() - this.open.at) / 1000));
-    this.phases.push({ id: this.open.id, label: this.open.label, sec, ...(actions !== undefined ? { actions } : {}) });
+    const label = this.open.label;
+    this.phases.push({ id: this.open.id, label, sec, ...(actions !== undefined ? { actions } : {}) });
     this.open = null;
+    const mmss = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    this.log?.(`fase «${label}» termina en ${mmss}`);
+  }
+
+  /** La fase abierta, o la última cerrada, para el mensaje de tiempo agotado. */
+  currentLabel(): string | null {
+    return this.open?.label ?? this.phases[this.phases.length - 1]?.label ?? null;
   }
 
   /** Hora (epoch ms) a la que empezó la fase abierta, para cortar después su sesión de Hermes. */
   openedAt(): number | null {
     return this.open?.at ?? null;
+  }
+
+  /** Fase abierta. Un turno que cae fuera de una fase se anota como «otro». */
+  currentId(): string {
+    return this.open?.id || 'otro';
   }
 
   /** Desglose de la última fase cerrada. La última parte se ajusta para que sumen lo que midió la fase. */

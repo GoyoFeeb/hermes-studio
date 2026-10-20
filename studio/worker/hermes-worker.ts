@@ -2,19 +2,22 @@
  * hermes-worker.ts — el mismo proceso en el Mac o en el servicio Railway `hermes-worker` (2026-10-16).
  *
  * Pregunta a Hermes Studio si hay newsletters standalone en cola, ejecuta cada una con
- * `hermes chat -q` (no interactivo) usando Hermes Agent (config, skills, memoria, suscripción
- * de Nous) dentro de sistema-final/, y sube el HTML resultante. Es exactamente el flujo manual
- * del usuario (pegar el prompt en Hermes), automatizado: por eso la calidad es la misma.
+ * `hermes chat -q` (no interactivo) usando Hermes Agent (config, skills, memoria y, en
+ * Railway, NOUS_API_KEY en vez de la sesión del Mac) dentro de sistema-final/, y sube el HTML.
+ * Es el flujo manual (pegar el prompt en Hermes), automatizado: por eso la calidad es la misma.
  *
  * En el Mac: `npm run hermes-worker`. En Railway lo arranca studio/worker/cloud-entrypoint.sh
- * (uid 1001, HERMES_CLOUD=1, lista blanca). Ver studio/worker/CLOUD.md. No los dos a la vez.
+ * (uid 1001, HERMES_CLOUD=1, lista blanca). Ver studio/worker/CLOUD.md. En una máquina, un solo
+ * proceso (el candado local). Varias réplicas sí: cada una con su workerId y sus huecos.
  *
  * Progreso: lee el historial de sesiones de Hermes mientras trabaja (ver "Progreso" abajo).
  *
  * Credenciales en el Mac (~/.config/hermes-studio/.env, fuera del repo): STUDIO_WORKER_URL, WORKER_TOKEN
- * Opcionales:                   HERMES_BIN (por defecto "hermes"), HERMES_TIMEOUT_MIN (180)
+ * Opcionales:                   HERMES_BIN (por defecto "hermes"), HERMES_TIMEOUT_MIN (180, tope duro),
+ *                               HERMES_JOB_TIMEOUT_MIN (20, entrega lo que pase las comprobaciones)
  *
- * Un trabajo a la vez. `--yolo` aprueba solo los comandos (no hay nadie para confirmarlos):
+ * Varios a la vez si WORKER_CONCURRENCY > 1 (defecto 2), cada uno con su HERMES_HOME.
+ * `--yolo` aprueba solo los comandos (no hay nadie para confirmarlos):
  * Hermes actúa igual que en una sesión normal, pero sin pedir permiso.
  */
 import * as fs from 'fs';
@@ -23,7 +26,7 @@ import * as path from 'path';
 import { spawn, execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import { loadEnv } from '../../scripts/lib/env';
-import { describeErrors, staticChecks, type QualityReport } from './qualityCheck';
+import { checkFailureLines, staticChecks, type QualityReport } from './qualityCheck';
 import { REQUEST_FILE, brandPalette, inspectNewsletter } from './inspect';
 import { hasVisiblePixels, measureBrand, needsMeasure, readMeasuredIdentity, hasBrandPack, identityNote, hasConfirmedUrl, sameSite } from './measureBrand';
 import { Timeline, summarize, type JobTimings, type PhasePart } from './timeline';
@@ -37,9 +40,34 @@ import { VERIFIED_FILE, verifiedSource } from './claims';
 import { GENERIC_PHRASES_LIST, copyFindings } from './copyCheck';
 import sharp from 'sharp';
 import { chosenModulesNote } from '../hermes/catalog';
-import { FACTS_RULE, artCompareQuery, briefDigest, compareVerdict, doubleVerdict, judgeFacts, parseArtCompare, type ArtCompare } from './artJudge';
+import { FACTS_RULE, artCompareQuery, artCompareRepairPrompt, briefDigest, compareVerdict, doubleVerdict, judgeFacts, parseArtCompare, type ArtCompare } from './artJudge';
+import {
+  CRITERION_ALIASES,
+  DEFECT_ALIASES,
+  IMPROVE_ALIASES,
+  NOTE_BAG_ALIASES,
+  PROBLEM_ALIASES,
+  PROOF_ALIASES,
+  aliasesFor,
+  asRecord,
+  field,
+  normalizeKey,
+  parseScore,
+  proofTail,
+  stringList,
+} from './artParse';
+import { jsonObjects, parseWithOneRepair, redactedSnippet } from './looseJson';
+import { notesAreReady, recoverSelfAudit, selfAuditPrompt } from './selfAudit';
 import { renderChecks } from './renderChecks';
 import { startHeartbeat } from './heartbeat';
+import { cloudHermesSettings, hermesVolumeHasAuth, probeInstalledHermes, providerArgs, seedHermesCloudProfile } from './hermesCloudProfile';
+import { HERMES_TRACE_LINES, hermesTraceExcerpt, redactSecrets, secretValues } from './hermesTrace';
+import { UsageLedger } from './usage';
+import { canTakeScreenshot, deliveryOnTimeout, JobClock, jobBudgetFromEnv, timeoutFailMessage } from './jobBudget';
+import { activeScopes, newScope, runInScope, scope, type JobScope } from './jobScope';
+import { isolateHermesHome, shouldIsolateHome, slotHomeDir } from './hermesHome';
+import { freeSlots, workerConcurrency, workerIdentity } from '../server/claimQueue';
+import { BackgroundMaintenance, idleSlotPlan } from './backgroundMaintenance';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del proceso, SIN lo que usa este worker para hablar con Studio.
@@ -102,13 +130,13 @@ async function api(route: string, body?: unknown, attempts = 3): Promise<Respons
       // 16,5 min esperando al modelo sin que nadie cortara).
       const res = await fetch(`${BASE}${route}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json', 'X-Worker-Id': WORKER_ID },
         body: JSON.stringify(body ?? {}),
         signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
       // 409 en una ruta del trabajo en curso = lo han cancelado desde la web (ver standaloneJobForWorker).
-      if (res.status === 409 && current && route.startsWith(`/api/worker/jobs/${current}/`)) markCancelled();
-      if (res.ok && current && route === `/api/worker/jobs/${current}/progress`) await takeBriefRestart(res.clone());
+      if (res.status === 409 && scope().id && route.startsWith(`/api/worker/jobs/${scope().id}/`)) markCancelled();
+      if (res.ok && scope().id && route === `/api/worker/jobs/${scope().id}/progress`) await takeBriefRestart(res.clone());
       return res;
     } catch (err) {
       if (i >= attempts) throw err;
@@ -308,8 +336,14 @@ function sessionStamp(d: Date): string {
 
 /** Sesión que abrió este `hermes -z`: la primera creada después de lanzarlo (los IDs de sesión
  *  empiezan por la fecha y hora local de creación). */
+function hermesEnv(): NodeJS.ProcessEnv {
+  const env = { ...HERMES_ENV };
+  if (scope().home) env.HERMES_HOME = scope().home;
+  return env;
+}
+
 async function findSessionId(since: Date): Promise<string | null> {
-  const { stdout } = await execFileAsync(HERMES_BIN, ['sessions', 'list'], { timeout: 30000, env: HERMES_ENV });
+  const { stdout } = await execFileAsync(HERMES_BIN, ['sessions', 'list'], { timeout: 30000, env: hermesEnv() });
   const floor = sessionStamp(new Date(since.getTime() - 5000));
   const ids = [...stdout.matchAll(/(\d{8}_\d{6}_[0-9a-f]+)\s*$/gm)].map((m) => m[1]).filter((id) => id.slice(0, 15) >= floor);
   return ids.sort()[0] || null;
@@ -334,7 +368,7 @@ export function toolCallsFromSession(session: { messages?: unknown[] }): ToolCal
 
 async function exportSession(sessionId: string): Promise<{ messages?: unknown[] }> {
   const tmp = path.join(os.tmpdir(), `hermes-worker-${sessionId}.jsonl`);
-  await execFileAsync(HERMES_BIN, ['sessions', 'export', tmp, '--session-id', sessionId], { timeout: 30000, env: HERMES_ENV });
+  await execFileAsync(HERMES_BIN, ['sessions', 'export', tmp, '--session-id', sessionId], { timeout: 30000, env: hermesEnv() });
   try {
     return JSON.parse(fs.readFileSync(tmp, 'utf8').split('\n')[0]);
   } finally {
@@ -404,20 +438,14 @@ function localBrands(): string[] {
     .map((e) => e.name);
 }
 
-let current: string | null = null;
-/** Carpeta del trabajo en curso (para apartarla si el worker se detiene a medias). */
-let currentOutAbs: string | null = null;
-let currentChild: ReturnType<typeof spawn> | null = null;
-/** El trabajo en curso se canceló desde la web (2026-09-28): se detiene a Hermes, no se le piden
- *  más turnos y no se sube nada. Lo detecta api() con el 409 de Studio (el progreso va cada 30 s). */
-let cancelled = false;
-/** El vigilante de bucles paró a Hermes tras avisarle una vez (loopWatch.ts): no se le piden más turnos. */
-let loopStopped: string | null = null;
-/** Brief temprano (auditoría de UX 2026-10-14, H-17, ver studio/server/earlyBrief.ts): el equipo corrigió el brief
- *  mientras Hermes hacía la primera versión. Lo entrega Studio en la respuesta de un latido; si llega durante la
- *  primera versión (`inDraft`), se corta el turno y la pieza vuelve a empezar con el brief corregido. */
-let pendingBrief: { prompt: string; brief: string } | null = null;
-let inDraft = false;
+/** Estado del trabajo de este hueco (jobScope.ts). El 409 de Studio marca `cancelled` en el latido. */
+const WORKER_ID = workerIdentity();
+/** Uso y tiempos por hueco: dos trabajos a la vez no pueden compartir un libro. */
+const usageByScope = new WeakMap<JobScope, UsageLedger>();
+const timelineByScope = new WeakMap<JobScope, Timeline>();
+/** Miniaturas, nota de calidad y fichas: no ocupan un hueco. */
+const maintenance = new BackgroundMaintenance();
+let maintenanceScope: JobScope | null = null;
 
 interface LoopState {
   watch: LoopWatch;
@@ -435,7 +463,7 @@ function newLoopState(): LoopState {
 function watchForLoop(st: LoopState, tools: ToolCall[], jobId: string, phase: string): void {
   st.watch.update(tools);
   const found = st.watch.check();
-  if (!found || !currentChild || loopStopped || cancelled) return;
+  if (!found || !scope().child || scope().loopStopped || scope().cancelled) return;
   const loop = found.text;
   if (!st.nudged) {
     st.nudged = true;
@@ -447,10 +475,10 @@ function watchForLoop(st: LoopState, tools: ToolCall[], jobId: string, phase: st
       level: 'error',
     }).catch(() => undefined);
   } else {
-    loopStopped = loop;
+    scope().loopStopped = loop;
     console.log(`[${stamp()}] ${jobId}: Hermes sigue en bucle tras el aviso (${phase}) — ${loop}. Se detiene.`);
   }
-  currentChild.kill('SIGTERM');
+  scope().child.kill('SIGTERM');
 }
 
 /** ¿Trae la respuesta del latido un brief corregido? (H-17). Se corta el turno solo durante la primera versión. */
@@ -458,22 +486,20 @@ async function takeBriefRestart(res: Response): Promise<void> {
   const body = (await res.json().catch(() => null)) as { briefRestart?: { prompt?: string; brief?: string } } | null;
   const r = body?.briefRestart;
   if (!r?.prompt || !r.brief) return;
-  pendingBrief = { prompt: r.prompt, brief: r.brief };
-  console.log(`[${stamp()}] ${current}: brief corregido desde Studio — ${inDraft ? 'se corta la pieza y vuelve a empezar' : 'se usará al empezar la pieza'}`);
-  if (inDraft) currentChild?.kill('SIGTERM');
+  scope().pendingBrief = { prompt: r.prompt, brief: r.brief };
+  console.log(`[${stamp()}] ${scope().id}: brief corregido desde Studio — ${scope().inDraft ? 'se corta la pieza y vuelve a empezar' : 'se usará al empezar la pieza'}`);
+  if (scope().inDraft) scope().child?.kill('SIGTERM');
 }
 
 function markCancelled(): void {
-  if (cancelled) return;
-  cancelled = true;
-  console.log(`[${stamp()}] ${current}: cancelado desde Studio — se detiene Hermes`);
-  currentChild?.kill('SIGTERM');
+  if (scope().cancelled) return;
+  scope().cancelled = true;
+  console.log(`[${stamp()}] ${scope().id}: cancelado desde Studio — se detiene Hermes`);
+  scope().child?.kill('SIGTERM');
 }
 
-/** Veces que se le dice a Hermes "continúa" si termina sin haber dejado el HTML (en la app de
- *  escritorio lo haría el usuario; p. ej. el 2026-09-24 Hermes anunció "reintento la extracción"
- *  y terminó el turno sin reintentar). */
-const MAX_CONTINUES = 3;
+/** Tope histórico de «continúa». El que usa el trabajo es HERMES_MAX_CONTINUES (defecto 2, jobBudget). */
+export const MAX_CONTINUES = 3;
 /** Sin ninguna actividad en la sesión durante este tiempo, la barra avisa de que parece atascado. */
 const STALL_WARN_SEC = 5 * 60;
 /** Sin actividad este tiempo, se corta el turno de Hermes y se retoma la sesión: una llamada al
@@ -520,7 +546,8 @@ export function selfContainedNote(outputDir: string, root = ROOT, briefDone = tr
           '  no lo leas. No releas archivos que ya tienes aquí, no listes el repo ni leas package.json o scripts.',
           `- Orden: 1) mira las fotos (hoja de contacto si la hay), 2) escribe ${outputDir}/newsletter.html entero con`,
           '  write_file partiendo de la base, 3) `npm run check-newsletter` y `npm run render-newsletter`, 4) corrige,',
-          '  5) notas.md. No investigues lo que el brief deja pendiente: queda fuera de la pieza.',
+          `  5) escribe exactamente ${outputDir}/notas.md con write_file y la plantilla de autoauditoría (no la dejes solo en el chat).`,
+          '  No investigues lo que el brief deja pendiente: queda fuera de la pieza.',
         ]
       : [
           // «Prompt completo» (2026-10-07, recuperado el 08-10): sin brief, la investigación que pide el prompt la hace
@@ -530,7 +557,8 @@ export function selfContainedNote(outputDir: string, root = ROOT, briefDone = tr
           '  módulos están abajo (contenido completo): no los leas del disco, no listes el repo ni leas package.json o scripts.',
           '- Orden: 1) investiga lo que pide el prompt y descarga las fotos oficiales (`npm run fetch-image`), 2) mira las fotos,',
           `  3) escribe ${outputDir}/newsletter.html entero con write_file partiendo de la base, 4) \`npm run check-newsletter\``,
-          '  y `npm run render-newsletter`, 5) corrige, 6) notas.md. Lo que no verifiques queda fuera de la pieza.',
+          `  y \`npm run render-newsletter\`, 5) corrige, 6) escribe exactamente ${outputDir}/notas.md con write_file y la plantilla de autoauditoría (no la dejes solo en el chat).`,
+          '  Lo que no verifiques queda fuera de la pieza.',
         ]),
     ...(base ? ['', '### Base técnica: studio/hermes/email-base.html (contenido completo)', '```html', base, '```'] : []),
     ...(modules ? ['', '### Módulos técnicos de ejemplo: studio/hermes/email-modulos.md (contenido completo)', modules] : []),
@@ -646,11 +674,92 @@ function modelArgs(model?: string): string[] {
   return modelFlag ? [modelFlag, model] : [];
 }
 
+let providerFlag: string | null | undefined;
+
+/** True si `hermes chat --help` anuncia `--provider`. Sin el binario, no se pasa el flag. */
+function providerFlagSupported(): boolean {
+  if (providerFlag === undefined) {
+    try {
+      const help = execFileSync(HERMES_BIN, ['chat', '--help'], { encoding: 'utf8', timeout: 15000, env: HERMES_ENV });
+      providerFlag = /--provider\b/.test(help) ? '--provider' : null;
+    } catch {
+      providerFlag = null;
+    }
+    if (!providerFlag && process.env.HERMES_CLOUD === '1') {
+      console.log(`[${stamp()}] AVISO: hermes chat no admite --provider; se usa config.yaml en HERMES_HOME.`);
+    }
+  }
+  return providerFlag === '--provider';
+}
+
+/** Proveedor que verá el turno: en la nube, el de HERMES_PROVIDER (anthropic o custom:nous-api). */
+function primaryProvider(): string {
+  if (process.env.HERMES_CLOUD === '1') {
+    const home = (process.env.HERMES_HOME || '').trim();
+    const settings = cloudHermesSettings(process.env, { hasAuth: hermesVolumeHasAuth(home) });
+    if (settings.provider) return settings.provider;
+  }
+  return (process.env.HERMES_PROVIDER || '').trim();
+}
+
+/** Modelo del trabajo cuando la fase no trae HERMES_MODEL_*. */
+function primaryModel(): string {
+  if (process.env.HERMES_CLOUD === '1') {
+    const home = (process.env.HERMES_HOME || '').trim();
+    const settings = cloudHermesSettings(process.env, { hasAuth: hermesVolumeHasAuth(home) });
+    if (settings.model) return settings.model;
+  }
+  return (process.env.HERMES_INFERENCE_MODEL || MODELS.draft || '').trim();
+}
+
+/** En la nube, proveedor y modelo van en el turno. En el Mac no se añade nada. */
+function cloudTurn(phaseModel?: string): { args: string[]; env: NodeJS.ProcessEnv } {
+  const env = hermesEnv();
+  if (process.env.HERMES_CLOUD !== '1') return { args: [], env };
+  const home = (scope().home || process.env.HERMES_HOME || '').trim();
+  const hasAuth = hermesVolumeHasAuth(home);
+  const settings = cloudHermesSettings(process.env, { hasAuth });
+  if (!phaseModel && settings.model && !env.HERMES_INFERENCE_MODEL) env.HERMES_INFERENCE_MODEL = settings.model;
+  return { args: providerArgs(settings.provider, providerFlagSupported()), env };
+}
+
+function hermesTrace(turn: { output: string; stderr: string }): string {
+  return hermesTraceExcerpt(turn.output, turn.stderr, secretValues(process.env));
+}
+
 /** Sin el AGENTS.md del repo, la memoria ni SOUL.md (2026-10-06): cada sesión recibía 15 K caracteres que le decían
  *  «eres el Orchestrator del pipeline 00-09» (production-gate, 4 archivos de control), justo lo que Studio no usa, y
  *  el razonamiento se alargaba conciliándolo con el encargo. El encargo de Studio es autocontenido. Con
  *  HERMES_KEEP_RULES=1 vuelve a cargarse todo. */
 const RULES_ARGS = process.env.HERMES_KEEP_RULES === '1' ? [] : ['--ignore-rules'];
+
+/** Suma el uso de la sesión al libro de este hueco. Un export fallido no tumba el turno. */
+async function recordTurnUsage(slot: JobScope, sessionId: string | null, model?: string): Promise<void> {
+  const ledger = usageByScope.get(slot);
+  if (!ledger || !sessionId) return;
+  try {
+    const session = await exportSession(sessionId);
+    ledger.note(sessionId, session, timelineByScope.get(slot)?.currentId() || 'otro', model || primaryModel(), primaryProvider());
+  } catch (err) {
+    console.log(`[${stamp()}] No se pudo leer el uso de la sesión ${sessionId}: ${(err as Error).message.slice(0, 200)}`);
+  }
+}
+
+/** Cuerpo de /complete, /fail y /brief: tokens, coste, modelo y proveedor de este hueco. */
+function usageBody(slot: JobScope = scope()): Record<string, unknown> {
+  const ledger = usageByScope.get(slot);
+  if (!ledger) return {};
+  const report = ledger.report(process.env);
+  return {
+    inputTokens: report.inputTokens,
+    outputTokens: report.outputTokens,
+    cacheTokens: report.cacheTokens,
+    costUsd: report.costUsd,
+    costEur: report.costEur,
+    model: report.model,
+    provider: report.provider,
+  };
+}
 
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
  *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
@@ -661,11 +770,12 @@ function runHermesTurn(
   model?: string,
   extraArgs: string[] = []
 ): Promise<{ code: number | null; output: string; stderr: string }> {
-  if (cancelled) return Promise.resolve({ code: null, output: '', stderr: 'Trabajo cancelado.' });
-  if (loopStopped) return Promise.resolve({ code: null, output: '', stderr: `Hermes se quedó en bucle: ${loopStopped}.` });
-  const args = ['chat', '-q', query, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...extraArgs];
-  const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: HERMES_ENV, stdio: ['ignore', 'pipe', 'pipe'] });
-  currentChild = child;
+  if (scope().cancelled) return Promise.resolve({ code: null, output: '', stderr: 'Trabajo cancelado.' });
+  if (scope().loopStopped) return Promise.resolve({ code: null, output: '', stderr: `Hermes se quedó en bucle: ${scope().loopStopped}.` });
+  const cloud = cloudTurn(model);
+  const args = ['chat', '-q', query, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...cloud.args, ...extraArgs];
+  const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: cloud.env, stdio: ['ignore', 'pipe', 'pipe'] });
+  scope().child = child;
   let stdout = '';
   let stderr = '';
   child.stdout!.on('data', (d) => {
@@ -673,15 +783,21 @@ function runHermesTurn(
     const m = stdout.match(/session_id:\s*(\S+)/);
     if (m) onSession(m[1]);
   });
-  child.stderr!.on('data', (d) => (stderr = (stderr + d).slice(-8000)));
+  child.stderr!.on('data', (d) => (stderr = (stderr + d).slice(-24_000)));
   return new Promise((resolve) => {
+    const slot = scope();
+    const finish = (code: number | null, output: string, stderrText: string): void => {
+      slot.child = null;
+      const seen = stdout.match(/session_id:\s*(\S+)/);
+      void recordTurnUsage(slot, seen?.[1] || resumeId, model).finally(() => {
+        resolve({ code, output, stderr: stderrText });
+      });
+    };
     child.on('close', (code) => {
-      currentChild = null;
-      resolve({ code, output: stdout.replace(/^\s*session_id:.*$/m, '').trim(), stderr });
+      finish(code, stdout.replace(/^\s*session_id:.*$/m, '').trim(), stderr);
     });
     child.on('error', (err) => {
-      currentChild = null;
-      resolve({ code: -1, output: stdout, stderr: `${stderr}\n${err.message}` });
+      finish(-1, stdout, `${stderr}\n${err.message}`);
     });
   });
 }
@@ -693,11 +809,36 @@ export const ART_SCORE_CAP_MS = 5 * 60 * 1000;
 export const ART_IMPROVE_CAP_MS = 8 * 60 * 1000;
 /** El turno que arregla solo los defectos claros de la revisión (2026-10-19): cambios mínimos. */
 export const ART_DEFECT_CAP_MS = 4 * 60 * 1000;
+function logUnparseable(jobId: string, what: string, output: string): void {
+  const snippet = redactedSnippet(output, secretValues(process.env), 500);
+  console.log(`[${stamp()}] ${jobId}: ${what} — respuesta no parseable: ${snippet || '(vacía)'}`);
+}
+
+/** Pide la nota, y si no se puede leer, como mucho `repairRetries` reintentos con el esquema (defecto 1). */
+async function readArtReview(
+  jobId: string,
+  what: string,
+  query: string,
+  opts?: { capMs?: number; repairRetries?: number }
+): Promise<{ review: ArtReview | null; output: string }> {
+  const cap = Math.max(1000, opts?.capMs ?? ART_SCORE_CAP_MS);
+  const retries = opts?.repairRetries ?? 1;
+  const look = await cappedTurn(cap, jobId, what, () => runHermesTurn(query, null, () => undefined, MODELS.art));
+  const secrets = secretValues(process.env);
+  const parsed = await parseWithOneRepair(look.output, parseArtReview, (bad) => artReviewRepairPrompt(bad, secrets), async (prompt) => {
+    if (retries < 1) return '';
+    const again = await cappedTurn(cap, jobId, `${what} (reintento)`, () => runHermesTurn(prompt, null, () => undefined, MODELS.art));
+    return again.output;
+  });
+  parsed.unparsed.forEach((bad, index) => logUnparseable(jobId, index === 0 ? what : `${what} (reintento)`, bad));
+  return { review: parsed.value, output: parsed.output };
+}
+
 async function cappedTurn<T>(ms: number, jobId: string, what: string, turn: () => Promise<T>): Promise<T> {
   const timer = setTimeout(() => {
-    if (!currentChild) return;
+    if (!scope().child) return;
     console.log(`[${stamp()}] ${jobId}: ${what} sin terminar en ${Math.round(ms / 60000)} min — se corta`);
-    currentChild.kill('SIGTERM');
+    scope().child.kill('SIGTERM');
   }, ms);
   try {
     return await turn();
@@ -707,8 +848,9 @@ async function cappedTurn<T>(ms: number, jobId: string, what: string, turn: () =
 }
 
 /** Rondas de corrección (2026-10-05): móvil, espacios y calidad van JUNTOS en una sola ronda (antes, dos bucles
- *  seguidos: hasta 4 turnos). La segunda ronda solo si la primera dejó errores. */
-const FIX_ROUNDS = 2;
+ *  seguidos: hasta 4 turnos). La segunda ronda solo si la primera dejó errores. El tope vivo es
+ *  HERMES_FIX_ROUNDS (defecto 2, jobBudget). */
+export const FIX_ROUNDS = 2;
 
 /** Las rondas de corrección rehacían la pieza entera: la de móvil de Calvin Klein (2026-10-05) duró 23 min para un
  *  padding de 28 px, porque Hermes cambió el logo, volvió a investigar las imágenes y renderizó 4 combinaciones. */
@@ -742,6 +884,40 @@ const FIX_GUIDE =
   'Foto con mucho vacío → recórtala (sharp o el script que prefieras) dejando ~10 % de margen. Marcador sin rellenar → ' +
   'sustitúyelo por el contenido real o quita el elemento.';
 
+/** Encargo de una ronda de corrección. Cada error lleva id, nombre y el detalle medido, el mismo texto que el log. */
+export function buildCorrectionMessage(opts: {
+  outputDir: string;
+  brand: string;
+  report: QualityReport;
+  checkCmd: string;
+  mobileFix: boolean;
+  continued: boolean;
+}): string {
+  const failures = checkFailureLines(opts.report).map((line) => `- ${line}`).join('\n');
+  if (opts.continued) {
+    return `Siguen estos errores tras tu corrección:\n\n${failures}\n\nCorrígelos con el mismo alcance y vuelve a ejecutar \`${opts.checkCmd}\`.\n\n${SCOPED_FIX}`;
+  }
+  return [
+    `Corrige la newsletter ${opts.outputDir}/newsletter.html (${opts.brand}). La pieza ya está hecha y revisada; ` +
+      'el control automático de Studio (medido, no declarado) ha encontrado esto:',
+    '',
+    failures,
+    '',
+    `Contexto, solo si un error lo necesita: autoauditoría en ${opts.outputDir}/notas.md; encargo original en ${opts.outputDir}/_trabajo/encargo.md` +
+      (opts.mobileFix ? '. Es una adaptación a móvil: no cambies textos, imágenes ni enlaces.' : '.'),
+    '',
+    FIX_GUIDE,
+    '',
+    `Cuando termines, ejecuta \`${opts.checkCmd}\` (aplica los arreglos mecánicos y te dice lo que queda) y repite hasta que salga sin errores, como mucho 3 veces. Añade a notas.md una línea por cada corrección.`,
+    '',
+    SCOPED_FIX,
+    WEB_ACCESS_NOTE,
+    SECRETS_NOTE,
+    '',
+    'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
+  ].join('\n');
+}
+
 /** Errores que Hermes puede corregir en la ronda. En «Adaptar a móvil» solo el móvil (no puede tocar textos ni
  *  enlaces); en «Pedir cambios», no los que ya traía la original (`inherited`). */
 function fixableErrors(report: QualityReport, kind: 'new' | 'revision' | 'mobile-fix', inherited: Set<string> = new Set()): QualityReport {
@@ -770,6 +946,14 @@ interface ClaimedJob {
   artReview?: boolean;
   /** Petición del equipo (instrucción básica): lo que pide tiene que llegar al brief y a la pieza (requestCoverage.ts). */
   request?: string;
+  /** Tokens ya guardados (el brief que esperó aprobación). El libro los suma antes de los turnos nuevos. */
+  priorUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    cacheTokens?: number;
+    model?: string | null;
+    provider?: string | null;
+  };
 }
 
 /** Una adaptación a móvil es un retoque, no una newsletter: la barra estima con esto. */
@@ -900,7 +1084,8 @@ async function runBriefStep(
   job: ClaimedJob,
   outAbs: string,
   timeline: Timeline,
-  identity: string
+  identity: string,
+  limits?: { capMs: number; continues: number }
 ): Promise<{ prompt: string; seconds: number; actions: number } | { paused: true } | { error: string }> {
   const started = Date.now();
   const briefFile = path.join(outAbs, 'brief.md');
@@ -933,25 +1118,26 @@ async function runBriefStep(
     watchForLoop(loops, tools, job.id, 'brief');
     // Presupuesto del brief (Paredes, 2026-10-05: 62 acciones y 17 min navegando la web en busca de la URL de cada
     // imagen; un brief tarda 1-4 min). Pasado el tope se corta el turno UNA vez y el siguiente le pide escribirlo ya.
-    if (!budgetHit && currentChild && !ready() && (tools.length >= BRIEF_ACTION_BUDGET || elapsed >= BRIEF_TIME_BUDGET_SEC)) {
+    const briefCapSec = Math.min(BRIEF_TIME_BUDGET_SEC, limits ? limits.capMs / 1000 : BRIEF_TIME_BUDGET_SEC);
+    if (!budgetHit && scope().child && !ready() && (tools.length >= BRIEF_ACTION_BUDGET || elapsed >= briefCapSec)) {
       budgetHit = true;
       console.log(`[${stamp()}] Brief de ${job.id}: presupuesto agotado (${tools.length} acciones, ${Math.round(elapsed / 60)} min) — se corta y se le pide que lo escriba`);
       void api(`/api/worker/jobs/${job.id}/progress`, {
         message: `El brief lleva ${tools.length} acciones y ${Math.round(elapsed / 60)} min investigando: se le pide a Hermes que lo escriba ya con lo que tiene.`,
       }).catch(() => undefined);
-      currentChild.kill('SIGTERM');
+      scope().child.kill('SIGTERM');
     }
     // Brief ya escrito y completo (2026-10-06): lo que venga después en ese turno es un resumen que nadie lee o una
     // verificación de más (Paredes: 67 s de resumen; Calvin Klein: 5 min releyendo y buscando tras escribirlo).
-    if (firstTurn && currentChild && briefDone(briefFile, started)) {
+    if (firstTurn && scope().child && briefDone(briefFile, started)) {
       console.log(`[${stamp()}] Brief de ${job.id}: brief.md completo y sin cambios desde hace ${BRIEF_SETTLE_SEC} s — se cierra el turno`);
-      currentChild.kill('SIGTERM');
+      scope().child.kill('SIGTERM');
     }
-    if ((Date.now() - lastChange) / 1000 >= STALL_KILL_SEC && currentChild) {
+    if ((Date.now() - lastChange) / 1000 >= STALL_KILL_SEC && scope().child) {
       console.log(`[${stamp()}] Brief de ${job.id}: Hermes sin actividad ${Math.round(STALL_KILL_SEC / 60)} min — se corta el turno y se retoma`);
       timeline.hang((Date.now() - lastChange) / 1000);
       lastChange = Date.now();
-      currentChild.kill('SIGTERM');
+      scope().child.kill('SIGTERM');
     }
     const last = tools[tools.length - 1];
     const progress: Progress = {
@@ -967,7 +1153,8 @@ async function runBriefStep(
     await api(`/api/worker/jobs/${job.id}/progress`, { progress }).catch(() => undefined);
     busy = false;
   }, PROGRESS_MS);
-  const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
+  const briefCapMs = limits?.capMs ?? TIMEOUT_MS;
+  const killer = setTimeout(() => scope().child?.kill('SIGTERM'), Math.min(TIMEOUT_MS, briefCapMs));
 
   let turn = await runHermesTurn(
     job.briefPrompt! + identity + briefEnvNote(job.outputDir) + brandAssetsNote(job.outputDir) + WEB_ACCESS_NOTE + PREVIOUS_WORK_NOTE + SECRETS_NOTE,
@@ -976,7 +1163,8 @@ async function runBriefStep(
     MODELS.brief
   );
   firstTurn = false;
-  for (let i = 1; i <= 3 && !ready() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
+  const briefContinues = limits?.continues ?? 3;
+  for (let i = 1; i <= briefContinues && !ready() && !scope().cancelled && !scope().loopStopped && sessionId && Date.now() - started < briefCapMs; i++) {
     const message = loops.nudge
       ? loopNudge(loops.nudge, `${job.outputDir}/brief.md`)
       : `Todavía no existe ${job.outputDir}/brief.md. ${budgetHit ? 'Se acabó el tiempo de investigación: NO navegues ni busques más. ' : ''}` +
@@ -989,7 +1177,7 @@ async function runBriefStep(
   // el brief como director creativo y reescribe lo que no pase. Incluye lo que la petición pide y el brief no recoge
   // (Paredes, 2026-10-05: «pre-black friday» y «público joven» desaparecieron); antes era una vuelta aparte.
   const gaps = ready() && job.request ? missingInBrief(job.request, fs.readFileSync(briefFile, 'utf8')) : [];
-  if (ready() && sessionId && !cancelled && !loopStopped) {
+  if (ready() && sessionId && !scope().cancelled && !scope().loopStopped) {
     if (gaps.length) {
       console.log(`[${stamp()}] Brief de ${job.id}: no recoge ${joinLabels(gaps)} — va en la autocrítica`);
       void api(`/api/worker/jobs/${job.id}/progress`, { message: `El brief no recoge ${joinLabels(gaps)} de la petición: se le pide a Hermes que lo añada.` }).catch(() => undefined);
@@ -1001,17 +1189,21 @@ async function runBriefStep(
   clearInterval(heartbeat);
   clearTimeout(killer);
   if (!ready()) {
-    if (loopStopped) {
+    if (scope().loopStopped) {
       return {
-        error: `Hermes se quedó en bucle mientras escribía el brief (${loopStopped}), también después de pedirle que escribiera. Se ha parado para no gastar más tiempo: vuelve a lanzarlo con «Reintentar».`,
+        error: `Hermes se quedó en bucle mientras escribía el brief (${scope().loopStopped}), también después de pedirle que escribiera. Se ha parado para no gastar más tiempo: vuelve a lanzarlo con «Reintentar».`,
       };
     }
-    return { error: `Hermes no llegó a escribir el brief (${job.outputDir}/brief.md).\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2000)}` };
+    return {
+      error:
+        `Hermes no llegó a escribir el brief (${job.outputDir}/brief.md).\n\n` +
+        `Salida de Hermes (últimas ${HERMES_TRACE_LINES} líneas):\n${hermesTrace(turn)}`,
+    };
   }
   // canPause (2026-10-01): si el equipo pidió revisar el brief, Studio responde { pause: true } y el trabajo
   // espera su aprobación; al aprobarlo vuelve a la cola y llega con el encargo final, sin paso de brief.
   // canRestart (2026-10-14, H-17): este worker sabe rehacer la pieza si el equipo corrige el brief mientras trabaja.
-  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true, canRestart: true }, 6);
+  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true, canRestart: true, ...usageBody() }, 6);
   if (!res.ok) return { error: `Studio no aceptó el brief: ${res.status} ${(await res.text()).slice(0, 300)}` };
   const reply = (await res.json()) as { prompt?: string; pause?: boolean };
   if (reply.pause) {
@@ -1206,39 +1398,194 @@ export function artReviewQuery(
       'dónde"], "mejoras": ["criterio: por cada nota que no sea 5, el cambio concreto que la subiría, empezando por el nombre ' +
       'del criterio (\\"aire: …\\"): qué, dónde y cómo (tamaño, espacio, orden, el texto de un titular, otra de las fotos ya ' +
       'descargadas…), sin rehacer la pieza ni cambiar datos o enlaces"]}',
+    'Esquema JSON obligatorio (claves exactas; cada nota es un número del 1 al 5, no un texto ni una valla):',
+    artReviewSchema(),
   ].join('\n');
 }
 
-/** El primer objeto JSON de la respuesta con las notas de todos los criterios; null si no lo hay. */
-export function parseArtReview(output: string): ArtReview | null {
-  const start = output.indexOf('{');
-  const end = output.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try {
-    const raw = JSON.parse(output.slice(start, end + 1)) as { notas?: Record<string, unknown>; problemas?: unknown };
-    const notas: Record<string, number> = {};
-    for (const k of Object.keys(ART_CRITERIA)) {
-      const n = Number(raw.notas?.[k]);
-      if (!(n >= 1 && n <= 5)) return null;
-      notas[k] = n;
-    }
-    const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((p): p is string => typeof p === 'string' && !!p.trim()).slice(0, 10) : []);
-    const pruebasRaw = (raw as { pruebas?: Record<string, unknown> }).pruebas || {};
-    const pruebas: Record<string, string> = {};
-    for (const k of Object.keys(ART_CRITERIA)) {
-      const p = pruebasRaw[k];
-      if (typeof p === 'string' && p.trim()) pruebas[k] = p.trim().slice(0, 400);
-    }
-    const mejoras = list((raw as { mejoras?: unknown }).mejoras);
-    // Un 5 se gana (Q3, 2026-10-07; la primera validación dio 21 cincos en 8 piezas): con una mejora de su mismo
-    // criterio o sin prueba, cuenta como 4.
-    for (const k of Object.keys(notas)) {
-      if (notas[k] === 5 && (!pruebas[k] || mejoras.some((m) => m.toLowerCase().replace(/^[\s*-]+/, '').startsWith(`${k}:`)))) notas[k] = 4;
-    }
-    return { notas, pruebas, problemas: list(raw.problemas), mejoras, defectos: list((raw as { defectos?: unknown }).defectos) };
-  } catch {
-    return null;
+/** El JSON que tiene que devolver la revisión. Mismas claves que ART_CRITERIA. */
+export function artReviewSchema(): string {
+  const notas = Object.fromEntries(Object.keys(ART_CRITERIA).map((k) => [k, 3]));
+  const pruebas = Object.fromEntries(Object.keys(ART_CRITERIA).map((k) => [k, 'qué se ve y dónde']));
+  return JSON.stringify({
+    notas,
+    pruebas,
+    defectos: ['qué, dónde y el arreglo mínimo'],
+    problemas: ['qué deja un criterio por debajo de 4'],
+    mejoras: ['criterio: cambio concreto que sube la nota'],
+  });
+}
+
+/** Segundo intento, sin herramientas: el modelo solo reescribe en JSON lo que ya contestó. */
+export function artReviewRepairPrompt(bad: string, secrets: string[] = []): string {
+  return [
+    'Tu respuesta anterior no se pudo leer como JSON con todos los criterios. No llames a ninguna herramienta.',
+    'Responde SOLO con un JSON válido, sin markdown y sin texto antes ni después, que cumpla este esquema:',
+    artReviewSchema(),
+    `Reglas: "notas" incluye todas estas claves: ${Object.keys(ART_CRITERIA).join(', ')}. Cada nota es un número del 1 al 5, no un string. "pruebas" usa las mismas claves. "defectos", "problemas" y "mejoras" son arrays de strings (vacíos si no hay).`,
+    'Si no viste la imagen, responde exactamente {"sin_imagen": true}.',
+    '',
+    'Respuesta anterior, recortada:',
+    redactedSnippet(bad, secrets, 4000),
+  ].join('\n');
+}
+
+function capEarnedFives(notas: Record<string, number>, pruebas: Record<string, string>, mejoras: string[]): void {
+  // Un 5 se gana (Q3, 2026-10-07; la primera validación dio 21 cincos en 8 piezas): con una mejora de su mismo
+  // criterio o sin prueba, cuenta como 4.
+  for (const k of Object.keys(notas)) {
+    const hits = mejoras.some((m) => mejoraHitsCriterion(m, k));
+    if (notas[k] === 5 && (!pruebas[k] || hits)) notas[k] = 4;
   }
+}
+
+function mejoraHitsCriterion(mejora: string, criterion: string): boolean {
+  const stripped = mejora.toLowerCase().replace(/^[\s*-]+/, '');
+  if (stripped.startsWith(`${criterion}:`)) return true;
+  const head = normalizeKey(stripped.split(':')[0] || '');
+  return (CRITERION_ALIASES[criterion] || []).some((alias) => normalizeKey(alias) === head);
+}
+
+function proofsFrom(raw: Record<string, unknown>, bag: Record<string, unknown> | null): Record<string, string> {
+  const pruebasRaw = asRecord(field(raw, PROOF_ALIASES)) || (bag ? asRecord(field(bag, PROOF_ALIASES)) : null) || {};
+  const pruebas: Record<string, string> = {};
+  for (const k of Object.keys(ART_CRITERIA)) {
+    const proof = field(pruebasRaw, aliasesFor(k));
+    if (typeof proof === 'string' && proof.trim()) pruebas[k] = proof.trim().slice(0, 400);
+  }
+  return pruebas;
+}
+
+function reviewFromFlat(raw: Record<string, unknown>): ArtReview | null {
+  const bag = asRecord(field(raw, NOTE_BAG_ALIASES));
+  const source = bag || raw;
+  const notas: Record<string, number> = {};
+  const inline: Record<string, string> = {};
+  for (const k of Object.keys(ART_CRITERIA)) {
+    const value = field(source, aliasesFor(k));
+    const n = parseScore(value);
+    if (n == null) return null;
+    notas[k] = n;
+    if (typeof value === 'string') {
+      const tail = proofTail(value);
+      if (tail) inline[k] = tail;
+    }
+  }
+  const pruebas = proofsFrom(raw, bag);
+  for (const k of Object.keys(inline)) if (!pruebas[k]) pruebas[k] = inline[k];
+  const mejoras = stringList(field(raw, IMPROVE_ALIASES));
+  capEarnedFives(notas, pruebas, mejoras);
+  return {
+    notas,
+    pruebas,
+    problemas: stringList(field(raw, PROBLEM_ALIASES)),
+    mejoras,
+    defectos: stringList(field(raw, DEFECT_ALIASES)),
+  };
+}
+
+function reviewFromRecord(raw: Record<string, unknown>): ArtReview | null {
+  const direct = reviewFromFlat(raw);
+  if (direct) return direct;
+  for (const value of Object.values(raw)) {
+    const nested = asRecord(value);
+    if (!nested) continue;
+    const inner = reviewFromFlat(nested);
+    if (inner) return inner;
+  }
+  return null;
+}
+
+function aliasToCriterion(): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const canon of Object.keys(ART_CRITERIA)) {
+    for (const alias of aliasesFor(canon)) map.set(normalizeKey(alias), canon);
+  }
+  return map;
+}
+
+function sectionBullets(text: string, titles: string[]): string[] {
+  const wanted = new Set(titles.map((title) => normalizeKey(title)));
+  let on = false;
+  const out: string[] = [];
+  for (const raw of text.split('\n')) {
+    const heading = raw.trim().replace(/\*\*/g, '').match(/^#{1,4}\s+(.+)/);
+    if (heading) {
+      const name = normalizeKey(heading[1]);
+      on = [...wanted].some((title) => name === title || name.startsWith(`${title}_`));
+      continue;
+    }
+    if (!on) continue;
+    const bullet = raw.replace(/\*\*/g, '').match(/^\s*[-*]\s+(.+)/);
+    if (bullet?.[1].trim()) out.push(bullet[1].trim().slice(0, 400));
+    if (out.length >= 10) break;
+  }
+  return out;
+}
+
+/** Lista o títulos (`- oscuro: 2`, `## Dark` y en la línea siguiente `2`) cuando no hay JSON. */
+function reviewFromMarkdown(text: string): ArtReview | null {
+  const flat = text.replace(/```(?:json|javascript|js|markdown|md|text)?[^\n]*\r?\n([\s\S]*?)```/gi, '\n$1\n');
+  const canonOf = aliasToCriterion();
+  const notas: Record<string, number> = {};
+  const pruebas: Record<string, string> = {};
+  const lines = flat.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const clean = lines[i].replace(/\*\*/g, '').replace(/`/g, '').trim();
+    const heading = clean.match(/^#{1,4}\s+(.+)$/);
+    let label = '';
+    let rest = '';
+    if (heading) {
+      const split = heading[1].match(/^(.+?)\s*[:|]\s*(.*)$/);
+      label = (split?.[1] || heading[1]).trim();
+      rest = split?.[2] || '';
+    } else {
+      const row = clean.replace(/^[-*+|]\s*/, '').replace(/^\|/, '').trim();
+      const split = row.match(/^([^:]{1,48}?)\s*[:|]\s*(.+)$/);
+      if (!split) continue;
+      label = split[1].trim();
+      rest = split[2].trim();
+    }
+    const canon = canonOf.get(normalizeKey(label));
+    if (!canon || notas[canon] != null) continue;
+    let score = parseScore(rest);
+    let proof = rest ? proofTail(rest) : '';
+    if (score == null && heading) {
+      const next = (lines[i + 1] || '').replace(/\*\*/g, '').trim();
+      score = parseScore(next);
+      proof = proofTail(next);
+    }
+    if (score == null) continue;
+    notas[canon] = score;
+    if (proof) pruebas[canon] = proof;
+  }
+  if (Object.keys(ART_CRITERIA).some((k) => notas[k] == null)) return null;
+  const mejoras = sectionBullets(flat, ['mejoras', 'improvements', 'suggestions', 'sugerencias']);
+  capEarnedFives(notas, pruebas, mejoras);
+  return {
+    notas,
+    pruebas,
+    problemas: sectionBullets(flat, ['problemas', 'problems', 'issues']),
+    mejoras,
+    defectos: sectionBullets(flat, ['defectos', 'defects']),
+  };
+}
+
+/**
+ * Notas de la revisión. Acepta el JSON del esquema y lo que DeepSeek escribe en su lugar: valla,
+ * prosa con llaves, claves en inglés, notas entre comillas y una lista con títulos. Null si falta
+ * algún criterio o la respuesta es `{"sin_imagen": true}`.
+ */
+export function parseArtReview(output: string): ArtReview | null {
+  if (!output?.trim()) return null;
+  const objects = jsonObjects(output);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const raw = asRecord(objects[i]);
+    if (!raw || raw.sin_imagen === true || raw.no_image === true) continue;
+    const review = reviewFromRecord(raw);
+    if (review) return review;
+  }
+  return reviewFromMarkdown(output);
 }
 
 export function lowScores(review: ArtReview): string[] {
@@ -1249,6 +1596,21 @@ export function lowScores(review: ArtReview): string[] {
  *  mejoras concretas. */
 export function needsTasteRound(review: ArtReview): boolean {
   return lowScores(review).length > 0 || (review.mejoras.length > 0 && Object.values(review.notas).some((n) => n < 5));
+}
+
+/** Pasadas de reescritura de gusto. 0 (por defecto) deja la nota y el arreglo de defectos.
+ *  1 o más restaura la pasada de siempre: una reescritura y dos comparaciones A/B, no un bucle. */
+export function artRevisePasses(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = (env.HERMES_ART_REVISE_PASSES ?? '').trim();
+  if (!raw) return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return 0;
+  return Math.min(20, Math.floor(n));
+}
+
+/** La reescritura de gusto y las comparaciones. Con 0 pasadas no se hacen. */
+export function shouldRunTasteRound(review: ArtReview, passes = artRevisePasses()): boolean {
+  return passes >= 1 && needsTasteRound(review);
 }
 
 /** ¿Hay pasada de mejora? La de gusto o, aunque no la haya, defectos claros que arreglar. */
@@ -1350,7 +1712,8 @@ export async function compareOnce(
   prompt: string,
   request: string | undefined,
   jobId: string,
-  facts: { before: string[]; after: string[] } = { before: [], after: [] }
+  facts: { before: string[]; after: string[] } = { before: [], after: [] },
+  opts?: { capMs?: number; repairRetries?: number }
 ): Promise<{ cmp: ArtCompare; afterIs: 'A' | 'B'; output: string } | null> {
   const [a, b] = afterIs === 'A' ? [afterFile, beforeFile] : [beforeFile, afterFile];
   const pair = await renderPair(a, b, baseDir, outDir);
@@ -1363,9 +1726,18 @@ export async function compareOnce(
     request,
     afterIs === 'A' ? { a: facts.after, b: facts.before } : { a: facts.before, b: facts.after }
   );
-  const look = await cappedTurn(ART_SCORE_CAP_MS, jobId, 'comparación de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
-  const cmp = parseArtCompare(look.output, Object.keys(ART_CRITERIA));
-  return cmp ? { cmp, afterIs, output: look.output } : null;
+  const criteria = Object.keys(ART_CRITERIA);
+  const cap = Math.max(1000, opts?.capMs ?? ART_SCORE_CAP_MS);
+  const retries = opts?.repairRetries ?? 1;
+  const look = await cappedTurn(cap, jobId, 'comparación de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
+  const secrets = secretValues(process.env);
+  const parsed = await parseWithOneRepair(look.output, (output) => parseArtCompare(output, criteria), (bad) => artCompareRepairPrompt(bad, criteria, secrets), async (prompt) => {
+    if (retries < 1) return '';
+    const again = await cappedTurn(cap, jobId, 'comparación de arte (reintento)', () => runHermesTurn(prompt, null, () => undefined, MODELS.art));
+    return again.output;
+  });
+  parsed.unparsed.forEach((bad, index) => logUnparseable(jobId, index === 0 ? 'comparación de arte' : 'comparación de arte (reintento)', bad));
+  return parsed.value ? { cmp: parsed.value, afterIs, output: parsed.output } : null;
 }
 
 /** Sin las dos comparaciones legibles: las dos notas, como antes, pero diciendo el motivo de verdad (el 08-16-10 el registro ponía
@@ -1394,18 +1766,42 @@ export function compareSummary(cmp: ArtCompare, afterIs: 'A' | 'B'): string {
 }
 
 async function runJob(claimed: ClaimedJob): Promise<void> {
-  current = claimed.id;
-  cancelled = false;
-  loopStopped = null;
-  pendingBrief = null;
-  inDraft = false;
+  scope().id = claimed.id;
+  scope().cancelled = false;
+  scope().loopStopped = null;
+  scope().pendingBrief = null;
+  scope().inDraft = false;
   const outAbs = path.join(ROOT, claimed.outputDir);
-  currentOutAbs = outAbs;
+  scope().outAbs = outAbs;
   fs.mkdirSync(outAbs, { recursive: true });
   console.log(`[${stamp()}] Trabajo ${claimed.id} → ${claimed.outputDir}${claimed.briefPrompt ? ' (desde instrucción: primero el brief)' : ''}`);
-  const timeline = new Timeline();
+  const budget = jobBudgetFromEnv();
+  const clock = new JobClock(Date.now(), budget);
+  const jobOpen = (): boolean => !scope().cancelled && !clock.expired();
+  let shots = 0;
+  const takeShot = (what: string): boolean => {
+    if (canTakeScreenshot(shots, budget) && jobOpen()) {
+      shots++;
+      return true;
+    }
+    console.log(`[${stamp()}] ${claimed.id}: se omite captura (${what}) — tope ${budget.artScreenshots} o tiempo del trabajo`);
+    return false;
+  };
+  const timeline = new Timeline(Date.now, (msg) => console.log(`[${stamp()}] ${claimed.id}: ${msg}`));
+  timelineByScope.set(scope(), timeline);
+  const ledger = new UsageLedger({ model: primaryModel(), provider: primaryProvider() });
+  usageByScope.set(scope(), ledger);
+  if (claimed.priorUsage) {
+    ledger.seed({
+      input: claimed.priorUsage.inputTokens,
+      output: claimed.priorUsage.outputTokens,
+      cache: claimed.priorUsage.cacheTokens,
+      model: claimed.priorUsage.model,
+      provider: claimed.priorUsage.provider,
+    });
+  }
   const fail = async (error: string): Promise<void> => {
-    await api(`/api/worker/jobs/${claimed.id}/fail`, { error, timings: timeline.toJSON() }).catch(() => undefined);
+    await api(`/api/worker/jobs/${claimed.id}/fail`, { error, timings: timeline.toJSON(), ...usageBody() }).catch(() => undefined);
   };
   const editKind = claimed.editKind || (claimed.sourceHtml !== undefined ? 'mobile-fix' : undefined);
   const isMobileFix = editKind === 'mobile-fix';
@@ -1427,7 +1823,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Midiendo la identidad de la marca en su web (tipografía, colores, botones y logo)…' }).catch(() => undefined);
       try {
         const url = given || confirmedPrev;
-        const m = await withTimeout(measureBrand(ROOT, slug, claimed.brand?.name || slug, url), MEASURE_TIMEOUT_MS);
+        const m = await withTimeout(measureBrand(ROOT, slug, claimed.brand?.name || slug, url), Math.min(MEASURE_TIMEOUT_MS, clock.phaseMs('measure')));
         const msg = !m
           ? 'La medición de la marca tardó demasiado: Hermes la investigará como siempre.'
           : 'reason' in m
@@ -1443,9 +1839,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const measured = hasBrandPack(ROOT, slug) ? null : readMeasuredIdentity(ROOT, slug);
     if (measured) identity = identityNote(measured);
   }
-  if (cancelled) {
+  if (scope().cancelled) {
     setAsideFolder(outAbs, 'cancelado');
-    current = null;
+    scope().id = null;
     return;
   }
 
@@ -1454,24 +1850,24 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   let prompt = claimed.prompt || '';
   if (claimed.briefPrompt) {
     timeline.start('brief', 'Brief');
-    const brief = await runBriefStep(claimed, outAbs, timeline, identity);
+    const brief = await runBriefStep(claimed, outAbs, timeline, identity, { capMs: clock.phaseMs('brief'), continues: budget.maxContinues });
     timeline.end('actions' in brief ? brief.actions : undefined);
-    if (cancelled) {
+    if (scope().cancelled) {
       console.log(`[${stamp()}] ✗ ${claimed.id}: cancelado durante el brief`);
       setAsideFolder(outAbs, 'cancelado');
-      current = null;
+      scope().id = null;
       return;
     }
     if ('error' in brief) {
       await fail(brief.error);
       setAsideFolder(outAbs, 'fallido');
-      console.log(`[${stamp()}] ✗ ${claimed.id}: sin brief`);
-      current = null;
+      console.error(`[${stamp()}] ✗ ${claimed.id}: sin brief\n${brief.error}`);
+      scope().id = null;
       return;
     }
     // Brief en revisión: la carpeta se queda (brief.md) y el worker pasa al siguiente trabajo.
     if ('paused' in brief) {
-      current = null;
+      scope().id = null;
       return;
     }
     prompt = brief.prompt;
@@ -1481,7 +1877,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     if (!claimed.sourceHtml) {
       await fail('No se encontró el HTML de la newsletter original.');
       setAsideFolder(outAbs, 'fallido');
-      current = null;
+      scope().id = null;
       return;
     }
     fs.mkdirSync(path.join(outAbs, '_trabajo'), { recursive: true });
@@ -1506,7 +1902,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       timeline.start('product', 'Ficha de producto y galería');
       await api(`/api/worker/jobs/${claimed.id}/progress`, { message: 'Leyendo la web oficial: ficha del producto (precio, envío) y fotos de la campaña…' }).catch(() => undefined);
       try {
-        const sheet = await withTimeout(buildProductSheet(urls, outAbs, { photos, gallery }), PRODUCT_TIMEOUT_MS);
+        const sheet = await withTimeout(buildProductSheet(urls, outAbs, { photos, gallery }), Math.min(PRODUCT_TIMEOUT_MS, clock.phaseMs('product')));
         productNote = sheet ? productSheetNote(sheet, claimed.outputDir) : '';
         const price = sheet?.pages.find((p) => p.price)?.price;
         const msg = sheet
@@ -1524,9 +1920,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     if (logo)
       logoNote = `\n- Logo medido en ${readMeasuredIdentity(ROOT, slug)?.url || 'la web de la marca'}, ya copiado en ${claimed.outputDir}/${logo}. Si esa web es la oficial de la marca (lo de «Identidad de la marca ya medida»), úsalo tal cual sin copiarlo ni buscarlo; si no lo es, bórralo de la carpeta y usa el logo de la web oficial.`;
   }
-  if (cancelled) {
+  if (scope().cancelled) {
     setAsideFolder(outAbs, 'cancelado');
-    current = null;
+    scope().id = null;
     return;
   }
   // La petición del equipo: check-newsletter (inspect.ts) comprueba con ella que la pieza nombra la ocasión o la
@@ -1598,16 +1994,21 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     if (idleSec >= STALL_WARN_SEC) {
       progress.detail = `Hermes lleva ${Math.round(idleSec / 60)} min sin acciones (esperando al modelo)`;
     }
-    if (idleSec >= STALL_KILL_SEC && currentChild) {
+    if (idleSec >= STALL_KILL_SEC && scope().child) {
       console.log(`[${stamp()}] ${job.id}: Hermes sin actividad ${Math.round(idleSec / 60)} min — se corta el turno y se retoma`);
       timeline.hang(idleSec);
       lastChange = Date.now();
-      currentChild.kill('SIGTERM');
+      scope().child.kill('SIGTERM');
     }
-    await api(`/api/worker/jobs/${job.id}/progress`, { progress }).catch(() => undefined);
+    await api(`/api/worker/jobs/${job.id}/heartbeat`, { workerId: WORKER_ID, concurrency: workerConcurrency() }).catch(() => undefined);
+    await api(`/api/worker/jobs/${job.id}/progress`, { progress, workerId: WORKER_ID, concurrency: workerConcurrency() }).catch(() => undefined);
+    if (clock.expired() && scope().child) {
+      console.log(`[${stamp()}] ${job.id}: tope del trabajo (${Math.round(budget.jobMs / 60000)} min) — se corta el turno`);
+      scope().child.kill('SIGTERM');
+    }
     busy = false;
   }, PROGRESS_MS);
-  const killer = setTimeout(() => currentChild?.kill('SIGTERM'), TIMEOUT_MS);
+  const killer = setTimeout(() => scope().child?.kill('SIGTERM'), Math.min(TIMEOUT_MS, Math.max(1000, clock.remainingMs())));
 
   // Cancelado desde la web: se deja de trabajar sin subir nada (Studio ya lo marcó como cancelado).
   const finishCancelled = (): void => {
@@ -1615,7 +2016,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     clearTimeout(killer);
     console.log(`[${stamp()}] ✗ ${job.id}: cancelado`);
     setAsideFolder(outAbs, 'cancelado');
-    current = null;
+    scope().id = null;
   };
   const progressMessage = (message: string, level?: 'error'): Promise<unknown> =>
     api(`/api/worker/jobs/${job.id}/progress`, { message, ...(level ? { level } : {}) }).catch(() => undefined);
@@ -1639,12 +2040,12 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     lastCount = -1;
     lastChange = Date.now();
     loops = newLoopState();
-    loopStopped = null;
+    scope().loopStopped = null;
   };
   // Llegó antes de empezar la pieza (durante la ficha de producto): se empieza ya con el brief corregido.
-  if (pendingBrief && !editKind && claimed.briefPrompt) {
-    const early: { prompt: string; brief: string } = pendingBrief;
-    pendingBrief = null;
+  if (scope().pendingBrief && !editKind && claimed.briefPrompt) {
+    const early: { prompt: string; brief: string } = scope().pendingBrief;
+    scope().pendingBrief = null;
     useBrief(early);
   }
 
@@ -1672,67 +2073,87 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   // Brief temprano (H-17): con brief propio, la primera versión puede volver a empezar si el equipo lo corrige.
   const briefOpen = !editKind && !!claimed.briefPrompt;
   const notesFile = path.join(outAbs, 'notas.md');
-  const notesReady = (): boolean => fs.existsSync(notesFile) && fs.statSync(notesFile).mtimeMs >= started;
-  let turn: Awaited<ReturnType<typeof runHermesTurn>>;
-  for (let attempt = 1; ; attempt++) {
-  inDraft = briefOpen;
-  turn = await runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning);
-  sessionId = sessionId || watched;
-  for (let i = 1; i <= MAX_CONTINUES && !pendingBrief && !htmlReady() && !cancelled && !loopStopped && sessionId && Date.now() - started < TIMEOUT_MS; i++) {
-    const nudge = loops.nudge;
-    loops.nudge = null;
-    console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${MAX_CONTINUES})${nudge ? ' — tras bucle' : ''}`);
-    if (!nudge) await progressMessage(`Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${MAX_CONTINUES}).`);
-    turn = await runHermesTurn(
-      nudge
-        ? loopNudge(nudge, `${job.outputDir}/newsletter.html`)
-        : `Todavía no existe ${job.outputDir}/newsletter.html. Tu respuesta anterior anunció una acción pero ` +
-            'no llamó a ninguna herramienta, y eso termina tu turno sin avanzar. Responde AHORA con llamadas a ' +
-            'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
-            'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
-      sessionId,
-      () => undefined,
-      model,
-      reasoning
+  const notesReady = (): boolean => notesAreReady(notesFile, started);
+  let turn: Awaited<ReturnType<typeof runHermesTurn>> = { code: null, output: '', stderr: '' };
+  const draftUntil = Date.now() + clock.phaseMs('draft');
+  const withinDraft = (): boolean => Date.now() < draftUntil && jobOpen();
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    if (!withinDraft()) break;
+    scope().inDraft = briefOpen;
+    const draftLabel = isRevision ? 'cambios pedidos' : isMobileFix ? 'adaptación a móvil' : 'primera versión';
+    turn = await cappedTurn(Math.max(1000, draftUntil - Date.now()), job.id, draftLabel, () =>
+      runHermesTurn(job.prompt + envNotes, null, (id) => (sessionId = sessionId || id), model, reasoning)
     );
+    sessionId = sessionId || watched;
+    for (let i = 1; i <= budget.maxContinues && !scope().pendingBrief && !htmlReady() && !scope().cancelled && !scope().loopStopped && sessionId && withinDraft(); i++) {
+      const nudge = loops.nudge;
+      loops.nudge = null;
+      console.log(`[${stamp()}] Hermes paró sin entregar: continuar (${i}/${budget.maxContinues})${nudge ? ' — tras bucle' : ''}`);
+      if (!nudge) await progressMessage(`Hermes se detuvo antes de entregar; se le pide que continúe (${i}/${budget.maxContinues}).`);
+      turn = await cappedTurn(Math.max(1000, draftUntil - Date.now()), job.id, `continuar ${i}`, () =>
+        runHermesTurn(
+          nudge
+            ? loopNudge(nudge, `${job.outputDir}/newsletter.html`)
+            : `Todavía no existe ${job.outputDir}/newsletter.html. Tu respuesta anterior anunció una acción pero ` +
+                'no llamó a ninguna herramienta, y eso termina tu turno sin avanzar. Responde AHORA con llamadas a ' +
+                'herramientas, sin texto previo. Si una web te bloquea, usa browser_navigate o marca el dato como ' +
+                'pendiente; con lo que ya tengas, escribe el HTML (write_file), revísalo y corrígelo hasta dejarlo terminado.',
+          sessionId,
+          () => undefined,
+          model,
+          reasoning
+        )
+      );
+    }
+    // La autoauditoría por escrito es parte de la entrega (Adidas, 2026-09-24: titular que no salía
+    // del concepto y precio sin fuente). DeepSeek V4 Flash (chat_completions) a menudo la deja en el
+    // mensaje y no llama a write_file: primero se recupera de stdout; si no está, un turno con la ruta
+    // y la plantilla exactas, y otra vez el mensaje.
+    if (scope().cancelled) return finishCancelled();
+    if (!scope().pendingBrief && htmlReady() && !notesReady() && recoverSelfAudit(notesFile, turn.output, started)) {
+      console.log(`[${stamp()}] ${job.id}: notas.md no estaba en disco; recuperadas del mensaje de Hermes`);
+    }
+    const draftFrom = timeline.openedAt();
+    timeline.end(Math.max(0, lastCount));
+    // Desglose de la primera versión (2026-10-15): no en cambios pedidos ni en adaptaciones a móvil, que no investigan.
+    if (!editKind && draftFrom && sessionId) {
+      const session = await exportSession(sessionId).catch(() => null);
+      if (session) timeline.splitLast(draftParts(session, draftFrom, Date.now()));
+    }
+    if (!scope().pendingBrief && htmlReady() && !notesReady() && sessionId && jobOpen()) {
+      timeline.start('selfaudit', 'Autoauditoría');
+      console.log(`[${stamp()}] ${job.id}: falta notas.md — se pide la autoauditoría`);
+      await progressMessage('Falta la autoauditoría por escrito: se le pide a Hermes.');
+      const audit = await cappedTurn(Math.max(1000, clock.phaseMs('selfaudit')), job.id, 'autoauditoría', () =>
+        runHermesTurn(selfAuditPrompt(job.outputDir, kind), sessionId, () => undefined, model)
+      );
+      if (!notesReady() && recoverSelfAudit(notesFile, audit.output, started)) {
+        console.log(`[${stamp()}] ${job.id}: notas.md recuperadas del mensaje (sin write_file)`);
+      } else if (!notesReady()) {
+        console.log(`[${stamp()}] ${job.id}: notas.md sigue sin archivo ni notas legibles en la respuesta`);
+      }
+      timeline.end();
+    }
+    if (scope().cancelled) return finishCancelled();
+    // Primera versión hecha: se cierra el brief en Studio. Si justo llega (o había llegado) una corrección, se rehace.
+    if (briefOpen && !scope().pendingBrief) {
+      scope().inDraft = false;
+      await api(`/api/worker/jobs/${job.id}/progress`, { briefLock: true }).catch(() => undefined);
+    }
+    if (!scope().pendingBrief || !withinDraft()) break;
+    if (attempt >= 4) {
+      console.log(`[${stamp()}] ${job.id}: llega otro brief corregido y ya no cabe otra pasada; se sigue con la pieza hecha`);
+      scope().pendingBrief = null;
+      break;
+    }
+    const corrected: { prompt: string; brief: string } = scope().pendingBrief;
+    scope().pendingBrief = null;
+    console.log(`[${stamp()}] ${job.id}: rehaciendo la primera versión con el brief corregido (${attempt + 1}.ª)`);
+    await progressMessage('Hermes vuelve a empezar la pieza con el brief corregido.');
+    restartWithBrief(corrected);
+    timeline.start('draft', 'Primera versión (brief corregido)');
   }
-  // La autoauditoría por escrito es parte de la entrega (Adidas, 2026-09-24: titular que no salía
-  // del concepto y precio sin fuente). Si falta, un turno más para escribirla y corregir la pieza.
-  if (cancelled) return finishCancelled();
-  if (!pendingBrief && htmlReady() && !notesReady() && sessionId && Date.now() - started < TIMEOUT_MS) {
-    console.log(`[${stamp()}] ${job.id}: falta notas.md — se pide la autoauditoría`);
-    await progressMessage('Falta la autoauditoría por escrito: se le pide a Hermes.');
-    await runHermesTurn(
-      `Falta ${job.outputDir}/notas.md, obligatorio. Escríbelo AHORA (write_file) con los puntos de la ` +
-        'autoauditoría: concepto y titular (y cómo deriva), fuente de cada precio/cifra/dato de la pieza, ' +
-        'origen de cada imagen, tipografía y colores con su origen, y las preguntas de autoauditoría. Si algo no cumple, corrige la newsletter.html antes.',
-      sessionId,
-      () => undefined,
-      model
-    );
-  }
-  const draftFrom = timeline.openedAt();
-  timeline.end(Math.max(0, lastCount));
-  // Desglose de la primera versión (2026-10-15): no en cambios pedidos ni en adaptaciones a móvil, que no investigan.
-  if (!editKind && draftFrom && sessionId) {
-    const session = await exportSession(sessionId).catch(() => null);
-    if (session) timeline.splitLast(draftParts(session, draftFrom, Date.now()));
-  }
-  if (cancelled) return finishCancelled();
-  // Primera versión hecha: se cierra el brief en Studio. Si justo llega (o había llegado) una corrección, se rehace.
-  if (briefOpen && !pendingBrief) {
-    inDraft = false;
-    await api(`/api/worker/jobs/${job.id}/progress`, { briefLock: true }).catch(() => undefined);
-  }
-  if (!pendingBrief) break;
-  const corrected: { prompt: string; brief: string } = pendingBrief;
-  pendingBrief = null;
-  console.log(`[${stamp()}] ${job.id}: rehaciendo la primera versión con el brief corregido (${attempt + 1}.ª)`);
-  await progressMessage('Hermes vuelve a empezar la pieza con el brief corregido.');
-  restartWithBrief(corrected);
-  timeline.start('draft', 'Primera versión (brief corregido)');
-  }
-  inDraft = false;
+  scope().inDraft = false;
   // El encargo, a mano para las sesiones cortas de corrección y de revisión visual (no lo tienen en su historial). Se
   // escribe DESPUÉS de la primera versión: antes, Hermes lo encontraba en la carpeta y lo releía (es su propio prompt).
   fs.writeFileSync(path.join(outAbs, '_trabajo', 'encargo.md'), job.prompt + envNotes);
@@ -1763,46 +2184,46 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       timeline.end();
     }
   };
-  if (cancelled) return finishCancelled();
+  if (scope().cancelled) return finishCancelled();
   let quality = await check();
   if (appliedFixes.length) await progressMessage(`Arreglos automáticos de Studio (sin Hermes): ${appliedFixes.join(' ')}`);
   let fixSession: string | null = null;
   const checkFlag = isMobileFix || isRevision ? ' --retoque' : '';
-  for (let i = 1; i <= FIX_ROUNDS && quality && fixableErrors(quality, kind, inherited).errors && !cancelled && Date.now() - started < TIMEOUT_MS; i++) {
+  for (let i = 1; i <= budget.fixRounds && quality && fixableErrors(quality, kind, inherited).errors && jobOpen(); i++) {
     const fixable = fixableErrors(quality, kind, inherited);
-    console.log(`[${stamp()}] ${job.id}: ${fixable.errors} comprobación(es) con errores — corrección ${i}/${FIX_ROUNDS}`);
-    await progressMessage(`Control de Studio: ${fixable.checks.map((c) => c.label.toLowerCase()).join(', ')} con errores — se le devuelven a Hermes (${i}/${FIX_ROUNDS}).`);
+    console.log(`[${stamp()}] ${job.id}: ${fixable.errors} comprobación(es) con errores — corrección ${i}/${budget.fixRounds}`);
+    for (const line of checkFailureLines(fixable)) {
+      console.log(`[${stamp()}] ${job.id}: comprobación con error — ${redactSecrets(line, secretValues(process.env))}`);
+    }
+    await progressMessage(`Control de Studio: ${fixable.checks.map((c) => c.label.toLowerCase()).join(', ')} con errores — se le devuelven a Hermes (${i}/${budget.fixRounds}).`);
     timeline.round();
     timeline.start(`fix-${i}`, `Corrección ${i}`);
     watchNewSession();
     const checkCmd = `npm run check-newsletter -- ${job.outputDir}/newsletter.html${checkFlag}`;
-    const message =
-      i === 1 || !fixSession
-        ? [
-            `Corrige la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}). La pieza ya está hecha y revisada; ` +
-              'el control automático de Studio (medido, no declarado) ha encontrado esto:',
-            '',
-            describeErrors(fixable),
-            '',
-            `Contexto, solo si un error lo necesita: autoauditoría en ${job.outputDir}/notas.md; encargo original en ${job.outputDir}/_trabajo/encargo.md` +
-              (isMobileFix ? '. Es una adaptación a móvil: no cambies textos, imágenes ni enlaces.' : '.'),
-            '',
-            FIX_GUIDE,
-            '',
-            `Cuando termines, ejecuta \`${checkCmd}\` (aplica los arreglos mecánicos y te dice lo que queda) y repite hasta que salga sin errores, como mucho 3 veces. Añade a notas.md una línea por cada corrección.`,
-            '',
-            SCOPED_FIX,
-            WEB_ACCESS_NOTE,
-            SECRETS_NOTE,
-            '',
-            'Nadie va a responder preguntas: no uses clarify. Respuesta final: una línea.',
-          ].join('\n')
-        : `Siguen estos errores tras tu corrección:\n\n${describeErrors(fixable)}\n\nCorrígelos con el mismo alcance y vuelve a ejecutar \`${checkCmd}\`.\n\n${SCOPED_FIX}`;
-    await runHermesTurn(message, fixSession, (id) => (fixSession = fixSession || id), MODELS.fix);
+    const message = buildCorrectionMessage({
+      outputDir: job.outputDir,
+      brand: claimed.brand?.name || slug,
+      report: fixable,
+      checkCmd,
+      mobileFix: isMobileFix,
+      continued: !(i === 1 || !fixSession),
+    });
+    await cappedTurn(Math.max(1000, Math.min(clock.phaseMs('fix'), clock.remainingMs())), job.id, `corrección ${i}`, () =>
+      runHermesTurn(message, fixSession, (id) => (fixSession = fixSession || id), MODELS.fix)
+    );
     fixSession = fixSession || watched;
     timeline.end(Math.max(0, lastCount));
-    if (cancelled) return finishCancelled();
+    if (scope().cancelled) return finishCancelled();
     quality = await check();
+  }
+  if (quality && !scope().cancelled) {
+    const left = fixableErrors(quality, kind, inherited);
+    if (left.errors) {
+      console.log(`[${stamp()}] ${job.id}: tras la corrección quedan ${left.errors} comprobación(es) con errores`);
+      for (const line of checkFailureLines(left)) console.log(`[${stamp()}] ${job.id}: sigue con error — ${redactSecrets(line, secretValues(process.env))}`);
+    } else {
+      console.log(`[${stamp()}] ${job.id}: tras la corrección no quedan errores`);
+    }
   }
 
   // 5. Revisión de dirección de arte (2026-10-06): UNA llamada con la hoja (600, 375 y oscuro) y, si la web deja, la
@@ -1812,28 +2233,40 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const finalPath = htmlReady();
   // Lo que se envía a Studio con la pieza (punto 7): las notas de antes y después, para medir la calidad.
   let artResult: { before: Record<string, number>; after?: Record<string, number>; kept?: boolean; web: boolean; problemas: string[]; mejoras: string[] } | undefined;
-  if (claimed.artReview && !editKind && finalPath && !cancelled && Date.now() - started < TIMEOUT_MS) {
+  const artUntil = Date.now() + (claimed.artReview && !editKind && finalPath ? clock.phaseMs('art') : 0);
+  const artOpen = (): boolean => jobOpen() && Date.now() < artUntil;
+  if (claimed.artReview && !editKind && finalPath && artOpen() && clock.remainingMs() >= 45_000) {
     timeline.start('art', 'Revisión visual');
     const workDir = path.join(outAbs, '_trabajo');
     const rel = path.relative(ROOT, workDir);
-    const sheet = await renderSheet(finalPath, workDir).catch((err) => {
-      console.log(`[${stamp()}] No se pudo hacer la hoja de capturas: ${(err as Error).message.slice(0, 200)}`);
-      return null;
-    });
+    const sheet = takeShot('hoja de la pieza')
+      ? await renderSheet(finalPath, workDir).catch((err) => {
+          console.log(`[${stamp()}] No se pudo hacer la hoja de capturas: ${(err as Error).message.slice(0, 200)}`);
+          return null;
+        })
+      : null;
     const home = readMeasuredIdentity(ROOT, slug)?.url || brandHome(job.prompt.split('## Instrucciones de entrega')[0], slug);
-    const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
+    const webFile = home && takeShot('web de la marca') ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
     const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
     if (sheet) {
       await progressMessage(`Revisión de dirección de arte: una mirada a la pieza en escritorio, móvil y oscuro${web ? ', comparada con la web de la marca' : ''}.`);
       watchNewSession();
       // Medidas de Studio para la revisión (2026-10-16): la letra y el contraste no se juzgan a ojo en una hoja reducida.
       const factsOf = async (file: string): Promise<string[]> => judgeFacts(await renderChecks(file, ROOT, brandPalette(ROOT, slug)).catch(() => null));
+      const artOpts = (): { capMs: number; repairRetries: number } => ({
+        capMs: Math.max(
+          1000,
+          Math.min(ART_SCORE_CAP_MS, clock.remainingMs(), Date.now() < artUntil ? artUntil - Date.now() : clock.phaseMs('artRevise'))
+        ),
+        repairRetries: budget.artRepairRetries,
+      });
       const reviewOnce = async (ready?: RenderSheet): Promise<{ review: ArtReview | null; output: string }> => {
-        const s2 = ready || (await renderSheet(finalPath, workDir));
+        if (!jobOpen()) return { review: null, output: '' };
+        const s2 = ready || (takeShot('hoja de la pieza') ? await renderSheet(finalPath, workDir) : null);
+        if (!s2) return { review: null, output: '' };
         const html = fs.readFileSync(finalPath, 'utf8');
         const query = artReviewQuery(claimed.request, job.prompt, html, s2.sheet, await imageSize(s2.sheet), web, copyFindings(html).found, s2.desktop, await factsOf(finalPath));
-        const look = await cappedTurn(ART_SCORE_CAP_MS, job.id, 'nota de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
-        return { review: parseArtReview(look.output), output: look.output };
+        return readArtReview(job.id, 'revisión visual', query, artOpts());
       };
       const first = await reviewOnce(sheet);
       const review = first.review;
@@ -1844,7 +2277,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       console.log(
         `[${stamp()}] ${job.id}: revisión visual ${review ? `— ${scoreTotal(review)}/${Object.keys(review.notas).length * 5}${low.length ? `, por debajo de 4: ${low.join(', ')}` : ''}, ${review.mejoras.length} mejora(s)` : '— respuesta sin notas legibles'}${web ? ' (con la web de la marca)' : ''}`
       );
-      if (review && needsImprovement(review) && !cancelled && Date.now() - started < TIMEOUT_MS) {
+      if (review && needsImprovement(review) && jobOpen() && clock.remainingMs() > 60_000) {
+        const reviseUntil = Date.now() + clock.phaseMs('artRevise');
+        const reviseOpen = (): boolean => jobOpen() && Date.now() < reviseUntil;
         const backup = path.join(workDir, 'antes-de-mejora.html');
         const original = snapshotWork(finalPath, notesFile, backup);
         // Errores de la comprobación que la versión actual trae y la de antes de la revisión no tenía.
@@ -1863,10 +2298,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         if (defects.length) {
           await progressMessage(`Revisión de dirección de arte: ${defects.length} defecto(s) claro(s) — Hermes los arregla primero.`);
           watchNewSession();
-          await cappedTurn(ART_DEFECT_CAP_MS, job.id, 'arreglo de defectos', () =>
+          const reviseLeft = (): number => Math.max(1000, Math.min(ART_DEFECT_CAP_MS, clock.phaseMs('artRevise'), clock.remainingMs()));
+          await cappedTurn(reviseLeft(), job.id, 'arreglo de defectos', () =>
             runHermesTurn(defectFixQuery(job.outputDir, claimed.brand?.name || slug, rel, defects), null, () => undefined, MODELS.art)
           );
-          if (cancelled) return finishCancelled();
+          if (scope().cancelled) return finishCancelled();
           const fixedChanged = fs.readFileSync(backup, 'utf8') !== fs.readFileSync(finalPath, 'utf8');
           const fixErrors = fixedChanged ? await addedErrors() : [];
           const outcome = !fixedChanged
@@ -1882,7 +2318,14 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           fs.appendFileSync(reviewFile, `\n## Arreglo de defectos\n\n${defects.map((d) => `- ${d}`).join('\n')}\n\nResultado: ${outcome}.\n`);
           console.log(`[${stamp()}] ${job.id}: arreglo de defectos de arte — ${outcome}`);
         }
-        if (!needsTasteRound(review) || cancelled || Date.now() - started >= TIMEOUT_MS) {
+        const taste = shouldRunTasteRound(review, budget.artRevisePasses);
+        if (!taste || !reviseOpen() || clock.remainingMs() <= 60_000) {
+          if (!taste && needsTasteRound(review) && !scope().cancelled) {
+            const skip =
+              'Pasada de gusto omitida (HERMES_ART_REVISE_PASSES=0): se queda la nota y, si los hubo, los defectos arreglados. Con 1 o más vuelve la reescritura y las comparaciones A/B.';
+            fs.appendFileSync(reviewFile, `\n## Pasada de gusto\n\n${skip}\n`);
+            console.log(`[${stamp()}] ${job.id}: ${skip}`);
+          }
           if (artResult) artResult = { ...artResult, kept: fixedDefects.length > 0 };
           if (fixedDefects.length) await progressMessage(`Revisión de dirección de arte: ${fixedDefects.length} defecto(s) arreglado(s).`);
         } else {
@@ -1892,7 +2335,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
               : `Revisión de dirección de arte: ${review.mejoras.length} mejora(s) para subir de 4 a 5 — Hermes las aplica.`
           );
           watchNewSession();
-          await cappedTurn(ART_IMPROVE_CAP_MS, job.id, 'mejora de arte', () => runHermesTurn(
+          await cappedTurn(Math.max(1000, Math.min(ART_IMPROVE_CAP_MS, clock.phaseMs('artRevise'), clock.remainingMs())), job.id, 'mejora de arte', () => runHermesTurn(
             [
               `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
               `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg.${web ? ` Portada de la web de la marca: ${rel}/web-marca.jpg.` : ''} Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
@@ -1925,7 +2368,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             () => undefined,
             MODELS.art
           ));
-          if (cancelled) return finishCancelled();
+          if (scope().cancelled) return finishCancelled();
           // La mejora se decide COMPARANDO (2026-10-16), dos veces y con el orden cambiado: se queda solo si las dos
           // comparaciones la prefieren. Con UNA comparación el veredicto dependía del lado en el que iba cada versión en 8
           // de 20 parejas (sesgo hacia la de la derecha; _archive/prueba-juez-2026-10-16). Antes decidían dos notas sueltas,
@@ -1933,22 +2376,32 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           // La versión de partida es la de los defectos ya arreglados, si los hubo (2026-10-19).
           const changed = fs.readFileSync(base.html, 'utf8') !== fs.readFileSync(finalPath, 'utf8');
           const runs: ({ cmp: ArtCompare; afterIs: 'A' | 'B'; output: string } | null)[] = [];
-          if (changed && Date.now() - started < TIMEOUT_MS) {
+          const sides = (['A', 'B'] as const).slice(0, budget.artCompares);
+          if (changed && reviseOpen() && sides.length) {
             const facts = { before: await factsOf(base.html), after: await factsOf(finalPath) };
-            for (const side of ['A', 'B'] as const) {
-              if (cancelled || Date.now() - started >= TIMEOUT_MS) break;
+            for (const side of sides) {
+              if (!reviseOpen() || scope().cancelled) break;
+              if (!takeShot(`comparación ${side}`)) break;
               watchNewSession();
-              runs.push(await compareOnce(base.html, finalPath, side, outAbs, path.join(workDir, `comparar-${side.toLowerCase()}`), job.prompt, claimed.request, job.id, facts).catch(() => null));
+              const left = Math.max(1000, Math.min(ART_SCORE_CAP_MS, clock.phaseMs('artRevise'), clock.remainingMs()));
+              runs.push(
+                await compareOnce(base.html, finalPath, side, outAbs, path.join(workDir, `comparar-${side.toLowerCase()}`), job.prompt, claimed.request, job.id, facts, {
+                  capMs: left,
+                  repairRetries: budget.artRepairRetries,
+                }).catch(() => null)
+              );
             }
-            if (cancelled) return finishCancelled();
+            if (scope().cancelled) return finishCancelled();
           }
-          const both = runs.length === 2 && runs[0] && runs[1] ? [runs[0], runs[1]] : null;
-          watchNewSession();
-          const second = Date.now() - started < TIMEOUT_MS ? await reviewOnce().catch(() => ({ review: null, output: '' })) : { review: null, output: '' };
+          const both = runs.length === 2 && runs[0] && runs[1] ? ([runs[0], runs[1]] as const) : null;
+          const one = !both && runs[0] ? runs[0] : null;
+          const second = reviseOpen() && canTakeScreenshot(shots, budget) ? await reviewOnce().catch(() => ({ review: null, output: '' })) : { review: null, output: '' };
           const decision = !changed
             ? { keep: false, reason: 'Hermes no cambió nada en la pieza' }
             : both
             ? doubleVerdict(compareVerdict(both[0].cmp, both[0].afterIs), compareVerdict(both[1].cmp, both[1].afterIs))
+            : one
+            ? compareVerdict(one.cmp, one.afterIs)
             : fallbackVerdict(review, second.review);
           let keep = decision.keep;
           // Red de seguridad de Studio (2026-10-08, Tarífalo): la mejora cambió una foto por un recorte de la de apertura;
@@ -1982,11 +2435,13 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       }
     }
     timeline.end(Math.max(0, lastCount));
-    if (cancelled) return finishCancelled();
+    if (scope().cancelled) return finishCancelled();
     quality = await check();
+  } else if (claimed.artReview && !editKind && finalPath && !scope().cancelled) {
+    console.log(`[${stamp()}] ${job.id}: se omite la revisión visual — quedan ${Math.round(clock.remainingMs() / 1000)} s y hace falta margen para puntuar y entregar`);
   }
 
-  if (cancelled) return finishCancelled();
+  if (scope().cancelled) return finishCancelled();
   if (appliedFixes.length && notesReady()) {
     fs.appendFileSync(notesFile, `\n\n## Arreglos automáticos de Studio\n${appliedFixes.map((a) => `- ${a}`).join('\n')}\n`);
   }
@@ -1999,24 +2454,45 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       pending.length ? 'error' : undefined
     );
   }
+  const phaseLabel = timeline.currentLabel() || '';
   clearInterval(heartbeat);
   clearTimeout(killer);
-  const minutes = Math.round((Date.now() - started) / 60000);
+  const minutes = Math.max(1, Math.round((budget.jobMs - clock.remainingMs()) / 60000));
+  const pieceMinutes = Math.round((Date.now() - started) / 60000);
+  const timedOut = clock.expired();
   const timings: JobTimings = timeline.toJSON();
   console.log(`[${stamp()}] ${job.id}: ${summarize(timings)}`);
 
-  const htmlPath = htmlReady();
-  if (!htmlPath) {
-    const why = loopStopped
-      ? `se quedó en bucle (${loopStopped}), también después de pedirle que escribiera la newsletter. Se ha parado para no gastar más tiempo: vuelve a lanzarlo con «Reintentar»`
-      : Date.now() - started >= TIMEOUT_MS
-      ? `se agotó el tiempo (${minutes} min)`
-      : `terminó (código ${turn.code}) sin dejar el HTML en ${job.outputDir}/`;
-    await fail(loopStopped ? `Hermes ${why}.` : `Hermes ${why}.\n\nÚltima respuesta de Hermes:\n${(turn.output || turn.stderr).trim().slice(-2500)}`);
-    console.log(`[${stamp()}] ✗ ${job.id}: ${why}`);
+  let htmlPath = htmlReady();
+  if (timedOut && htmlPath && !quality) {
+    const looked = await withTimeout(inspectNewsletter(htmlPath, ROOT, { fix: false, design: !editKind, brandSlug: slug }), 20_000).catch(() => null);
+    if (looked) quality = looked.report;
+  }
+  const errorLabels = (quality?.checks || []).filter((c) => c.status === 'error').map((c) => c.label.toLowerCase());
+  if (timedOut && deliveryOnTimeout({ hasHtml: !!htmlPath, errors: quality ? quality.errors : null }) === 'fail') {
+    const why = timeoutFailMessage({ minutes, phase: phaseLabel, errors: htmlPath ? errorLabels : [] });
+    await fail(why);
+    console.error(`[${stamp()}] ✗ ${job.id}: ${why}`);
     setAsideFolder(outAbs, 'fallido');
-    current = null;
+    scope().id = null;
     return;
+  }
+  if (!htmlPath) {
+    const why = scope().loopStopped
+      ? `se quedó en bucle (${scope().loopStopped}), también después de pedirle que escribiera la newsletter. Se ha parado para no gastar más tiempo: vuelve a lanzarlo con «Reintentar»`
+      : `terminó (código ${turn.code}) sin dejar el HTML en ${job.outputDir}/`;
+    const trace = hermesTrace(turn);
+    const detail = `Hermes ${why}.\n\nSalida de Hermes (últimas ${HERMES_TRACE_LINES} líneas):\n${trace}`;
+    await fail(scope().loopStopped ? `Hermes ${why}.` : detail);
+    console.error(`[${stamp()}] ✗ ${job.id}: ${why}${scope().loopStopped ? '' : `\n${trace}`}`);
+    setAsideFolder(outAbs, 'fallido');
+    scope().id = null;
+    return;
+  }
+  if (timedOut) {
+    await progressMessage(
+      `Se agotó el tiempo del trabajo (${minutes} min)${phaseLabel ? ` durante «${phaseLabel}»` : ''}. La pieza pasa las comprobaciones y se entrega.`
+    );
   }
 
   const { html, missing } = embedLocalImages(fs.readFileSync(htmlPath, 'utf8'), path.dirname(htmlPath), ROOT);
@@ -2030,20 +2506,20 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
     // Miniatura para el historial: si no sale, la newsletter se entrega igual.
     const thumbs = await renderThumbnails({ path: htmlPath });
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult }, 6);
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult, ...usageBody() }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;
   }
-  if (cancelled) return finishCancelled();
+  if (scope().cancelled) return finishCancelled();
   if (uploadError) {
     await fail(`La newsletter está terminada ${process.env.HERMES_CLOUD === '1' ? 'en el worker' : 'en el Mac del worker'} (${path.relative(ROOT, htmlPath)}) pero no se pudo subir a Studio: ${uploadError}`);
     console.log(`[${stamp()}] ✗ ${job.id}: terminada en ${path.relative(ROOT, htmlPath)} pero no se pudo subir (${uploadError})`);
   } else {
-    if (!editKind) recordDuration(minutes);
+    if (!editKind) recordDuration(pieceMinutes || minutes);
     console.log(`[${stamp()}] ✓ ${job.id} en ${minutes} min`);
   }
-  current = null;
+  scope().id = null;
 }
 
 /** Miniaturas de newsletters anteriores a esta función (2026-09-28): cuando no hay trabajo, se piden
@@ -2051,6 +2527,40 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
  *  en un rato. */
 const THUMB_BACKFILL_IDLE_MS = 10 * 60 * 1000;
 let thumbsIdleUntil = 0;
+
+/** El mantenimiento cede el sitio si llega un trabajo o si este hueco se canceló. */
+function maintenanceOpen(): boolean {
+  return maintenance.shouldContinue() && !scope().cancelled;
+}
+
+/** Corta la nota de calidad (Hermes) para que el hueco que acaba de reclamar no comparta el proceso. */
+function stopMaintenance(): void {
+  maintenance.requestStop();
+  const slot = maintenanceScope;
+  if (!slot) return;
+  slot.cancelled = true;
+  slot.child?.kill('SIGTERM');
+}
+
+/** Fuera de los huecos: no se espera. Si ya hay un trabajo en curso, no se abre la nota de calidad. */
+async function runMaintenance(): Promise<void> {
+  const slot = newScope(null);
+  maintenanceScope = slot;
+  try {
+    await runInScope(slot, async () => {
+      await backfillThumbnails().catch((err) => console.error(`[${stamp()}] Miniaturas: ${(err as Error).message}`));
+      if (!maintenanceOpen()) return;
+      // La nota de calidad llama a Hermes. No se abre si ya hay un trabajo en un hueco.
+      if (!activeScopes().some((s) => s.id)) {
+        await backfillArtReviews().catch((err) => console.error(`[${stamp()}] Notas de calidad: ${(err as Error).message}`));
+      }
+      if (!maintenanceOpen()) return;
+      await syncBrandCards().catch((err) => console.error(`[${stamp()}] Fichas de marca: ${(err as Error).message}`));
+    });
+  } finally {
+    if (maintenanceScope === slot) maintenanceScope = null;
+  }
+}
 
 async function backfillThumbnails(): Promise<void> {
   if (Date.now() < thumbsIdleUntil) return;
@@ -2065,6 +2575,7 @@ async function backfillThumbnails(): Promise<void> {
     return;
   }
   for (const j of jobs) {
+    if (!maintenanceOpen()) return;
     const thumbs = await renderThumbnails({ html: j.html });
     await api(`/api/worker/jobs/${j.id}/thumb`, thumbs ? { image: thumbs.image, long: thumbs.long } : { failed: true }, 2).catch(() => undefined);
   }
@@ -2089,6 +2600,7 @@ async function backfillArtReviews(): Promise<void> {
     return;
   }
   for (const j of jobs) {
+    if (!maintenanceOpen()) return;
     const local = path.join(ROOT, j.outputDir, 'newsletter.html');
     const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-nota-'));
     let htmlPath = local;
@@ -2103,8 +2615,10 @@ async function backfillArtReviews(): Promise<void> {
       const webFile = home ? await withTimeout(captureBrandWeb(home, path.join(workDir, 'web-marca.jpg')), 60000).catch(() => null) : null;
       const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
       const facts = judgeFacts(await renderChecks(htmlPath, ROOT, brandPalette(ROOT, j.slug)).catch(() => null));
-      const look = await runHermesTurn(artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found, sheet.desktop, facts), null, () => undefined, MODELS.art);
-      const review = parseArtReview(look.output);
+      const query = artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found, sheet.desktop, facts);
+      const review = (await readArtReview(j.id, 'nota de calidad', query)).review;
+      // Si llegó un trabajo a medias, no se marca la nota como fallida: se retoma en el siguiente hueco libre.
+      if (!review && !maintenanceOpen()) return;
       await api(
         `/api/worker/jobs/${j.id}/art-review`,
         review ? { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras } : { failed: true },
@@ -2135,14 +2649,19 @@ async function syncBrandCards(): Promise<void> {
     if (hashes[slug] !== hash) changed.push({ card, hash });
   }
   for (let i = 0; i < changed.length; i += 6) {
+    if (!maintenanceOpen()) {
+      brandSyncAt = 0;
+      return;
+    }
     const r = await api('/api/worker/brand-cards', { cards: changed.slice(i, i + 6) }, 2);
     if (!r.ok) throw new Error(`Studio respondió ${r.status} al guardar fichas de marca`);
   }
   if (changed.length) console.log(`[${stamp()}] Fichas de marca enviadas a Studio: ${changed.length}`);
 }
 
-/** Un solo worker a la vez (servicio de launchd + uno abierto a mano en un terminal): con dos, se
- *  reparten trabajos y el /reset del que arranca marcaba como fallido lo que hacía el otro. */
+/** Un solo proceso por máquina (servicio de launchd + uno abierto a mano en un terminal). Las
+ *  réplicas de Railway no comparten este archivo: cada una tiene su workerId y el servidor solo
+ *  falla los trabajos arrendados a quien llama a /reset. */
 const LOCK_FILE = path.join(__dirname, '.worker.lock');
 
 function lockHolder(): number | null {
@@ -2176,6 +2695,21 @@ function releaseLock(): void {
   }
 }
 
+/** Carpeta de Hermes de un hueco. En el Mac, con un solo hueco y sin nube, no se cambia el home. */
+function prepareSlotHome(slot: number): string | null {
+  const concurrency = workerConcurrency();
+  if (!shouldIsolateHome(process.env, concurrency)) return null;
+  const base = (process.env.HERMES_HOME || '').trim() || path.join(os.homedir(), '.hermes');
+  const dir = slotHomeDir(base, WORKER_ID, slot);
+  try {
+    isolateHermesHome(base, dir);
+    if (process.env.HERMES_CLOUD === '1') seedHermesCloudProfile(process.env, dir);
+  } catch (err) {
+    console.error(`[${stamp()}] No se pudo aislar el hueco ${slot}: ${redactSecrets((err as Error).message, secretValues(process.env)).slice(0, 300)}`);
+  }
+  return dir;
+}
+
 async function main(): Promise<void> {
   const cloud = process.env.HERMES_CLOUD === '1';
   // En Railway el healthcheck es /heartbeat. Si faltan credenciales y salimos, el
@@ -2197,22 +2731,42 @@ async function main(): Promise<void> {
     }
     process.exit(1);
   }
+  // Además del /claim y del progreso: Railway puede tardar en un render y la web deja de ver a Hermes a los 2 min.
+  // El cuerpo lleva la concurrencia para que Studio calcule la cola con los huecos reales.
+  const beat = setInterval(() => {
+    api('/api/worker/heartbeat', { workerId: WORKER_ID, concurrency: workerConcurrency() }, 1)
+      .then((res) => {
+        if (res.status === 401) console.error('Studio rechaza el WORKER_TOKEN (latido).');
+      })
+      .catch(() => undefined);
+  }, 30_000);
+  beat.unref();
   if (cloud) {
-    // Además del /claim y del progreso: Railway puede tardar en un render y la web deja de ver a Hermes a los 2 min.
-    const beat = setInterval(() => {
-      api('/api/worker/heartbeat', {}, 1)
-        .then((res) => {
-          if (res.status === 401) console.error('Studio rechaza el WORKER_TOKEN (latido).');
-        })
-        .catch(() => undefined);
-    }, 30_000);
-    beat.unref();
+    const home = (process.env.HERMES_HOME || '').trim();
+    if (!home) {
+      console.error(`[${stamp()}] AVISO: HERMES_HOME no está definido. En Railway lo deja el entrypoint (volumen en /data/hermes).`);
+    } else {
+      try {
+        const report = seedHermesCloudProfile(process.env, home);
+        console.log(`[${stamp()}] Hermes: ${report.log}`);
+        const settings = cloudHermesSettings(process.env, { hasAuth: hermesVolumeHasAuth(home) });
+        if (settings.provider) {
+          const verdict = probeInstalledHermes({ home, bin: HERMES_BIN, expected: settings.provider, env: process.env });
+          const line = redactSecrets(verdict.log, secretValues(process.env));
+          if (verdict.skipped) console.log(`[${stamp()}] AVISO: ${line}`);
+          else if (!verdict.ok) console.error(`[${stamp()}] ${line}`);
+          else console.log(`[${stamp()}] ${line}`);
+        }
+      } catch (err) {
+        console.error(`[${stamp()}] No se pudo preparar HERMES_HOME: ${redactSecrets((err as Error).message, secretValues(process.env)).slice(0, 300)}`);
+      }
+    }
   }
   await acquireLock();
   // Trabajos que este worker dejó a medias en una ejecución anterior (el aviso de Ctrl+C no
   // siempre llega antes de que el proceso muera).
   try {
-    const r = await api('/api/worker/reset', { brands: localBrands() });
+    const r = await api('/api/worker/reset', { brands: localBrands(), workerId: WORKER_ID, concurrency: workerConcurrency() });
     const { failed, failedDirs = [] } = r.ok ? ((await r.json()) as { failed: number; failedDirs?: string[] }) : { failed: 0 };
     if (failed) console.log(`${failed} trabajo(s) que quedaron a medias marcados como fallidos.`);
     // Sus carpetas, fuera de la vista de Hermes (Lacoste, 2026-09-29: releyó 40 min el intento de la víspera).
@@ -2223,46 +2777,81 @@ async function main(): Promise<void> {
   } catch {
     // Studio sin la ruta todavía o sin conexión: no impide trabajar.
   }
-  console.log(`Hermes worker conectado a ${BASE} — esperando trabajos (Ctrl+C para salir).`);
-  for (;;) {
-    try {
-      const res = await api('/api/worker/claim', { brands: localBrands() });
-      if (res.status === 200) {
-        const job = (await res.json()) as ClaimedJob;
-        try {
-          await runJob(job);
-        } catch (err) {
-          // Un error inesperado no debe dejar el trabajo colgado en "running" ni tumbar el worker.
-          currentChild?.kill('SIGTERM');
-          console.error(`[${stamp()}] ✗ ${job.id}: ${(err as Error).message}`);
-          await api(`/api/worker/jobs/${job.id}/fail`, { error: `Error del worker: ${(err as Error).message}` }).catch(() => undefined);
-          setAsideFolder(path.join(ROOT, job.outputDir), 'fallido');
-          current = null;
+  const slots = workerConcurrency();
+  console.log(`Hermes worker ${WORKER_ID} conectado a ${BASE} — ${slots} hueco${slots === 1 ? '' : 's'} (Ctrl+C para salir).`);
+  const inflight = new Map<number, Promise<void>>();
+  const runSlot = async (slot: number): Promise<void> => {
+    const home = prepareSlotHome(slot);
+    await runInScope(newScope(home), async () => {
+      try {
+        const res = await api('/api/worker/claim', { brands: localBrands(), workerId: WORKER_ID, slot, concurrency: workerConcurrency() });
+        if (res.status === 200) {
+          const job = (await res.json()) as ClaimedJob;
+          // La puesta al día no puede seguir con Hermes mientras este hueco trabaja.
+          stopMaintenance();
+          try {
+            await runJob(job);
+          } catch (err) {
+            scope().child?.kill('SIGTERM');
+            console.error(`[${stamp()}] ✗ ${job.id}: ${(err as Error).message}`);
+            const timeline = timelineByScope.get(scope());
+            await api(`/api/worker/jobs/${job.id}/fail`, {
+              error: `Error del worker: ${(err as Error).message}`,
+              ...(timeline ? { timings: timeline.toJSON() } : {}),
+              ...usageBody(),
+            }).catch(() => undefined);
+            setAsideFolder(path.join(ROOT, job.outputDir), 'fallido');
+            scope().id = null;
+          } finally {
+            usageByScope.delete(scope());
+            timelineByScope.delete(scope());
+          }
+          return;
         }
-        continue;
+        if (res.status === 204) {
+          const plan = idleSlotPlan(slot, maintenance.running());
+          if (plan.kickMaintenance) maintenance.kick(() => runMaintenance());
+        } else if (res.status === 401) {
+          console.error('Studio rechaza el WORKER_TOKEN — revisa que coincide con el de Railway.');
+        } else {
+          console.error(`Studio respondió ${res.status} al pedir trabajo.`);
+        }
+      } catch (err) {
+        console.error(`[${stamp()}] Sin conexión con Studio: ${(err as Error).message}`);
       }
-      if (res.status === 204) {
-        await backfillThumbnails().catch((err) => console.error(`[${stamp()}] Miniaturas: ${(err as Error).message}`));
-        await backfillArtReviews().catch((err) => console.error(`[${stamp()}] Notas de calidad: ${(err as Error).message}`));
-        await syncBrandCards().catch((err) => console.error(`[${stamp()}] Fichas de marca: ${(err as Error).message}`));
-      } else if (res.status === 401) {
-        console.error('Studio rechaza el WORKER_TOKEN — revisa que coincide con el de Railway.');
-      } else {
-        console.error(`Studio respondió ${res.status} al pedir trabajo.`);
-      }
-    } catch (err) {
-      console.error(`[${stamp()}] Sin conexión con Studio: ${(err as Error).message}`);
+      await new Promise((r) => setTimeout(r, POLL_MS));
+    });
+  };
+  for (;;) {
+    const free = freeSlots(workerConcurrency(), [...inflight.keys()]);
+    if (!free.length) {
+      await Promise.race(inflight.values()).catch((err) => console.error(`[${stamp()}] Hueco: ${(err as Error).message}`));
+      continue;
     }
-    await new Promise((r) => setTimeout(r, POLL_MS));
+    for (const slot of free) {
+      const task = runSlot(slot).finally(() => inflight.delete(slot));
+      inflight.set(slot, task);
+    }
   }
 }
 
 // Ctrl+C en el terminal (SIGINT) o parada del servicio de launchd (SIGTERM).
 async function shutdown(): Promise<void> {
-  currentChild?.kill('SIGTERM');
-  if (current) {
-    await api(`/api/worker/jobs/${current}/fail`, { error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.' }, 1).catch(() => undefined);
-    if (currentOutAbs) setAsideFolder(currentOutAbs, 'fallido');
+  stopMaintenance();
+  const stopping = activeScopes();
+  for (const slot of stopping) {
+    slot.cancelled = true;
+    slot.child?.kill('SIGTERM');
+  }
+  for (const slot of stopping) {
+    if (!slot.id) continue;
+    const timeline = timelineByScope.get(slot);
+    await api(`/api/worker/jobs/${slot.id}/fail`, {
+      error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.',
+      ...(timeline ? { timings: timeline.toJSON() } : {}),
+      ...usageBody(slot),
+    }, 1).catch(() => undefined);
+    if (slot.outAbs) setAsideFolder(slot.outAbs, 'fallido');
   }
   releaseLock();
   process.exit(0);

@@ -2,6 +2,7 @@ const form = document.getElementById('brief-form');
 const viewForm = document.getElementById('view-form');
 const viewJob = document.getElementById('view-job');
 const viewBrand = document.getElementById('view-brand');
+const viewCostes = document.getElementById('view-costes');
 const hero = document.querySelector('.hero');
 const clientNameInput = document.getElementById('client-name-input');
 const existingBrandInput = document.getElementById('existing-brand-input');
@@ -459,7 +460,9 @@ function renderEtaHints() {
   if (ahead && t) {
     const others = ahead === 1 ? 'otra newsletter' : `otras ${ahead} newsletters`;
     const startMin = Math.max(1, Math.round(queueWaitNow.seconds / 60));
-    text = `Hermes tiene delante ${others}: la tuya empezaría en ~${startMin} min y estaría lista hacia las ${clockAt(queueWaitNow.seconds + t.sec)}. `;
+    text = queueWaitNow.seconds < 20
+      ? `Hermes tiene delante ${others}, pero hay hueco: la tuya empieza enseguida y estaría lista hacia las ${clockAt(t.sec)}. `
+      : `Hermes tiene delante ${others}: la tuya empezaría en ~${startMin} min y estaría lista hacia las ${clockAt(queueWaitNow.seconds + t.sec)}. `;
   } else if (t) {
     text = t.n
       ? `Suele tardar ${etaText(kind)} (mediana de las últimas ${t.n} con ${kind === 'brief' ? 'prompt completo' : 'instrucción rápida'}). `
@@ -2878,7 +2881,7 @@ function renderNowStrip(jobs) {
     .filter((j) => j.status === 'running' || j.status === 'queued')
     .sort((a, b) => (a.status === 'running' ? -1 : 1) - (b.status === 'running' ? -1 : 1) || a.createdAt.localeCompare(b.createdAt))
     .map((j) => {
-      if (j.status === 'queued') return nowItem(j, 'En cola', 'Ver');
+      if (j.status === 'queued') return nowItem(j, escapeHtml(j.queue?.message || 'En cola'), 'Ver');
       const pct = j.pct ?? 0;
       return nowItem(j, `${escapeHtml(j.stageLabel || 'Trabajando')} · ${pct} %`, 'Ver', `<span class="now-track" aria-hidden="true"><span style="width:${Math.max(2, Math.min(100, pct))}%"></span></span>`);
     });
@@ -3265,7 +3268,7 @@ function galleryOverlay(j, members) {
     : j.status === 'review'
     ? ['warn', 'Brief por revisar']
     : j.status === 'running' || j.status === 'queued'
-    ? ['live', j.status === 'queued' ? 'En cola' : 'En marcha']
+    ? ['live', j.status === 'queued' ? (j.queue?.message || 'En cola') : 'En marcha']
     : STOPPED[j.status]
     ? ['bad', STOPPED[j.status]]
     : ['ready', 'Lista para revisar'];
@@ -3277,7 +3280,9 @@ function galleryOverlay(j, members) {
       : `<span class="g-score is-${pct >= 76 ? 'high' : pct >= 60 ? 'mid' : 'low'}" title="Calidad: ${pct} %"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" pathLength="100"/><circle class="g-score-arc" cx="18" cy="18" r="15.5" pathLength="100" style="--p:${pct}"/></svg><b>${pct}</b></span>`;
   // Insignia con texto corto en vez de un punto de color cuyo significado solo salía al pasar el ratón (auditoría
   // 2026-10-14, H-21; WCAG 1.4.1). El texto completo, en el title y para el lector de pantalla.
-  const short = { ok: 'Aprobada', ready: 'Revisar', live: label, bad: label }[tone] || (j.status === 'review' ? 'Brief' : 'Cliente');
+  const short = j.status === 'queued' && j.queue?.message
+    ? 'En cola'
+    : { ok: 'Aprobada', ready: 'Revisar', live: label, bad: label }[tone] || (j.status === 'review' ? 'Brief' : 'Cliente');
   const text = short === label ? escapeHtml(label) : `<span aria-hidden="true">${escapeHtml(short)}</span><span class="sr-only">${escapeHtml(label)}</span>`;
   return `<span class="g-dot is-${tone}" title="${escapeHtml(label)}">${text}</span>${ring}`;
 }
@@ -4042,6 +4047,13 @@ sideMenu.addEventListener('click', (e) => {
     }
     return;
   }
+  if (where === 'costes') {
+    if (confirmLeaveJob()) {
+      history.pushState({}, '', '?costes=1');
+      route();
+    }
+    return;
+  }
   if (viewForm.hidden) {
     if (where === 'history') scrollToHistory = true;
     if (showFormView() === false) {
@@ -4201,6 +4213,7 @@ function showFormView() {
   withViewTransition(() => {
     viewJob.hidden = true;
     viewBrand.hidden = true;
+    if (viewCostes) viewCostes.hidden = true;
     viewForm.hidden = false;
     hero.hidden = false;
     document.title = BASE_TITLE;
@@ -4644,6 +4657,7 @@ async function showBrandView(slug) {
   viewForm.hidden = true;
   hero.hidden = true;
   viewJob.hidden = true;
+  if (viewCostes) viewCostes.hidden = true;
   viewBrand.hidden = false;
   updateSticky();
   const body = document.getElementById('brand-body');
@@ -4689,6 +4703,7 @@ async function showBrandsView() {
   viewForm.hidden = true;
   hero.hidden = true;
   viewJob.hidden = true;
+  if (viewCostes) viewCostes.hidden = true;
   viewBrand.hidden = false;
   updateSticky();
   document.title = `Marcas · ${BASE_TITLE}`;
@@ -6898,6 +6913,7 @@ function showJobView(id) {
   viewForm.hidden = true;
   hero.hidden = true;
   viewBrand.hidden = true;
+  if (viewCostes) viewCostes.hidden = true;
   viewJob.hidden = false;
   document.getElementById('job-result').hidden = true;
   showJobTab('preview');
@@ -7128,7 +7144,7 @@ async function poll(id) {
   }
 
   void refreshChannel(job);
-  pollTimer = setTimeout(() => poll(id), 10000);
+  pollTimer = setTimeout(() => poll(id), job.status === 'queued' ? 5000 : 10000);
 }
 
 /** Fallido o cancelado que ya se reintentó (2026-10-01): enlace al reintento en vez de un segundo «Reintentar». */
@@ -9059,10 +9075,14 @@ function renderProgress(job, queue, hermesOnline) {
     box.hidden = false;
     setProgressBar(bar, 0);
     track.setAttribute('aria-valuenow', '0');
-    plainText(document.getElementById('progress-stage'), queue?.ahead
-      ? `En cola · ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante`
-      : 'En cola · eres el siguiente');
-    plainText(document.getElementById('progress-eta'), queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)}, hacia las ${clockAt(queue.startsInSec)} (estimado)` : '');
+    plainText(
+      document.getElementById('progress-stage'),
+      queue?.message || (queue?.ahead ? `En cola · ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante` : 'En cola · eres el siguiente')
+    );
+    plainText(
+      document.getElementById('progress-eta'),
+      queue?.message ? '' : queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)}, hacia las ${clockAt(queue.startsInSec)} (estimado)` : ''
+    );
     const kind = job.input.revisionOf
       ? 'Aplicará los cambios pedidos: unos minutos.'
       : job.input.mobileFixOf
@@ -9070,12 +9090,16 @@ function renderProgress(job, queue, hermesOnline) {
       : job.input.briefReused
       ? job.input.retryOf
         ? 'Parte del brief que ya escribió en el intento anterior.'
+        : job.input.clickupTaskId
+        ? 'Hará la newsletter con el nombre y la descripción de la tarea de ClickUp.'
         : 'Hará la newsletter con el brief aprobado.'
       : job.input.instruction
       ? 'Primero escribirá el brief creativo.'
       : '';
     const when = hermesOnline === false
       ? 'Hermes no está conectado ahora mismo: empezará en cuanto vuelva a conectarse.'
+      : queue?.message
+      ? ''
       : queue?.ahead
       ? 'Hermes lo recogerá cuando termine lo que tiene delante.'
       : 'Hermes lo recogerá en unos segundos.';
@@ -9284,7 +9308,7 @@ function announce(message) {
 function announceJob(job, queue) {
   const name = job.input.clientName;
   if (job.status === 'queued') {
-    announce(queue?.ahead ? `${name}: en cola, ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante.` : `${name}: en cola, eres el siguiente.`);
+    announce(queue?.message ? `${name}: ${queue.message}` : queue?.ahead ? `${name}: en cola, ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante.` : `${name}: en cola, eres el siguiente.`);
   } else if (job.status === 'running') {
     announce(job.progress?.stageLabel ? `${name}: ${job.progress.stageLabel}.` : `${name}: Hermes ha empezado.`);
   } else if (job.status === 'completed') {
@@ -9367,6 +9391,8 @@ function routeNow() {
     showBrandView(brand);
   } else if (brands) {
     showBrandsView();
+  } else if (params.has('costes')) {
+    showCostesView();
   } else {
     if (!confirmLeaveJob()) {
       history.pushState({}, '', `?job=${encodeURIComponent(currentJob)}`);
@@ -9377,12 +9403,104 @@ function routeNow() {
     setFaviconStatus(null);
     viewJob.hidden = true;
     viewBrand.hidden = true;
+    if (viewCostes) viewCostes.hidden = true;
     viewForm.hidden = false;
     hero.hidden = false;
     document.title = BASE_TITLE;
     loadHistory();
   }
 }
+
+// ---------------------------------------------------------------- costes (2026-10-20)
+let costesJobs = [];
+function costesFilters() {
+  return {
+    from: document.getElementById('costes-from').value,
+    to: document.getElementById('costes-to').value,
+    requester: document.getElementById('costes-who').value,
+  };
+}
+function paintCostes() {
+  const C = window.HermesCostes;
+  const body = document.getElementById('costes-body');
+  const totalsEl = document.getElementById('costes-totals');
+  if (!C || !body || !totalsEl) return;
+  const rows = C.filterJobs(costesJobs, costesFilters());
+  const totals = C.totals(rows);
+  totalsEl.textContent = `${totals.jobs} trabajo${totals.jobs === 1 ? '' : 's'} · ${C.formatTokens(totals.inputTokens)} entrada · ${C.formatTokens(totals.outputTokens)} salida · ${C.formatTokens(totals.cacheTokens)} caché · ${C.formatEur(totals.costEur)}`;
+  body.innerHTML = rows.map((job) => {
+    const href = C.jobHref(job, location.origin);
+    return `<tr>
+      <td><a href="${escapeHtml(href)}">${escapeHtml(job.id)}</a></td>
+      <td>${escapeHtml(job.clientName || '—')}</td>
+      <td>${escapeHtml(C.requesterName(job) || '—')}</td>
+      <td>${escapeHtml(C.formatDate(job))}</td>
+      <td>${escapeHtml(C.formatTime(job.startedAt))}</td>
+      <td>${escapeHtml(C.formatTime(job.finishedAt))}</td>
+      <td>${escapeHtml(C.formatDuration(job.durationSec))}</td>
+      <td>${escapeHtml(C.statusLabel(job.status))}</td>
+      <td class="num">${escapeHtml(C.formatTokens(job.inputTokens))}</td>
+      <td class="num">${escapeHtml(C.formatTokens(job.outputTokens))}</td>
+      <td class="num">${escapeHtml(C.formatTokens(job.cacheTokens))}</td>
+      <td class="num">${escapeHtml(C.formatEur(job.costEur))}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="12">No hay trabajos con este filtro.</td></tr>';
+}
+function fillCostesRequesters() {
+  const C = window.HermesCostes;
+  const select = document.getElementById('costes-who');
+  if (!C || !select) return;
+  const current = select.value;
+  const options = C.requesterOptions(costesJobs).map((opt) => `<option value="${escapeHtml(opt.value)}">${escapeHtml(opt.label)}</option>`).join('');
+  select.innerHTML = `<option value="">Todos</option>${options}`;
+  select.value = [...select.options].some((opt) => opt.value === current) ? current : '';
+}
+async function showCostesView() {
+  if (!confirmLeaveJob()) return;
+  clearTimeout(pollTimer);
+  clearTimeout(historyTimer);
+  currentJob = null;
+  setFaviconStatus(null);
+  viewForm.hidden = true;
+  hero.hidden = true;
+  viewJob.hidden = true;
+  viewBrand.hidden = true;
+  if (viewCostes) viewCostes.hidden = false;
+  updateSticky();
+  document.title = `Costes · ${BASE_TITLE}`;
+  const status = document.getElementById('costes-status');
+  status.hidden = true;
+  try {
+    const res = await apiFetch('/api/jobs?fields=cost');
+    if (!res.ok) {
+      status.hidden = false;
+      status.textContent = res.status === 401 ? 'Inicia sesión para ver los costes.' : 'No se han podido cargar los costes.';
+      return;
+    }
+    costesJobs = (await res.json()).jobs || [];
+    fillCostesRequesters();
+    paintCostes();
+    document.getElementById('costes-title')?.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  } catch {
+    status.hidden = false;
+    status.textContent = NETWORK_ERROR;
+  }
+}
+document.getElementById('costes-from')?.addEventListener('change', paintCostes);
+document.getElementById('costes-to')?.addEventListener('change', paintCostes);
+document.getElementById('costes-who')?.addEventListener('change', paintCostes);
+document.getElementById('costes-csv')?.addEventListener('click', () => {
+  const C = window.HermesCostes;
+  if (!C) return;
+  const csv = C.toCsv(C.filterJobs(costesJobs, costesFilters()), location.origin);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'costes-hermes.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 
 // El navegador restaura el formulario anterior (así se coló un prompt de Prozis con la marca
 // Adeslas seleccionada): cada visita empieza en blanco.

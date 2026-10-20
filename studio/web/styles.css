@@ -4022,3 +4022,14 @@ html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(roo
 .early-brief { border-color: var(--border-strong); }
 .early-brief.is-collapsed .review-brief-view { display: none; }
 .early-brief-status { margin: 12px 0 0; padding: 12px 16px; border-left: 3px solid var(--success); background: var(--success-subtle); font-size: var(--fs-small); }
+
+/* Costes (2026-10-20): tabla ancha, con scroll horizontal en móvil. */
+.costes-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 16px; }
+.costes-tools label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-small); color: var(--muted); }
+.costes-tools input, .costes-tools select { margin-top: 0; }
+.costes-scroll { overflow-x: auto; }
+.costes-table { width: 100%; border-collapse: collapse; font-size: var(--fs-small); min-width: 880px; }
+.costes-table th, .costes-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.costes-table th { color: var(--muted); font-weight: 600; }
+.costes-table td.num, .costes-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.costes-table a { color: inherit; }

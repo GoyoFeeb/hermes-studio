@@ -52,7 +52,31 @@ test('el trabajo se envía entero, con sus columnas de filtro y la clave en las 
   assert.equal(out.row.client_slug, 'nike');
   assert.equal(out.row.requester, 'javi c');
   assert.equal(out.row.archived_at, null);
+  assert.equal(out.row.started_at, null);
+  assert.equal(out.row.input_tokens, null);
+  assert.equal(out.row.cost_eur, null);
+  assert.equal(out.row.model, null);
+  assert.equal(out.row.provider, null);
   assert.equal(out.row.data.id, 'abc123-xy12');
+});
+
+test('la copia guarda tokens, coste, modelo y horas cuando el trabajo los trae', () => {
+  const out = run(`
+    const rich = { ...job, startedAt: '2026-10-20T10:01:00.000Z', finishedAt: '2026-10-20T10:16:00.000Z', inputTokens: 1000, outputTokens: 200, cacheTokens: 50, costUsd: 2.1, costEur: 1.806, model: 'claude-sonnet-5-5', provider: 'anthropic' };
+    const { jobBackupRow } = require(${JSON.stringify(path.join(__dirname, 'supabase.ts'))});
+    const row = jobBackupRow(rich);
+    console.log(JSON.stringify(row));
+  `);
+  assert.equal(out.started_at, '2026-10-20T10:01:00.000Z');
+  assert.equal(out.finished_at, '2026-10-20T10:16:00.000Z');
+  assert.equal(out.input_tokens, 1000);
+  assert.equal(out.output_tokens, 200);
+  assert.equal(out.cache_tokens, 50);
+  assert.equal(out.cost_usd, 2.1);
+  assert.equal(out.cost_eur, 1.806);
+  assert.equal(out.model, 'claude-sonnet-5-5');
+  assert.equal(out.provider, 'anthropic');
+  assert.equal(out.requester, 'javi c');
 });
 
 test('los envíos salen en el orden en que se encolaron, aunque el primero falle y se reintente', () => {

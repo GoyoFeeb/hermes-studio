@@ -39,9 +39,20 @@ Cualquier otro evento responde 200 e `ignored`, para que ClickUp no reintente.
 
 El trabajo reutiliza `enqueueStandaloneJob`, el mismo alta que `POST /api/jobs` después de validar
 el formulario: instrucción rápida, imágenes oficiales, revisión de arte activada. No pide la
-confirmación de marca ni de web del formulario: si faltan, el trabajo se crea igual. La marca sale
-del campo **Cliente** / **Client**, si existe; si no, del nombre de la tarea (`Nike — Verano` →
-Nike, o una línea `Marca:` / `Cliente:`). La campaña sale del campo **Campaña** / **Campaign** y se
+confirmación de marca ni de web del formulario: si faltan, el trabajo se crea igual.
+
+El aviso `taskCreated` no trae el texto de la tarea, solo `task_id`. Con `CLICKUP_API_TOKEN`,
+Studio hace `GET https://api.clickup.com/api/v2/task/{id}?include_markdown_description=true`
+(`Authorization` es el token, sin `Bearer`) y rellena el brief del trabajo: nombre, descripción
+(`markdown_description`, si no `text_content`, si no el HTML en texto, con los `href`) y, si
+vienen, adjuntos y enlaces `https` que no son de ClickUp. `briefReused` queda activo: el worker
+maqueta con ese brief y no pide a Hermes que escriba otro. Sin token, o si la API no responde, el
+trabajo se abre igual pero el brief sigue vacío y Hermes intenta escribirlo.
+
+La marca sale, por este orden, de un campo **Cliente** / **Client** / **Marca** / **Brand**; de una línea
+`Marca:` / `Cliente:` en el nombre o la descripción; de una ficha de marca ya sincronizada si el nombre
+aparece en el título o la descripción; y, si no, del texto (`Nike — Verano` → Nike, `newsletter Feebbo` →
+Feebbo, y un prefijo `PRUEBA` / `TEST` no se queda con la marca). La campaña sale del campo **Campaña** / **Campaign** y se
 guarda en `campaignName`. Una URL `https://` de la descripción (que no sea de ClickUp) es
 `brandUrl`. El id de tarea, su URL y quien la creó (`requesterName`, el username, nunca el correo)
 quedan en el trabajo. `clientId` y `campaignId` están reservados para vincular cliente y campaña;
