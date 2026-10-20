@@ -347,6 +347,77 @@ test('la marca no es el prefijo de prueba: sale de la ficha, del campo o del tex
   assert.equal(out.mode, 'existing');
 });
 
+test('Cliente: se queda con el nombre y la URL del enlace markdown va aparte', () => {
+  const out = run(`
+    const { slugify } = require(${JSON.stringify(path.join(__dirname, 'campaignFs.ts'))});
+    const linked = 'Cliente: Feebbo ([https://feebbo.com](https://feebbo.com))';
+    const paren = 'Cliente: Feebbo (https://feebbo.com)';
+    const bare = 'Marca: Feebbo https://feebbo.com/es';
+    const labelLink = 'Cliente: [Feebbo](https://feebbo.com)';
+    const httpParen = 'Client: Feebbo (http://feebbo.com)';
+    const angle = 'Brand: Feebbo <https://feebbo.com>';
+    const plain = 'Marca: Feebbo';
+    const names = {
+      linked: clickup.deriveClientName('Tarea', linked),
+      paren: clickup.deriveClientName('Tarea', paren),
+      bare: clickup.deriveClientName('Tarea', bare),
+      labelLink: clickup.deriveClientName('Tarea', labelLink),
+      httpParen: clickup.deriveClientName('Tarea', httpParen),
+      angle: clickup.deriveClientName('Tarea', angle),
+      plain: clickup.deriveClientName('Tarea', plain),
+      field: clickup.deriveClient('Newsletter', 'hola', 'Feebbo ([https://feebbo.com](https://feebbo.com))').name,
+    };
+    const slugs = {
+      linked: slugify(names.linked),
+      field: slugify(names.field),
+      dirty: slugify('Feebbo ([https://feebbo.com](https://feebbo.com))'),
+    };
+    const urls = {
+      linked: clickup.deriveBrandUrl(linked) || null,
+      paren: clickup.deriveBrandUrl(paren) || null,
+      bare: clickup.deriveBrandUrl(bare) || null,
+    };
+    const { jobs, deps } = memory();
+    deps.fetchTask = async () => ({
+      id: 'fee9999',
+      name: 'Newsletter',
+      list: { id: listId },
+      markdown_description: linked + '\\nPieza de presentación.',
+    });
+    const body = createdPayload('fee9999');
+    const res = await clickup.handleClickupWebhook(Buffer.from(body), sign(body), deps);
+    await res.after;
+    const job = jobs[0];
+    console.log(JSON.stringify({
+      names, slugs, urls,
+      client: job.input.clientName,
+      slug: job.input.clientSlug,
+      brandUrl: job.input.brandUrl || null,
+      marca: (job.input.instruction || '').split('\\n')[0],
+      web: (job.input.instruction || '').includes('Web oficial: https://feebbo.com'),
+    }));
+  `);
+  assert.equal(out.names.linked, 'Feebbo');
+  assert.equal(out.names.paren, 'Feebbo');
+  assert.equal(out.names.bare, 'Feebbo');
+  assert.equal(out.names.labelLink, 'Feebbo');
+  assert.equal(out.names.httpParen, 'Feebbo');
+  assert.equal(out.names.angle, 'Feebbo');
+  assert.equal(out.names.plain, 'Feebbo');
+  assert.equal(out.names.field, 'Feebbo');
+  assert.equal(out.slugs.linked, 'feebbo');
+  assert.equal(out.slugs.field, 'feebbo');
+  assert.equal(out.slugs.dirty, 'feebbo-https-feebbo-com-https-feebbo-com');
+  assert.equal(out.urls.linked, 'https://feebbo.com');
+  assert.equal(out.urls.paren, 'https://feebbo.com');
+  assert.equal(out.urls.bare, 'https://feebbo.com/es');
+  assert.equal(out.client, 'Feebbo');
+  assert.equal(out.slug, 'feebbo');
+  assert.equal(out.brandUrl, 'https://feebbo.com');
+  assert.equal(out.marca, 'Marca: Feebbo');
+  assert.equal(out.web, true);
+});
+
 test('el cupo es el de POST /api/jobs y el webhook no entra en el worker', () => {
   const out = run(`
     const body = clickup.clickupWebhookCreateBody(clickup.DEFAULT_CLICKUP_WEBHOOK_ENDPOINT, clickup.DEFAULT_CLICKUP_LIST_ID);
@@ -601,14 +672,20 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
       plain,
       notify: ready.notify_all,
       hasText: ready.comment_text == null,
-      tag: ready.comment[1],
-      tail: ready.comment[0].text,
+      tag: ready.comment[0],
+      tagKeys: Object.keys(ready.comment[0]).sort(),
+      tail: ready.comment[1].text,
+      payload: ready.comment,
       order: ready.comment.map((part) => part.type || 'text'),
       failedOrder: failed.comment.map((part) => part.type || 'text'),
+      failedTag: failed.comment[0],
+      failedTail: failed.comment[1].text,
       noId: noId.comment_text,
       noIdComment: noId.comment || null,
       noScore: clickup.clickupCommentPlain(noScore),
-      spaced: spaced.comment[1].text,
+      noScorePayload: noScore.comment,
+      spacedTag: spaced.comment[0],
+      spacedKeys: Object.keys(spaced.comment[0]).sort(),
       failedPlain,
       failedHasTrace: failedPlain.includes('secreto interno'),
       failedNoId: failedNoId.comment_text,
@@ -619,18 +696,26 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
     }));
   `);
   const page = 'https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd';
-  assert.equal(out.plain, `@Ana tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`);
+  const readyText = ` tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`;
+  const mention = { type: 'tag', user: { id: 183 } };
+  assert.equal(out.plain, readyText);
   assert.equal(out.notify, false);
   assert.equal(out.hasText, true);
-  assert.deepEqual(out.order, ['text', 'tag']);
-  assert.deepEqual(out.failedOrder, ['text', 'tag']);
-  assert.deepEqual(out.tag, { text: '@Ana', type: 'tag', user: { id: 183 }, attributes: {} });
-  assert.equal(out.tail, ` tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`);
+  assert.deepEqual(out.order, ['tag', 'text']);
+  assert.deepEqual(out.failedOrder, ['tag', 'text']);
+  assert.deepEqual(out.tag, mention);
+  assert.deepEqual(out.tagKeys, ['type', 'user']);
+  assert.equal(out.tail, readyText);
+  assert.deepEqual(out.payload, [mention, { text: readyText }]);
+  assert.deepEqual(out.failedTag, mention);
+  assert.equal(out.failedTail, ` el trabajo ha fallado: Hermes no dejó el HTML. ${page}`);
   assert.equal(out.noId, `Tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`);
   assert.equal(out.noIdComment, null);
-  assert.equal(out.noScore, `@Ana tu trabajo está listo: ${page}`);
-  assert.equal(out.spaced, '@Ana López');
-  assert.equal(out.failedPlain, `@Ana el trabajo ha fallado: Hermes no dejó el HTML. ${page}`);
+  assert.equal(out.noScore, ` tu trabajo está listo: ${page}`);
+  assert.deepEqual(out.noScorePayload, [mention, { text: ` tu trabajo está listo: ${page}` }]);
+  assert.deepEqual(out.spacedTag, mention);
+  assert.deepEqual(out.spacedKeys, ['type', 'user']);
+  assert.equal(out.failedPlain, ` el trabajo ha fallado: Hermes no dejó el HTML. ${page}`);
   assert.equal(out.failedHasTrace, false);
   assert.equal(out.failedNoId, `El trabajo ha fallado: se cortó el modelo. ${page}`);
   assert.equal(out.kept, true);
@@ -639,9 +724,13 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
   assert.equal(out.call.method, 'POST');
   assert.equal(out.call.authorization, 'pk_test');
   assert.equal(out.call.body.notify_all, false);
-  assert.equal(out.call.body.comment[1].user.id, 183);
-  assert.equal(out.call.body.comment[0].text.startsWith(' '), true);
-  assert.equal(out.call.body.comment[0].text.includes('<'), false);
+  assert.deepEqual(out.call.body.comment, [mention, { text: readyText }]);
+  assert.equal(out.call.body.comment[0].type, 'tag');
+  assert.equal(out.call.body.comment[0].user.id, 183);
+  assert.equal('text' in out.call.body.comment[0], false);
+  assert.equal('attributes' in out.call.body.comment[0], false);
+  assert.equal(out.call.body.comment[1].text.startsWith(' '), true);
+  assert.equal(out.call.body.comment[1].text.includes('<'), false);
   assert.equal(out.plainCall.comment_text, 'Hermes ha empezado este trabajo.');
   assert.equal(out.plainCall.notify_all, false);
   assert.match(out.plainCall.error, /503/);
@@ -672,7 +761,13 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
       pollMs: 15,
       getJob: () => job,
       postComment: async (taskId, token, body) => {
-        posts.push({ taskId, token, text: clickup.clickupCommentPlain(body) });
+        posts.push({
+          taskId,
+          token,
+          text: clickup.clickupCommentPlain(body),
+          order: body.comment ? body.comment.map((part) => part.type || 'text') : ['comment_text'],
+          first: body.comment ? body.comment[0] : null,
+        });
         await gate;
       },
       log: () => {},
@@ -718,7 +813,16 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
       ...deps,
       noticeDir: staleDir,
       getJob: () => ({ ...job, error: 'se cortó el modelo' }),
-      postComment: async (taskId, token, body) => { posts.push({ taskId, token, text: clickup.clickupCommentPlain(body), stale: true }); },
+      postComment: async (taskId, token, body) => {
+        posts.push({
+          taskId,
+          token,
+          text: clickup.clickupCommentPlain(body),
+          order: body.comment ? body.comment.map((part) => part.type || 'text') : ['comment_text'],
+          first: body.comment ? body.comment[0] : null,
+          stale: true,
+        });
+      },
     });
     const offDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cu-end-off-'));
     const off = await clickup.deliverClickupEndNotice(job.id, 'completed', { ...deps, comment: false, noticeDir: offDir, postComment: async () => { posts.push({ off: true }); } });
@@ -738,6 +842,10 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
       noticeOutcome: notice.outcome,
       posts: posts.filter((p) => !p.stale).length,
       text: posts[0] && posts[0].text,
+      order: posts[0] && posts[0].order,
+      lead: posts[0] && posts[0].first,
+      staleOrder: (posts.find((p) => p.stale) || {}).order,
+      staleLead: (posts.find((p) => p.stale) || {}).first,
       first, second, third, tries,
       busy, busyPosts,
       stale,
@@ -754,7 +862,9 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
   assert.equal(out.noticeAt, true);
   assert.equal(out.noticeOutcome, 'completed');
   assert.equal(out.posts, 1);
-  assert.match(out.text, /^@Ana tu trabajo está listo: https:\/\/hermes-studio-beta\.vercel\.app\/\?job=m1h2k3-abcd · duración 1:00$/);
+  assert.equal(out.text, ' tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd · duración 1:00');
+  assert.deepEqual(out.order, ['tag', 'text']);
+  assert.deepEqual(out.lead, { type: 'tag', user: { id: 183 } });
   assert.equal(out.first, false);
   assert.equal(out.second, true);
   assert.equal(out.third, false);
@@ -762,7 +872,9 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
   assert.equal(out.busy, false);
   assert.equal(out.busyPosts, 0);
   assert.equal(out.stale, true);
-  assert.match(out.staleText, /^@Ana el trabajo ha fallado: se cortó el modelo\. https:\/\/hermes-studio-beta\.vercel\.app\/\?job=m1h2k3-abcd$/);
+  assert.equal(out.staleText, ' el trabajo ha fallado: se cortó el modelo. https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd');
+  assert.deepEqual(out.staleOrder, ['tag', 'text']);
+  assert.deepEqual(out.staleLead, { type: 'tag', user: { id: 183 } });
   assert.equal(out.off, false);
   assert.equal(out.offFiles, 0);
 });

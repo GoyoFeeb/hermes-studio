@@ -179,14 +179,15 @@ const ART_SCORE_MAX = 50;
 
 export interface ClickupTextPart {
   text: string;
-  attributes: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
 }
 
+/** Mención de la doc de ClickUp: solo `type` y `user.id`. Sin `text`: ese campo se pega al final. */
 export interface ClickupTagPart {
-  text: string;
   type: 'tag';
   user: { id: number };
-  attributes: Record<string, unknown>;
+  text?: string;
+  attributes?: Record<string, unknown>;
 }
 
 /** Cuerpo de POST /task/{id}/comment. Con mención, `comment` (no `comment_text`) y notify_all en false. */
@@ -252,9 +253,9 @@ export function oneLineReason(error: string | undefined): string {
   return /[.!?…]$/.test(reason) ? reason : `${reason}.`;
 }
 
-/** Texto en el orden en que ClickUp lo pinta. El array se envía al revés (ver mentionBody). */
+/** Texto de los bloques en el orden enviado. ClickUp pinta ese orden; el nombre del tag lo pone él. */
 export function clickupCommentPlain(body: ClickupCommentBody): string {
-  if (body.comment) return [...body.comment].reverse().map((part) => part.text).join('');
+  if (body.comment) return body.comment.map((part) => part.text || '').join('');
   return body.comment_text || '';
 }
 
@@ -281,28 +282,29 @@ function mentionUserId(value: string | undefined): number | null {
   return Number.isSafeInteger(n) ? n : null;
 }
 
-function mentionBody(userId: number, name: string, rest: string): ClickupCommentBody {
-  const label = name.replace(/^@+/, '').trim() || 'usuario';
+function mentionBody(userId: number, rest: string): ClickupCommentBody {
   const tail = rest.startsWith(' ') ? rest : ` ${rest}`;
-  // ClickUp pinta el array al revés. La lectura es la mención y, detrás, el texto
-  // que empieza por un espacio («@nombre tu trabajo…»). En el JSON va al contrario,
-  // si no la frase sale con un espacio delante y el @ pegado al final.
-  const reading: (ClickupTextPart | ClickupTagPart)[] = [
-    { text: `@${label}`, type: 'tag', user: { id: userId }, attributes: {} },
-    { text: tail, attributes: {} },
-  ];
-  return { notify_all: false, comment: reading.reverse() };
+  // Doc de comment-formatting: el array se pinta en el orden enviado (texto, tag, texto).
+  // El tag es `{type:'tag', user:{id}}` y no lleva `text` ni `attributes`: ClickUp escribe
+  // el nombre en ese hueco. Un `text` en el tag se concatena al final de comment_text
+  // («…40/50@Goyo») y dar la vuelta al array no lo mueve.
+  return {
+    notify_all: false,
+    comment: [
+      { type: 'tag', user: { id: userId } },
+      { text: tail },
+    ],
+  };
 }
 
 /** Texto del aviso de fin. Sin id de creador, el mismo texto en comment_text y sin @. */
 export function clickupEndComment(job: ClickupEndJob, outcome: 'completed' | 'failed', webBase: string): ClickupCommentBody {
   const page = clickupJobPageUrl(webBase, job.id);
   const userId = mentionUserId(job.input.clickupCreatorId);
-  const name = cleanPerson(job.input.requesterName) || '';
   if (outcome === 'failed') {
     const reason = oneLineReason(job.error);
     const rest = `el trabajo ha fallado: ${reason} ${page}`;
-    if (userId) return mentionBody(userId, name, rest);
+    if (userId) return mentionBody(userId, rest);
     return { notify_all: false, comment_text: `El trabajo ha fallado: ${reason} ${page}` };
   }
   const bits = [page];
@@ -311,7 +313,7 @@ export function clickupEndComment(job: ClickupEndJob, outcome: 'completed' | 'fa
   const score = artScoreOutOf50(job.artReview);
   if (score != null) bits.push(`nota visual ${score}/${ART_SCORE_MAX}`);
   const detail = bits.join(' · ');
-  if (userId) return mentionBody(userId, name, `tu trabajo está listo: ${detail}`);
+  if (userId) return mentionBody(userId, `tu trabajo está listo: ${detail}`);
   return { notify_all: false, comment_text: `Tu trabajo está listo: ${detail}` };
 }
 
@@ -780,12 +782,34 @@ const GENERIC_BRAND = new Set([
 const TEST_LEAD = /^(?:prueba|test|tests|demo|sandbox|staging)\b/i;
 const BRAND_STOP = new Set(['con', 'para', 'de', 'del', 'por', 'en', 'el', 'la', 'los', 'las', 'y', 'e', 'o', 'u', 'un', 'una', 'the', 'with', 'for', 'and', 'a', 'an', 'que', 'sobre']);
 
+/**
+ * Un nombre de cliente no se queda con el enlace que ClickUp pega al lado.
+ * `[etiqueta](url)` deja la etiqueta (si la etiqueta es otra URL, se quita);
+ * también se quitan URLs sueltas, entre paréntesis o entre ángulos.
+ */
+function stripClientLinkNoise(value: string): string {
+  let text = value;
+  text = text.replace(/\[([^\]]*)\]\(\s*(?:https?:\/\/|www\.)[^)\s]*\s*\)/gi, (_match, label: string) => {
+    const inner = String(label).trim();
+    if (!inner || /^(?:https?:\/\/|www\.)/i.test(inner)) return '';
+    return inner;
+  });
+  text = text.replace(/\(\s*(?:https?:\/\/|www\.)[^)]*\)/gi, '');
+  text = text.replace(/<\s*(?:https?:\/\/|www\.)[^>]*>/gi, '');
+  text = text.replace(/(?:https?:\/\/|www\.)[^\s<>"'`)\]}]+/gi, '');
+  return text.replace(/\(\s*\)/g, '').replace(/\[\s*\]/g, '');
+}
+
+function clientNameFrom(value: string): string | undefined {
+  return cleanLabel(stripClientLinkNoise(value));
+}
+
 /** Campo o línea etiquetada, si no una ficha conocida, si no el texto tras newsletter o el guion. */
 export function deriveClient(taskName: string, description: string, fromField?: string, known?: KnownBrand[]): DerivedClient {
-  const field = cleanLabel(fromField || '');
+  const field = clientNameFrom(fromField || '');
   if (field) return { name: field };
-  const labeled = `${taskName}\n${description}`.match(/(?:^|\n)\s*(?:marca|brand|cliente|client)\s*[:：]\s*([^\n,]{2,80})/i);
-  const fromLabel = labeled ? cleanLabel(labeled[1]) : undefined;
+  const labeled = `${taskName}\n${description}`.match(/(?:^|\n)\s*(?:marca|brand|cliente|client)\s*[:：]\s*([^\n,]+)/i);
+  const fromLabel = labeled ? clientNameFrom(labeled[1]) : undefined;
   if (fromLabel) return { name: fromLabel };
   const extracted = extractBrandName(taskName, description);
   const match = matchKnownBrand(taskName, description, known || [], extracted);
