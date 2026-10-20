@@ -28,6 +28,9 @@ import { createJob } from './store';
 import { joinLabels, requestTerms } from './requestCoverage';
 import { CLAIMS_BRIEF_RULE, CLAIMS_PIECE_RULE } from '../worker/claims';
 import { COPY_RULES } from '../worker/copyCheck';
+import { forecastStart, runningRemainingSec, type QueueActor } from './queueEta';
+import { workerCapacity } from './workerPool';
+import { leaseExpired } from './claimQueue';
 import { MOBILE_NOTES_TEMPLATE, NOTES_TEMPLATE, REVISION_NOTES_TEMPLATE, notesFileRule } from '../worker/selfAudit';
 import { PATTERNS_GUIDE, catalogIndex } from '../hermes/catalog';
 
@@ -428,11 +431,17 @@ export function promptMentionsBrand(prompt: string, clientName: string, clientSl
 export const HERMES_STALE_MS = 10 * 60 * 1000;
 
 export function sweepStaleHermesJobs(): void {
+  const now = Date.now();
   for (const j of listJobs()) {
-    if (j.input.mode === 'standalone' && j.status === 'running' && Date.now() - Date.parse(j.updatedAt) > HERMES_STALE_MS) {
-      log(j.id, 'Hermes dejó de dar señales de vida (¿Mac apagado, dormido o worker cerrado?).', 'error');
-      updateJob(j.id, { status: 'failed', error: 'Hermes dejó de responder (¿Mac apagado, dormido o worker cerrado?). Vuelve a enviarlo.' });
-    }
+    if (j.input.mode !== 'standalone' || j.status !== 'running') continue;
+    const leaseDead = leaseExpired(j.lease?.until, now);
+    const stale = now - Date.parse(j.updatedAt) > HERMES_STALE_MS;
+    if (!leaseDead && !stale) continue;
+    const error = leaseDead
+      ? 'El worker dejó de renovar este trabajo (el arrendamiento caducó). Vuelve a enviarlo.'
+      : 'Hermes dejó de responder (¿Mac apagado, dormido o worker cerrado?). Vuelve a enviarlo.';
+    log(j.id, error, 'error');
+    updateJob(j.id, { status: 'failed', error });
   }
 }
 
@@ -651,26 +660,57 @@ export function typicalSeconds(job: Job): number {
   return kind ? typicalDurations()[kind].sec : 0;
 }
 
-/** Cuánto falta para que Hermes quede libre, estimado: lo que le queda al que está en marcha más lo
- *  que suelen tardar los que esperan (los creados antes de `before`, o todos). Hermes hace uno a la vez. */
-export function queueWait(before?: string): { ahead: number; seconds: number } {
-  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
-  const running = standalone.filter((j) => j.status === 'running');
-  const queuedAhead = standalone.filter((j) => j.status === 'queued' && (!before || j.createdAt < before));
-  let seconds = 0;
-  for (const r of running) {
-    // Sin estimación (recta final) o sin progreso todavía: lo que suele tardar menos lo transcurrido.
-    seconds += r.progress?.etaSec ?? Math.max(120, typicalSeconds(r) - (r.progress?.elapsedSec ?? 0));
+function queueActors(): QueueActor[] {
+  const durations = typicalDurations();
+  const now = Date.now();
+  const out: QueueActor[] = [];
+  for (const j of listJobs()) {
+    if (j.input.mode !== 'standalone') continue;
+    const kind = jobKind(j);
+    const typical = kind ? durations[kind].sec : 0;
+    if (j.status === 'running') {
+      const elapsed = j.startedAt
+        ? Math.max(0, (now - Date.parse(j.startedAt)) / 1000 - (j.briefWaitSec || 0))
+        : (j.progress?.elapsedSec ?? 0);
+      out.push({
+        id: j.id,
+        status: 'running',
+        createdAt: j.createdAt,
+        sec: runningRemainingSec(typical, elapsed, j.progress?.etaSec),
+      });
+    } else if (j.status === 'queued') {
+      out.push({ id: j.id, status: 'queued', createdAt: j.createdAt, sec: typical });
+    }
   }
-  for (const q of queuedAhead) seconds += typicalSeconds(q);
-  return { ahead: running.length + queuedAhead.length, seconds };
+  return out;
 }
 
-/** Posición en la cola de un trabajo standalone en espera y cuándo empezará (ver queueWait). */
-export function queueInfo(job: Job): { ahead: number; startsInSec: number } | null {
+/** Cuánto falta para que haya un hueco para un trabajo nuevo (o para los creados antes de `before`).
+ *  La capacidad es la que anuncian los workers; sin avisos, STUDIO_WORKER_SLOTS (defecto 2). */
+export function queueWait(before?: string): { ahead: number; seconds: number } {
+  const actors = queueActors().filter((a) => a.status === 'running' || !before || a.createdAt < before);
+  const synthetic: QueueActor = {
+    id: '__wait__',
+    status: 'queued',
+    createdAt: before || '9999-01-01T00:00:00.000Z',
+    sec: 0,
+  };
+  const forecast = forecastStart([...actors, synthetic], '__wait__', workerCapacity());
+  return { ahead: forecast?.ahead ?? 0, seconds: forecast?.startsInSec ?? 0 };
+}
+
+/** Posición en la cola de un trabajo standalone en espera y cuándo empezará. */
+export function queueInfo(job: Job): { ahead: number; startsInSec: number; runningAhead: number; queuedAhead: number; message: string } | null {
   if (job.status !== 'queued' || job.input.mode !== 'standalone') return null;
-  const { ahead, seconds } = queueWait(job.createdAt);
-  return { ahead, startsInSec: seconds };
+  const forecast = forecastStart(queueActors(), job.id, workerCapacity());
+  if (!forecast) return null;
+  return {
+    ahead: forecast.ahead,
+    startsInSec: forecast.startsInSec,
+    runningAhead: forecast.runningAhead,
+    queuedAhead: forecast.queuedAhead,
+    message: forecast.message,
+  };
 }
 
 export interface JobVersion {

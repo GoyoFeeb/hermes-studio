@@ -11,6 +11,7 @@
  */
 import * as crypto from 'crypto';
 import { slugify } from './campaignFs';
+import { queueCommentLine } from './queueEta';
 import { listJobs, type Job, type JobInput } from './store';
 
 export const DEFAULT_CLICKUP_LIST_ID = '901223474074';
@@ -66,6 +67,8 @@ export interface ClickupDeps {
   updateJob: (id: string, patch: Partial<Job>) => void;
   fetchTask: (taskId: string, token: string) => Promise<ClickupTask | null>;
   postComment: (taskId: string, token: string, text: string) => Promise<void>;
+  /** Si el trabajo sigue en cola y no lo van a coger al momento, la frase que se añade al comentario. */
+  queueFor?: (job: Job) => { ahead: number; startsInSec: number } | null;
   knownBrand: (slug: string) => boolean;
   /** Fichas de marca ya sincronizadas. Si no está, la marca sale del texto de la tarea. */
   brandRecords?: () => KnownBrand[];
@@ -148,8 +151,19 @@ export function clickupJobPageUrl(webBase: string, jobId: string): string {
   return `${webBase}/?job=${encodeURIComponent(jobId)}`;
 }
 
-export function clickupJobComment(webBase: string, jobId: string): string {
-  return `Hermes Studio ha creado un trabajo para esta tarea:\n${clickupJobPageUrl(webBase, jobId)}`;
+export function clickupJobComment(
+  webBase: string,
+  jobId: string,
+  queue?: { ahead: number; startsInSec: number } | null
+): string {
+  const page = `Hermes Studio ha creado un trabajo para esta tarea:\n${clickupJobPageUrl(webBase, jobId)}`;
+  const line = queueCommentLine(queue);
+  return line ? `${page}\n${line}` : page;
+}
+
+/** Comentario corto cuando el worker recoge el trabajo. */
+export function clickupStartedComment(): string {
+  return 'Hermes ha empezado este trabajo.';
 }
 
 export function clickupWebhookCreateBody(endpoint: string, listId: string): { endpoint: string; events: ['taskCreated']; list_id: number } {
@@ -332,8 +346,10 @@ async function createAfterListCheck(taskId: string, payload: ClickupPayload, dep
 async function commentOnTask(taskId: string, jobId: string, deps: ClickupDeps): Promise<void> {
   if (!deps.comment || !deps.apiToken) return;
   try {
-    await deps.postComment(taskId, deps.apiToken, clickupJobComment(deps.webBase, jobId));
-    deps.log(jobId, 'Comentario publicado en la tarea de ClickUp.');
+    const job = deps.getJob(jobId);
+    const queue = job && deps.queueFor ? deps.queueFor(job) : null;
+    await deps.postComment(taskId, deps.apiToken, clickupJobComment(deps.webBase, jobId, queue));
+    deps.log(jobId, queue ? 'Comentario publicado en la tarea de ClickUp (con la cola).' : 'Comentario publicado en la tarea de ClickUp.');
   } catch (err) {
     deps.log(jobId, `No se pudo comentar en ClickUp: ${(err as Error).message}`, 'error');
   }
