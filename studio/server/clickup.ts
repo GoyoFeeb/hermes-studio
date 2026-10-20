@@ -252,8 +252,9 @@ export function oneLineReason(error: string | undefined): string {
   return /[.!?…]$/.test(reason) ? reason : `${reason}.`;
 }
 
+/** Texto en el orden en que ClickUp lo pinta. El array se envía al revés (ver mentionBody). */
 export function clickupCommentPlain(body: ClickupCommentBody): string {
-  if (body.comment) return body.comment.map((part) => part.text).join('');
+  if (body.comment) return [...body.comment].reverse().map((part) => part.text).join('');
   return body.comment_text || '';
 }
 
@@ -283,18 +284,19 @@ function mentionUserId(value: string | undefined): number | null {
 function mentionBody(userId: number, name: string, rest: string): ClickupCommentBody {
   const label = name.replace(/^@+/, '').trim() || 'usuario';
   const tail = rest.startsWith(' ') ? rest : ` ${rest}`;
-  return {
-    notify_all: false,
-    comment: [
-      { text: `@${label}`, type: 'tag', user: { id: userId }, attributes: {} },
-      { text: tail, attributes: {} },
-    ],
-  };
+  // ClickUp pinta el array al revés. La lectura es la mención y, detrás, el texto
+  // que empieza por un espacio («@nombre tu trabajo…»). En el JSON va al contrario,
+  // si no la frase sale con un espacio delante y el @ pegado al final.
+  const reading: (ClickupTextPart | ClickupTagPart)[] = [
+    { text: `@${label}`, type: 'tag', user: { id: userId }, attributes: {} },
+    { text: tail, attributes: {} },
+  ];
+  return { notify_all: false, comment: reading.reverse() };
 }
 
 /** Texto del aviso de fin. Sin id de creador, el mismo texto en comment_text y sin @. */
 export function clickupEndComment(job: ClickupEndJob, outcome: 'completed' | 'failed', webBase: string): ClickupCommentBody {
-  const page = `<${clickupJobPageUrl(webBase, job.id)}>`;
+  const page = clickupJobPageUrl(webBase, job.id);
   const userId = mentionUserId(job.input.clickupCreatorId);
   const name = cleanPerson(job.input.requesterName) || '';
   if (outcome === 'failed') {

@@ -601,12 +601,14 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
       plain,
       notify: ready.notify_all,
       hasText: ready.comment_text == null,
-      tag: ready.comment[0],
-      tail: ready.comment[1].text,
+      tag: ready.comment[1],
+      tail: ready.comment[0].text,
+      order: ready.comment.map((part) => part.type || 'text'),
+      failedOrder: failed.comment.map((part) => part.type || 'text'),
       noId: noId.comment_text,
       noIdComment: noId.comment || null,
       noScore: clickup.clickupCommentPlain(noScore),
-      spaced: spaced.comment[0].text,
+      spaced: spaced.comment[1].text,
       failedPlain,
       failedHasTrace: failedPlain.includes('secreto interno'),
       failedNoId: failedNoId.comment_text,
@@ -616,25 +618,30 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
       plainCall,
     }));
   `);
-  assert.equal(out.plain, '@Ana tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd> · duración 3:05 · nota visual 42/50');
+  const page = 'https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd';
+  assert.equal(out.plain, `@Ana tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`);
   assert.equal(out.notify, false);
   assert.equal(out.hasText, true);
+  assert.deepEqual(out.order, ['text', 'tag']);
+  assert.deepEqual(out.failedOrder, ['text', 'tag']);
   assert.deepEqual(out.tag, { text: '@Ana', type: 'tag', user: { id: 183 }, attributes: {} });
-  assert.equal(out.tail, ' tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd> · duración 3:05 · nota visual 42/50');
-  assert.equal(out.noId, 'Tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd> · duración 3:05 · nota visual 42/50');
+  assert.equal(out.tail, ` tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`);
+  assert.equal(out.noId, `Tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`);
   assert.equal(out.noIdComment, null);
-  assert.equal(out.noScore, '@Ana tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd>');
+  assert.equal(out.noScore, `@Ana tu trabajo está listo: ${page}`);
   assert.equal(out.spaced, '@Ana López');
-  assert.equal(out.failedPlain, '@Ana el trabajo ha fallado: Hermes no dejó el HTML. <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd>');
+  assert.equal(out.failedPlain, `@Ana el trabajo ha fallado: Hermes no dejó el HTML. ${page}`);
   assert.equal(out.failedHasTrace, false);
-  assert.equal(out.failedNoId, 'El trabajo ha fallado: se cortó el modelo. <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd>');
+  assert.equal(out.failedNoId, `El trabajo ha fallado: se cortó el modelo. ${page}`);
   assert.equal(out.kept, true);
   assert.equal(out.notAfter, true);
   assert.equal(out.call.url, 'https://api.clickup.com/api/v2/task/task123/comment');
   assert.equal(out.call.method, 'POST');
   assert.equal(out.call.authorization, 'pk_test');
   assert.equal(out.call.body.notify_all, false);
-  assert.equal(out.call.body.comment[0].user.id, 183);
+  assert.equal(out.call.body.comment[1].user.id, 183);
+  assert.equal(out.call.body.comment[0].text.startsWith(' '), true);
+  assert.equal(out.call.body.comment[0].text.includes('<'), false);
   assert.equal(out.plainCall.comment_text, 'Hermes ha empezado este trabajo.');
   assert.equal(out.plainCall.notify_all, false);
   assert.match(out.plainCall.error, /503/);
@@ -747,7 +754,7 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
   assert.equal(out.noticeAt, true);
   assert.equal(out.noticeOutcome, 'completed');
   assert.equal(out.posts, 1);
-  assert.match(out.text, /^@Ana tu trabajo está listo: <https:\/\/hermes-studio-beta\.vercel\.app\/\?job=m1h2k3-abcd> · duración 1:00$/);
+  assert.match(out.text, /^@Ana tu trabajo está listo: https:\/\/hermes-studio-beta\.vercel\.app\/\?job=m1h2k3-abcd · duración 1:00$/);
   assert.equal(out.first, false);
   assert.equal(out.second, true);
   assert.equal(out.third, false);
@@ -755,7 +762,7 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
   assert.equal(out.busy, false);
   assert.equal(out.busyPosts, 0);
   assert.equal(out.stale, true);
-  assert.match(out.staleText, /^@Ana el trabajo ha fallado: se cortó el modelo\./);
+  assert.match(out.staleText, /^@Ana el trabajo ha fallado: se cortó el modelo\. https:\/\/hermes-studio-beta\.vercel\.app\/\?job=m1h2k3-abcd$/);
   assert.equal(out.off, false);
   assert.equal(out.offFiles, 0);
 });

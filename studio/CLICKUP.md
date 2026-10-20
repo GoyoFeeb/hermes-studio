@@ -62,10 +62,12 @@ toca la base de datos.
 Cuando el trabajo termina (`POST /api/worker/jobs/:id/complete`) o falla (`/fail`), y `CLICKUP_COMMENT=1`,
 Studio publica otro comentario en la misma tarea. Si hay `clickupCreatorId`, el cuerpo es un array
 `comment` con `notify_all: false` y una mención (`type: "tag"`, `user.id` el del creador), para que
-ClickUp avise solo a esa persona. El texto, en español, es
-`@Nombre tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=<id>> · duración M:SS · nota visual X/50`
+ClickUp avise solo a esa persona. ClickUp pinta ese array al revés: en el JSON el texto va primero
+(empieza por un espacio) y el tag después, para que en la tarea se lea la mención delante. El enlace
+va sin ángulos. El texto, en español, es
+`@Nombre tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=<id> · duración M:SS · nota visual X/50`
 (la duración y la nota solo si existen; la nota es la suma de los criterios, sobre 50). Si falla:
-`@Nombre el trabajo ha fallado: <motivo en una línea>. <enlace>`. Sin id de creador, el mismo aviso
+`@Nombre el trabajo ha fallado: motivo en una línea. https://…/?job=<id>`. Sin id de creador, el mismo aviso
 sale como texto plano, sin `@`. El aviso se escribe una vez por trabajo: un reintento de la ruta o
 otra réplica ve la reserva y no vuelve a comentar. Si ClickUp no responde, la reserva se suelta y
 el siguiente intento puede publicar.
