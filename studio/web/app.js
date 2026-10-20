@@ -460,7 +460,9 @@ function renderEtaHints() {
   if (ahead && t) {
     const others = ahead === 1 ? 'otra newsletter' : `otras ${ahead} newsletters`;
     const startMin = Math.max(1, Math.round(queueWaitNow.seconds / 60));
-    text = `Hermes tiene delante ${others}: la tuya empezaría en ~${startMin} min y estaría lista hacia las ${clockAt(queueWaitNow.seconds + t.sec)}. `;
+    text = queueWaitNow.seconds < 20
+      ? `Hermes tiene delante ${others}, pero hay hueco: la tuya empieza enseguida y estaría lista hacia las ${clockAt(t.sec)}. `
+      : `Hermes tiene delante ${others}: la tuya empezaría en ~${startMin} min y estaría lista hacia las ${clockAt(queueWaitNow.seconds + t.sec)}. `;
   } else if (t) {
     text = t.n
       ? `Suele tardar ${etaText(kind)} (mediana de las últimas ${t.n} con ${kind === 'brief' ? 'prompt completo' : 'instrucción rápida'}). `
@@ -2879,7 +2881,7 @@ function renderNowStrip(jobs) {
     .filter((j) => j.status === 'running' || j.status === 'queued')
     .sort((a, b) => (a.status === 'running' ? -1 : 1) - (b.status === 'running' ? -1 : 1) || a.createdAt.localeCompare(b.createdAt))
     .map((j) => {
-      if (j.status === 'queued') return nowItem(j, 'En cola', 'Ver');
+      if (j.status === 'queued') return nowItem(j, escapeHtml(j.queue?.message || 'En cola'), 'Ver');
       const pct = j.pct ?? 0;
       return nowItem(j, `${escapeHtml(j.stageLabel || 'Trabajando')} · ${pct} %`, 'Ver', `<span class="now-track" aria-hidden="true"><span style="width:${Math.max(2, Math.min(100, pct))}%"></span></span>`);
     });
@@ -3266,7 +3268,7 @@ function galleryOverlay(j, members) {
     : j.status === 'review'
     ? ['warn', 'Brief por revisar']
     : j.status === 'running' || j.status === 'queued'
-    ? ['live', j.status === 'queued' ? 'En cola' : 'En marcha']
+    ? ['live', j.status === 'queued' ? (j.queue?.message || 'En cola') : 'En marcha']
     : STOPPED[j.status]
     ? ['bad', STOPPED[j.status]]
     : ['ready', 'Lista para revisar'];
@@ -3278,7 +3280,9 @@ function galleryOverlay(j, members) {
       : `<span class="g-score is-${pct >= 76 ? 'high' : pct >= 60 ? 'mid' : 'low'}" title="Calidad: ${pct} %"><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" pathLength="100"/><circle class="g-score-arc" cx="18" cy="18" r="15.5" pathLength="100" style="--p:${pct}"/></svg><b>${pct}</b></span>`;
   // Insignia con texto corto en vez de un punto de color cuyo significado solo salía al pasar el ratón (auditoría
   // 2026-10-14, H-21; WCAG 1.4.1). El texto completo, en el title y para el lector de pantalla.
-  const short = { ok: 'Aprobada', ready: 'Revisar', live: label, bad: label }[tone] || (j.status === 'review' ? 'Brief' : 'Cliente');
+  const short = j.status === 'queued' && j.queue?.message
+    ? 'En cola'
+    : { ok: 'Aprobada', ready: 'Revisar', live: label, bad: label }[tone] || (j.status === 'review' ? 'Brief' : 'Cliente');
   const text = short === label ? escapeHtml(label) : `<span aria-hidden="true">${escapeHtml(short)}</span><span class="sr-only">${escapeHtml(label)}</span>`;
   return `<span class="g-dot is-${tone}" title="${escapeHtml(label)}">${text}</span>${ring}`;
 }
@@ -7126,7 +7130,7 @@ async function poll(id) {
     return;
   }
 
-  pollTimer = setTimeout(() => poll(id), 10000);
+  pollTimer = setTimeout(() => poll(id), job.status === 'queued' ? 5000 : 10000);
 }
 
 /** Fallido o cancelado que ya se reintentó (2026-10-01): enlace al reintento en vez de un segundo «Reintentar». */
@@ -8696,10 +8700,14 @@ function renderProgress(job, queue, hermesOnline) {
     box.hidden = false;
     setProgressBar(bar, 0);
     track.setAttribute('aria-valuenow', '0');
-    plainText(document.getElementById('progress-stage'), queue?.ahead
-      ? `En cola · ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante`
-      : 'En cola · eres el siguiente');
-    plainText(document.getElementById('progress-eta'), queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)}, hacia las ${clockAt(queue.startsInSec)} (estimado)` : '');
+    plainText(
+      document.getElementById('progress-stage'),
+      queue?.message || (queue?.ahead ? `En cola · ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante` : 'En cola · eres el siguiente')
+    );
+    plainText(
+      document.getElementById('progress-eta'),
+      queue?.message ? '' : queue?.ahead ? `empezará en unos ${formatMinutes(queue.startsInSec)}, hacia las ${clockAt(queue.startsInSec)} (estimado)` : ''
+    );
     const kind = job.input.revisionOf
       ? 'Aplicará los cambios pedidos: unos minutos.'
       : job.input.mobileFixOf
@@ -8715,6 +8723,8 @@ function renderProgress(job, queue, hermesOnline) {
       : '';
     const when = hermesOnline === false
       ? 'Hermes no está conectado ahora mismo: empezará en cuanto vuelva a conectarse.'
+      : queue?.message
+      ? ''
       : queue?.ahead
       ? 'Hermes lo recogerá cuando termine lo que tiene delante.'
       : 'Hermes lo recogerá en unos segundos.';
@@ -8923,7 +8933,7 @@ function announce(message) {
 function announceJob(job, queue) {
   const name = job.input.clientName;
   if (job.status === 'queued') {
-    announce(queue?.ahead ? `${name}: en cola, ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante.` : `${name}: en cola, eres el siguiente.`);
+    announce(queue?.message ? `${name}: ${queue.message}` : queue?.ahead ? `${name}: en cola, ${queue.ahead} trabajo${queue.ahead === 1 ? '' : 's'} delante.` : `${name}: en cola, eres el siguiente.`);
   } else if (job.status === 'running') {
     announce(job.progress?.stageLabel ? `${name}: ${job.progress.stageLabel}.` : `${name}: Hermes ha empezado.`);
   } else if (job.status === 'completed') {

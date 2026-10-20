@@ -2,8 +2,10 @@
 
 El mismo `hermes-worker.ts` que en el Mac, en un servicio aparte llamado `hermes-worker`.
 Studio sigue en `hermes-studio`. No comparten disco: el HTML vuelve por la API, como hasta ahora.
-No arranques los dos a la vez (el candado solo vale dentro de una máquina): se repartirían la cola
-y el `/reset` del que arranca marcaría como fallido lo que está haciendo el otro.
+El candado local solo evita dos procesos en la misma máquina (launchd y un terminal). Varias
+réplicas pueden trabajar a la vez: cada una se identifica (`RAILWAY_REPLICA_ID` o `HOSTNAME`),
+reclama con un candado en Studio y solo el `/reset` de esa réplica falla los trabajos que ella
+arrendó. Cada hueco (`WORKER_CONCURRENCY`, defecto 2) usa su propia carpeta bajo `HERMES_HOME`.
 
 ## Aislamiento
 
@@ -60,11 +62,24 @@ Nombres en `env.example`. Valores solo en Railway, en el servicio `hermes-worker
 - `HERMES_MODEL_BRIEF`, `HERMES_MODEL_DRAFT`, `HERMES_MODEL_FIX`, `HERMES_MODEL_ART` — opcionales.
   Siguen pasando como `--model` en su fase, junto a `--provider`. Vacío = el modelo de arriba.
   `HERMES_MODEL_ART` vacío = el de `HERMES_MODEL_DRAFT`.
-- `HERMES_ART_REVISE_PASSES` — opcional. Vacío o `0` = nota visual y arreglo de defectos, sin
-  reescritura de gusto ni comparaciones A/B. `1` o más restaura esa pasada (una sola vez).
+- `WORKER_CONCURRENCY` — opcional. Vacío = 2 trabajos a la vez, cada uno con su `HERMES_HOME`
+  (`HERMES_HOME/workers/<réplica>/slot-N`). En el Mac, con 1 y sin `HERMES_CLOUD`, no se aísla el home.
+  La puesta al día (miniaturas, nota de calidad, fichas de marca) no ocupa uno de esos huecos.
+- `HERMES_JOB_TIMEOUT_MIN` — opcional. Vacío = 20. Tope del trabajo. `HERMES_TIMEOUT_MIN` (180) sigue
+  siendo el tope duro del proceso. Si se cumple el de 20 min y el HTML pasa las comprobaciones, se
+  entrega; si no, el trabajo falla con la fase en la que se cortó.
+- `HERMES_PHASE_MEASURE_MIN` (2), `HERMES_PHASE_PRODUCT_MIN` (3), `HERMES_PHASE_BRIEF_MIN` (6),
+  `HERMES_PHASE_DRAFT_MIN` (12), `HERMES_PHASE_SELFAUDIT_MIN` (3), `HERMES_PHASE_FIX_MIN` (4),
+  `HERMES_PHASE_ART_MIN` (5), `HERMES_PHASE_ART_REVISE_MIN` (6), `HERMES_PHASE_CHECK_MIN` (2).
+- `HERMES_FIX_ROUNDS` (2), `HERMES_MAX_CONTINUES` (2), `HERMES_ART_REVISE_PASSES` (0),
+  `HERMES_ART_REPAIR_RETRIES` (1), `HERMES_ART_SCREENSHOTS` (3), `HERMES_ART_COMPARES` (1).
+  `HERMES_ART_REVISE_PASSES` vacío o `0` deja la nota visual y el arreglo de defectos, sin reescritura
+  de gusto ni comparaciones A/B. `1` o más restaura esa pasada (una sola vez).
 - `USD_EUR` — opcional. Cambio para el coste en euros (por defecto `0.86`).
 - `HERMES_PRICE_<PROVEEDOR>_<MODELO>` — opcional. Tres números `entrada,salida,cache` en USD por
   millón de tokens. El nombre no va en la lista blanca fija: el entrypoint deja pasar el patrón.
+- En `hermes-studio`, `STUDIO_WORKER_SLOTS` (defecto 2) es la capacidad de la cola cuando ningún
+  worker ha mandado latido. No hace falta tocarla si el worker latea.
 
 `PORT` lo inyecta Railway. No pongas los secretos de Studio en este servicio.
 

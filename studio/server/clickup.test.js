@@ -405,3 +405,81 @@ test('el requester es creator.username, no el usuario del historial del webhook'
   assert.equal(out.status, 201);
   assert.equal(out.requester, 'Laura');
 });
+
+test('a los 30 s, si el trabajo sigue en cola, ClickUp recibe «En cola…»', () => {
+  const out = run(`
+    clickup.resetQueueNotices();
+    const comments = [];
+    const timers = [];
+    const { jobs, deps } = memory();
+    deps.comment = true;
+    deps.postComment = async (taskId, _token, text) => { comments.push({ taskId, text }); };
+    deps.schedule = (fn, ms) => { timers.push({ fn, ms }); };
+    deps.fetchTask = async () => ({ id: 'task111', name: 'Nike', list: { id: listId }, text_content: 'Hola' });
+    deps.queueFor = () => null;
+    const body = createdPayload('task111');
+    const res = await clickup.handleClickupWebhook(Buffer.from(body), sign(body), deps);
+    await res.after;
+    const waiting = jobs[0].id;
+    await timers[0].fn();
+    jobs[0].status = 'running';
+    const second = createdPayload('task222');
+    deps.fetchTask = async () => ({ id: 'task222', name: 'Adidas', list: { id: listId }, text_content: 'Hola' });
+    const res2 = await clickup.handleClickupWebhook(Buffer.from(second), sign(second), deps);
+    await res2.after;
+    jobs[1].status = 'running';
+    const before = comments.length;
+    await timers[1].fn();
+    const long = clickup.queueWaitComment({ ahead: 1, startsInSec: 90 });
+    const soon = clickup.queueWaitComment({ ahead: 0, startsInSec: 5 });
+    const none = clickup.queueWaitComment(null);
+    console.log(JSON.stringify({
+      delay: timers.map((t) => t.ms),
+      constant: clickup.QUEUE_NOTICE_DELAY_MS,
+      queuedText: comments.find((c) => c.taskId === 'task111' && c.text.startsWith('En cola'))?.text || '',
+      creationHasQueue: comments.some((c) => c.text.includes('ha creado un trabajo') && c.text.includes('En cola')),
+      afterClaim: comments.length - before,
+      started: clickup.clickupStartedComment(),
+      long, soon, none,
+      waiting,
+    }));
+  `);
+  assert.deepEqual(out.delay, [30_000, 30_000]);
+  assert.equal(out.constant, 30_000);
+  assert.match(out.queuedText, /^En cola/);
+  assert.equal(out.creationHasQueue, false);
+  assert.equal(out.afterClaim, 0);
+  assert.equal(out.started, 'Hermes ha empezado este trabajo.');
+  assert.match(out.long, /^En cola: 1 trabajo delante/);
+  assert.match(out.soon, /^En cola/);
+  assert.match(out.none, /^En cola/);
+});
+
+test('si el primer comentario ya lleva la cola, el aviso de los 30 s no se repite', () => {
+  const out = run(`
+    clickup.resetQueueNotices();
+    const comments = [];
+    const timers = [];
+    const { jobs, deps } = memory();
+    deps.comment = true;
+    deps.postComment = async (taskId, _token, text) => { comments.push(text); };
+    deps.schedule = (fn, ms) => { timers.push(fn); };
+    deps.fetchTask = async () => ({ id: 'task111', name: 'Nike', list: { id: listId }, text_content: 'Hola' });
+    deps.queueFor = () => ({ ahead: 2, startsInSec: 120 });
+    const body = createdPayload('task111');
+    const res = await clickup.handleClickupWebhook(Buffer.from(body), sign(body), deps);
+    await res.after;
+    const before = comments.length;
+    await timers[0]();
+    console.log(JSON.stringify({
+      before,
+      after: comments.length,
+      first: comments[0],
+      stillQueued: jobs[0].status,
+    }));
+  `);
+  assert.equal(out.before, 1);
+  assert.equal(out.after, 1);
+  assert.match(out.first, /En cola: 2 trabajos delante/);
+  assert.equal(out.stillQueued, 'queued');
+});

@@ -11,6 +11,7 @@
  */
 import * as crypto from 'crypto';
 import { slugify } from './campaignFs';
+import { queueCommentLine } from './queueEta';
 import { listJobs, type Job, type JobInput } from './store';
 
 export const DEFAULT_CLICKUP_LIST_ID = '901223474074';
@@ -66,6 +67,10 @@ export interface ClickupDeps {
   updateJob: (id: string, patch: Partial<Job>) => void;
   fetchTask: (taskId: string, token: string) => Promise<ClickupTask | null>;
   postComment: (taskId: string, token: string, text: string) => Promise<void>;
+  /** Si el trabajo sigue en cola y no lo van a coger al momento, la frase que se añade al comentario. */
+  queueFor?: (job: Job) => { ahead: number; startsInSec: number } | null;
+  /** Reloj del aviso de cola. En producción es setTimeout; los tests pasan el suyo. */
+  schedule?: (fn: () => void, ms: number) => void;
   knownBrand: (slug: string) => boolean;
   /** Fichas de marca ya sincronizadas. Si no está, la marca sale del texto de la tarea. */
   brandRecords?: () => KnownBrand[];
@@ -148,8 +153,64 @@ export function clickupJobPageUrl(webBase: string, jobId: string): string {
   return `${webBase}/?job=${encodeURIComponent(jobId)}`;
 }
 
-export function clickupJobComment(webBase: string, jobId: string): string {
-  return `Hermes Studio ha creado un trabajo para esta tarea:\n${clickupJobPageUrl(webBase, jobId)}`;
+export function clickupJobComment(
+  webBase: string,
+  jobId: string,
+  queue?: { ahead: number; startsInSec: number } | null
+): string {
+  const page = `Hermes Studio ha creado un trabajo para esta tarea:\n${clickupJobPageUrl(webBase, jobId)}`;
+  const line = queueCommentLine(queue);
+  return line ? `${page}\n${line}` : page;
+}
+
+/** Comentario corto cuando el worker recoge el trabajo. */
+export function clickupStartedComment(): string {
+  return 'Hermes ha empezado este trabajo.';
+}
+
+/** Unos 30 s después de crear el trabajo: si sigue en cola, se avisa en ClickUp. */
+export const QUEUE_NOTICE_DELAY_MS = 30_000;
+
+const queueNoticePosted = new Set<string>();
+
+/** El aviso de cola, también cuando la previsión decía que iba a empezar enseguida. */
+export function queueWaitComment(info: { ahead: number; startsInSec: number } | null | undefined): string {
+  return queueCommentLine(info) || 'En cola: Hermes todavía no lo ha recogido; empezará en cuanto haya un hueco libre.';
+}
+
+export function resetQueueNotices(): void {
+  queueNoticePosted.clear();
+}
+
+/** Publica «En cola…» si el trabajo sigue en cola y aún no se ha avisado. */
+export async function deliverQueueNotice(jobId: string, deps: ClickupDeps): Promise<boolean> {
+  if (queueNoticePosted.has(jobId)) return false;
+  if (!deps.comment || !deps.apiToken) return false;
+  const job = deps.getJob(jobId);
+  if (!job || job.status !== 'queued' || !job.input.clickupTaskId) return false;
+  const forecast = deps.queueFor ? deps.queueFor(job) : null;
+  const text = queueWaitComment(forecast);
+  queueNoticePosted.add(jobId);
+  try {
+    await deps.postComment(job.input.clickupTaskId, deps.apiToken, text);
+    deps.log(jobId, 'Aviso de cola publicado en ClickUp: el trabajo sigue en espera.');
+    return true;
+  } catch (err) {
+    queueNoticePosted.delete(jobId);
+    deps.log(jobId, `No se pudo avisar de la cola en ClickUp: ${(err as Error).message}`, 'error');
+    return false;
+  }
+}
+
+function armQueueNotice(jobId: string, deps: ClickupDeps): void {
+  if (!deps.comment || !deps.apiToken) return;
+  const schedule = deps.schedule ?? ((fn: () => void, ms: number) => {
+    const timer = setTimeout(fn, ms);
+    timer.unref?.();
+  });
+  schedule(() => {
+    void deliverQueueNotice(jobId, deps);
+  }, QUEUE_NOTICE_DELAY_MS);
 }
 
 export function clickupWebhookCreateBody(endpoint: string, listId: string): { endpoint: string; events: ['taskCreated']; list_id: number } {
@@ -216,6 +277,7 @@ export async function handleClickupWebhook(raw: Buffer, signature: string | unde
 
   const job = deps.createJob(provisionalInput(decision.taskId, payload));
   deps.log(job.id, `Abierto desde la tarea de ClickUp ${decision.taskId}.`);
+  armQueueNotice(job.id, deps);
   return { status: 201, body: { id: job.id }, after: finishClickupJob(job.id, payload, deps) };
 }
 
@@ -311,6 +373,7 @@ async function createAfterListCheck(taskId: string, payload: ClickupPayload, dep
       if (raced) return { id: raced.id, created: false };
       const job = deps.createJob(inputFromTask(task, payload, deps, taskId));
       deps.log(job.id, `Abierto desde la tarea de ClickUp ${taskId}.`);
+      armQueueNotice(job.id, deps);
       await commentOnTask(taskId, job.id, deps);
       return { id: job.id, created: true };
     })();
@@ -332,8 +395,11 @@ async function createAfterListCheck(taskId: string, payload: ClickupPayload, dep
 async function commentOnTask(taskId: string, jobId: string, deps: ClickupDeps): Promise<void> {
   if (!deps.comment || !deps.apiToken) return;
   try {
-    await deps.postComment(taskId, deps.apiToken, clickupJobComment(deps.webBase, jobId));
-    deps.log(jobId, 'Comentario publicado en la tarea de ClickUp.');
+    const job = deps.getJob(jobId);
+    const queue = job && deps.queueFor ? deps.queueFor(job) : null;
+    await deps.postComment(taskId, deps.apiToken, clickupJobComment(deps.webBase, jobId, queue));
+    if (queueCommentLine(queue)) queueNoticePosted.add(jobId);
+    deps.log(jobId, queueCommentLine(queue) ? 'Comentario publicado en la tarea de ClickUp (con la cola).' : 'Comentario publicado en la tarea de ClickUp.');
   } catch (err) {
     deps.log(jobId, `No se pudo comentar en ClickUp: ${(err as Error).message}`, 'error');
   }

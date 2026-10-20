@@ -60,7 +60,7 @@ test('HERMES_ART_REVISE_PASSES vale 0 por defecto y 1 restaura la pasada de gust
     art: 'claude-haiku-5-5',
   });
   const src = fs.readFileSync(path.join(__dirname, 'hermes-worker.ts'), 'utf8');
-  assert.match(src, /shouldRunTasteRound\(review\)/);
+  assert.match(src, /shouldRunTasteRound\(review, budget\.artRevisePasses\)/);
   assert.match(src, /recordTurnUsage/);
   assert.match(src, /\.\.\.usageBody\(\)/);
 });

@@ -15,7 +15,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { loadEnv } from '../../scripts/lib/env';
-import { ROOT, STUDIO_DIR, BRANDS_DIR } from './paths';
+import { ROOT, STUDIO_DIR, BRANDS_DIR, DATA_DIR } from './paths';
 import { appendEvent, artPct, createJob, finalArtNotes, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
 import { enqueueStandaloneJob } from './enqueueJob';
 import {
@@ -24,10 +24,14 @@ import {
   clickupReadyForClaim,
   fetchClickupTask,
   findJobByClickupTaskId,
+  clickupStartedComment,
   handleClickupWebhook,
   postClickupComment,
   type ClickupDeps,
 } from './clickup';
+import { leaseUntil, selectClaim, withStoreLock } from './claimQueue';
+import { renewJobLease } from './lease';
+import { noteWorker, workerCapacity } from './workerPool';
 import type { Job } from './store';
 import { supabase } from './supabase';
 import { SESSION_COOKIE, authConfigFromEnv, clearedCookie, createSessionToken, googleLoginUrl, readCookie, readSessionToken, sessionCookie, userFromSupabaseToken } from './auth';
@@ -280,8 +284,15 @@ function requireWorker(req: Request, res: Response, next: NextFunction): void {
 
 // El servicio hermes-worker llama aquí cada 30 s (studio/worker/CLOUD.md). /claim y /progress ya
 // renuevan lastWorkerSeen; este latido cubre un render largo en el que no hay otra llamada.
-app.post('/api/worker/heartbeat', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
-  res.json({ ok: true });
+function workerIdOf(req: Request): string {
+  const header = req.get('x-worker-id') || '';
+  const body = typeof req.body?.workerId === 'string' ? req.body.workerId : '';
+  return (body || header).trim().slice(0, 80);
+}
+
+app.post('/api/worker/heartbeat', requireWorker, express.json({ limit: '16kb' }), (req: Request, res: Response) => {
+  noteWorker(workerIdOf(req), Number(req.body?.concurrency));
+  res.json({ ok: true, capacity: workerCapacity() });
 });
 
 function standaloneJobForWorker(req: Request, res: Response): ReturnType<typeof getJob> {
@@ -295,52 +306,92 @@ function standaloneJobForWorker(req: Request, res: Response): ReturnType<typeof 
     res.status(404).json({ error: 'Trabajo no encontrado o no está en curso.' });
     return null;
   }
-  return job;
+  const workerId = workerIdOf(req);
+  if (job.lease?.workerId && workerId && job.lease.workerId !== workerId) {
+    res.status(409).json({ error: 'Este trabajo lo tiene otro worker.' });
+    return null;
+  }
+  return renewJobLease(job, workerId);
 }
 
-// El worker llama aquí al arrancar: si tenía un trabajo a medias (Ctrl+C, cierre, Mac reiniciado)
-// ese trabajo ya no sigue vivo — sin esto quedaba "running" hasta el límite de 4 h. Hay un solo
-// worker, así que todo standalone en curso es suyo.
+// El worker llama aquí al arrancar: si tenía un trabajo a medias (Ctrl+C, cierre, réplica reiniciada)
+// ese trabajo ya no sigue vivo. Solo se marcan los suyos (mismo workerId). Una réplica que arranca
+// no tumba lo que está haciendo otra. Sin workerId (worker anterior) se marcan los que no tienen arrendamiento.
 app.post('/api/worker/reset', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {
   saveWorkerBrands(req.body?.brands);
+  const workerId = workerIdOf(req);
+  if (workerId) noteWorker(workerId, Number(req.body?.concurrency));
   let failed = 0;
   // Sus carpetas: el worker las aparta (_fallido-…) para que Hermes no tome el intento a medias por
   // trabajo previo (Lacoste, 2026-09-29).
   const failedDirs: string[] = [];
   for (const j of listJobs()) {
-    if (j.input.mode === 'standalone' && j.status === 'running') {
-      hermesLog(j.id, 'El worker de Hermes se reinició a mitad del trabajo.', 'error');
-      updateJob(j.id, { status: 'failed', error: 'El worker de Hermes se reinició a mitad del trabajo. Vuelve a enviarlo.' });
-      failedDirs.push(standaloneOutputDir(j));
-      failed++;
-    }
+    if (j.input.mode !== 'standalone' || j.status !== 'running') continue;
+    const mine = workerId ? j.lease?.workerId === workerId : !j.lease;
+    if (!mine) continue;
+    hermesLog(j.id, 'El worker de Hermes se reinició a mitad del trabajo.', 'error');
+    updateJob(j.id, { status: 'failed', error: 'El worker de Hermes se reinició a mitad del trabajo. Vuelve a enviarlo.' });
+    failedDirs.push(standaloneOutputDir(j));
+    failed++;
   }
   res.json({ failed, failedDirs });
 });
 
-app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {
-  if (req.body?.brands) saveWorkerBrands(req.body.brands);
-  sweepStaleHermesJobs();
-  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
-  // clickupPending: el webhook ya respondió y aún está leyendo la tarea. No se coge hasta que
-  // termine, o pasados dos minutos si esa lectura no vuelve.
-  const next = standalone
-    .filter((j) => j.status === 'queued' && clickupReadyForClaim(j))
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
-  if (!next) {
+function notifyClickupStarted(job: Job): void {
+  const cfg = clickupConfigFromEnv();
+  const taskId = job.input.clickupTaskId;
+  if (!cfg.comment || !cfg.apiToken || !taskId) return;
+  postClickupComment(taskId, cfg.apiToken, clickupStartedComment()).catch((err) => {
+    console.error(`[clickup] ${job.id}: no se pudo avisar de que empezó — ${(err as Error).message}`);
+  });
+}
+
+app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), async (req: Request, res: Response) => {
+  const workerId = workerIdOf(req);
+  const slot = Number.isFinite(Number(req.body?.slot)) ? Math.max(0, Math.floor(Number(req.body.slot))) : 0;
+  if (workerId) noteWorker(workerId, Number(req.body?.concurrency));
+  let job: Job | null = null;
+  try {
+    job = await withStoreLock(DATA_DIR, () => {
+      if (req.body?.brands) saveWorkerBrands(req.body.brands);
+      sweepStaleHermesJobs();
+      const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
+      // clickupPending: el webhook ya respondió y aún está leyendo la tarea. No se coge hasta que
+      // termine, o pasados dos minutos si esa lectura no vuelve.
+      const next = selectClaim(
+        standalone.map((j) => ({
+          id: j.id,
+          status: j.status,
+          createdAt: j.createdAt,
+          ready: clickupReadyForClaim(j),
+          mode: 'standalone' as const,
+        }))
+      );
+      if (!next) return null;
+      const fresh = getJob(next.id);
+      if (!fresh || fresh.status !== 'queued' || !clickupReadyForClaim(fresh)) return null;
+      // Tras aprobar el brief se recoge por segunda vez: se conserva el inicio (el brief) y se apunta la espera.
+      const now = new Date();
+      const waited = fresh.briefReadyAt && fresh.briefWaitSec == null ? Math.max(0, Math.round((now.getTime() - Date.parse(fresh.briefReadyAt)) / 1000)) : null;
+      return updateJob(fresh.id, {
+        status: 'running',
+        currentPhase: 'hermes',
+        startedAt: fresh.startedAt && waited != null ? fresh.startedAt : now.toISOString(),
+        ...(waited != null ? { briefWaitSec: waited } : {}),
+        ...(workerId ? { lease: { workerId, slot, until: leaseUntil(now.getTime()) } } : {}),
+      });
+    });
+  } catch (err) {
+    console.error(`[claim] ${(err as Error).message}`);
+    res.status(503).json({ error: 'No se pudo reclamar el trabajo.' });
+    return;
+  }
+  if (!job) {
     res.status(204).end();
     return;
   }
-  // Tras aprobar el brief se recoge por segunda vez: se conserva el inicio (el brief) y se apunta la espera.
-  const now = new Date();
-  const waited = next.briefReadyAt && next.briefWaitSec == null ? Math.max(0, Math.round((now.getTime() - Date.parse(next.briefReadyAt)) / 1000)) : null;
-  const job = updateJob(next.id, {
-    status: 'running',
-    currentPhase: 'hermes',
-    startedAt: next.startedAt && waited != null ? next.startedAt : now.toISOString(),
-    ...(waited != null ? { briefWaitSec: waited } : {}),
-  });
   hermesLog(job.id, 'Hermes ha recogido el trabajo y está trabajando.');
+  void notifyClickupStarted(job);
   res.json({
     id: job.id,
     outputDir: standaloneOutputDir(job),
@@ -366,6 +417,12 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), (
         ? { briefPrompt: buildBriefPrompt(job) }
         : { prompt: buildHermesPrompt(job) }),
   });
+});
+
+app.post('/api/worker/jobs/:id/heartbeat', requireWorker, express.json({ limit: '16kb' }), (req: Request, res: Response) => {
+  const job = standaloneJobForWorker(req, res);
+  if (!job) return;
+  res.json({ ok: true, until: getJob(job.id)?.lease?.until || job.lease?.until || null });
 });
 
 app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb' }), (req: Request, res: Response) => {
@@ -684,6 +741,11 @@ function clickupDeps(): ClickupDeps {
       return card ? [{ slug, name: card.name }] : [];
     }),
     log: (id, message, level = 'info') => appendEvent(id, { phase: 'studio', level, message }),
+    queueFor: (job) => {
+      const info = queueInfo(job);
+      if (!info || info.startsInSec < 30) return null;
+      return { ahead: info.ahead, startsInSec: info.startsInSec };
+    },
   };
 }
 
@@ -1008,6 +1070,7 @@ app.get('/api/jobs', (req: Request, res: Response) => {
       pct: j.progress?.pct ?? null,
       // Fase actual, para la franja «Ahora mismo» de la portada (2026-10-05).
       stageLabel: j.status === 'running' ? j.progress?.stageLabel || null : null,
+      queue: j.status === 'queued' ? queueInfo(j) : null,
       elapsedSec: j.progress?.elapsedSec ?? null,
       error: j.status === 'failed' || j.status === 'blocked' ? (j.error || j.blockedReason || '').slice(0, 200) : null,
       approvedAt: j.approvedAt || null,

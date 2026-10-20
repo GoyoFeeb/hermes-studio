@@ -149,6 +149,8 @@ export interface Job {
   artReview?: JobArtReview;
   /** El worker no pudo puntuarla después (sin HTML o sin notas legibles): no se le vuelve a pedir. */
   artReviewFailed?: boolean;
+  /** Arrendamiento del worker que lo está haciendo (2026-10-20). Sin él, el barrido de 10 min sigue valiendo. */
+  lease?: { workerId: string; slot: number; until: string };
 }
 
 export interface JobArtReview {
