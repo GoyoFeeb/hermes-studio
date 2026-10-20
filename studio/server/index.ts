@@ -15,7 +15,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { loadEnv } from '../../scripts/lib/env';
-import { ROOT, STUDIO_DIR, BRANDS_DIR, DATA_DIR } from './paths';
+import { ROOT, STUDIO_DIR, BRANDS_DIR, DATA_DIR, JOBS_DIR } from './paths';
 import { appendEvent, artPct, createJob, finalArtNotes, getJob, listJobs, readEvents, updateJob, isValidJobId } from './store';
 import { enqueueStandaloneJob } from './enqueueJob';
 import {
@@ -25,11 +25,14 @@ import {
   fetchClickupTask,
   findJobByClickupTaskId,
   clickupStartedComment,
+  deliverClickupEndNotice,
   handleClickupWebhook,
   postClickupComment,
+  postClickupCommentBody,
   type ClickupDeps,
+  type ClickupEndDeps,
 } from './clickup';
-import { leaseUntil, selectClaim, withStoreLock } from './claimQueue';
+import { leaseUntil, selectClaim, withStoreLock, workerIdentity } from './claimQueue';
 import { renewJobLease } from './lease';
 import { noteWorker, workerCapacity } from './workerPool';
 import type { Job } from './store';
@@ -346,6 +349,25 @@ function notifyClickupStarted(job: Job): void {
   });
 }
 
+function clickupEndDeps(): ClickupEndDeps {
+  const cfg = clickupConfigFromEnv();
+  return {
+    comment: cfg.comment,
+    apiToken: cfg.apiToken,
+    webBase: cfg.webBase,
+    getJob,
+    postComment: postClickupCommentBody,
+    log: (id, message, level = 'info') => appendEvent(id, { phase: 'studio', level, message }),
+    lock: (fn) => withStoreLock(DATA_DIR, fn),
+    noticeDir: JOBS_DIR,
+    replicaId: workerIdentity(),
+  };
+}
+
+function notifyClickupEnded(jobId: string, outcome: 'completed' | 'failed'): Promise<boolean> {
+  return deliverClickupEndNotice(jobId, outcome, clickupEndDeps());
+}
+
 app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), async (req: Request, res: Response) => {
   const workerId = workerIdOf(req);
   const slot = Number.isFinite(Number(req.body?.slot)) ? Math.max(0, Math.floor(Number(req.body.slot))) : 0;
@@ -499,7 +521,7 @@ app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '
   res.json({ ok: true });
 });
 
-app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '80mb' }), (req: Request, res: Response) => {
+app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '80mb' }), async (req: Request, res: Response) => {
   const job = standaloneJobForWorker(req, res);
   if (!job) return;
   if (typeof req.body?.html !== 'string' || !/<html[\s>]/i.test(req.body.html)) {
@@ -512,12 +534,16 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     const artReview = sanitizeArtReview(req.body.artReview);
     const cost = sanitizeJobCost(req.body);
     if (artReview || cost) updateJob(job.id, { ...(artReview ? { artReview } : {}), ...(cost || {}) });
-    res.json({ ok: true });
   } catch (err) {
     const cost = sanitizeJobCost(req.body);
-    updateJob(job.id, { status: 'failed', error: (err as Error).message, finishedAt: job.finishedAt || new Date().toISOString(), ...(cost || {}) });
-    res.status(500).json({ error: (err as Error).message });
+    const error = (err as Error).message;
+    updateJob(job.id, { status: 'failed', error, finishedAt: job.finishedAt || new Date().toISOString(), ...(cost || {}) });
+    await notifyClickupEnded(job.id, 'failed');
+    res.status(500).json({ error });
+    return;
   }
+  await notifyClickupEnded(job.id, 'completed');
+  res.json({ ok: true });
 });
 
 /** El fallo de Hermes trae las últimas líneas al final: si no caben, se conserva ese final. */
@@ -528,7 +554,7 @@ function clipWorkerError(error: string): string {
   return `${head}\n…\n${error.slice(-(max - head.length - 3))}`;
 }
 
-app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256kb' }), (req: Request, res: Response) => {
+app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256kb' }), async (req: Request, res: Response) => {
   const job = standaloneJobForWorker(req, res);
   if (!job) return;
   const error = clipWorkerError(String(req.body?.error || 'Hermes no pudo terminar la newsletter.'));
@@ -536,6 +562,7 @@ app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256k
   const timings = sanitizeTimings(req.body?.timings);
   const cost = sanitizeJobCost(req.body);
   updateJob(job.id, { status: 'failed', error, finishedAt: job.finishedAt || new Date().toISOString(), ...(timings ? { timings } : {}), ...(cost || {}) });
+  await notifyClickupEnded(job.id, 'failed');
   res.json({ ok: true });
 });
 

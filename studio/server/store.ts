@@ -54,6 +54,8 @@ export interface JobInput {
   artReview?: boolean;
   /** Tarea de ClickUp que abrió este trabajo (2026-10-19). Si ya existe, el webhook no crea otro. */
   clickupTaskId?: string;
+  /** Id numérico del usuario de ClickUp que creó la tarea. Sirve para mencionarle al terminar. */
+  clickupCreatorId?: string;
   /** URL de esa tarea en ClickUp. */
   clickupUrl?: string;
   /** True mientras se lee la tarea en la API: el worker no lo recoge todavía. */

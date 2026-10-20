@@ -10,9 +10,12 @@
  * Variables solo del servicio hermes-studio. Ver studio/CLICKUP.md.
  */
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 import { slugify } from './campaignFs';
+import { JOBS_DIR } from './paths';
 import { queueCommentLine } from './queueEta';
-import { listJobs, type Job, type JobInput } from './store';
+import { finalArtNotes, isValidJobId, listJobs, type Job, type JobArtReview, type JobInput } from './store';
 
 export const DEFAULT_CLICKUP_LIST_ID = '901223474074';
 export const DEFAULT_STUDIO_WEB_ORIGIN = 'https://hermes-studio-beta.vercel.app';
@@ -50,7 +53,7 @@ export interface ClickupTask {
   text_content?: string;
   markdown_description?: string;
   list?: { id?: string | number };
-  creator?: { username?: string };
+  creator?: { id?: string | number; username?: string };
   attachments?: { title?: string; name?: string; url?: string }[];
   custom_fields?: unknown[];
 }
@@ -103,7 +106,7 @@ interface ClickupPayload {
     parent_id?: string | number;
     before?: unknown;
     after?: unknown;
-    user?: { username?: string };
+    user?: { id?: string | number; username?: string };
   }[];
 }
 
@@ -166,6 +169,267 @@ export function clickupJobComment(
 /** Comentario corto cuando el worker recoge el trabajo. */
 export function clickupStartedComment(): string {
   return 'Hermes ha empezado este trabajo.';
+}
+
+/** Cuánto puede tardar otra réplica en publicar el aviso de fin antes de que se considere caducado. */
+export const CLICKUP_END_CLAIM_MS = 20_000;
+
+/** 10 criterios de 1 a 5 (studio/worker/hermes-worker.ts, ART_CRITERIA). */
+const ART_SCORE_MAX = 50;
+
+export interface ClickupTextPart {
+  text: string;
+  attributes: Record<string, unknown>;
+}
+
+export interface ClickupTagPart {
+  text: string;
+  type: 'tag';
+  user: { id: number };
+  attributes: Record<string, unknown>;
+}
+
+/** Cuerpo de POST /task/{id}/comment. Con mención, `comment` (no `comment_text`) y notify_all en false. */
+export interface ClickupCommentBody {
+  notify_all: false;
+  comment_text?: string;
+  comment?: (ClickupTextPart | ClickupTagPart)[];
+}
+
+export interface ClickupEndNotice {
+  at?: string;
+  outcome?: 'completed' | 'failed';
+  claim?: string;
+  claimedAt?: string;
+}
+
+export interface ClickupEndJob {
+  id: string;
+  startedAt?: string;
+  finishedAt?: string;
+  briefWaitSec?: number;
+  error?: string;
+  artReview?: JobArtReview;
+  input: { clickupTaskId?: string; requesterName?: string; clickupCreatorId?: string };
+}
+
+export interface ClickupEndDeps {
+  comment: boolean;
+  apiToken: string;
+  webBase: string;
+  getJob: (id: string) => ClickupEndJob | null;
+  postComment: (taskId: string, token: string, body: ClickupCommentBody) => Promise<void>;
+  log: (id: string, message: string, level?: 'info' | 'error' | 'success') => void;
+  /** Candado entre réplicas. En producción es withStoreLock; sin él, solo ordena dentro de este proceso. */
+  lock?: <T>(fn: () => T | Promise<T>) => Promise<T>;
+  /** Carpeta del fichero `{id}.clickup-end` (no acaba en .json: listJobs no lo lee). */
+  noticeDir?: string;
+  replicaId?: string;
+  now?: () => number;
+  claimMs?: number;
+  waitMs?: number;
+  pollMs?: number;
+}
+
+/** Id de usuario de ClickUp: entero positivo en rango seguro. Un correo o un id de tarea no vale. */
+export function clickupUserId(value: unknown): string | undefined {
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return String(value);
+  if (typeof value === 'string' && /^[1-9][0-9]{0,15}$/.test(value.trim())) return value.trim();
+  return undefined;
+}
+
+export function formatDurationMSS(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Primera línea del fallo, recortada. El volcado de Hermes va debajo y no entra en el comentario. */
+export function oneLineReason(error: string | undefined): string {
+  const line = (error || '').split(/\r?\n/).map((part) => part.trim()).find(Boolean) || '';
+  const clean = line.replace(/\s+/g, ' ').trim();
+  const clipped = clean.length > 180 ? `${clean.slice(0, 179).trimEnd()}…` : clean;
+  const reason = clipped || 'Hermes no pudo terminar la newsletter.';
+  return /[.!?…]$/.test(reason) ? reason : `${reason}.`;
+}
+
+export function clickupCommentPlain(body: ClickupCommentBody): string {
+  if (body.comment) return body.comment.map((part) => part.text).join('');
+  return body.comment_text || '';
+}
+
+/** Mismo criterio que durationSec: de que Hermes lo recoge a que termina, sin la espera del brief. */
+function jobDurationSec(job: ClickupEndJob): number | null {
+  if (!job.startedAt || !job.finishedAt) return null;
+  const start = Date.parse(job.startedAt);
+  const end = Date.parse(job.finishedAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.max(1, Math.round((end - start) / 1000) - (job.briefWaitSec || 0));
+}
+
+function artScoreOutOf50(review: JobArtReview | undefined): number | null {
+  if (!review?.before) return null;
+  const values = Object.values(finalArtNotes(review)).filter((n) => typeof n === 'number' && Number.isFinite(n));
+  if (!values.length) return null;
+  return values.reduce((sum, n) => sum + n, 0);
+}
+
+function mentionUserId(value: string | undefined): number | null {
+  const id = clickupUserId(value);
+  if (!id) return null;
+  const n = Number(id);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
+function mentionBody(userId: number, name: string, rest: string): ClickupCommentBody {
+  const label = name.replace(/^@+/, '').trim() || 'usuario';
+  const tail = rest.startsWith(' ') ? rest : ` ${rest}`;
+  return {
+    notify_all: false,
+    comment: [
+      { text: `@${label}`, type: 'tag', user: { id: userId }, attributes: {} },
+      { text: tail, attributes: {} },
+    ],
+  };
+}
+
+/** Texto del aviso de fin. Sin id de creador, el mismo texto en comment_text y sin @. */
+export function clickupEndComment(job: ClickupEndJob, outcome: 'completed' | 'failed', webBase: string): ClickupCommentBody {
+  const page = `<${clickupJobPageUrl(webBase, job.id)}>`;
+  const userId = mentionUserId(job.input.clickupCreatorId);
+  const name = cleanPerson(job.input.requesterName) || '';
+  if (outcome === 'failed') {
+    const reason = oneLineReason(job.error);
+    const rest = `el trabajo ha fallado: ${reason} ${page}`;
+    if (userId) return mentionBody(userId, name, rest);
+    return { notify_all: false, comment_text: `El trabajo ha fallado: ${reason} ${page}` };
+  }
+  const bits = [page];
+  const sec = jobDurationSec(job);
+  if (sec != null) bits.push(`duración ${formatDurationMSS(sec)}`);
+  const score = artScoreOutOf50(job.artReview);
+  if (score != null) bits.push(`nota visual ${score}/${ART_SCORE_MAX}`);
+  const detail = bits.join(' · ');
+  if (userId) return mentionBody(userId, name, `tu trabajo está listo: ${detail}`);
+  return { notify_all: false, comment_text: `Tu trabajo está listo: ${detail}` };
+}
+
+let endNoticeTail: Promise<void> = Promise.resolve();
+
+function inProcessLock<T>(fn: () => T | Promise<T>): Promise<T> {
+  const run = endNoticeTail.then(() => fn());
+  endNoticeTail = run.then(
+    () => undefined,
+    () => undefined
+  );
+  return run;
+}
+
+function noticePath(dir: string, jobId: string): string {
+  return path.join(dir, `${jobId}.clickup-end`);
+}
+
+function readEndNotice(dir: string, jobId: string): ClickupEndNotice | null {
+  try {
+    const raw = JSON.parse(fs.readFileSync(noticePath(dir, jobId), 'utf8')) as ClickupEndNotice;
+    if (!raw || typeof raw !== 'object') return null;
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+function writeEndNotice(dir: string, jobId: string, notice: ClickupEndNotice | null): void {
+  const file = noticePath(dir, jobId);
+  if (!notice) {
+    fs.rmSync(file, { force: true });
+    return;
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(notice));
+  fs.renameSync(tmp, file);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Un comentario por fin de trabajo. El fichero `{id}.clickup-end` (junto al JSON del trabajo, pero
+ * sin extensión .json) se reserva bajo el candado antes del POST: otra réplica o un reintento de
+ * /complete o /fail ve la reserva y no vuelve a publicar. Si ClickUp no responde, se suelta y el
+ * siguiente intento puede publicar.
+ */
+export async function deliverClickupEndNotice(jobId: string, outcome: 'completed' | 'failed', deps: ClickupEndDeps): Promise<boolean> {
+  try {
+    return await postClickupEndNotice(jobId, outcome, deps);
+  } catch (err) {
+    try {
+      deps.log(jobId, `No se pudo publicar en ClickUp el aviso de fin: ${(err as Error).message}`, 'error');
+    } catch {
+      console.error(`[clickup] ${jobId}: ${(err as Error).message}`);
+    }
+    return false;
+  }
+}
+
+async function postClickupEndNotice(jobId: string, outcome: 'completed' | 'failed', deps: ClickupEndDeps): Promise<boolean> {
+  if (!deps.comment || !deps.apiToken || !isValidJobId(jobId)) return false;
+  if (!deps.getJob(jobId)?.input.clickupTaskId) return false;
+  const dir = deps.noticeDir || JOBS_DIR;
+  const lock = deps.lock ?? inProcessLock;
+  const now = () => deps.now?.() ?? Date.now();
+  const claimMs = deps.claimMs ?? CLICKUP_END_CLAIM_MS;
+  const waitMs = deps.waitMs ?? CLICKUP_END_CLAIM_MS;
+  const pollMs = deps.pollMs ?? 150;
+  const claim = `${(deps.replicaId || 'studio').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 40) || 'studio'}-${crypto.randomBytes(4).toString('hex')}`;
+  const deadline = now() + waitMs;
+
+  for (;;) {
+    const slot = await lock(() => {
+      const job = deps.getJob(jobId);
+      if (!job?.input.clickupTaskId) return { kind: 'skip' as const };
+      const current = readEndNotice(dir, jobId);
+      if (current?.at) return { kind: 'skip' as const };
+      const claimedAt = current?.claimedAt ? Date.parse(current.claimedAt) : NaN;
+      const fresh = current?.claim && current.claim !== claim && Number.isFinite(claimedAt) && now() - claimedAt < claimMs;
+      if (fresh) return { kind: 'busy' as const };
+      writeEndNotice(dir, jobId, { claim, claimedAt: new Date(now()).toISOString(), outcome });
+      return {
+        kind: 'go' as const,
+        taskId: job.input.clickupTaskId,
+        body: clickupEndComment(job, outcome, deps.webBase),
+      };
+    });
+    if (slot.kind === 'skip') return false;
+    if (slot.kind === 'busy') {
+      if (now() >= deadline) return false;
+      await sleep(pollMs);
+      continue;
+    }
+    try {
+      await deps.postComment(slot.taskId, deps.apiToken, slot.body);
+    } catch (err) {
+      await lock(() => {
+        const current = readEndNotice(dir, jobId);
+        if (current?.claim === claim && !current.at) writeEndNotice(dir, jobId, null);
+      });
+      deps.log(jobId, `No se pudo publicar en ClickUp el aviso de fin: ${(err as Error).message}`, 'error');
+      return false;
+    }
+    await lock(() => {
+      const current = readEndNotice(dir, jobId);
+      if (current?.at) return;
+      if (current?.claim && current.claim !== claim) return;
+      writeEndNotice(dir, jobId, { at: new Date(now()).toISOString(), outcome, claim });
+    });
+    deps.log(
+      jobId,
+      outcome === 'completed' ? 'Comentario de trabajo listo publicado en ClickUp.' : 'Comentario de fallo publicado en ClickUp.',
+      'success'
+    );
+    return true;
+  }
 }
 
 /** Unos 30 s después de crear el trabajo: si sigue en cola, se avisa en ClickUp. */
@@ -246,14 +510,18 @@ export async function fetchClickupTask(taskId: string, token: string, doFetch: t
   return record;
 }
 
-export async function postClickupComment(taskId: string, token: string, text: string, doFetch: typeof fetch = fetch): Promise<void> {
+export async function postClickupCommentBody(taskId: string, token: string, body: ClickupCommentBody, doFetch: typeof fetch = fetch): Promise<void> {
   const res = await doFetch(`https://api.clickup.com/api/v2/task/${encodeURIComponent(taskId)}/comment`, {
     method: 'POST',
     headers: { Authorization: token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ comment_text: text, notify_all: false }),
+    body: JSON.stringify(body),
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`comentario de ClickUp → ${res.status}`);
+}
+
+export async function postClickupComment(taskId: string, token: string, text: string, doFetch: typeof fetch = fetch): Promise<void> {
+  await postClickupCommentBody(taskId, token, { comment_text: text, notify_all: false }, doFetch);
 }
 
 export async function handleClickupWebhook(raw: Buffer, signature: string | undefined, deps: ClickupDeps): Promise<ClickupOutcome> {
@@ -406,16 +674,17 @@ async function commentOnTask(taskId: string, jobId: string, deps: ClickupDeps): 
 }
 
 function provisionalInput(taskId: string, payload: ClickupPayload): JobInput {
-  const requesterName = requesterFrom(payload, undefined);
+  const person = clickupPersonFields(payload, undefined);
   return baseInput({
     clientName: 'Sin marca',
     instruction: [
-      `Tarea de ClickUp ${taskId}.${requesterName ? ` La abrió ${requesterName}.` : ''}`,
+      `Tarea de ClickUp ${taskId}.${person.requesterName ? ` La abrió ${person.requesterName}.` : ''}`,
       `Enlace: https://app.clickup.com/t/${taskId}`,
       'La descripción y los adjuntos se están leyendo de ClickUp. Si este texto no cambia, falta CLICKUP_API_TOKEN o la API no respondió: completa el encargo a mano.',
       'No hay web oficial en la tarea. No inventes el dominio de la marca.',
     ].join('\n'),
-    requesterName,
+    requesterName: person.requesterName,
+    ...creatorIdField(person.clickupCreatorId),
     clickupTaskId: taskId,
     clickupUrl: `https://app.clickup.com/t/${taskId}`,
     clickupPending: true,
@@ -437,7 +706,7 @@ function inputFromTask(task: ClickupTask, payload: ClickupPayload, deps: Clickup
     brandMode: deps.knownBrand(clientSlug) ? 'existing' : 'new',
     brandUrl,
     instruction: buildInstruction({ name: task.name || taskId, description, attachments: task.attachments, clientName, campaignName, brandUrl, clickupUrl }),
-    requesterName: requesterFrom(payload, task.creator?.username),
+    ...clickupPersonFields(payload, task.creator),
     clickupTaskId: taskId,
     clickupUrl,
     campaignName,
@@ -690,6 +959,31 @@ function requesterFrom(payload: ClickupPayload, creator: string | undefined): st
     if (name) return name;
   }
   return undefined;
+}
+
+/** Username e id del creador. El id del historial solo entra si es esa misma persona, o si la tarea aún no dice quién. */
+function clickupPersonFields(
+  payload: ClickupPayload,
+  creator: { id?: unknown; username?: string } | undefined
+): { requesterName?: string; clickupCreatorId?: string } {
+  const requesterName = requesterFrom(payload, creator?.username);
+  const fromTask = clickupUserId(creator?.id);
+  if (fromTask) return { requesterName, clickupCreatorId: fromTask };
+  const taskNamesCreator = !!cleanPerson(creator?.username);
+  for (const item of payload.history_items || []) {
+    const id = clickupUserId(item?.user?.id);
+    if (!id) continue;
+    if (taskNamesCreator) {
+      if (requesterName && cleanPerson(item?.user?.username) === requesterName) return { requesterName, clickupCreatorId: id };
+      continue;
+    }
+    return { requesterName, clickupCreatorId: id };
+  }
+  return { requesterName };
+}
+
+function creatorIdField(id: string | undefined): { clickupCreatorId?: string } {
+  return id ? { clickupCreatorId: id } : {};
 }
 
 function createdInList(payload: ClickupPayload, listId: string): 'yes' | 'no' | 'unknown' {

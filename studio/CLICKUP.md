@@ -17,7 +17,7 @@ Ponlas en Railway, servicio `hermes-studio`. No las copies a `hermes-worker` ni 
 | `CLICKUP_WEBHOOK_SECRET` | Sí, para activar | El `webhook.secret` que devuelve el alta. Sin ella la ruta está apagada (401). |
 | `CLICKUP_API_TOKEN` | Para leer la tarea y comentar | Token personal de ClickUp (Settings → Apps). No es el secret del webhook. |
 | `CLICKUP_LIST_ID` | No | Lista que abre trabajos. Por defecto `901223474074`. |
-| `CLICKUP_COMMENT` | No | `1` publica un comentario en la tarea con el enlace del trabajo. Cualquier otro valor, o vacío, no comenta. |
+| `CLICKUP_COMMENT` | No | `1` publica comentarios en la tarea: el enlace al crear el trabajo, el aviso si sigue en cola, el aviso de que Hermes ha empezado, y al terminar o fallar un comentario que menciona a quien creó la tarea. Cualquier otro valor, o vacío, no comenta. No hay variable nueva para el aviso de fin. |
 
 Opcional, solo si la web deja de estar en Vercel: `STUDIO_WEB_URL` (https). El enlace del comentario
 sale de ahí. Si no está, el enlace es `https://hermes-studio-beta.vercel.app/?job=<id>`.
@@ -54,9 +54,21 @@ La marca sale, por este orden, de un campo **Cliente** / **Client** / **Marca** 
 aparece en el título o la descripción; y, si no, del texto (`Nike — Verano` → Nike, `newsletter Feebbo` →
 Feebbo, y un prefijo `PRUEBA` / `TEST` no se queda con la marca). La campaña sale del campo **Campaña** / **Campaign** y se
 guarda en `campaignName`. Una URL `https://` de la descripción (que no sea de ClickUp) es
-`brandUrl`. El id de tarea, su URL y quien la creó (`requesterName`, el username, nunca el correo)
-quedan en el trabajo. `clientId` y `campaignId` están reservados para vincular cliente y campaña;
-esta integración no los rellena y no toca la base de datos.
+`brandUrl`. El id de tarea, su URL y quien la creó quedan en el trabajo: `requesterName` (el username,
+nunca el correo) y `clickupCreatorId` (el id numérico de ese usuario en ClickUp). `clientId` y
+`campaignId` están reservados para vincular cliente y campaña; esta integración no los rellena y no
+toca la base de datos.
+
+Cuando el trabajo termina (`POST /api/worker/jobs/:id/complete`) o falla (`/fail`), y `CLICKUP_COMMENT=1`,
+Studio publica otro comentario en la misma tarea. Si hay `clickupCreatorId`, el cuerpo es un array
+`comment` con `notify_all: false` y una mención (`type: "tag"`, `user.id` el del creador), para que
+ClickUp avise solo a esa persona. El texto, en español, es
+`@Nombre tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=<id>> · duración M:SS · nota visual X/50`
+(la duración y la nota solo si existen; la nota es la suma de los criterios, sobre 50). Si falla:
+`@Nombre el trabajo ha fallado: <motivo en una línea>. <enlace>`. Sin id de creador, el mismo aviso
+sale como texto plano, sin `@`. El aviso se escribe una vez por trabajo: un reintento de la ruta o
+otra réplica ve la reserva y no vuelve a comentar. Si ClickUp no responde, la reserva se suelta y
+el siguiente intento puede publicar.
 
 Si ClickUp repite el aviso, y ya hay un trabajo con ese `clickupTaskId`, la ruta responde 200 con
 ese id y no abre otro. La respuesta sale antes de terminar de leer la tarea. Mientras se lee, el
@@ -90,7 +102,9 @@ Eso hace `POST https://api.clickup.com/api/v2/team/{team_id}/webhook` con:
 4. La respuesta trae `webhook.secret` una sola vez. Pégalo en Railway → `hermes-studio` →
    `CLICKUP_WEBHOOK_SECRET` y reinicia el servicio **antes** de crear una tarea de prueba.
 5. Pon también `CLICKUP_API_TOKEN` en ese mismo servicio. Sin él el trabajo se abre, pero el
-   encargo no tiene la descripción. `CLICKUP_COMMENT=1` solo si quieres el comentario.
+   encargo no tiene la descripción. `CLICKUP_COMMENT=1` si quieres los comentarios, incluido el aviso
+   a quien creó la tarea cuando el trabajo termina o falla. Sin esa variable (o con otro valor) no
+   se comenta. Hace falta el mismo `CLICKUP_API_TOKEN`: no hay variable nueva.
 6. Crea una tarea en JAVI AI. En la tarea (si el comentario está activo) y en Studio debe aparecer
    el trabajo. El enlace es `https://hermes-studio-beta.vercel.app/?job=<id>`.
 
