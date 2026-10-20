@@ -49,8 +49,10 @@ vienen, adjuntos y enlaces `https` que no son de ClickUp. `briefReused` queda ac
 maqueta con ese brief y no pide a Hermes que escriba otro. Sin token, o si la API no responde, el
 trabajo se abre igual pero el brief sigue vacío y Hermes intenta escribirlo.
 
-La marca sale del campo **Cliente** / **Client**, si existe; si no, del nombre de la tarea (`Nike — Verano` →
-Nike, o una línea `Marca:` / `Cliente:`). La campaña sale del campo **Campaña** / **Campaign** y se
+La marca sale, por este orden, de un campo **Cliente** / **Client** / **Marca** / **Brand**; de una línea
+`Marca:` / `Cliente:` en el nombre o la descripción; de una ficha de marca ya sincronizada si el nombre
+aparece en el título o la descripción; y, si no, del texto (`Nike — Verano` → Nike, `newsletter Feebbo` →
+Feebbo, y un prefijo `PRUEBA` / `TEST` no se queda con la marca). La campaña sale del campo **Campaña** / **Campaign** y se
 guarda en `campaignName`. Una URL `https://` de la descripción (que no sea de ClickUp) es
 `brandUrl`. El id de tarea, su URL y quien la creó (`requesterName`, el username, nunca el correo)
 quedan en el trabajo. `clientId` y `campaignId` están reservados para vincular cliente y campaña;

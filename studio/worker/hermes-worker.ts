@@ -40,7 +40,7 @@ import { chosenModulesNote } from '../hermes/catalog';
 import { FACTS_RULE, artCompareQuery, briefDigest, compareVerdict, doubleVerdict, judgeFacts, parseArtCompare, type ArtCompare } from './artJudge';
 import { renderChecks } from './renderChecks';
 import { startHeartbeat } from './heartbeat';
-import { cloudHermesSettings, hermesVolumeHasAuth, seedHermesCloudProfile } from './hermesCloudProfile';
+import { cloudHermesSettings, hermesVolumeHasAuth, probeInstalledHermes, seedHermesCloudProfile } from './hermesCloudProfile';
 import { HERMES_TRACE_LINES, hermesTraceExcerpt, redactSecrets, secretValues } from './hermesTrace';
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -2258,6 +2258,14 @@ async function main(): Promise<void> {
       try {
         const report = seedHermesCloudProfile(process.env, home);
         console.log(`[${stamp()}] Hermes: ${report.log}`);
+        const settings = cloudHermesSettings(process.env, { hasAuth: hermesVolumeHasAuth(home) });
+        if (settings.provider) {
+          const verdict = probeInstalledHermes({ home, bin: HERMES_BIN, expected: settings.provider, env: process.env });
+          const line = redactSecrets(verdict.log, secretValues(process.env));
+          if (verdict.skipped) console.log(`[${stamp()}] AVISO: ${line}`);
+          else if (!verdict.ok) console.error(`[${stamp()}] ${line}`);
+          else console.log(`[${stamp()}] ${line}`);
+        }
       } catch (err) {
         console.error(`[${stamp()}] No se pudo preparar HERMES_HOME: ${redactSecrets((err as Error).message, secretValues(process.env)).slice(0, 300)}`);
       }

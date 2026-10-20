@@ -30,7 +30,7 @@ export const CLICKUP_RATE_LIMIT = {
 export const CLICKUP_ENRICH_MS = 2 * 60 * 1000;
 
 const INSTRUCTION_MAX = 12_000;
-const CLIENT_FIELDS = new Set(['cliente', 'client']);
+const CLIENT_FIELDS = new Set(['cliente', 'client', 'marca', 'brand']);
 const CAMPAIGN_FIELDS = new Set(['campana', 'campaign']);
 
 export interface ClickupEnv {
@@ -67,7 +67,20 @@ export interface ClickupDeps {
   fetchTask: (taskId: string, token: string) => Promise<ClickupTask | null>;
   postComment: (taskId: string, token: string, text: string) => Promise<void>;
   knownBrand: (slug: string) => boolean;
+  /** Fichas de marca ya sincronizadas. Si no está, la marca sale del texto de la tarea. */
+  brandRecords?: () => KnownBrand[];
   log: (id: string, message: string, level?: 'info' | 'error' | 'success') => void;
+}
+
+export interface KnownBrand {
+  slug: string;
+  name?: string | null;
+}
+
+export interface DerivedClient {
+  name: string;
+  /** Slug de la ficha, cuando la marca sale de un registro conocido. */
+  slug?: string;
 }
 
 export interface ClickupOutcome {
@@ -347,9 +360,10 @@ function provisionalInput(taskId: string, payload: ClickupPayload): JobInput {
 function inputFromTask(task: ClickupTask, payload: ClickupPayload, deps: ClickupDeps, taskId: string): JobInput {
   const description = taskDescription(task);
   const campaignName = customFieldText(task.custom_fields, CAMPAIGN_FIELDS);
-  const clientName = deriveClientName(task.name || '', description, customFieldText(task.custom_fields, CLIENT_FIELDS));
+  const picked = deriveClient(task.name || '', description, customFieldText(task.custom_fields, CLIENT_FIELDS), deps.brandRecords?.());
+  const clientName = picked.name;
   const brandUrl = deriveBrandUrl(description);
-  const clientSlug = slugify(clientName);
+  const clientSlug = picked.slug || slugify(clientName);
   const clickupUrl = clickupTaskUrl(taskId, task.url);
   return baseInput({
     clientName,
@@ -421,18 +435,114 @@ function baseInput(fields: JobInput): JobInput {
   };
 }
 
-export function deriveClientName(taskName: string, description: string, fromField?: string): string {
+const GENERIC_BRAND = new Set([
+  'prueba', 'test', 'tests', 'demo', 'e2e', 'studio', 'newsletter', 'newsletters', 'news',
+  'email', 'mailing', 'pieza', 'marca', 'brand', 'cliente', 'client', 'campana', 'campaign',
+  'sandbox', 'staging',
+]);
+const TEST_LEAD = /^(?:prueba|test|tests|demo|sandbox|staging)\b/i;
+const BRAND_STOP = new Set(['con', 'para', 'de', 'del', 'por', 'en', 'el', 'la', 'los', 'las', 'y', 'e', 'o', 'u', 'un', 'una', 'the', 'with', 'for', 'and', 'a', 'an', 'que', 'sobre']);
+
+/** Campo o línea etiquetada, si no una ficha conocida, si no el texto tras newsletter o el guion. */
+export function deriveClient(taskName: string, description: string, fromField?: string, known?: KnownBrand[]): DerivedClient {
   const field = cleanLabel(fromField || '');
-  if (field) return field;
+  if (field) return { name: field };
   const labeled = `${taskName}\n${description}`.match(/(?:^|\n)\s*(?:marca|brand|cliente|client)\s*[:：]\s*([^\n,]{2,80})/i);
   const fromLabel = labeled ? cleanLabel(labeled[1]) : undefined;
-  if (fromLabel) return fromLabel;
-  const ofBrand = taskName.match(/\b(?:newsletter|news|email|mailing|pieza)\s+(?:de|para|for)\s+(.+)$/i);
-  const fromPhrase = ofBrand ? cleanLabel(ofBrand[1].split(/\s+[:–—-]\s+/)[0]) : undefined;
-  if (fromPhrase) return fromPhrase;
-  const head = cleanLabel(taskName.split(/\s+[:–—]\s+|\s+-\s+/)[0] || '');
-  if (head) return head;
-  return cleanLabel(taskName) || 'Sin marca';
+  if (fromLabel) return { name: fromLabel };
+  const extracted = extractBrandName(taskName, description);
+  const match = matchKnownBrand(taskName, description, known || [], extracted);
+  if (match) return { name: brandDisplay(match, extracted), slug: match.slug };
+  if (extracted) return { name: extracted };
+  return { name: 'Sin marca' };
+}
+
+export function deriveClientName(taskName: string, description: string, fromField?: string, known?: KnownBrand[]): string {
+  return deriveClient(taskName, description, fromField, known).name;
+}
+
+function brandDisplay(brand: KnownBrand, extracted?: string): string {
+  const named = cleanLabel(brand.name || '');
+  if (named) return named;
+  if (extracted && slugify(extracted) === brand.slug) return extracted;
+  return brand.slug;
+}
+
+function extractBrandName(taskName: string, description: string): string | undefined {
+  return extractFromText(taskName, true) || extractFromText(description, false);
+}
+
+function extractFromText(text: string, allowHead: boolean): string | undefined {
+  const raw = text.replace(/\s+/g, ' ').trim();
+  if (!raw) return undefined;
+  const phrase = raw.match(/\b(?:newsletters?|news|emails?|mailing|pieza)\s+(?:(?:de(?:l| la)?|para|for)\s+)?(.+)$/i);
+  if (phrase) {
+    const brand = takeBrandTokens(phrase[1]);
+    if (brand) return brand;
+  }
+  const parts = raw.split(/\s+[:–—]\s+|\s+-\s+/);
+  if (parts.length >= 2) {
+    const left = parts[0].trim();
+    if (TEST_LEAD.test(left)) return extractFromText(parts.slice(1).join(' – '), true);
+    if (allowHead) {
+      const head = cleanLabel(left);
+      if (head && !TEST_LEAD.test(head)) return head;
+    }
+  }
+  if (!allowHead || TEST_LEAD.test(raw)) return undefined;
+  return cleanLabel(raw);
+}
+
+function takeBrandTokens(rest: string): string | undefined {
+  const kept: string[] = [];
+  for (const token of rest.replace(/[.,;]+$/g, '').trim().split(/\s+/)) {
+    const bare = token.replace(/^[("']+|[)"',.;:]+$/g, '');
+    if (!bare) continue;
+    if (/^[-–—:]+$/.test(bare)) {
+      if (kept.length) break;
+      continue;
+    }
+    if (BRAND_STOP.has(norm(bare))) {
+      if (kept.length) break;
+      continue;
+    }
+    kept.push(bare);
+    if (kept.length >= 4) break;
+  }
+  const label = cleanLabel(kept.join(' '));
+  if (!label || GENERIC_BRAND.has(norm(label))) return undefined;
+  return label;
+}
+
+function matchKnownBrand(taskName: string, description: string, known: KnownBrand[], extracted?: string): KnownBrand | undefined {
+  const title = norm(taskName);
+  const body = norm(description);
+  const extractedNorm = extracted ? norm(extracted) : '';
+  let best: { brand: KnownBrand; score: number } | undefined;
+  for (const brand of known) {
+    const slug = (brand.slug || '').trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{0,59}$/.test(slug)) continue;
+    const nameNorm = norm(brand.name || '');
+    const slugWords = slug.replace(/-/g, ' ');
+    let score = 0;
+    if (nameNorm && !GENERIC_BRAND.has(nameNorm) && nameNorm.length >= 3) {
+      if (hasWord(title, nameNorm)) score = 100;
+      else if (hasWord(body, nameNorm)) score = 40;
+    }
+    if (score === 0 && slugWords.length >= 3 && !GENERIC_BRAND.has(slugWords) && !GENERIC_BRAND.has(slug)) {
+      if (hasWord(title, slugWords) || hasWord(title, slug)) score = 30;
+      else if (hasWord(body, slugWords) || hasWord(body, slug)) score = 10;
+    }
+    if (extractedNorm && (nameNorm === extractedNorm || slugWords === extractedNorm || slug === extractedNorm.replace(/\s+/g, '-'))) score += 200;
+    if (score > 0 && (!best || score > best.score)) best = { brand, score };
+  }
+  return best?.brand;
+}
+
+function hasWord(haystack: string, needle: string): boolean {
+  if (!needle || needle.length < 3) return false;
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i').test(haystack);
 }
 
 export function deriveBrandUrl(text: string): string | undefined {

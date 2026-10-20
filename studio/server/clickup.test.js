@@ -311,6 +311,42 @@ test('el aviso solo trae el id: el brief es nombre, descripción, adjuntos y enl
   assert.equal(out.empty, '');
 });
 
+test('la marca no es el prefijo de prueba: sale de la ficha, del campo o del texto tras newsletter', () => {
+  const out = run(`
+    const description = 'Newsletter de Feebbo para presentar la marca. Web: https://feebbo.com';
+    const title = 'PRUEBA E2E Studio – newsletter Feebbo';
+    const plain = clickup.deriveClientName(title, description);
+    const known = clickup.deriveClient('PRUEBA E2E Studio', description, '', [{ slug: 'feebbo', name: 'Feebbo' }]);
+    const field = clickup.deriveClient(title, description, 'Nike', [{ slug: 'feebbo', name: 'Feebbo' }]);
+    const nike = clickup.deriveClientName('Nike — Verano', 'Hola');
+    const adeslas = clickup.deriveClientName('TEST newsletter Adeslas', '');
+    const label = clickup.deriveClientName('PRUEBA', 'Marca: Feebbo\\ntexto');
+    const verano = clickup.deriveClient('Nike — Verano', '', '', [{ slug: 'verano', name: 'Verano' }, { slug: 'nike', name: 'Nike' }]);
+    const { jobs, deps } = memory();
+    deps.brandRecords = () => [{ slug: 'feebbo', name: 'Feebbo' }];
+    deps.knownBrand = (slug) => slug === 'feebbo';
+    deps.fetchTask = async () => ({ id: 'fee1234', name: title, list: { id: listId }, markdown_description: description });
+    const body = createdPayload('fee1234');
+    const res = await clickup.handleClickupWebhook(Buffer.from(body), sign(body), deps);
+    await res.after;
+    const job = jobs[0];
+    console.log(JSON.stringify({
+      plain, known, field, nike, adeslas, label, verano,
+      client: job.input.clientName, slug: job.input.clientSlug, mode: job.input.brandMode,
+    }));
+  `);
+  assert.equal(out.plain, 'Feebbo');
+  assert.deepEqual(out.known, { name: 'Feebbo', slug: 'feebbo' });
+  assert.deepEqual(out.field, { name: 'Nike' });
+  assert.equal(out.nike, 'Nike');
+  assert.equal(out.adeslas, 'Adeslas');
+  assert.equal(out.label, 'Feebbo');
+  assert.deepEqual(out.verano, { name: 'Nike', slug: 'nike' });
+  assert.equal(out.client, 'Feebbo');
+  assert.equal(out.slug, 'feebbo');
+  assert.equal(out.mode, 'existing');
+});
+
 test('el cupo es el de POST /api/jobs y el webhook no entra en el worker', () => {
   const out = run(`
     const body = clickup.clickupWebhookCreateBody(clickup.DEFAULT_CLICKUP_WEBHOOK_ENDPOINT, clickup.DEFAULT_CLICKUP_LIST_ID);

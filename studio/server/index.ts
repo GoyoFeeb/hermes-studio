@@ -668,6 +668,10 @@ function clickupDeps(): ClickupDeps {
     fetchTask: fetchClickupTask,
     postComment: postClickupComment,
     knownBrand: (slug) => !!readBrandCard(slug)?.card,
+    brandRecords: () => listBrandCardSlugs().flatMap((slug) => {
+      const card = readBrandCard(slug)?.card;
+      return card ? [{ slug, name: card.name }] : [];
+    }),
     log: (id, message, level = 'info') => appendEvent(id, { phase: 'studio', level, message }),
   };
 }
