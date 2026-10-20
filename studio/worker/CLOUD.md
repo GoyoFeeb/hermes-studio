@@ -40,13 +40,17 @@ Nombres en `env.example`. Valores solo en Railway, en el servicio `hermes-worker
 - Una clave de proveedor si Hermes no tiene ya sesión en el volumen (`OPENROUTER_API_KEY`,
   `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` o `NOUS_API_KEY`). La sesión OAuth del Mac
   (`~/.hermes/auth.json`) no viaja con la imagen. Con `NOUS_API_KEY` y sin `auth.json` en el
-  volumen, el worker escribe `HERMES_HOME/config.yaml` con `provider: nous-api` y el modelo
-  `deepseek/deepseek-v4-flash`, copia la clave a `HERMES_HOME/.env` (Hermes lee los secretos de
-  ahí) y, si el CLI lo admite, pasa `--provider nous-api`. `provider: nous` a secas es el login
-  OAuth: sin `auth.json`, `hermes chat` sale en segundos con código 1 y no deja HTML.
-- `HERMES_PROVIDER` — opcional. Vacío = `nous-api` si hay `NOUS_API_KEY` y no hay `auth.json`.
-  `nous` solo si el volumen tiene la sesión OAuth. Otro valor (`openrouter`, `anthropic`, …) pisa
-  el `config.yaml`.
+  volumen, el worker escribe `HERMES_HOME/config.yaml` con `provider: custom:nous-api`, un bloque
+  `providers.nous-api` (`api: https://inference-api.nousresearch.com/v1`, `key_env: NOUS_API_KEY`,
+  `transport: chat_completions`) y el modelo `deepseek/deepseek-v4-flash`. Copia la clave a
+  `HERMES_HOME/.env` (no va dentro del yaml) y, si el CLI lo admite, pasa `--provider custom:nous-api`.
+  El CLI instalado (Hermes Agent, canal stable del Dockerfile) no tiene un proveedor `nous-api`:
+  ese id sale con «Unknown provider». `provider: nous` sigue siendo el login OAuth.
+  Al arrancar, el worker resuelve el proveedor con el intérprete del CLI (sin llamar al modelo) y
+  lo deja en el log, con la clave redactada. Si el CLI no está, solo avisa.
+- `HERMES_PROVIDER` — opcional. Vacío = `custom:nous-api` si hay `NOUS_API_KEY` y no hay `auth.json`.
+  `nous-api` se acepta como alias de `custom:nous-api`. `nous` solo si el volumen tiene la sesión
+  OAuth. Otro valor (`openrouter`, `anthropic`, …) pisa el `config.yaml`.
 - `HERMES_INFERENCE_MODEL` — opcional. Vacío = `deepseek/deepseek-v4-flash` cuando el proveedor es
   Nous. Si el nombre no está en la lista blanca de `cloudEnv.ts`, el entrypoint lo tira.
 - `HERMES_MODEL_ART` — opcional. Vacío = el mismo modelo que `HERMES_MODEL_DRAFT`. La revisión de

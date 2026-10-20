@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -22,7 +24,14 @@ function run(code) {
     }
     (async () => { ${code} })().catch((e) => { console.error(e); process.exit(1); });
   `;
-  return JSON.parse(execFileSync(TSX_BIN, ['-e', wrapped], { cwd: ROOT, encoding: 'utf-8' }));
+  // El caso del peso mete cientos de KB de base64. Por -e eso revienta con E2BIG.
+  const file = path.join(os.tmpdir(), `quality-check-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.cjs`);
+  fs.writeFileSync(file, wrapped);
+  try {
+    return JSON.parse(execFileSync(TSX_BIN, [file], { cwd: ROOT, encoding: 'utf-8', maxBuffer: 8 * 1024 * 1024 }));
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
 }
 
 const GOOD = `<!doctype html><html lang="es"><head><title>x</title>
