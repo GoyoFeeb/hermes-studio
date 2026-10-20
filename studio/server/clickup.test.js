@@ -384,6 +384,8 @@ test('el cupo es el de POST /api/jobs y el webhook no entra en el worker', () =>
   assert.match(index, /express\.raw\(\{ type: \(\) => true/);
   assert.match(index, /CLICKUP_RATE_LIMIT/);
   assert.match(index, /enqueueStandaloneJob\(/);
+  assert.match(index, /notifyClickupEnded\(job\.id, 'completed'\)/);
+  assert.match(index, /notifyClickupEnded\(job\.id, 'failed'\)/);
   assert.equal(cloud.includes('CLICKUP'), false);
 });
 
@@ -482,4 +484,278 @@ test('si el primer comentario ya lleva la cola, el aviso de los 30 s no se repit
   assert.equal(out.after, 1);
   assert.match(out.first, /En cola: 2 trabajos delante/);
   assert.equal(out.stillQueued, 'queued');
+});
+
+test('guarda el id de usuario de ClickUp del creador, no el de quien disparó el webhook', () => {
+  const out = run(`
+    const { jobs, deps } = memory();
+    deps.fetchTask = async () => {
+      await new Promise((r) => setTimeout(r, 20));
+      return {
+        id: 'abc1234', name: 'Nike', list: { id: listId }, text_content: 'Hola',
+        creator: { id: 183, username: 'Laura', email: 'laura@feebbo.com' },
+      };
+    };
+    const body = JSON.stringify({
+      event: 'taskCreated', task_id: 'abc1234',
+      history_items: [{ field: 'task_creation', parent_id: listId, user: { id: 999, username: 'Bot', email: 'bot@feebbo.com' } }],
+    });
+    const res = await clickup.handleClickupWebhook(Buffer.from(body), sign(body), deps);
+    const provisional = jobs[0].input.clickupCreatorId;
+    await res.after;
+    const namedOnly = memory();
+    namedOnly.deps.fetchTask = async () => ({
+      id: 'name123', name: 'Nike', list: { id: listId }, text_content: 'Hola',
+      creator: { username: 'Laura', email: 'laura@feebbo.com' },
+    });
+    const namedBody = JSON.stringify({
+      event: 'taskCreated', task_id: 'name123',
+      history_items: [{ field: 'task_creation', parent_id: listId, user: { id: 999, username: 'Bot' } }],
+    });
+    const namedRes = await clickup.handleClickupWebhook(Buffer.from(namedBody), sign(namedBody), namedOnly.deps);
+    await namedRes.after;
+    const fromHistory = memory();
+    fromHistory.deps.fetchTask = async () => ({ id: 'hist123', name: 'Nike', list: { id: listId }, text_content: 'Hola' });
+    const histBody = JSON.stringify({
+      event: 'taskCreated', task_id: 'hist123',
+      history_items: [{ field: 'task_creation', parent_id: listId, user: { id: '42', username: 'Ana', email: 'ana@feebbo.com' } }],
+    });
+    const histRes = await clickup.handleClickupWebhook(Buffer.from(histBody), sign(histBody), fromHistory.deps);
+    await histRes.after;
+    const junk = memory();
+    junk.deps.fetchTask = async () => ({
+      id: 'junk123', name: 'Nike', list: { id: listId }, text_content: 'Hola',
+      creator: { id: 'abc', username: 'Laura', email: 'laura@feebbo.com' },
+    });
+    const junkBody = JSON.stringify({
+      event: 'taskCreated', task_id: 'junk123',
+      history_items: [{ field: 'task_creation', parent_id: listId, user: { id: 0, username: 'Laura' } }],
+    });
+    const junkRes = await clickup.handleClickupWebhook(Buffer.from(junkBody), sign(junkBody), junk.deps);
+    await junkRes.after;
+    const job = jobs[0];
+    console.log(JSON.stringify({
+      provisional,
+      id: job.input.clickupCreatorId,
+      name: job.input.requesterName,
+      email: JSON.stringify(job).includes('laura@feebbo.com') || JSON.stringify(job).includes('bot@feebbo.com'),
+      namedOnly: namedOnly.jobs[0].input.clickupCreatorId || null,
+      named: namedOnly.jobs[0].input.requesterName,
+      historyId: fromHistory.jobs[0].input.clickupCreatorId,
+      historyName: fromHistory.jobs[0].input.requesterName,
+      junkId: junk.jobs[0].input.clickupCreatorId || null,
+      zero: clickup.clickupUserId(0) || null,
+      mail: clickup.clickupUserId('laura@feebbo.com') || null,
+    }));
+  `);
+  assert.equal(out.provisional, '999');
+  assert.equal(out.id, '183');
+  assert.equal(out.name, 'Laura');
+  assert.equal(out.email, false);
+  assert.equal(out.namedOnly, null);
+  assert.equal(out.named, 'Laura');
+  assert.equal(out.historyId, '42');
+  assert.equal(out.historyName, 'Ana');
+  assert.equal(out.junkId, null);
+  assert.equal(out.zero, null);
+  assert.equal(out.mail, null);
+});
+
+test('al terminar menciona al creador y, sin id, publica el texto sin @', () => {
+  const out = run(`
+    const web = 'https://hermes-studio-beta.vercel.app';
+    const notes = { peticion: 4, texto_imagen: 4, identidad: 5, concepto: 4, jerarquia: 4, aire: 4, originalidad: 4, movil: 4, oscuro: 5, copy: 4 };
+    const job = {
+      id: 'm1h2k3-abcd',
+      startedAt: '2026-10-20T10:00:00.000Z',
+      finishedAt: '2026-10-20T10:03:05.000Z',
+      input: { clickupTaskId: 'task123', requesterName: 'Ana', clickupCreatorId: '183' },
+      artReview: { before: notes, web: true, problemas: [], mejoras: [] },
+    };
+    const ready = clickup.clickupEndComment(job, 'completed', web);
+    const plain = clickup.clickupCommentPlain(ready);
+    const noId = clickup.clickupEndComment({ ...job, input: { clickupTaskId: 'task123', requesterName: 'Ana' } }, 'completed', web);
+    const noScore = clickup.clickupEndComment({ id: job.id, input: job.input }, 'completed', web);
+    const spaced = clickup.clickupEndComment({ ...job, input: { ...job.input, requesterName: 'Ana López' } }, 'completed', web);
+    const failed = clickup.clickupEndComment({
+      ...job,
+      error: 'Hermes no dejó el HTML.\\n\\nSalida de Hermes (últimas 40 líneas):\\nsecreto interno',
+    }, 'failed', web);
+    const failedPlain = clickup.clickupCommentPlain(failed);
+    const failedNoId = clickup.clickupEndComment({ ...job, input: { clickupTaskId: 'task123' }, error: 'se cortó el modelo' }, 'failed', web);
+    const keptBefore = clickup.clickupEndComment({
+      ...job,
+      artReview: { before: { a: 5, b: 5 }, after: { a: 1, b: 1 }, kept: false, web: false, problemas: [], mejoras: [] },
+    }, 'completed', web);
+    const calls = [];
+    await clickup.postClickupCommentBody('task123', 'pk_test', ready, async (url, init) => {
+      calls.push({ url: String(url), authorization: init.headers.Authorization, method: init.method, body: JSON.parse(init.body) });
+      return { ok: true };
+    });
+    let plainCall = null;
+    await clickup.postClickupComment('task123', 'pk_test', 'Hermes ha empezado este trabajo.', async (url, init) => {
+      plainCall = JSON.parse(init.body);
+      return { ok: false, status: 503 };
+    }).catch((err) => { plainCall = { ...plainCall, error: err.message }; });
+    console.log(JSON.stringify({
+      plain,
+      notify: ready.notify_all,
+      hasText: ready.comment_text == null,
+      tag: ready.comment[0],
+      tail: ready.comment[1].text,
+      noId: noId.comment_text,
+      noIdComment: noId.comment || null,
+      noScore: clickup.clickupCommentPlain(noScore),
+      spaced: spaced.comment[0].text,
+      failedPlain,
+      failedHasTrace: failedPlain.includes('secreto interno'),
+      failedNoId: failedNoId.comment_text,
+      kept: clickup.clickupCommentPlain(keptBefore).includes('nota visual 10/50'),
+      notAfter: !clickup.clickupCommentPlain(keptBefore).includes('nota visual 2/50'),
+      call: calls[0],
+      plainCall,
+    }));
+  `);
+  assert.equal(out.plain, '@Ana tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd> · duración 3:05 · nota visual 42/50');
+  assert.equal(out.notify, false);
+  assert.equal(out.hasText, true);
+  assert.deepEqual(out.tag, { text: '@Ana', type: 'tag', user: { id: 183 }, attributes: {} });
+  assert.equal(out.tail, ' tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd> · duración 3:05 · nota visual 42/50');
+  assert.equal(out.noId, 'Tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd> · duración 3:05 · nota visual 42/50');
+  assert.equal(out.noIdComment, null);
+  assert.equal(out.noScore, '@Ana tu trabajo está listo: <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd>');
+  assert.equal(out.spaced, '@Ana López');
+  assert.equal(out.failedPlain, '@Ana el trabajo ha fallado: Hermes no dejó el HTML. <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd>');
+  assert.equal(out.failedHasTrace, false);
+  assert.equal(out.failedNoId, 'El trabajo ha fallado: se cortó el modelo. <https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd>');
+  assert.equal(out.kept, true);
+  assert.equal(out.notAfter, true);
+  assert.equal(out.call.url, 'https://api.clickup.com/api/v2/task/task123/comment');
+  assert.equal(out.call.method, 'POST');
+  assert.equal(out.call.authorization, 'pk_test');
+  assert.equal(out.call.body.notify_all, false);
+  assert.equal(out.call.body.comment[0].user.id, 183);
+  assert.equal(out.plainCall.comment_text, 'Hermes ha empezado este trabajo.');
+  assert.equal(out.plainCall.notify_all, false);
+  assert.match(out.plainCall.error, /503/);
+});
+
+test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un reintento', () => {
+  const out = run(`
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cu-end-'));
+    const web = 'https://hermes-studio-beta.vercel.app';
+    const job = {
+      id: 'm1h2k3-abcd',
+      status: 'completed',
+      startedAt: '2026-10-20T10:00:00.000Z',
+      finishedAt: '2026-10-20T10:01:00.000Z',
+      input: { clickupTaskId: 'task123', requesterName: 'Ana', clickupCreatorId: '183' },
+    };
+    const posts = [];
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const deps = {
+      comment: true,
+      apiToken: 'pk_test',
+      webBase: web,
+      noticeDir: dir,
+      pollMs: 15,
+      getJob: () => job,
+      postComment: async (taskId, token, body) => {
+        posts.push({ taskId, token, text: clickup.clickupCommentPlain(body) });
+        await gate;
+      },
+      log: () => {},
+    };
+    const both = Promise.all([
+      clickup.deliverClickupEndNotice(job.id, 'completed', deps),
+      clickup.deliverClickupEndNotice(job.id, 'completed', deps),
+    ]);
+    for (let i = 0; i < 50 && posts.length < 1; i++) await new Promise((r) => setTimeout(r, 10));
+    const mid = posts.length;
+    release();
+    const results = await both;
+    const again = await clickup.deliverClickupEndNotice(job.id, 'failed', deps);
+    const names = fs.readdirSync(dir);
+    const notice = JSON.parse(fs.readFileSync(path.join(dir, names[0]), 'utf8'));
+
+    const retryDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cu-end-retry-'));
+    let tries = 0;
+    const retryDeps = {
+      ...deps,
+      noticeDir: retryDir,
+      postComment: async () => {
+        tries++;
+        if (tries === 1) throw new Error('comentario de ClickUp → 503');
+      },
+    };
+    const first = await clickup.deliverClickupEndNotice(job.id, 'completed', retryDeps);
+    const second = await clickup.deliverClickupEndNotice(job.id, 'completed', retryDeps);
+    const third = await clickup.deliverClickupEndNotice(job.id, 'completed', retryDeps);
+
+    const busyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cu-end-busy-'));
+    fs.writeFileSync(path.join(busyDir, job.id + '.clickup-end'), JSON.stringify({ claim: 'otra-replica', claimedAt: new Date().toISOString(), outcome: 'completed' }));
+    let busyPosts = 0;
+    const busy = await clickup.deliverClickupEndNotice(job.id, 'completed', {
+      ...deps,
+      noticeDir: busyDir,
+      waitMs: 40,
+      postComment: async () => { busyPosts++; },
+    });
+    const staleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cu-end-stale-'));
+    fs.writeFileSync(path.join(staleDir, job.id + '.clickup-end'), JSON.stringify({ claim: 'otra-replica', claimedAt: new Date(Date.now() - 60_000).toISOString() }));
+    const stale = await clickup.deliverClickupEndNotice(job.id, 'failed', {
+      ...deps,
+      noticeDir: staleDir,
+      getJob: () => ({ ...job, error: 'se cortó el modelo' }),
+      postComment: async (taskId, token, body) => { posts.push({ taskId, token, text: clickup.clickupCommentPlain(body), stale: true }); },
+    });
+    const offDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cu-end-off-'));
+    const off = await clickup.deliverClickupEndNotice(job.id, 'completed', { ...deps, comment: false, noticeDir: offDir, postComment: async () => { posts.push({ off: true }); } });
+    const offFiles = fs.readdirSync(offDir).length;
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(retryDir, { recursive: true, force: true });
+    fs.rmSync(busyDir, { recursive: true, force: true });
+    fs.rmSync(staleDir, { recursive: true, force: true });
+    fs.rmSync(offDir, { recursive: true, force: true });
+    console.log(JSON.stringify({
+      mid,
+      results: results.slice().sort(),
+      again,
+      file: names[0],
+      json: names.some((name) => name.endsWith('.json')),
+      noticeAt: !!notice.at,
+      noticeOutcome: notice.outcome,
+      posts: posts.filter((p) => !p.stale).length,
+      text: posts[0] && posts[0].text,
+      first, second, third, tries,
+      busy, busyPosts,
+      stale,
+      staleText: posts.find((p) => p.stale)?.text || '',
+      off,
+      offFiles,
+    }));
+  `);
+  assert.equal(out.mid, 1);
+  assert.deepEqual(out.results, [false, true]);
+  assert.equal(out.again, false);
+  assert.equal(out.file, 'm1h2k3-abcd.clickup-end');
+  assert.equal(out.json, false);
+  assert.equal(out.noticeAt, true);
+  assert.equal(out.noticeOutcome, 'completed');
+  assert.equal(out.posts, 1);
+  assert.match(out.text, /^@Ana tu trabajo está listo: <https:\/\/hermes-studio-beta\.vercel\.app\/\?job=m1h2k3-abcd> · duración 1:00$/);
+  assert.equal(out.first, false);
+  assert.equal(out.second, true);
+  assert.equal(out.third, false);
+  assert.equal(out.tries, 2);
+  assert.equal(out.busy, false);
+  assert.equal(out.busyPosts, 0);
+  assert.equal(out.stale, true);
+  assert.match(out.staleText, /^@Ana el trabajo ha fallado: se cortó el modelo\./);
+  assert.equal(out.off, false);
+  assert.equal(out.offFiles, 0);
 });
