@@ -60,12 +60,14 @@ import { jsonObjects, parseWithOneRepair, redactedSnippet } from './looseJson';
 import { notesAreReady, recoverSelfAudit, selfAuditPrompt } from './selfAudit';
 import { renderChecks } from './renderChecks';
 import { startHeartbeat } from './heartbeat';
-import { cloudHermesSettings, hermesVolumeHasAuth, probeInstalledHermes, seedHermesCloudProfile } from './hermesCloudProfile';
+import { cloudHermesSettings, hermesVolumeHasAuth, probeInstalledHermes, providerArgs, seedHermesCloudProfile } from './hermesCloudProfile';
 import { HERMES_TRACE_LINES, hermesTraceExcerpt, redactSecrets, secretValues } from './hermesTrace';
+import { UsageLedger } from './usage';
 import { canTakeScreenshot, deliveryOnTimeout, JobClock, jobBudgetFromEnv, timeoutFailMessage } from './jobBudget';
-import { activeScopes, newScope, runInScope, scope } from './jobScope';
+import { activeScopes, newScope, runInScope, scope, type JobScope } from './jobScope';
 import { isolateHermesHome, shouldIsolateHome, slotHomeDir } from './hermesHome';
 import { freeSlots, workerConcurrency, workerIdentity } from '../server/claimQueue';
+import { BackgroundMaintenance, idleSlotPlan } from './backgroundMaintenance';
 
 const ROOT = path.resolve(__dirname, '..', '..');
 /** Entorno para Hermes: el del proceso, SIN lo que usa este worker para hablar con Studio.
@@ -438,6 +440,12 @@ function localBrands(): string[] {
 
 /** Estado del trabajo de este hueco (jobScope.ts). El 409 de Studio marca `cancelled` en el latido. */
 const WORKER_ID = workerIdentity();
+/** Uso y tiempos por hueco: dos trabajos a la vez no pueden compartir un libro. */
+const usageByScope = new WeakMap<JobScope, UsageLedger>();
+const timelineByScope = new WeakMap<JobScope, Timeline>();
+/** Miniaturas, nota de calidad y fichas: no ocupan un hueco. */
+const maintenance = new BackgroundMaintenance();
+let maintenanceScope: JobScope | null = null;
 
 interface LoopState {
   watch: LoopWatch;
@@ -668,8 +676,8 @@ function modelArgs(model?: string): string[] {
 
 let providerFlag: string | null | undefined;
 
-function providerArgs(provider: string): string[] {
-  if (!provider) return [];
+/** True si `hermes chat --help` anuncia `--provider`. Sin el binario, no se pasa el flag. */
+function providerFlagSupported(): boolean {
   if (providerFlag === undefined) {
     try {
       const help = execFileSync(HERMES_BIN, ['chat', '--help'], { encoding: 'utf8', timeout: 15000, env: HERMES_ENV });
@@ -681,7 +689,27 @@ function providerArgs(provider: string): string[] {
       console.log(`[${stamp()}] AVISO: hermes chat no admite --provider; se usa config.yaml en HERMES_HOME.`);
     }
   }
-  return providerFlag ? [providerFlag, provider] : [];
+  return providerFlag === '--provider';
+}
+
+/** Proveedor que verá el turno: en la nube, el de HERMES_PROVIDER (anthropic o custom:nous-api). */
+function primaryProvider(): string {
+  if (process.env.HERMES_CLOUD === '1') {
+    const home = (process.env.HERMES_HOME || '').trim();
+    const settings = cloudHermesSettings(process.env, { hasAuth: hermesVolumeHasAuth(home) });
+    if (settings.provider) return settings.provider;
+  }
+  return (process.env.HERMES_PROVIDER || '').trim();
+}
+
+/** Modelo del trabajo cuando la fase no trae HERMES_MODEL_*. */
+function primaryModel(): string {
+  if (process.env.HERMES_CLOUD === '1') {
+    const home = (process.env.HERMES_HOME || '').trim();
+    const settings = cloudHermesSettings(process.env, { hasAuth: hermesVolumeHasAuth(home) });
+    if (settings.model) return settings.model;
+  }
+  return (process.env.HERMES_INFERENCE_MODEL || MODELS.draft || '').trim();
 }
 
 /** En la nube, proveedor y modelo van en el turno. En el Mac no se añade nada. */
@@ -692,7 +720,7 @@ function cloudTurn(phaseModel?: string): { args: string[]; env: NodeJS.ProcessEn
   const hasAuth = hermesVolumeHasAuth(home);
   const settings = cloudHermesSettings(process.env, { hasAuth });
   if (!phaseModel && settings.model && !env.HERMES_INFERENCE_MODEL) env.HERMES_INFERENCE_MODEL = settings.model;
-  return { args: providerArgs(settings.provider), env };
+  return { args: providerArgs(settings.provider, providerFlagSupported()), env };
 }
 
 function hermesTrace(turn: { output: string; stderr: string }): string {
@@ -704,6 +732,34 @@ function hermesTrace(turn: { output: string; stderr: string }): string {
  *  el razonamiento se alargaba conciliándolo con el encargo. El encargo de Studio es autocontenido. Con
  *  HERMES_KEEP_RULES=1 vuelve a cargarse todo. */
 const RULES_ARGS = process.env.HERMES_KEEP_RULES === '1' ? [] : ['--ignore-rules'];
+
+/** Suma el uso de la sesión al libro de este hueco. Un export fallido no tumba el turno. */
+async function recordTurnUsage(slot: JobScope, sessionId: string | null, model?: string): Promise<void> {
+  const ledger = usageByScope.get(slot);
+  if (!ledger || !sessionId) return;
+  try {
+    const session = await exportSession(sessionId);
+    ledger.note(sessionId, session, timelineByScope.get(slot)?.currentId() || 'otro', model || primaryModel(), primaryProvider());
+  } catch (err) {
+    console.log(`[${stamp()}] No se pudo leer el uso de la sesión ${sessionId}: ${(err as Error).message.slice(0, 200)}`);
+  }
+}
+
+/** Cuerpo de /complete, /fail y /brief: tokens, coste, modelo y proveedor de este hueco. */
+function usageBody(slot: JobScope = scope()): Record<string, unknown> {
+  const ledger = usageByScope.get(slot);
+  if (!ledger) return {};
+  const report = ledger.report(process.env);
+  return {
+    inputTokens: report.inputTokens,
+    outputTokens: report.outputTokens,
+    cacheTokens: report.cacheTokens,
+    costUsd: report.costUsd,
+    costEur: report.costEur,
+    model: report.model,
+    provider: report.provider,
+  };
+}
 
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
  *  diferencia de `-z`, imprime el session_id y permite retomar la sesión con --resume. */
@@ -729,13 +785,19 @@ function runHermesTurn(
   });
   child.stderr!.on('data', (d) => (stderr = (stderr + d).slice(-24_000)));
   return new Promise((resolve) => {
+    const slot = scope();
+    const finish = (code: number | null, output: string, stderrText: string): void => {
+      slot.child = null;
+      const seen = stdout.match(/session_id:\s*(\S+)/);
+      void recordTurnUsage(slot, seen?.[1] || resumeId, model).finally(() => {
+        resolve({ code, output, stderr: stderrText });
+      });
+    };
     child.on('close', (code) => {
-      scope().child = null;
-      resolve({ code, output: stdout.replace(/^\s*session_id:.*$/m, '').trim(), stderr });
+      finish(code, stdout.replace(/^\s*session_id:.*$/m, '').trim(), stderr);
     });
     child.on('error', (err) => {
-      scope().child = null;
-      resolve({ code: -1, output: stdout, stderr: `${stderr}\n${err.message}` });
+      finish(-1, stdout, `${stderr}\n${err.message}`);
     });
   });
 }
@@ -884,6 +946,14 @@ interface ClaimedJob {
   artReview?: boolean;
   /** Petición del equipo (instrucción básica): lo que pide tiene que llegar al brief y a la pieza (requestCoverage.ts). */
   request?: string;
+  /** Tokens ya guardados (el brief que esperó aprobación). El libro los suma antes de los turnos nuevos. */
+  priorUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    cacheTokens?: number;
+    model?: string | null;
+    provider?: string | null;
+  };
 }
 
 /** Una adaptación a móvil es un retoque, no una newsletter: la barra estima con esto. */
@@ -1133,7 +1203,7 @@ async function runBriefStep(
   // canPause (2026-10-01): si el equipo pidió revisar el brief, Studio responde { pause: true } y el trabajo
   // espera su aprobación; al aprobarlo vuelve a la cola y llega con el encargo final, sin paso de brief.
   // canRestart (2026-10-14, H-17): este worker sabe rehacer la pieza si el equipo corrige el brief mientras trabaja.
-  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true, canRestart: true }, 6);
+  const res = await api(`/api/worker/jobs/${job.id}/brief`, { brief: fs.readFileSync(briefFile, 'utf8'), canPause: true, canRestart: true, ...usageBody() }, 6);
   if (!res.ok) return { error: `Studio no aceptó el brief: ${res.status} ${(await res.text()).slice(0, 300)}` };
   const reply = (await res.json()) as { prompt?: string; pause?: boolean };
   if (reply.pause) {
@@ -1528,6 +1598,21 @@ export function needsTasteRound(review: ArtReview): boolean {
   return lowScores(review).length > 0 || (review.mejoras.length > 0 && Object.values(review.notas).some((n) => n < 5));
 }
 
+/** Pasadas de reescritura de gusto. 0 (por defecto) deja la nota y el arreglo de defectos.
+ *  1 o más restaura la pasada de siempre: una reescritura y dos comparaciones A/B, no un bucle. */
+export function artRevisePasses(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = (env.HERMES_ART_REVISE_PASSES ?? '').trim();
+  if (!raw) return 0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 1) return 0;
+  return Math.min(20, Math.floor(n));
+}
+
+/** La reescritura de gusto y las comparaciones. Con 0 pasadas no se hacen. */
+export function shouldRunTasteRound(review: ArtReview, passes = artRevisePasses()): boolean {
+  return passes >= 1 && needsTasteRound(review);
+}
+
 /** ¿Hay pasada de mejora? La de gusto o, aunque no la haya, defectos claros que arreglar. */
 export function needsImprovement(review: ArtReview): boolean {
   return needsTasteRound(review) || !!review.defectos?.length;
@@ -1703,8 +1788,20 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     return false;
   };
   const timeline = new Timeline(Date.now, (msg) => console.log(`[${stamp()}] ${claimed.id}: ${msg}`));
+  timelineByScope.set(scope(), timeline);
+  const ledger = new UsageLedger({ model: primaryModel(), provider: primaryProvider() });
+  usageByScope.set(scope(), ledger);
+  if (claimed.priorUsage) {
+    ledger.seed({
+      input: claimed.priorUsage.inputTokens,
+      output: claimed.priorUsage.outputTokens,
+      cache: claimed.priorUsage.cacheTokens,
+      model: claimed.priorUsage.model,
+      provider: claimed.priorUsage.provider,
+    });
+  }
   const fail = async (error: string): Promise<void> => {
-    await api(`/api/worker/jobs/${claimed.id}/fail`, { error, timings: timeline.toJSON() }).catch(() => undefined);
+    await api(`/api/worker/jobs/${claimed.id}/fail`, { error, timings: timeline.toJSON(), ...usageBody() }).catch(() => undefined);
   };
   const editKind = claimed.editKind || (claimed.sourceHtml !== undefined ? 'mobile-fix' : undefined);
   const isMobileFix = editKind === 'mobile-fix';
@@ -2180,7 +2277,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       console.log(
         `[${stamp()}] ${job.id}: revisión visual ${review ? `— ${scoreTotal(review)}/${Object.keys(review.notas).length * 5}${low.length ? `, por debajo de 4: ${low.join(', ')}` : ''}, ${review.mejoras.length} mejora(s)` : '— respuesta sin notas legibles'}${web ? ' (con la web de la marca)' : ''}`
       );
-      if (review && budget.artRevisePasses > 0 && needsImprovement(review) && jobOpen() && clock.remainingMs() > 60_000) {
+      if (review && needsImprovement(review) && jobOpen() && clock.remainingMs() > 60_000) {
         const reviseUntil = Date.now() + clock.phaseMs('artRevise');
         const reviseOpen = (): boolean => jobOpen() && Date.now() < reviseUntil;
         const backup = path.join(workDir, 'antes-de-mejora.html');
@@ -2221,7 +2318,14 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           fs.appendFileSync(reviewFile, `\n## Arreglo de defectos\n\n${defects.map((d) => `- ${d}`).join('\n')}\n\nResultado: ${outcome}.\n`);
           console.log(`[${stamp()}] ${job.id}: arreglo de defectos de arte — ${outcome}`);
         }
-        if (!needsTasteRound(review) || !reviseOpen() || clock.remainingMs() <= 60_000) {
+        const taste = shouldRunTasteRound(review, budget.artRevisePasses);
+        if (!taste || !reviseOpen() || clock.remainingMs() <= 60_000) {
+          if (!taste && needsTasteRound(review) && !scope().cancelled) {
+            const skip =
+              'Pasada de gusto omitida (HERMES_ART_REVISE_PASSES=0): se queda la nota y, si los hubo, los defectos arreglados. Con 1 o más vuelve la reescritura y las comparaciones A/B.';
+            fs.appendFileSync(reviewFile, `\n## Pasada de gusto\n\n${skip}\n`);
+            console.log(`[${stamp()}] ${job.id}: ${skip}`);
+          }
           if (artResult) artResult = { ...artResult, kept: fixedDefects.length > 0 };
           if (fixedDefects.length) await progressMessage(`Revisión de dirección de arte: ${fixedDefects.length} defecto(s) arreglado(s).`);
         } else {
@@ -2402,7 +2506,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
     // Miniatura para el historial: si no sale, la newsletter se entrega igual.
     const thumbs = await renderThumbnails({ path: htmlPath });
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult }, 6);
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult, ...usageBody() }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;
@@ -2424,6 +2528,40 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
 const THUMB_BACKFILL_IDLE_MS = 10 * 60 * 1000;
 let thumbsIdleUntil = 0;
 
+/** El mantenimiento cede el sitio si llega un trabajo o si este hueco se canceló. */
+function maintenanceOpen(): boolean {
+  return maintenance.shouldContinue() && !scope().cancelled;
+}
+
+/** Corta la nota de calidad (Hermes) para que el hueco que acaba de reclamar no comparta el proceso. */
+function stopMaintenance(): void {
+  maintenance.requestStop();
+  const slot = maintenanceScope;
+  if (!slot) return;
+  slot.cancelled = true;
+  slot.child?.kill('SIGTERM');
+}
+
+/** Fuera de los huecos: no se espera. Si ya hay un trabajo en curso, no se abre la nota de calidad. */
+async function runMaintenance(): Promise<void> {
+  const slot = newScope(null);
+  maintenanceScope = slot;
+  try {
+    await runInScope(slot, async () => {
+      await backfillThumbnails().catch((err) => console.error(`[${stamp()}] Miniaturas: ${(err as Error).message}`));
+      if (!maintenanceOpen()) return;
+      // La nota de calidad llama a Hermes. No se abre si ya hay un trabajo en un hueco.
+      if (!activeScopes().some((s) => s.id)) {
+        await backfillArtReviews().catch((err) => console.error(`[${stamp()}] Notas de calidad: ${(err as Error).message}`));
+      }
+      if (!maintenanceOpen()) return;
+      await syncBrandCards().catch((err) => console.error(`[${stamp()}] Fichas de marca: ${(err as Error).message}`));
+    });
+  } finally {
+    if (maintenanceScope === slot) maintenanceScope = null;
+  }
+}
+
 async function backfillThumbnails(): Promise<void> {
   if (Date.now() < thumbsIdleUntil) return;
   const res = await api('/api/worker/thumbs/pending', { hd: true, long: true }, 1);
@@ -2437,6 +2575,7 @@ async function backfillThumbnails(): Promise<void> {
     return;
   }
   for (const j of jobs) {
+    if (!maintenanceOpen()) return;
     const thumbs = await renderThumbnails({ html: j.html });
     await api(`/api/worker/jobs/${j.id}/thumb`, thumbs ? { image: thumbs.image, long: thumbs.long } : { failed: true }, 2).catch(() => undefined);
   }
@@ -2461,6 +2600,7 @@ async function backfillArtReviews(): Promise<void> {
     return;
   }
   for (const j of jobs) {
+    if (!maintenanceOpen()) return;
     const local = path.join(ROOT, j.outputDir, 'newsletter.html');
     const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-nota-'));
     let htmlPath = local;
@@ -2477,6 +2617,8 @@ async function backfillArtReviews(): Promise<void> {
       const facts = judgeFacts(await renderChecks(htmlPath, ROOT, brandPalette(ROOT, j.slug)).catch(() => null));
       const query = artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found, sheet.desktop, facts);
       const review = (await readArtReview(j.id, 'nota de calidad', query)).review;
+      // Si llegó un trabajo a medias, no se marca la nota como fallida: se retoma en el siguiente hueco libre.
+      if (!review && !maintenanceOpen()) return;
       await api(
         `/api/worker/jobs/${j.id}/art-review`,
         review ? { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras } : { failed: true },
@@ -2507,6 +2649,10 @@ async function syncBrandCards(): Promise<void> {
     if (hashes[slug] !== hash) changed.push({ card, hash });
   }
   for (let i = 0; i < changed.length; i += 6) {
+    if (!maintenanceOpen()) {
+      brandSyncAt = 0;
+      return;
+    }
     const r = await api('/api/worker/brand-cards', { cards: changed.slice(i, i + 6) }, 2);
     if (!r.ok) throw new Error(`Studio respondió ${r.status} al guardar fichas de marca`);
   }
@@ -2641,23 +2787,30 @@ async function main(): Promise<void> {
         const res = await api('/api/worker/claim', { brands: localBrands(), workerId: WORKER_ID, slot, concurrency: workerConcurrency() });
         if (res.status === 200) {
           const job = (await res.json()) as ClaimedJob;
+          // La puesta al día no puede seguir con Hermes mientras este hueco trabaja.
+          stopMaintenance();
           try {
             await runJob(job);
           } catch (err) {
             scope().child?.kill('SIGTERM');
             console.error(`[${stamp()}] ✗ ${job.id}: ${(err as Error).message}`);
-            await api(`/api/worker/jobs/${job.id}/fail`, { error: `Error del worker: ${(err as Error).message}` }).catch(() => undefined);
+            const timeline = timelineByScope.get(scope());
+            await api(`/api/worker/jobs/${job.id}/fail`, {
+              error: `Error del worker: ${(err as Error).message}`,
+              ...(timeline ? { timings: timeline.toJSON() } : {}),
+              ...usageBody(),
+            }).catch(() => undefined);
             setAsideFolder(path.join(ROOT, job.outputDir), 'fallido');
             scope().id = null;
+          } finally {
+            usageByScope.delete(scope());
+            timelineByScope.delete(scope());
           }
           return;
         }
         if (res.status === 204) {
-          if (slot === 0 && !activeScopes().some((s) => s.id)) {
-            await backfillThumbnails().catch((err) => console.error(`[${stamp()}] Miniaturas: ${(err as Error).message}`));
-            await backfillArtReviews().catch((err) => console.error(`[${stamp()}] Notas de calidad: ${(err as Error).message}`));
-            await syncBrandCards().catch((err) => console.error(`[${stamp()}] Fichas de marca: ${(err as Error).message}`));
-          }
+          const plan = idleSlotPlan(slot, maintenance.running());
+          if (plan.kickMaintenance) maintenance.kick(() => runMaintenance());
         } else if (res.status === 401) {
           console.error('Studio rechaza el WORKER_TOKEN — revisa que coincide con el de Railway.');
         } else {
@@ -2684,6 +2837,7 @@ async function main(): Promise<void> {
 
 // Ctrl+C en el terminal (SIGINT) o parada del servicio de launchd (SIGTERM).
 async function shutdown(): Promise<void> {
+  stopMaintenance();
   const stopping = activeScopes();
   for (const slot of stopping) {
     slot.cancelled = true;
@@ -2691,7 +2845,12 @@ async function shutdown(): Promise<void> {
   }
   for (const slot of stopping) {
     if (!slot.id) continue;
-    await api(`/api/worker/jobs/${slot.id}/fail`, { error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.' }, 1).catch(() => undefined);
+    const timeline = timelineByScope.get(slot);
+    await api(`/api/worker/jobs/${slot.id}/fail`, {
+      error: 'El worker de Hermes se detuvo a mitad del trabajo. Vuelve a enviarlo.',
+      ...(timeline ? { timings: timeline.toJSON() } : {}),
+      ...usageBody(slot),
+    }, 1).catch(() => undefined);
     if (slot.outAbs) setAsideFolder(slot.outAbs, 'fallido');
   }
   releaseLock();

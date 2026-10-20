@@ -66,7 +66,7 @@ test('topes del trabajo: defectos, variables y tope de fase dentro del tope tota
   assert.equal(r.art, 5 * 60 * 1000);
   assert.equal(r.revise, 6 * 60 * 1000);
   assert.equal(r.rounds, 2);
-  assert.equal(r.passes, 1);
+  assert.equal(r.passes, 0);
   assert.equal(r.repairs, 1);
   assert.equal(r.shots, 3);
   assert.equal(r.compares, 1);

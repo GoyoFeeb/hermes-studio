@@ -23,7 +23,7 @@ export interface JobBudget {
   };
   /** Rondas de corrección de Studio (móvil, enlaces, etc.). */
   fixRounds: number;
-  /** Pasadas de mejora después de la primera nota visual. 0 = solo puntuar. */
+  /** Pasadas de gusto después de la nota y los defectos. 0 (defecto) no reescribe ni compara. */
   artRevisePasses: number;
   /** Reintentos de parseo de la nota o la comparación (cada uno es otro turno). */
   artRepairRetries: number;
@@ -61,7 +61,7 @@ export function jobBudgetFromEnv(env: NodeJS.ProcessEnv = process.env): JobBudge
       check: intEnv(env, 'HERMES_PHASE_CHECK_MIN', 2, 1, 10) * MIN,
     },
     fixRounds: intEnv(env, 'HERMES_FIX_ROUNDS', 2, 0, 4),
-    artRevisePasses: intEnv(env, 'HERMES_ART_REVISE_PASSES', 1, 0, 2),
+    artRevisePasses: intEnv(env, 'HERMES_ART_REVISE_PASSES', 0, 0, 2),
     artRepairRetries: intEnv(env, 'HERMES_ART_REPAIR_RETRIES', 1, 0, 2),
     artScreenshots: intEnv(env, 'HERMES_ART_SCREENSHOTS', 3, 1, 8),
     artCompares: intEnv(env, 'HERMES_ART_COMPARES', 1, 0, 2),

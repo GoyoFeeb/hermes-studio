@@ -67,6 +67,10 @@ import {
   pendingThumbnails,
   sanitizeQuality,
   sanitizeTimings,
+  sanitizeJobCost,
+  costJobSummary,
+  wantsCostFields,
+  priorUsageOf,
   sanitizeArtReview,
   pendingArtReviews,
   needsBrief,
@@ -399,6 +403,7 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), a
     artReview: !!job.input.artReview,
     // La petición del equipo (2026-10-05): el worker comprueba que el brief y la pieza recogen lo que pide.
     ...(job.input.instruction ? { request: job.input.instruction } : {}),
+    ...(priorUsageOf(job) ? { priorUsage: priorUsageOf(job) } : {}),
     // Instrucción básica: el worker ejecuta primero briefPrompt y luego pide el encargo final
     // a /brief. Con prompt pegado, el encargo va directamente.
     ...(job.input.revisionOf
@@ -435,6 +440,7 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
   const missingTerms = job.input.instruction ? missingInBrief(job.input.instruction, brief) : [];
   const briefMissing = missingTerms.map((t) => t.label);
   if (missingTerms.length) hermesLog(job.id, `Ojo: la petición pide ${joinLabels(missingTerms)} y el brief no lo recoge.`, 'error');
+  const cost = sanitizeJobCost(req.body) || {};
   if (job.input.reviewBrief && req.body?.canPause === true) {
     updateJob(job.id, {
       briefMissing,
@@ -442,6 +448,7 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
       currentPhase: null,
       briefReadyAt: new Date().toISOString(),
       input: { ...job.input, briefText: brief.slice(0, 200000) },
+      ...cost,
     });
     hermesLog(job.id, 'Brief creativo listo: revísalo y apruébalo para que Hermes haga la newsletter.', 'success');
     res.json({ pause: true });
@@ -452,6 +459,7 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
     briefMissing,
     ...openBrief(req.body?.canRestart === true),
     input: { ...job.input, briefText: brief.slice(0, 200000) },
+    ...cost,
   });
   hermesLog(job.id, 'Brief creativo listo: Hermes empieza la newsletter. Puedes leerlo y corregirlo mientras trabaja.', 'success');
   res.json({ prompt: buildHermesPrompt(updated) });
@@ -502,10 +510,12 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality), req.body.thumbnail, sanitizeTimings(req.body.timings), req.body.thumbnailLong);
     // Notas de la revisión de dirección de arte (2026-10-06, punto 7): para ver por marca y fecha si la calidad sube.
     const artReview = sanitizeArtReview(req.body.artReview);
-    if (artReview) updateJob(job.id, { artReview });
+    const cost = sanitizeJobCost(req.body);
+    if (artReview || cost) updateJob(job.id, { ...(artReview ? { artReview } : {}), ...(cost || {}) });
     res.json({ ok: true });
   } catch (err) {
-    updateJob(job.id, { status: 'failed', error: (err as Error).message });
+    const cost = sanitizeJobCost(req.body);
+    updateJob(job.id, { status: 'failed', error: (err as Error).message, finishedAt: job.finishedAt || new Date().toISOString(), ...(cost || {}) });
     res.status(500).json({ error: (err as Error).message });
   }
 });
@@ -524,7 +534,8 @@ app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256k
   const error = clipWorkerError(String(req.body?.error || 'Hermes no pudo terminar la newsletter.'));
   hermesLog(job.id, error, 'error');
   const timings = sanitizeTimings(req.body?.timings);
-  updateJob(job.id, { status: 'failed', error, ...(timings ? { timings } : {}) });
+  const cost = sanitizeJobCost(req.body);
+  updateJob(job.id, { status: 'failed', error, finishedAt: job.finishedAt || new Date().toISOString(), ...(timings ? { timings } : {}), ...(cost || {}) });
   res.json({ ok: true });
 });
 
@@ -1013,12 +1024,16 @@ app.get('/api/status', (_req: Request, res: Response) => {
 /** Trabajos (versiones incluidas) que manda el historial. */
 const HISTORY_LIMIT = 2000;
 /** Historial ligero para la página principal (sin el prompt completo de cada trabajo). */
-app.get('/api/jobs', (_req: Request, res: Response) => {
+app.get('/api/jobs', (req: Request, res: Response) => {
   sweepStaleHermesJobs();
+  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
+  if (wantsCostFields(req.query.fields)) {
+    res.json({ jobs: standalone.map(costJobSummary) });
+    return;
+  }
   const logos = brandLogoIndex();
   // Antes, .slice(0, 200): con cada versión contando como un trabajo, las newsletters antiguas desaparecían del
   // historial sin aviso (2026-10-05). Ahora el tope es mucho más alto y, si se alcanza, la web lo dice.
-  const standalone = listJobs().filter((j) => j.input.mode === 'standalone');
   const jobs = standalone
     .slice(0, HISTORY_LIMIT)
     .map((j) => ({

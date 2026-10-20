@@ -15,6 +15,12 @@
  * en config.yaml ni en el log. `HERMES_PROVIDER=nous-api` es un alias de
  * `custom:nous-api`. `nous` sigue siendo el login OAuth. Si el volumen ya
  * tiene `auth.json`, no se toca esa sesión.
+ *
+ * `HERMES_PROVIDER=anthropic` es el proveedor nativo de Hermes Agent v0.22.2.
+ * La clave es `ANTHROPIC_API_KEY` del entorno del proceso: no se copia a
+ * config.yaml ni a `.env`. El modelo llega por `HERMES_INFERENCE_MODEL`
+ * (p. ej. `claude-sonnet-5-5`). Los `HERMES_MODEL_*` de cada fase siguen
+ * yendo en `--model` del turno.
  */
 import { spawnSync, type SpawnSyncOptions, type SpawnSyncReturns } from 'child_process';
 import * as fs from 'fs';
@@ -26,6 +32,8 @@ export const DEFAULT_NOUS_MODEL = 'deepseek/deepseek-v4-flash';
 export const NOUS_INFERENCE_BASE = 'https://inference-api.nousresearch.com/v1';
 /** Id que acepta el CLI instalado (proveedor custom, no el OAuth `nous`). */
 export const NOUS_API_PROVIDER = 'custom:nous-api';
+/** Proveedor nativo de Hermes Agent v0.22.2. La clave no se escribe en el yaml. */
+export const ANTHROPIC_PROVIDER = 'anthropic';
 const NOUS_API_KEY_NAME = 'nous-api';
 
 const PROVIDER_RE = /^(?:[a-z0-9][a-z0-9._-]{0,40}|custom:[a-z0-9][a-z0-9._-]{0,40})$/;
@@ -61,6 +69,33 @@ function usesNousEndpoint(provider: string): boolean {
   return provider === 'nous' || provider === NOUS_API_PROVIDER;
 }
 
+function anthropicKeyReady(env: NodeJS.ProcessEnv): boolean {
+  const key = (env.ANTHROPIC_API_KEY || '').trim();
+  return !!key && !/[\r\n]/.test(key);
+}
+
+/**
+ * `--provider` del turno, si el CLI lo anuncia. `nous-api` sale como `custom:nous-api`.
+ * `anthropic` sale tal cual: es el id nativo.
+ */
+export function providerArgs(provider: string, supportsFlag = true): string[] {
+  const target = canonicalProvider(provider);
+  if (!target || !supportsFlag) return [];
+  return ['--provider', target];
+}
+
+/** `--model` de la fase y `--provider` del trabajo, en ese orden. */
+export function turnModelAndProviderArgs(
+  model: string | undefined,
+  provider: string,
+  flags: { model?: string | null; provider?: boolean }
+): string[] {
+  const out: string[] = [];
+  if (model && flags.model) out.push(flags.model, model);
+  if (flags.provider) out.push(...providerArgs(provider, true));
+  return out;
+}
+
 /** auth.json con una sesión. Vacío o `{}` no cuenta: no es el login del Mac. */
 export function hermesVolumeHasAuth(dir: string): boolean {
   if (!dir) return false;
@@ -84,14 +119,16 @@ export function cloudHermesSettings(env: NodeJS.ProcessEnv, opts: { hasAuth: boo
   const nousModel = explicitModel || DEFAULT_NOUS_MODEL;
   if (explicitProvider) {
     const nous = usesNousEndpoint(explicitProvider);
+    const anthropic = explicitProvider === ANTHROPIC_PROVIDER;
     const model = explicitModel || (nous ? DEFAULT_NOUS_MODEL : '');
     const alias = rawProvider !== explicitProvider ? `=${rawProvider}` : '';
+    const keyNote = anthropic && !anthropicKeyReady(env) ? ', falta ANTHROPIC_API_KEY' : '';
     return {
       provider: explicitProvider,
       model,
       writeNousKey: hasKey && nous,
       force: true,
-      log: `proveedor ${explicitProvider}${model ? `, modelo ${model}` : ''} (HERMES_PROVIDER${alias})`,
+      log: `proveedor ${explicitProvider}${model ? `, modelo ${model}` : ''}${keyNote} (HERMES_PROVIDER${alias})`,
     };
   }
   if (opts.hasAuth) {
@@ -140,6 +177,7 @@ export function renderCloudConfig(provider: string, model: string): string {
   const lines = ['# Generado por el worker de Hermes Studio. No está en git.', 'model:'];
   lines.push(`  provider: ${JSON.stringify(target)}`);
   if (model) lines.push(`  default: ${JSON.stringify(model)}`);
+  // anthropic no lleva base_url ni bloque providers: Hermes lee ANTHROPIC_API_KEY del entorno.
   if (usesNousEndpoint(target)) lines.push(`  base_url: ${JSON.stringify(NOUS_INFERENCE_BASE)}`);
   lines.push('');
   if (target === NOUS_API_PROVIDER) {
@@ -172,6 +210,17 @@ function modelBlock(lines: string[]): { start: number; end: number } | null {
 
 function managedProvider(current: string, target: string): boolean {
   return current === 'auto' || current === 'nous' || current === NOUS_API_KEY_NAME || current === NOUS_API_PROVIDER || current === target;
+}
+
+function dropScalar(lines: string[], start: number, end: number, key: string): { lines: string[]; end: number } {
+  const next = lines.slice();
+  for (let i = end - 1; i > start; i--) {
+    if (new RegExp(`^[ \\t]+${key}:\\s*`).test(next[i])) {
+      next.splice(i, 1);
+      end -= 1;
+    }
+  }
+  return { lines: next, end };
 }
 
 function setScalar(lines: string[], start: number, end: number, key: string, value: string): { lines: string[]; end: number } {
@@ -296,6 +345,12 @@ export function retargetCloudConfig(existing: string, provider: string, model: s
   if (usesNousEndpoint(target)) {
     const updated = setScalar(next, block.start, end, 'base_url', NOUS_INFERENCE_BASE);
     next = updated.lines;
+    end = updated.end;
+  } else if (force) {
+    // Al pasar a anthropic (u otro nativo) no puede quedarse el base_url de Nous.
+    const dropped = dropScalar(next, block.start, end, 'base_url');
+    next = dropped.lines;
+    end = dropped.end;
   }
   let yaml = next.join('\n');
   if (target === NOUS_API_PROVIDER) yaml = ensureNousApiProvider(yaml, modelForProvider);
@@ -449,6 +504,9 @@ export function interpretHermesProviderProbe(
   }
   if (target === NOUS_API_PROVIDER && parsed.has_key !== true) {
     return { ok: false, skipped: false, log: 'proveedor no aceptado: NOUS_API_KEY no llega al proveedor custom:nous-api' };
+  }
+  if (target === ANTHROPIC_PROVIDER && parsed.has_key !== true) {
+    return { ok: false, skipped: false, log: 'proveedor no aceptado: ANTHROPIC_API_KEY no llega al proveedor anthropic' };
   }
   const mode = parsed.api_mode || 'desconocido';
   const key = parsed.has_key ? 'clave presente' : 'sin clave';

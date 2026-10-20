@@ -553,6 +553,110 @@ export function sanitizeTimings(raw: unknown): JobTimings | undefined {
   };
 }
 
+const COST_MODEL_RE = /^[A-Za-z0-9._:@/+-]{1,160}$/;
+const COST_PROVIDER_RE = /^[\w.:/+-]{1,80}$/;
+
+function costPick(raw: Record<string, unknown>, camel: string, snake: string): unknown {
+  return raw[camel] !== undefined ? raw[camel] : raw[snake];
+}
+
+function costTokens(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.min(1e15, Math.round(n));
+}
+
+function costMoney(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 1e6) / 1e6;
+}
+
+/** Tokens y coste que manda el worker. Undefined si el cuerpo no trae ninguno (worker anterior). */
+export function sanitizeJobCost(raw: unknown): Pick<Job, 'inputTokens' | 'outputTokens' | 'cacheTokens' | 'costUsd' | 'costEur' | 'model' | 'provider'> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const keys: [string, string][] = [
+    ['inputTokens', 'input_tokens'],
+    ['outputTokens', 'output_tokens'],
+    ['cacheTokens', 'cache_tokens'],
+    ['costUsd', 'cost_usd'],
+    ['costEur', 'cost_eur'],
+    ['model', 'model'],
+    ['provider', 'provider'],
+  ];
+  if (!keys.some(([camel, snake]) => r[camel] !== undefined || r[snake] !== undefined)) return undefined;
+  const modelRaw = costPick(r, 'model', 'model');
+  const providerRaw = costPick(r, 'provider', 'provider');
+  const model = typeof modelRaw === 'string' && COST_MODEL_RE.test(modelRaw.trim()) ? modelRaw.trim() : null;
+  const provider = typeof providerRaw === 'string' && COST_PROVIDER_RE.test(providerRaw.trim()) ? providerRaw.trim() : null;
+  return {
+    inputTokens: costTokens(costPick(r, 'inputTokens', 'input_tokens')),
+    outputTokens: costTokens(costPick(r, 'outputTokens', 'output_tokens')),
+    cacheTokens: costTokens(costPick(r, 'cacheTokens', 'cache_tokens')),
+    costUsd: costMoney(costPick(r, 'costUsd', 'cost_usd')),
+    costEur: costMoney(costPick(r, 'costEur', 'cost_eur')),
+    model,
+    provider,
+  };
+}
+
+/** Fila de la vista Costes. Incluye archivados: el listado no recorta el historial. */
+export function costJobSummary(job: Job): {
+  id: string;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  status: Job['status'];
+  clientName: string;
+  clientSlug: string;
+  requester: string | null;
+  durationSec: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheTokens: number | null;
+  costUsd: number | null;
+  costEur: number | null;
+  model: string | null;
+  provider: string | null;
+} {
+  return {
+    id: job.id,
+    createdAt: job.createdAt,
+    startedAt: job.startedAt || null,
+    finishedAt: job.finishedAt || null,
+    status: job.status,
+    clientName: job.input.clientName,
+    clientSlug: job.input.clientSlug,
+    requester: job.input.requesterName || null,
+    durationSec: durationSec(job),
+    inputTokens: job.inputTokens ?? null,
+    outputTokens: job.outputTokens ?? null,
+    cacheTokens: job.cacheTokens ?? null,
+    costUsd: job.costUsd ?? null,
+    costEur: job.costEur ?? null,
+    model: job.model ?? null,
+    provider: job.provider ?? null,
+  };
+}
+
+/** `?fields=cost` (también si llega repetido). El historial normal no lo pide. */
+export function wantsCostFields(fields: unknown): boolean {
+  if (fields === 'cost') return true;
+  return Array.isArray(fields) && fields.includes('cost');
+}
+
+/** Lo ya gastado, para que el siguiente proceso del mismo trabajo no lo pierda. */
+export function priorUsageOf(job: Job): { inputTokens: number; outputTokens: number; cacheTokens: number; model: string | null; provider: string | null } | undefined {
+  const inputTokens = job.inputTokens || 0;
+  const outputTokens = job.outputTokens || 0;
+  const cacheTokens = job.cacheTokens || 0;
+  if (inputTokens + outputTokens + cacheTokens <= 0) return undefined;
+  return { inputTokens, outputTokens, cacheTokens, model: job.model ?? null, provider: job.provider ?? null };
+}
+
 /** Revisión de dirección de arte que manda el worker: notas 1-5 por criterio y listas de texto cortas. */
 export function sanitizeArtReview(raw: unknown): JobArtReview | undefined {
   if (!raw || typeof raw !== 'object') return undefined;

@@ -150,3 +150,68 @@ test('la comprobación de arranque distingue un proveedor rechazado de uno acept
   assert.equal(body.missing.skipped, true);
   assert.match(body.missing.log, /omitida/);
 });
+
+test('anthropic usa el proveedor nativo, no escribe la clave y el arranque la exige', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-anthropic-'));
+  const anthropic = 'sk-ant-test-key-0123456789';
+  const nous = 'nous-test-key-0123456789';
+  try {
+    const out = tsx(
+      `const cloud = require(${JSON.stringify(path.join(__dirname, 'hermesCloudProfile.ts'))});
+       const fs = require('fs');
+       const dir = ${JSON.stringify(dir)};
+       const env = {
+         HERMES_CLOUD: '1', HERMES_PROVIDER: 'anthropic', HERMES_INFERENCE_MODEL: 'claude-sonnet-5-5',
+         ANTHROPIC_API_KEY: ${JSON.stringify(anthropic)}, NOUS_API_KEY: ${JSON.stringify(nous)},
+       };
+       const fresh = cloud.seedHermesCloudProfile(env, dir);
+       const yaml = fs.readFileSync(dir + '/config.yaml', 'utf8');
+       const missing = cloud.cloudHermesSettings({ HERMES_CLOUD: '1', HERMES_PROVIDER: 'anthropic' }, { hasAuth: false });
+       const nousYaml = 'model:\\n  provider: "custom:nous-api"\\n  default: "deepseek/deepseek-v4-flash"\\n  base_url: "https://inference-api.nousresearch.com/v1"\\n';
+       const retarget = cloud.retargetCloudConfig(nousYaml, 'anthropic', 'claude-sonnet-5-5', true);
+       const ok = cloud.interpretHermesProviderProbe(0, JSON.stringify({
+         ok: true, provider: 'anthropic', requested: 'anthropic', api_mode: 'anthropic_messages', has_key: true,
+       }), '', 'anthropic', [${JSON.stringify(anthropic)}]);
+       const nokey = cloud.interpretHermesProviderProbe(0, JSON.stringify({
+         ok: true, provider: 'anthropic', requested: 'anthropic', api_mode: 'anthropic_messages', has_key: false,
+       }), '', 'anthropic', []);
+       const nousOk = cloud.interpretHermesProviderProbe(0, JSON.stringify({
+         ok: true, provider: 'custom', requested: 'custom:nous-api',
+         base_url: 'https://inference-api.nousresearch.com/v1', api_mode: 'chat_completions', has_key: true,
+       }), '', 'custom:nous-api', []);
+       process.stdout.write(JSON.stringify({
+         fresh: fresh.log, writeNousKey: cloud.cloudHermesSettings(env, { hasAuth: false }).writeNousKey,
+         yaml, dotenv: fs.existsSync(dir + '/.env'), missing: missing.log, retarget,
+         args: cloud.providerArgs('anthropic', true),
+         nousArgs: cloud.providerArgs('nous-api', true),
+         noFlag: cloud.providerArgs('anthropic', false),
+         turn: cloud.turnModelAndProviderArgs('claude-haiku-5-5', 'anthropic', { model: '--model', provider: true }),
+         ok, nokey, nousOk: nousOk.ok,
+       }));`
+    );
+    const body = JSON.parse(out);
+    assert.match(body.yaml, /provider: "anthropic"/);
+    assert.match(body.yaml, /claude-sonnet-5-5/);
+    assert.equal(body.yaml.includes(anthropic), false);
+    assert.equal(body.yaml.includes('key_env'), false);
+    assert.equal(body.yaml.includes('base_url'), false);
+    assert.equal(body.yaml.includes('providers:'), false);
+    assert.equal(body.dotenv, false);
+    assert.equal(body.writeNousKey, false);
+    assert.equal(body.fresh.includes(anthropic), false);
+    assert.match(body.missing, /falta ANTHROPIC_API_KEY/);
+    assert.equal(body.retarget.includes('base_url'), false);
+    assert.match(body.retarget, /provider: "anthropic"/);
+    assert.match(body.retarget, /claude-sonnet-5-5/);
+    assert.deepEqual(body.args, ['--provider', 'anthropic']);
+    assert.deepEqual(body.nousArgs, ['--provider', 'custom:nous-api']);
+    assert.deepEqual(body.noFlag, []);
+    assert.deepEqual(body.turn, ['--model', 'claude-haiku-5-5', '--provider', 'anthropic']);
+    assert.equal(body.ok.ok, true);
+    assert.equal(body.nokey.ok, false);
+    assert.match(body.nokey.log, /ANTHROPIC_API_KEY/);
+    assert.equal(body.nousOk, true);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

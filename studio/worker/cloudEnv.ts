@@ -102,6 +102,7 @@ export const CLOUD_ALLOWLIST = [
   "TOOL_GATEWAY_SCHEME",
   "TOOL_GATEWAY_USER_TOKEN",
   "TZ",
+  "USD_EUR",
   "WORKER_CONCURRENCY",
   "WORKER_TOKEN",
   "XAI_API_KEY",
@@ -131,6 +132,11 @@ export function filterCloudEnv(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     if (DENY.has(key)) continue;
     const value = source[key];
     if (value !== undefined) out[key] = value;
+  }
+  // Las tarifas cambian de nombre con el modelo: pasan si cumplen el patrón, no una a una.
+  for (const key of Object.keys(source)) {
+    if (DENY.has(key)) continue;
+    if (/^HERMES_PRICE_[A-Z0-9_]+$/.test(key) && source[key] !== undefined) out[key] = source[key];
   }
   const data = source.RAILWAY_VOLUME_MOUNT_PATH || "/data";
   out.HOME = "/home/hermes";

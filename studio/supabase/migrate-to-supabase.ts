@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { loadEnv } from '../../scripts/lib/env';
 import { ROOT, STUDIO_DIR, DATA_DIR, JOBS_DIR, BRANDS_DIR, NEWSLETTERS_DIR } from '../server/paths';
-import { supabase } from '../server/supabase';
+import { jobBackupRow, supabase } from '../server/supabase';
 import type { Bucket } from '../server/supabase';
 import { contentTypeOf, storageTarget } from '../server/mirror';
 import type { Job, JobEvent } from '../server/store';
@@ -75,10 +75,7 @@ function diskEvents(id: string): JobEvent[] {
 }
 
 function jobRow(j: Job) {
-  return {
-    id: j.id, created_at: j.createdAt, updated_at: j.updatedAt, status: j.status, client_slug: j.input.clientSlug,
-    requester: j.input.requesterName ?? null, archived_at: j.archivedAt ?? null, data: j,
-  };
+  return jobBackupRow(j);
 }
 
 async function eventCount(id: string): Promise<number> {
