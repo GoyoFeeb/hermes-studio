@@ -969,3 +969,41 @@ test('el aviso de fin usa la nota inicial y la final cuando hay iteraciones', ()
     'Tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd · duración 3:05 · nota visual 40/50 → 48/50 (2 pasadas). Siguen por debajo del máximo: concepto, originalidad\nVista previa A: https://hermes-studio-beta.vercel.app/api/jobs/m1h2k3-abcd/result'
   );
 });
+
+test('el aviso de fin añade tiempo, tokens y euros y deja la mención delante', () => {
+  const out = run(`
+    const web = 'https://hermes-studio-beta.vercel.app';
+    const job = {
+      id: 'm1h2k3-abcd',
+      startedAt: '2026-10-20T10:00:00.000Z',
+      finishedAt: '2026-10-20T10:06:00.000Z',
+      input: { clickupTaskId: 'task123', clickupCreatorId: '183' },
+      inputTokens: 100000,
+      outputTokens: 80000,
+      cacheTokens: 2000,
+      costEur: 0.94,
+    };
+    const body = clickup.clickupEndComment(job, 'completed', web);
+    const plain = clickup.clickupCommentPlain(body);
+    const noTokens = clickup.clickupCommentPlain(clickup.clickupEndComment({
+      ...job,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheTokens: 0,
+    }, 'completed', web));
+    console.log(JSON.stringify({
+      plain,
+      tagFirst: !!(body.comment && body.comment[0].type === 'tag'),
+      noTokens,
+      compact: clickup.compactTokenCount(182000),
+      eur: clickup.formatEurCompact(0.94),
+    }));
+  `);
+  assert.equal(out.tagFirst, true);
+  assert.match(out.plain, /^ tu trabajo está listo:/);
+  assert.match(out.plain, /· 6:00 · 182k tokens · 0,94 €$/m);
+  assert.match(out.plain, /Vista previa A:/);
+  assert.doesNotMatch(out.noTokens, /tokens/);
+  assert.equal(out.compact, '182k');
+  assert.equal(out.eur, '0,94 €');
+});

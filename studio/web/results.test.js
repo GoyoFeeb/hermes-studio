@@ -124,9 +124,14 @@ test('pinta una pieza con sus datos, las notas y las dos versiones', () => {
   assert.match(html, /Siguen por debajo: Concepto, Originalidad/);
   assert.match(html, /40\/50 → 44\/50/);
   assert.match(html, /\?job=new333-cccc/);
+  assert.match(html, /Tiempo · Tokens · Coste/);
+  assert.match(html, /sin datos/);
   assert.match(R.render({ total: 0, offset: 0, items: [] }), /Aún no hay piezas terminadas/);
   const file = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  assert.match(file, /id="usage-card"/);
+  assert.match(file, /usageCard\.js/);
+  assert.match(app, /renderUsageCard/);
   assert.match(file, /id="view-results"/);
   assert.match(file, />Anterior</);
   assert.match(file, />Siguiente</);

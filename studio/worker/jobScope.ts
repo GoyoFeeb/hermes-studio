@@ -16,6 +16,10 @@ export interface JobScope {
   pendingBrief: { prompt: string; brief: string } | null;
   inDraft: boolean;
   home: string | null;
+  /** Paso al que se atribuye el turno en curso. Si falta, se usa la fase de la línea de tiempo. */
+  usageStep: string | null;
+  /** Prefijo del paso (`b-` en la versión B) para no mezclarlo con el de Hermes. */
+  usagePrefix: string | null;
 }
 
 const als = new AsyncLocalStorage<JobScope>();
@@ -28,6 +32,8 @@ const root: JobScope = {
   pendingBrief: null,
   inDraft: false,
   home: null,
+  usageStep: null,
+  usagePrefix: null,
 };
 const active = new Set<JobScope>();
 
@@ -45,6 +51,8 @@ export function newScope(home: string | null): JobScope {
     pendingBrief: null,
     inDraft: false,
     home,
+    usageStep: null,
+    usagePrefix: null,
   };
 }
 

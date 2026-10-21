@@ -746,18 +746,31 @@ function hermesTrace(turn: { output: string; stderr: string }): string {
 const RULES_ARGS = process.env.HERMES_KEEP_RULES === '1' ? [] : ['--ignore-rules'];
 
 /** Suma el uso de la sesión al libro de este hueco. Un export fallido no tumba el turno. */
-async function recordTurnUsage(slot: JobScope, sessionId: string | null, model?: string): Promise<void> {
+async function recordTurnUsage(slot: JobScope, sessionId: string | null, model: string | undefined, durationSec: number): Promise<void> {
   const ledger = usageByScope.get(slot);
   if (!ledger || !sessionId) return;
+  const phase = `${slot.usagePrefix || ''}${slot.usageStep || timelineByScope.get(slot)?.currentId() || 'otro'}`;
   try {
     const session = await exportSession(sessionId);
-    ledger.note(sessionId, session, timelineByScope.get(slot)?.currentId() || 'otro', model || primaryModel(), primaryProvider());
+    ledger.note(sessionId, session, phase, model || primaryModel(), primaryProvider(), durationSec);
   } catch (err) {
     console.log(`[${stamp()}] No se pudo leer el uso de la sesión ${sessionId}: ${(err as Error).message.slice(0, 200)}`);
   }
 }
 
-/** Cuerpo de /complete, /fail y /brief: tokens, coste, modelo y proveedor de este hueco. */
+/** El turno que sigue se anota en este paso (nota, mejora 2, defectos…). Al salir vuelve el anterior. */
+async function withUsageStep<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const slot = scope();
+  const prev = slot.usageStep;
+  slot.usageStep = id;
+  try {
+    return await fn();
+  } finally {
+    slot.usageStep = prev;
+  }
+}
+
+/** Cuerpo de /complete, /fail y /brief: tokens, coste, modelo, proveedor y el desglose por paso. */
 function usageBody(slot: JobScope = scope()): Record<string, unknown> {
   const ledger = usageByScope.get(slot);
   if (!ledger) return {};
@@ -765,12 +778,28 @@ function usageBody(slot: JobScope = scope()): Record<string, unknown> {
   return {
     inputTokens: report.inputTokens,
     outputTokens: report.outputTokens,
+    cacheReadTokens: report.cacheReadTokens,
+    cacheWriteTokens: report.cacheWriteTokens,
     cacheTokens: report.cacheTokens,
     costUsd: report.costUsd,
     costEur: report.costEur,
     model: report.model,
     provider: report.provider,
+    ...(report.phases.length ? { usageSteps: report.phases } : {}),
   };
+}
+
+/** Libro de un hueco de mantenimiento (nota atrasada o versión B). Al salir no se queda colgado. */
+async function withUsageLedger<T>(fn: () => Promise<T>): Promise<T> {
+  const slot = scope();
+  usageByScope.set(slot, new UsageLedger({ model: primaryModel(), provider: primaryProvider() }));
+  try {
+    return await fn();
+  } finally {
+    usageByScope.delete(slot);
+    slot.usageStep = null;
+    slot.usagePrefix = null;
+  }
 }
 
 /** Un turno de Hermes: `hermes chat -q` (no interactivo, aprueba solo los comandos) — a
@@ -786,6 +815,7 @@ function runHermesTurn(
   if (scope().loopStopped) return Promise.resolve({ code: null, output: '', stderr: `Hermes se quedó en bucle: ${scope().loopStopped}.` });
   const cloud = cloudTurn(model);
   const args = ['chat', '-q', query, '-Q', '--yolo', ...RULES_ARGS, ...(resumeId ? ['--resume', resumeId] : []), ...modelArgs(model), ...cloud.args, ...extraArgs];
+  const started = Date.now();
   const child = spawn(HERMES_BIN, args, { cwd: ROOT, env: cloud.env, stdio: ['ignore', 'pipe', 'pipe'] });
   scope().child = child;
   let stdout = '';
@@ -801,7 +831,7 @@ function runHermesTurn(
     const finish = (code: number | null, output: string, stderrText: string): void => {
       slot.child = null;
       const seen = stdout.match(/session_id:\s*(\S+)/);
-      void recordTurnUsage(slot, seen?.[1] || resumeId, model).finally(() => {
+      void recordTurnUsage(slot, seen?.[1] || resumeId, model, (Date.now() - started) / 1000).finally(() => {
         resolve({ code, output, stderr: stderrText });
       });
     };
@@ -963,8 +993,21 @@ interface ClaimedJob {
     inputTokens?: number;
     outputTokens?: number;
     cacheTokens?: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
     model?: string | null;
     provider?: string | null;
+    steps?: {
+      id: string;
+      model?: string | null;
+      provider?: string | null;
+      inputTokens?: number;
+      outputTokens?: number;
+      cacheReadTokens?: number;
+      cacheWriteTokens?: number;
+      cacheTokens?: number;
+      durationSec?: number;
+    }[];
   };
 }
 
@@ -1741,15 +1784,17 @@ export async function compareOnce(
   const criteria = Object.keys(ART_CRITERIA);
   const cap = Math.max(1000, opts?.capMs ?? ART_SCORE_CAP_MS);
   const retries = opts?.repairRetries ?? 1;
-  const look = await cappedTurn(cap, jobId, 'comparación de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
-  const secrets = secretValues(process.env);
-  const parsed = await parseWithOneRepair(look.output, (output) => parseArtCompare(output, criteria), (bad) => artCompareRepairPrompt(bad, criteria, secrets), async (prompt) => {
-    if (retries < 1) return '';
-    const again = await cappedTurn(cap, jobId, 'comparación de arte (reintento)', () => runHermesTurn(prompt, null, () => undefined, MODELS.art));
-    return again.output;
+  return withUsageStep('comparacion', async () => {
+    const look = await cappedTurn(cap, jobId, 'comparación de arte', () => runHermesTurn(query, null, () => undefined, MODELS.art));
+    const secrets = secretValues(process.env);
+    const parsed = await parseWithOneRepair(look.output, (output) => parseArtCompare(output, criteria), (bad) => artCompareRepairPrompt(bad, criteria, secrets), async (repairPrompt) => {
+      if (retries < 1) return '';
+      const again = await cappedTurn(cap, jobId, 'comparación de arte (reintento)', () => runHermesTurn(repairPrompt, null, () => undefined, MODELS.art));
+      return again.output;
+    });
+    parsed.unparsed.forEach((bad, index) => logUnparseable(jobId, index === 0 ? 'comparación de arte' : 'comparación de arte (reintento)', bad));
+    return parsed.value ? { cmp: parsed.value, afterIs, output: parsed.output } : null;
   });
-  parsed.unparsed.forEach((bad, index) => logUnparseable(jobId, index === 0 ? 'comparación de arte' : 'comparación de arte (reintento)', bad));
-  return parsed.value ? { cmp: parsed.value, afterIs, output: parsed.output } : null;
 }
 
 /** Sin las dos comparaciones legibles: las dos notas, como antes, pero diciendo el motivo de verdad (el 08-16-10 el registro ponía
@@ -1899,6 +1944,7 @@ async function applyScoreImprove(opts: {
   let passSnap: WorkSnapshot | null = null;
   let pendingReview: ArtReview | null = null;
   let pendingQuality: QualityReport | null = null;
+  let scorePass = 1;
   let bestReview = opts.bestReview || opts.openingReview;
   let bestQuality = quality;
   const record = await runImproveLoop({
@@ -1924,25 +1970,30 @@ async function applyScoreImprove(opts: {
         checkCmd: opts.checkCmd,
       }),
     revise: async (prompt, pass) => {
+      scorePass = pass;
       passSnap = snapshotWork(opts.htmlPath, opts.notesPath, path.join(opts.workDir, `antes-mejora-${pass}.html`));
       const left = Math.min(IMPROVE_REVISE_CAP_MS, opts.timeLeftMs() - 90_000);
       if (left < 1000) return '';
-      const turn = await cappedTurn(left, opts.jobId, `mejora ${pass}`, () => runHermesTurn(prompt, null, () => undefined, MODELS.art));
+      const turn = await withUsageStep(`mejora-${pass}`, () =>
+        cappedTurn(left, opts.jobId, `mejora ${pass}`, () => runHermesTurn(prompt, null, () => undefined, MODELS.art))
+      );
       return turn.output;
     },
     rescore: async () => {
-      const scored = await scoreNewsletterFile({
-        jobId: opts.jobId,
-        htmlPath: opts.htmlPath,
-        workDir: opts.workDir,
-        brandSlug: opts.brandSlug,
-        prompt: opts.prompt,
-        request: opts.request,
-        web: opts.web,
-        timeLeftMs: opts.timeLeftMs,
-        repairRetries: opts.repairRetries,
-        design: opts.design,
-      });
+      const scored = await withUsageStep(`nota-mejora-${scorePass}`, () =>
+        scoreNewsletterFile({
+          jobId: opts.jobId,
+          htmlPath: opts.htmlPath,
+          workDir: opts.workDir,
+          brandSlug: opts.brandSlug,
+          prompt: opts.prompt,
+          request: opts.request,
+          web: opts.web,
+          timeLeftMs: opts.timeLeftMs,
+          repairRetries: opts.repairRetries,
+          design: opts.design,
+        })
+      );
       pendingReview = scored.review;
       pendingQuality = scored.quality;
       return snapFromReview(scored.review, scored.quality);
@@ -1992,8 +2043,11 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       input: claimed.priorUsage.inputTokens,
       output: claimed.priorUsage.outputTokens,
       cache: claimed.priorUsage.cacheTokens,
+      cacheRead: claimed.priorUsage.cacheReadTokens,
+      cacheWrite: claimed.priorUsage.cacheWriteTokens,
       model: claimed.priorUsage.model,
       provider: claimed.priorUsage.provider,
+      steps: claimed.priorUsage.steps,
     });
   }
   const fail = async (error: string): Promise<void> => {
@@ -2465,7 +2519,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         const query = artReviewQuery(claimed.request, job.prompt, html, s2.sheet, await imageSize(s2.sheet), web, copyFindings(html).found, s2.desktop, await factsOf(finalPath));
         return readArtReview(job.id, 'revisión visual', query, artOpts());
       };
-      const first = await reviewOnce(sheet);
+      const first = await withUsageStep('nota', () => reviewOnce(sheet));
       const review = first.review;
       let scoreNow = review;
       const low = review ? lowScores(review) : [];
@@ -2497,8 +2551,10 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           await progressMessage(`Revisión de dirección de arte: ${defects.length} defecto(s) claro(s) — Hermes los arregla primero.`);
           watchNewSession();
           const reviseLeft = (): number => Math.max(1000, Math.min(ART_DEFECT_CAP_MS, clock.phaseMs('artRevise'), clock.remainingMs()));
-          await cappedTurn(reviseLeft(), job.id, 'arreglo de defectos', () =>
-            runHermesTurn(defectFixQuery(job.outputDir, claimed.brand?.name || slug, rel, defects), null, () => undefined, MODELS.art)
+          await withUsageStep('defectos', () =>
+            cappedTurn(reviseLeft(), job.id, 'arreglo de defectos', () =>
+              runHermesTurn(defectFixQuery(job.outputDir, claimed.brand?.name || slug, rel, defects), null, () => undefined, MODELS.art)
+            )
           );
           if (scope().cancelled) return finishCancelled();
           const fixedChanged = fs.readFileSync(backup, 'utf8') !== fs.readFileSync(finalPath, 'utf8');
@@ -2535,7 +2591,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
               : `Revisión de dirección de arte: ${review.mejoras.length} mejora(s) para subir de 4 a 5 — Hermes las aplica.`
           );
           watchNewSession();
-          await cappedTurn(Math.max(1000, Math.min(ART_IMPROVE_CAP_MS, clock.phaseMs('artRevise'), clock.remainingMs())), job.id, 'mejora de arte', () => runHermesTurn(
+          await withUsageStep('gusto', () => cappedTurn(Math.max(1000, Math.min(ART_IMPROVE_CAP_MS, clock.phaseMs('artRevise'), clock.remainingMs())), job.id, 'mejora de arte', () => runHermesTurn(
             [
               `Revisión de dirección de arte de la newsletter ${job.outputDir}/newsletter.html (${claimed.brand?.name || slug}).`,
               `Hoja con la pieza a 600 px, 375 px y en oscuro: ${rel}/render-hoja.jpg.${web ? ` Portada de la web de la marca: ${rel}/web-marca.jpg.` : ''} Encargo: ${rel}/encargo.md (solo si lo necesitas).`,
@@ -2567,7 +2623,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             null,
             () => undefined,
             MODELS.art
-          ));
+          )));
           if (scope().cancelled) return finishCancelled();
           // La mejora se decide COMPARANDO (2026-10-16), dos veces y con el orden cambiado: se queda solo si las dos
           // comparaciones la prefieren. Con UNA comparación el veredicto dependía del lado en el que iba cada versión en 8
@@ -2839,7 +2895,9 @@ async function backfillThumbnails(): Promise<void> {
 }
 
 /** Versión B con errores de QC (2026-10-21): con el worker libre, Studio da UNA pieza y aquí se reescribe
- *  con el mismo bucle que la de Hermes. Si llega un trabajo a medias, no se publica: la reserva vence y otro hueco la retoma. */
+ *  con el mismo bucle que la de Hermes. El QC medido (qualityCheck) no llama al modelo; la nota visual y
+ *  cada pasada sí. Esos tokens van con prefijo `b-` y se suman al trabajo. Si llega un trabajo a medias,
+ *  no se publica: la reserva vence y otro hueco la retoma. */
 let channelBIdleUntil = 0;
 
 async function backfillChannelBImproves(): Promise<void> {
@@ -2871,7 +2929,9 @@ async function backfillChannelBImproves(): Promise<void> {
     const alive = (): boolean => maintenanceOpen() && timeLeftMs() > 0;
     const passes = jobBudgetFromEnv().artRepairRetries;
     try {
-      const scored = await scoreNewsletterFile({
+      await withUsageLedger(async () => {
+      scope().usagePrefix = 'b-';
+      const scored = await withUsageStep('nota', () => scoreNewsletterFile({
         jobId: j.id,
         htmlPath,
         workDir,
@@ -2882,7 +2942,7 @@ async function backfillChannelBImproves(): Promise<void> {
         timeLeftMs,
         repairRetries: passes,
         design: false,
-      });
+      }));
       if (!maintenanceOpen()) {
         console.log(`[${stamp()}] ${j.id} (B): mejora interrumpida antes de reescribir, no se publica`);
         return;
@@ -2914,11 +2974,15 @@ async function backfillChannelBImproves(): Promise<void> {
         return;
       }
       if (!improved) {
+        const usage = usageBody();
+        if (usage.inputTokens || usage.outputTokens || usage.cacheTokens) {
+          await api(`/api/worker/jobs/${j.id}/channel-b/improve`, { usageOnly: true, ...usage }, 2).catch(() => undefined);
+        }
         console.log(`[${stamp()}] ${j.id} (B): sin pasada que guardar (se reintentará cuando venza la reserva)`);
         return;
       }
       const html = fs.readFileSync(htmlPath, 'utf8');
-      const posted = await api(`/api/worker/jobs/${j.id}/channel-b/improve`, { html, improve: improved.record }, 3);
+      const posted = await api(`/api/worker/jobs/${j.id}/channel-b/improve`, { html, improve: improved.record, ...usageBody() }, 3);
       if (!posted.ok) {
         console.log(`[${stamp()}] ${j.id} (B): Studio no guardó la mejora (${posted.status})`);
         return;
@@ -2927,6 +2991,7 @@ async function backfillChannelBImproves(): Promise<void> {
       console.log(
         `[${stamp()}] ${j.id} (B): ${rec.initial.total}/${rec.initial.max} → ${rec.final.total}/${rec.final.max} en ${rec.passes.length} pasada(s)`
       );
+      });
     } catch (err) {
       console.log(`[${stamp()}] ${j.id} (B): la mejora se cortó — ${(err as Error).message.slice(0, 200)}`);
     } finally {
@@ -2962,6 +3027,7 @@ async function backfillArtReviews(): Promise<void> {
       fs.writeFileSync(htmlPath, j.html);
     }
     try {
+      await withUsageLedger(async () => {
       const html = fs.readFileSync(htmlPath, 'utf8');
       const sheet = await renderSheet(htmlPath, workDir);
       const home = readMeasuredIdentity(ROOT, j.slug)?.url || brandHome(j.prompt.split('## Instrucciones de entrega')[0], j.slug);
@@ -2969,15 +3035,16 @@ async function backfillArtReviews(): Promise<void> {
       const web = webFile ? { path: webFile, size: await imageSize(webFile) } : null;
       const facts = judgeFacts(await renderChecks(htmlPath, ROOT, brandPalette(ROOT, j.slug)).catch(() => null));
       const query = artReviewQuery(j.request || undefined, j.prompt, html, sheet.sheet, await imageSize(sheet.sheet), web, copyFindings(html).found, sheet.desktop, facts);
-      const review = (await readArtReview(j.id, 'nota de calidad', query)).review;
+      const review = (await withUsageStep('nota', () => readArtReview(j.id, 'nota de calidad', query))).review;
       // Si llegó un trabajo a medias, no se marca la nota como fallida: se retoma en el siguiente hueco libre.
       if (!review && !maintenanceOpen()) return;
       await api(
         `/api/worker/jobs/${j.id}/art-review`,
-        review ? { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras } : { failed: true },
+        { ...(review ? { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras } : { failed: true }), ...usageBody() },
         2
       ).catch(() => undefined);
       console.log(`[${stamp()}] Nota de calidad de ${j.id} (puntuada después): ${review ? `${scoreTotal(review)}/${Object.keys(review.notas).length * 5}` : 'sin notas legibles'}`);
+      });
     } finally {
       fs.rmSync(workDir, { recursive: true, force: true });
     }

@@ -82,9 +82,13 @@ Nombres en `env.example`. Valores solo en Railway, en el servicio `hermes-worker
   este bucle la sustituye. Déjalo en 0. Con 1 correrían las dos y el trabajo se alarga.
   Cada pasada cabe en el tiempo que le quede al trabajo (`HERMES_JOB_TIMEOUT_MIN`, 20). Si el
   borrador se come el tope, puede no entrar ninguna pasada: sube ese tope si quieres las 3.
-- `USD_EUR` — opcional. Cambio para el coste en euros (por defecto `0.86`).
-- `HERMES_PRICE_<PROVEEDOR>_<MODELO>` — opcional. Tres números `entrada,salida,cache` en USD por
-  millón de tokens. El nombre no va en la lista blanca fija: el entrypoint deja pasar el patrón.
+- `HERMES_USD_EUR` — opcional. Euros por dólar (por defecto `0.92`). Si no está, se usa `USD_EUR`.
+- `HERMES_PRICE_TABLE` — opcional. JSON que pisa `studio/worker/price-table.json`. Misma forma:
+  `{"models":{"anthropic::claude-sonnet-5-5":{"input":2,"output":10,"cacheRead":0.1,"cacheWrite":2.5,"cacheWrite1h":4}}}`.
+  USD por millón de tokens. El nombre sigue el patrón `HERMES_PRICE_*` y el entrypoint lo deja pasar.
+- `HERMES_PRICE_<PROVEEDOR>_<MODELO>` — opcional. Tres números `entrada,salida,cache` (la misma tarifa
+  para lectura y escritura) o cuatro `entrada,salida,lectura,escritura` y, si hay quinta, la escritura
+  de caché de 1 h. USD por millón de tokens. Pisan la tabla. El nombre no va en la lista blanca fija.
 - En `hermes-studio`, `STUDIO_WORKER_SLOTS` (defecto 2) es la capacidad de la cola cuando ningún
   worker ha mandado latido. No hace falta tocarla si el worker latea.
 

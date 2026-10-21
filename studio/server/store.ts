@@ -16,6 +16,22 @@ import type { JobReportShare } from './report';
 /** 'review' (2026-10-01): Hermes escribió el brief y espera a que el equipo lo apruebe (`reviewBrief`). */
 export type JobStatus = 'queued' | 'running' | 'review' | 'blocked' | 'failed' | 'completed' | 'cancelled';
 
+/** Un paso del trabajo que llamó al modelo (brief, generación, nota, mejora…). */
+export interface JobUsageStep {
+  id: string;
+  label: string;
+  model: string | null;
+  provider: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  cacheTokens: number;
+  costUsd: number | null;
+  costEur: number | null;
+  durationSec: number;
+}
+
 export interface JobInput {
   clientSlug: string;
   clientName: string;
@@ -111,15 +127,20 @@ export interface Job {
   startedAt?: string;
   finishedAt?: string;
   /** Tokens y coste (2026-10-20). El worker los manda al terminar, fallar o pausar el brief.
-   *  Sin definir en los trabajos anteriores. El coste es null si el modelo no tiene tarifa. */
+   *  Sin definir en los trabajos anteriores. El coste es null si el modelo no tiene tarifa.
+   *  `cacheTokens` es lectura + escritura, o el total si el proveedor no las separa.
+   *  `usageSteps` es el desglose por paso (2026-10-21). Viaja en el JSON del trabajo; no hay columnas nuevas. */
   inputTokens?: number | null;
   outputTokens?: number | null;
   cacheTokens?: number | null;
+  cacheReadTokens?: number | null;
+  cacheWriteTokens?: number | null;
   costUsd?: number | null;
   costEur?: number | null;
   /** Modelo y proveedor con los que corrió. */
   model?: string | null;
   provider?: string | null;
+  usageSteps?: JobUsageStep[];
   /** Brief a revisar (2026-10-05, Paredes: «lleva como una hora» con 13 min esperando la aprobación): cuándo quedó
    *  listo y cuánto esperó hasta que Hermes volvió a recogerlo. Esa espera no es trabajo de Hermes: la página la
    *  enseña aparte y no entra en «tardó». */

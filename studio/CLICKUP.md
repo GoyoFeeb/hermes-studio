@@ -90,8 +90,14 @@ un espacio. ClickUp pinta ese array en el orden enviado y escribe el nombre en e
 que la mención queda delante y avisa a esa persona. Un `text` dentro del tag se concatena al final de
 `comment_text` y reordenar los bloques no lo mueve. El enlace
 va sin ángulos. El texto, en español, es
-`@Nombre tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=<id> · duración M:SS · nota visual X/50`
-y, en líneas siguientes, `Vista previa A: https://hermes-studio-beta.vercel.app/api/jobs/<id>/result`
+`@Nombre tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=<id> · duración M:SS · nota visual X/50 · M:SS · 182k tokens · 0,94 €`
+
+La cola `· M:SS · 182k tokens · 0,94 €` solo entra si el trabajo tiene tokens. Sin ellos, el aviso
+queda como antes. La mención sigue la primera. El euro sale de `HERMES_USD_EUR` (defecto 0,92) y de
+`studio/worker/price-table.json` (Anthropic Sonnet 5.5: 2 / 10 / lectura 0,10 / escritura 5 min 2,50 /
+escritura 1 h 4 USD por millón). `HERMES_PRICE_TABLE` pisa esa tabla. Esas variables tienen que estar
+en `hermes-studio` (el brief) y en `hermes-worker` (el resto de llamadas).
+En líneas siguientes, `Vista previa A: https://hermes-studio-beta.vercel.app/api/jobs/<id>/result`
 y, si el trabajo tiene versión B, `Vista previa B: …/api/jobs/<id>/channel-b`
 (la duración y la nota solo si existen; la nota es la suma de los criterios, sobre 50). Si hubo
 pasadas de mejora, la nota dice la inicial, la final y cuántas fueron:
