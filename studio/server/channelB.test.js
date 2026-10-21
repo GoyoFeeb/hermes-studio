@@ -13,7 +13,7 @@ function run(code) {
     const channel = require(${JSON.stringify(path.join(__dirname, 'channelB.ts'))});
     const store = require(${JSON.stringify(path.join(__dirname, 'store.ts'))});
     const paths = require(${JSON.stringify(path.join(__dirname, 'paths.ts'))});
-    const { parseChannelBBody, bearerMatches, attachChannelB, readChannelBHtml, readChannelBText, ChannelBInputError } = channel;
+    const { parseChannelBBody, bearerMatches, attachChannelB, readChannelBHtml, readChannelBText, ChannelBInputError, channelBImproveDue, CHANNEL_B_IMPROVE_CLAIM_MS } = channel;
     const { createJob, getJob } = store;
     const { JOBS_DIR, ROOT } = paths;
     (async () => {
@@ -125,4 +125,32 @@ test('adjuntar B publica las imágenes, pasa el revisor y no cambia el estado de
   assert.ok(out.checks.includes('preheader'));
   assert.ok(out.checks.includes('links'));
   assert.equal(typeof out.errors, 'number');
+});
+
+test('la versión B entra en la cola de mejora solo con errores de QC y sin pasada cerrada', () => {
+  const out = run(`
+    const now = Date.parse('2026-10-21T12:00:00.000Z');
+    const withErrors = { status: 'completed', channelB: { quality: { errors: 2 } } };
+    const clean = { status: 'completed', channelB: { quality: { errors: 0 } } };
+    const closed = { status: 'completed', channelB: { quality: { errors: 3 }, improve: { closed: true } } };
+    const cancelled = { status: 'cancelled', channelB: { quality: { errors: 2 } } };
+    const claimed = { status: 'completed', channelB: { quality: { errors: 2 }, improveClaimedAt: new Date(now - 60 * 1000).toISOString() } };
+    const expired = { status: 'completed', channelB: { quality: { errors: 2 }, improveClaimedAt: new Date(now - CHANNEL_B_IMPROVE_CLAIM_MS - 1000).toISOString() } };
+    console.log(JSON.stringify({
+      due: channelBImproveDue(withErrors, now),
+      clean: channelBImproveDue(clean, now),
+      closed: channelBImproveDue(closed, now),
+      cancelled: channelBImproveDue(cancelled, now),
+      claimed: channelBImproveDue(claimed, now),
+      expired: channelBImproveDue(expired, now),
+      none: channelBImproveDue({ status: 'completed', channelB: null }, now),
+    }));
+  `);
+  assert.equal(out.due, true);
+  assert.equal(out.clean, false);
+  assert.equal(out.closed, false);
+  assert.equal(out.cancelled, false);
+  assert.equal(out.claimed, false);
+  assert.equal(out.expired, true);
+  assert.equal(out.none, false);
 });

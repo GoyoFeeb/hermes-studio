@@ -16,6 +16,7 @@ import { slugify } from './campaignFs';
 import { JOBS_DIR } from './paths';
 import { queueCommentLine } from './queueEta';
 import { finalArtNotes, isValidJobId, listJobs, type Job, type JobArtReview, type JobInput } from './store';
+import { formatImproveComment, type JobImprove } from '../worker/improveLoop';
 
 export const DEFAULT_CLICKUP_LIST_ID = '901223474074';
 export const DEFAULT_STUDIO_WEB_ORIGIN = 'https://hermes-studio-beta.vercel.app';
@@ -221,6 +222,8 @@ export interface ClickupEndJob {
   briefWaitSec?: number;
   error?: string;
   artReview?: JobArtReview;
+  /** Pasadas de mejora. Si hay alguna, el aviso dice la nota inicial, la final y cuántas fueron. */
+  improve?: JobImprove;
   input: { clickupTaskId?: string; requesterName?: string; clickupCreatorId?: string };
   /** Versión B adjunta. Si está, el aviso de fin incluye su vista previa. */
   channelB?: unknown;
@@ -329,8 +332,10 @@ export function clickupEndComment(job: ClickupEndJob, outcome: 'completed' | 'fa
   const bits = [page];
   const sec = jobDurationSec(job);
   if (sec != null) bits.push(`duración ${formatDurationMSS(sec)}`);
+  const improved = job.improve?.passes.length && job.improve.initial.max ? formatImproveComment(job.improve) : '';
   const score = artScoreOutOf50(job.artReview);
-  if (score != null) bits.push(`nota visual ${score}/${ART_SCORE_MAX}`);
+  if (improved) bits.push(improved);
+  else if (score != null) bits.push(`nota visual ${score}/${ART_SCORE_MAX}`);
   const detail = `${bits.join(' · ')}\n${previewBlock(job, webBase)}`;
   if (userId) return mentionBody(userId, `tu trabajo está listo: ${detail}`);
   return { notify_all: false, comment_text: `Tu trabajo está listo: ${detail}` };

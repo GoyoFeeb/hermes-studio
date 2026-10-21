@@ -4,6 +4,7 @@
  * GET /api/results acepta offset, un cursor opaco o ?job= para abrir esa pieza.
  * La ruta vive detrás del mismo acceso que el resto de /api (cuenta @feebbo.com).
  */
+import type { ImproveNotes, ImprovePass, JobImprove } from '../worker/improveLoop';
 import type { QualityReport } from '../worker/qualityCheck';
 import { durationSec } from './standalone';
 import { artPct, finalArtNotes, type Job, type JobArtReview } from './store';
@@ -51,11 +52,41 @@ export interface ResultQuality {
   checks: ResultCheck[];
 }
 
+export interface ResultImproveCriterion {
+  id: string;
+  label: string;
+  before: number | null;
+  after: number | null;
+}
+
+export interface ResultImprovePass {
+  n: number;
+  before: string | null;
+  after: string | null;
+  kept: boolean;
+  reason: string;
+  durationSec: number;
+  changed: string[];
+  criteria: ResultImproveCriterion[];
+}
+
+export interface ResultImprove {
+  initial: string | null;
+  final: string | null;
+  passCount: number;
+  reached: boolean;
+  belowMax: string[];
+  qcErrors: number;
+  durationSec: number;
+  passes: ResultImprovePass[];
+}
+
 export interface ResultVersion {
   label: 'A' | 'B';
   preview: string;
   art: ResultArt | null;
   quality: ResultQuality | null;
+  improve: ResultImprove | null;
 }
 
 export interface ResultItem {
@@ -74,6 +105,7 @@ export interface ResultItem {
   previewB: string | null;
   art: ResultArt | null;
   quality: ResultQuality | null;
+  improve: ResultImprove | null;
   versions: { a: ResultVersion; b: ResultVersion | null };
 }
 
@@ -148,6 +180,53 @@ function qualityView(report: QualityReport | undefined | null): ResultQuality | 
   };
 }
 
+function scoreText(notes: ImproveNotes | null | undefined): string | null {
+  if (!notes?.max) return null;
+  return `${notes.total}/${notes.max}`;
+}
+
+function passCriteria(pass: ImprovePass): ResultImproveCriterion[] {
+  const before = pass.before?.notas || {};
+  const after = pass.after?.notas || null;
+  const ids = [...Object.keys(before), ...Object.keys(after || {}).filter((id) => !(id in before))];
+  return ids
+    .filter((id) => {
+      const from = before[id];
+      const to = after ? after[id] : undefined;
+      return !(from === 5 && (to === undefined || to === 5));
+    })
+    .map((id) => ({
+      id,
+      label: ART_LABELS[id] || id,
+      before: typeof before[id] === 'number' ? before[id] : null,
+      after: after && typeof after[id] === 'number' ? after[id] : null,
+    }));
+}
+
+/** Pasadas que suben la nota o quitan errores. Sin pasadas, la ficha no enseña la sección. */
+export function improveView(record: JobImprove | undefined): ResultImprove | null {
+  if (!record?.passes?.length) return null;
+  return {
+    initial: scoreText(record.initial),
+    final: scoreText(record.final),
+    passCount: record.passes.length,
+    reached: record.reached === true,
+    belowMax: (record.belowMax || []).map((id) => ART_LABELS[id] || id),
+    qcErrors: record.qcErrors || 0,
+    durationSec: Math.round(record.passes.reduce((sum, pass) => sum + (pass.durationMs || 0), 0) / 1000),
+    passes: record.passes.map((pass) => ({
+      n: pass.n,
+      before: scoreText(pass.before),
+      after: pass.after ? scoreText(pass.after) : null,
+      kept: pass.kept === true,
+      reason: pass.reason || '',
+      durationSec: Math.round((pass.durationMs || 0) / 1000),
+      changed: pass.changed || [],
+      criteria: passCriteria(pass),
+    })),
+  };
+}
+
 export function artView(review: JobArtReview | undefined): ResultArt | null {
   if (!review?.before) return null;
   const notes = finalArtNotes(review);
@@ -164,6 +243,7 @@ export function artView(review: JobArtReview | undefined): ResultArt | null {
 export function resultItem(job: Job): ResultItem {
   const art = artView(job.artReview);
   const quality = qualityView(job.quality);
+  const improve = improveView(job.improve);
   const previewA = `/api/jobs/${encodeURIComponent(job.id)}/result`;
   const previewB = job.channelB ? `/api/jobs/${encodeURIComponent(job.id)}/channel-b` : null;
   const taskId = job.input.clickupTaskId || null;
@@ -183,10 +263,17 @@ export function resultItem(job: Job): ResultItem {
     previewB,
     art,
     quality,
+    improve,
     versions: {
-      a: { label: 'A', preview: previewA, art, quality },
+      a: { label: 'A', preview: previewA, art, quality, improve },
       b: previewB
-        ? { label: 'B', preview: previewB, art: null, quality: qualityView(job.channelB?.quality) }
+        ? {
+            label: 'B',
+            preview: previewB,
+            art: null,
+            quality: qualityView(job.channelB?.quality),
+            improve: improveView(job.channelB?.improve),
+          }
         : null,
     },
   };

@@ -8,6 +8,7 @@ import * as path from 'path';
 import { JOBS_DIR } from './paths';
 import { supabase } from './supabase';
 import type { QualityReport } from '../worker/qualityCheck';
+import type { JobImprove } from '../worker/improveLoop';
 import type { JobShare } from './share';
 import type { JobReportShare } from './report';
 
@@ -149,6 +150,8 @@ export interface Job {
   timings?: JobTimings;
   /** Revisión de dirección de arte (2026-10-06, punto 7): notas antes y después de la mejora. */
   artReview?: JobArtReview;
+  /** Pasadas que suben la nota o quitan errores de QC (2026-10-21, improveLoop.ts). */
+  improve?: JobImprove;
   /** El worker no pudo puntuarla después (sin HTML o sin notas legibles): no se le vuelve a pedir. */
   artReviewFailed?: boolean;
   /** Versión B del mismo brief (Creas IT u otro canal), adjunta por API. Sin ella, la página dice «en preparación». */
@@ -174,6 +177,10 @@ export interface JobChannelB {
   quality?: QualityReport;
   /** Informe que manda el canal, ya acotado. La revisión de Studio va en `quality`. */
   externalReview?: unknown;
+  /** Iteraciones de mejora sobre el HTML de B, cuando el QC dejó errores. */
+  improve?: JobImprove;
+  /** Reserva para que dos workers no reescriban la B a la vez. */
+  improveClaimedAt?: string;
 }
 
 export interface JobArtReview {

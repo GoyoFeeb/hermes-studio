@@ -7451,7 +7451,17 @@ function paintExternal(review) {
 }
 
 function applyChannel(job, force) {
-  const key = [job.id, job.status, channelView, job.channelB?.attachedAt || '', channelAHtml ? channelAHtml.length : 0, channelBHtml ? channelBHtml.length : 0].join('|');
+  renderImprove(job);
+  const key = [
+    job.id,
+    job.status,
+    channelView,
+    job.channelB?.attachedAt || '',
+    channelAHtml ? channelAHtml.length : 0,
+    channelBHtml ? channelBHtml.length : 0,
+    job.improve?.passes?.length || 0,
+    job.channelB?.improve?.passes?.length || 0,
+  ].join('|');
   paintChannelBar(job);
   if (!force && key === channelPaintKey) return;
   channelPaintKey = key;
@@ -7929,6 +7939,7 @@ function renderArtReview(a) {
   const box = document.getElementById('art-box');
   box.hidden = !a?.before;
   renderArtCard(a);
+  renderImprove(currentJobData);
   if (box.hidden) return;
   const fin = artFinal(a);
   const before = artPctOf(a.before);
@@ -8003,6 +8014,13 @@ function renderArtCard(a) {
   const fresh = key !== artCardFor;
   artCardFor = key;
   card.className = `art-card is-${tone}${fresh && motionOk() ? ' is-drawing' : ''}`;
+  const imp = currentJobData?.improve;
+  const impLine =
+    imp?.passes?.length && imp.initial?.max
+      ? `<p class="art-card-improve">${imp.initial.total}/${imp.initial.max} → ${imp.final.total}/${imp.final.max} · ${imp.passes.length} ${
+          imp.passes.length === 1 ? 'pasada' : 'pasadas'
+        } <button type="button" class="link-btn" id="improve-card-more">Ver iteraciones</button></p>`
+      : '';
   card.innerHTML =
     `<div class="art-card-head"><span class="art-card-pct">${pct}<small> %</small></span><span class="art-card-title">Dirección de arte<small>${
       a.after && a.kept !== false
@@ -8015,6 +8033,7 @@ function renderArtCard(a) {
         ? 'puntuada después'
         : 'nota de Hermes'
     }</small></span><button type="button" class="link-btn" id="art-card-more">Ver detalle</button></div>` +
+    (impLine ? impLine : '') +
     `<ul class="art-card-bars">${Object.keys(fin)
       .map(
         (k, i) =>
@@ -8074,6 +8093,75 @@ document.addEventListener('click', (e) => {
   box.open = true;
   jumpTo(box, 'start');
 });
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#improve-card-more')) return;
+  showJobTab('review');
+  const box = document.getElementById('improve-box');
+  box.open = true;
+  jumpTo(box, 'start');
+});
+
+function improveCriterionLines(before, after) {
+  const fromNotes = before?.notas || {};
+  const toNotes = after?.notas || null;
+  const keys = Object.keys({ ...fromNotes, ...(toNotes || {}) });
+  const rows = keys.filter((k) => {
+    const from = fromNotes[k];
+    const to = toNotes ? toNotes[k] : undefined;
+    return !(from === 5 && (to === undefined || to === 5));
+  });
+  if (!rows.length) return '';
+  return `<ul class="art-notes">${rows
+    .map((k) => {
+      const from = fromNotes[k];
+      const to = toNotes ? toNotes[k] : undefined;
+      const change = from == null ? `${to}/5` : to == null || to === from ? `${from}/5` : `${from}/5 → ${to}/5`;
+      return `<li>${escapeHtml(artLabel(k))}: ${escapeHtml(change)}</li>`;
+    })
+    .join('')}</ul>`;
+}
+
+/** Pasadas que suben la nota o quitan errores de QC. En Creas IT se enseña la de la versión B. */
+function renderImprove(job) {
+  const box = document.getElementById('improve-box');
+  if (!box) return;
+  const rec = !job ? null : channelView === 'b' ? job.channelB?.improve : job.improve;
+  const passes = rec?.passes || [];
+  box.hidden = !passes.length;
+  if (box.hidden) return;
+  const totalMs = passes.reduce((sum, p) => sum + (Number(p.durationMs) || 0), 0);
+  const below = (rec.belowMax || []).map((id) => artLabel(id));
+  const score = rec.initial?.max
+    ? `${rec.initial.total}/${rec.initial.max} → ${rec.final.total}/${rec.final.max}`
+    : `QC ${rec.passes[0]?.qcBefore ?? 0} → ${rec.qcErrors ?? 0}`;
+  document.getElementById('improve-sum').textContent = [
+    score,
+    `${passes.length} ${passes.length === 1 ? 'pasada' : 'pasadas'}`,
+    mmss(totalMs / 1000),
+    rec.reached ? null : below.length ? `siguen por debajo: ${below.join(', ')}` : rec.qcErrors ? `${rec.qcErrors} ${rec.qcErrors === 1 ? 'error' : 'errores'} de calidad` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  document.getElementById('improve-list').innerHTML = passes
+    .map((p) => {
+      const before = p.before || {};
+      const after = p.after;
+      const line = before.max
+        ? `${before.total}/${before.max} → ${after ? `${after.total}/${after.max}` : 'sin nota'}`
+        : `errores de calidad ${p.qcBefore} → ${p.qcAfter == null ? '—' : p.qcAfter}`;
+      const changed = (p.changed || []).map((c) => `<li>${escapeHtml(c)}</li>`).join('');
+      return (
+        `<li class="improve-pass"><p><strong>Pasada ${escapeHtml(String(p.n))}</strong> · ${escapeHtml(line)} · ${mmss((Number(p.durationMs) || 0) / 1000)} · ${
+          p.kept ? 'se queda' : 'se descarta'
+        }</p>` +
+        `<p class="hint">${escapeHtml(p.reason || '')}</p>` +
+        improveCriterionLines(before, after) +
+        (changed ? `<ul class="art-notes">${changed}</ul>` : '') +
+        `</li>`
+      );
+    })
+    .join('');
+}
 
 /** Gráfico pequeño de las notas por fecha (SVG, sin librerías). */
 function artSparkline(points) {
@@ -9004,6 +9092,9 @@ function celebrateJobDone(job) {
   const bits = [
     sec ? `<span><b>${escapeHtml(formatMinutes(sec))}</b> de trabajo</span>` : '',
     art !== null ? `<span><b class="is-${art >= 76 ? 'high' : art >= 60 ? 'mid' : 'low'}">${art} %</b> dirección de arte</span>` : '',
+    job.improve?.passes?.length && job.improve.initial?.max
+      ? `<span><b>${job.improve.initial.total}/${job.improve.initial.max} → ${job.improve.final.total}/${job.improve.final.max}</b> en ${job.improve.passes.length} pasada${job.improve.passes.length === 1 ? '' : 's'}</span>`
+      : '',
     errors ? `<span><b class="is-low">${errors}</b> error${errors === 1 ? '' : 'es'} de la revisión</span>` : warnings ? `<span><b class="is-mid">${warnings}</b> aviso${warnings === 1 ? '' : 's'}</span>` : job.quality ? '<span><b class="is-high">✓</b> revisión automática limpia</span>' : '',
   ].filter(Boolean);
   const next = errors ? 'Revisa los errores antes de aprobarla.' : 'Siguiente: revísala y apruébala para envío.';

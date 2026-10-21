@@ -938,3 +938,34 @@ test('el brief que devuelve prepareTask es el que usa el trabajo', () => {
   assert.equal(out.reused, true);
   assert.equal(out.logged, true);
 });
+
+test('el aviso de fin usa la nota inicial y la final cuando hay iteraciones', () => {
+  const out = run(`
+    const web = 'https://hermes-studio-beta.vercel.app';
+    const job = {
+      id: 'm1h2k3-abcd',
+      startedAt: '2026-10-20T10:00:00.000Z',
+      finishedAt: '2026-10-20T10:03:05.000Z',
+      input: { clickupTaskId: 'task123', requesterName: 'Ana' },
+      artReview: { before: { peticion: 4, concepto: 3 }, after: { peticion: 4, concepto: 5 }, kept: true, web: false, problemas: [], mejoras: [] },
+      improve: {
+        target: 1,
+        maxPasses: 3,
+        initial: { notas: { peticion: 4, concepto: 3 }, total: 40, max: 50 },
+        final: { notas: { peticion: 4, concepto: 5 }, total: 48, max: 50 },
+        passes: [
+          { n: 1, before: { notas: {}, total: 40, max: 50 }, after: { notas: {}, total: 46, max: 50 }, qcBefore: 1, qcAfter: 0, kept: true, changed: ['concepto'], reason: 'se queda', durationMs: 1000 },
+          { n: 2, before: { notas: {}, total: 46, max: 50 }, after: { notas: {}, total: 48, max: 50 }, qcBefore: 0, qcAfter: 0, kept: true, changed: ['originalidad'], reason: 'se queda', durationMs: 1000 },
+        ],
+        reached: false,
+        belowMax: ['concepto', 'originalidad'],
+        qcErrors: 0,
+      },
+    };
+    console.log(JSON.stringify({ text: clickup.clickupEndComment(job, 'completed', web).comment_text }));
+  `);
+  assert.equal(
+    out.text,
+    'Tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd · duración 3:05 · nota visual 40/50 → 48/50 (2 pasadas). Siguen por debajo del máximo: concepto, originalidad\nVista previa A: https://hermes-studio-beta.vercel.app/api/jobs/m1h2k3-abcd/result'
+  );
+});

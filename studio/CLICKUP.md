@@ -93,7 +93,10 @@ va sin ángulos. El texto, en español, es
 `@Nombre tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=<id> · duración M:SS · nota visual X/50`
 y, en líneas siguientes, `Vista previa A: https://hermes-studio-beta.vercel.app/api/jobs/<id>/result`
 y, si el trabajo tiene versión B, `Vista previa B: …/api/jobs/<id>/channel-b`
-(la duración y la nota solo si existen; la nota es la suma de los criterios, sobre 50). Si falla:
+(la duración y la nota solo si existen; la nota es la suma de los criterios, sobre 50). Si hubo
+pasadas de mejora, la nota dice la inicial, la final y cuántas fueron:
+`nota visual 40/50 → 48/50 (2 pasadas)`. Si no llegó al objetivo, añade los criterios que siguen
+por debajo del máximo. Si falla:
 `@Nombre el trabajo ha fallado: motivo en una línea. https://…/?job=<id>` (sin vistas previas). Sin id de creador, el mismo aviso
 sale como texto plano, sin `@`. El aviso se escribe una vez por trabajo: un reintento de la ruta o
 otra réplica ve la reserva y no vuelve a comentar. Si ClickUp no responde, la reserva se suelta y

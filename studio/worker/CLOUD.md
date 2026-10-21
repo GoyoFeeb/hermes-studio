@@ -75,6 +75,13 @@ Nombres en `env.example`. Valores solo en Railway, en el servicio `hermes-worker
   `HERMES_ART_REPAIR_RETRIES` (1), `HERMES_ART_SCREENSHOTS` (3), `HERMES_ART_COMPARES` (1).
   `HERMES_ART_REVISE_PASSES` vacío o `0` deja la nota visual y el arreglo de defectos, sin reescritura
   de gusto ni comparaciones A/B. `1` o más restaura esa pasada (una sola vez).
+- `HERMES_IMPROVE_MAX_PASSES` (3), `HERMES_IMPROVE_TARGET` (1). Tras la primera nota y el QC, si un
+  criterio no está en el máximo o queda un error, el worker reescribe solo eso y vuelve a puntuar,
+  hasta el objetivo (1 = 100 %) o hasta que una pasada no mejore. `0` desactiva el bucle.
+  **No subas `HERMES_ART_REVISE_PASSES`**: ese interruptor es la pasada antigua de gusto (A/B) y
+  este bucle la sustituye. Déjalo en 0. Con 1 correrían las dos y el trabajo se alarga.
+  Cada pasada cabe en el tiempo que le quede al trabajo (`HERMES_JOB_TIMEOUT_MIN`, 20). Si el
+  borrador se come el tope, puede no entrar ninguna pasada: sube ese tope si quieres las 3.
 - `USD_EUR` — opcional. Cambio para el coste en euros (por defecto `0.86`).
 - `HERMES_PRICE_<PROVEEDOR>_<MODELO>` — opcional. Tres números `entrada,salida,cache` en USD por
   millón de tokens. El nombre no va en la lista blanca fija: el entrypoint deja pasar el patrón.

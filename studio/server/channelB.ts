@@ -17,6 +17,7 @@ import * as path from 'path';
 import { ROOT } from './paths';
 import { writeMirrored } from './mirror';
 import { appendEvent, updateJob, type Job, type JobChannelB } from './store';
+import { sanitizeImproveRecord, type JobImprove } from '../worker/improveLoop';
 import { publishEmbeddedImages, standaloneOutputDir } from './standalone';
 import { findPreheader, runQualityCheck, type Fetcher } from '../worker/qualityCheck';
 
@@ -147,6 +148,62 @@ export function readChannelBHtml(job: Job): string | null {
 
 export function readChannelBText(job: Job): string | null {
   return readRel(job.channelB?.textRelPath);
+}
+
+/** Cuánto se reserva una B mientras el worker la mejora. Si no vuelve, otro hueco puede cogerla. */
+export const CHANNEL_B_IMPROVE_CLAIM_MS = 25 * 60 * 1000;
+
+/** La B tiene errores de QC y todavía no se cerró una pasada de mejora. */
+export function channelBImproveDue(
+  job: { status: string; channelB?: Pick<JobChannelB, 'quality' | 'improve' | 'improveClaimedAt'> | null },
+  now = Date.now()
+): boolean {
+  const b = job.channelB;
+  if (!b?.quality || b.quality.errors < 1) return false;
+  if (b.improve?.closed) return false;
+  if (job.status === 'cancelled' || job.status === 'failed') return false;
+  const claimed = b.improveClaimedAt ? Date.parse(b.improveClaimedAt) : NaN;
+  if (Number.isFinite(claimed) && now - claimed < CHANNEL_B_IMPROVE_CLAIM_MS) return false;
+  return true;
+}
+
+export function claimChannelBImprove(job: Job, now = Date.now()): Job {
+  if (!job.channelB) return job;
+  return updateJob(job.id, { channelB: { ...job.channelB, improveClaimedAt: new Date(now).toISOString() } });
+}
+
+/**
+ * Guarda el HTML mejorado de la B y el registro de pasadas. El QC se vuelve a correr aquí, sobre
+ * el archivo ya escrito, para que el panel no dependa del informe que manda el worker.
+ */
+export async function applyChannelBImprove(
+  job: Job,
+  html: string,
+  improve: unknown,
+  opts: { fetcher?: Fetcher } = {}
+): Promise<Job> {
+  if (!job.channelB) throw new ChannelBInputError('Este trabajo no tiene versión B.');
+  if (typeof html !== 'string' || !/<html[\s>]/i.test(html)) throw new ChannelBInputError('Falta el HTML de la versión mejorada.');
+  if (Buffer.byteLength(html, 'utf8') > MAX_HTML_BYTES) throw new ChannelBInputError('El HTML pesa más de 12 MB.');
+  const record = sanitizeImproveRecord(improve);
+  if (!record) throw new ChannelBInputError('El registro de mejoras no es válido.');
+  const published = publishEmbeddedImages(html, job);
+  const quality = await runQualityCheck(published.html, { fetcher: opts.fetcher });
+  const outAbs = path.join(ROOT, path.dirname(job.channelB.resultRelPath));
+  writeMirrored(path.join(outAbs, CHANNEL_B_HTML), published.html, 'utf8');
+  const { improveClaimedAt: _claimed, ...rest } = job.channelB;
+  const channelB: JobChannelB = {
+    ...rest,
+    bytes: Buffer.byteLength(published.html, 'utf8'),
+    quality,
+    improve: { ...record, closed: true },
+  };
+  appendEvent(job.id, {
+    phase: 'creas',
+    level: quality.errors ? 'error' : 'success',
+    message: `Mejora de la versión B: ${record.passes.length} pasada(s), ${quality.errors} error(es) de calidad.`,
+  });
+  return updateJob(job.id, { channelB });
 }
 
 /**

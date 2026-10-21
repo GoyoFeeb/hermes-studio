@@ -64,6 +64,18 @@ import { cloudHermesSettings, hermesVolumeHasAuth, probeInstalledHermes, provide
 import { HERMES_TRACE_LINES, hermesTraceExcerpt, redactSecrets, secretValues } from './hermesTrace';
 import { UsageLedger } from './usage';
 import { canTakeScreenshot, deliveryOnTimeout, JobClock, jobBudgetFromEnv, timeoutFailMessage } from './jobBudget';
+import {
+  IMPROVE_MIN_START_MS,
+  IMPROVE_REVISE_CAP_MS,
+  IMPROVE_SCORE_CAP_MS,
+  improvePrompt,
+  improveSettings,
+  runImproveLoop,
+  shouldImprove,
+  snapshotOf,
+  type ImproveSnapshot,
+  type JobImprove,
+} from './improveLoop';
 import { activeScopes, newScope, runInScope, scope, type JobScope } from './jobScope';
 import { isolateHermesHome, shouldIsolateHome, slotHomeDir } from './hermesHome';
 import { freeSlots, workerConcurrency, workerIdentity } from '../server/claimQueue';
@@ -1765,6 +1777,190 @@ export function compareSummary(cmp: ArtCompare, afterIs: 'A' | 'B'): string {
   );
 }
 
+/** Tope de la mejora de la versión B cuando el worker está libre: no ocupa el hueco de un trabajo. */
+const CHANNEL_B_IMPROVE_BUDGET_MS = 15 * 60 * 1000;
+
+/** QC medido y nota visual de un HTML que ya está en disco. La nota puede faltar si no hay tiempo o la respuesta no se lee. */
+async function scoreNewsletterFile(opts: {
+  jobId: string;
+  htmlPath: string;
+  workDir: string;
+  brandSlug: string;
+  prompt: string;
+  request?: string;
+  web: { path: string; size?: { width: number; height: number } } | null;
+  timeLeftMs: () => number;
+  repairRetries: number;
+  design: boolean;
+}): Promise<{ review: ArtReview | null; quality: QualityReport | null }> {
+  const inspected = await inspectNewsletter(opts.htmlPath, ROOT, {
+    fix: true,
+    design: opts.design,
+    brandSlug: opts.brandSlug,
+  }).catch((err) => {
+    console.log(`[${stamp()}] ${opts.jobId}: QC de la mejora — ${(err as Error).message.slice(0, 180)}`);
+    return null;
+  });
+  const quality = inspected?.report ?? null;
+  if (opts.timeLeftMs() < 20_000) return { review: null, quality };
+  const sheet = await renderSheet(opts.htmlPath, opts.workDir).catch((err) => {
+    console.log(`[${stamp()}] ${opts.jobId}: hoja de la mejora — ${(err as Error).message.slice(0, 180)}`);
+    return null;
+  });
+  if (!sheet) return { review: null, quality };
+  const html = fs.readFileSync(opts.htmlPath, 'utf8');
+  const facts = judgeFacts(await renderChecks(opts.htmlPath, ROOT, brandPalette(ROOT, opts.brandSlug)).catch(() => null));
+  const query = artReviewQuery(
+    opts.request,
+    opts.prompt,
+    html,
+    sheet.sheet,
+    await imageSize(sheet.sheet),
+    opts.web,
+    copyFindings(html).found,
+    sheet.desktop,
+    facts
+  );
+  const cap = Math.max(1000, Math.min(IMPROVE_SCORE_CAP_MS, opts.timeLeftMs() - 15_000));
+  const scored = await readArtReview(opts.jobId, 'nota tras la mejora', query, {
+    capMs: cap,
+    repairRetries: opts.repairRetries,
+  });
+  return { review: scored.review, quality };
+}
+
+function snapFromReview(review: ArtReview | null, quality: QualityReport | null): ImproveSnapshot {
+  return snapshotOf({
+    notas: review?.notas || null,
+    mejoras: review?.mejoras || [],
+    problemas: review?.problemas || [],
+    defectos: review?.defectos || [],
+    qcLines: quality ? checkFailureLines(quality) : [],
+  });
+}
+
+/**
+ * Tras la primera nota y el QC: reescribe solo lo flojo, vuelve a puntuar y se queda con la mejor
+ * versión. No corre si la pieza ya está en el objetivo o no queda tiempo para una pasada.
+ */
+async function applyScoreImprove(opts: {
+  jobId: string;
+  htmlPath: string;
+  notesPath: string;
+  workDir: string;
+  filePath: string;
+  brandName: string;
+  brandSlug: string;
+  prompt: string;
+  request?: string;
+  web: { path: string; size?: { width: number; height: number } } | null;
+  openingReview: ArtReview | null;
+  bestReview: ArtReview | null;
+  quality: QualityReport | null;
+  checkCmd: string;
+  timeLeftMs: () => number;
+  alive: () => boolean;
+  repairRetries: number;
+  design: boolean;
+  log: (line: string) => void;
+  progress: (line: string) => Promise<unknown>;
+}): Promise<{ record: JobImprove; review: ArtReview | null; kept: boolean; quality: QualityReport | null } | null> {
+  const settings = improveSettings();
+  if (settings.maxPasses < 1 || !opts.alive()) return null;
+  let quality = opts.quality;
+  if (opts.timeLeftMs() >= 15_000) {
+    const fresh = await inspectNewsletter(opts.htmlPath, ROOT, {
+      fix: true,
+      design: opts.design,
+      brandSlug: opts.brandSlug,
+    }).catch(() => null);
+    if (fresh) quality = fresh.report;
+  }
+  const opening = snapFromReview(opts.openingReview, quality);
+  const bestSnap = snapFromReview(opts.bestReview || opts.openingReview, quality);
+  if (!shouldImprove(bestSnap, settings.target, settings.maxPasses)) {
+    opts.log('la nota ya está en el objetivo: no hay pasada de mejora');
+    return null;
+  }
+  if (opts.timeLeftMs() < IMPROVE_MIN_START_MS) {
+    opts.log(`sin tiempo para mejorar (${Math.round(opts.timeLeftMs() / 1000)} s)`);
+    return null;
+  }
+  const failing = opening.notas
+    ? Object.entries(opening.notas)
+        .filter(([, n]) => n < opening.per)
+        .map(([k]) => k)
+    : [];
+  await opts.progress(
+    failing.length
+      ? `Iteración de mejora: ${failing.join(', ')} por debajo del máximo${bestSnap.qcErrors ? ` y ${bestSnap.qcErrors} error(es) de calidad` : ''}.`
+      : `Iteración de mejora: ${bestSnap.qcErrors} error(es) de calidad.`
+  );
+  let passSnap: WorkSnapshot | null = null;
+  let pendingReview: ArtReview | null = null;
+  let pendingQuality: QualityReport | null = null;
+  let bestReview = opts.bestReview || opts.openingReview;
+  let bestQuality = quality;
+  const record = await runImproveLoop({
+    opening,
+    best: bestSnap,
+    maxPasses: settings.maxPasses,
+    target: settings.target,
+    timeLeftMs: opts.timeLeftMs,
+    minStartMs: IMPROVE_MIN_START_MS,
+    alive: opts.alive,
+    readHtml: () => fs.readFileSync(opts.htmlPath, 'utf8'),
+    restoreHtml: (html) => {
+      if (passSnap) restoreWork(passSnap, opts.htmlPath, opts.notesPath);
+      else fs.writeFileSync(opts.htmlPath, html);
+    },
+    promptFor: (snap) =>
+      improvePrompt({
+        filePath: opts.filePath,
+        brand: opts.brandName,
+        snap,
+        criteria: ART_CRITERIA,
+        webPath: opts.web?.path,
+        checkCmd: opts.checkCmd,
+      }),
+    revise: async (prompt, pass) => {
+      passSnap = snapshotWork(opts.htmlPath, opts.notesPath, path.join(opts.workDir, `antes-mejora-${pass}.html`));
+      const left = Math.min(IMPROVE_REVISE_CAP_MS, opts.timeLeftMs() - 90_000);
+      if (left < 1000) return '';
+      const turn = await cappedTurn(left, opts.jobId, `mejora ${pass}`, () => runHermesTurn(prompt, null, () => undefined, MODELS.art));
+      return turn.output;
+    },
+    rescore: async () => {
+      const scored = await scoreNewsletterFile({
+        jobId: opts.jobId,
+        htmlPath: opts.htmlPath,
+        workDir: opts.workDir,
+        brandSlug: opts.brandSlug,
+        prompt: opts.prompt,
+        request: opts.request,
+        web: opts.web,
+        timeLeftMs: opts.timeLeftMs,
+        repairRetries: opts.repairRetries,
+        design: opts.design,
+      });
+      pendingReview = scored.review;
+      pendingQuality = scored.quality;
+      return snapFromReview(scored.review, scored.quality);
+    },
+    onKeep: () => {
+      if (pendingReview) bestReview = pendingReview;
+      if (pendingQuality) bestQuality = pendingQuality;
+    },
+    log: opts.log,
+  });
+  if (!record.passes.length) return null;
+  const kept = record.passes.some((p) => p.kept);
+  opts.log(
+    `mejora: ${record.initial.total}/${record.initial.max} → ${record.final.total}/${record.final.max} en ${record.passes.length} pasada(s)${record.reached ? '' : ', sin llegar al objetivo'}`
+  );
+  return { record, review: kept ? bestReview : opts.openingReview, kept, quality: kept ? bestQuality : quality };
+}
+
 async function runJob(claimed: ClaimedJob): Promise<void> {
   scope().id = claimed.id;
   scope().cancelled = false;
@@ -2233,6 +2429,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
   const finalPath = htmlReady();
   // Lo que se envía a Studio con la pieza (punto 7): las notas de antes y después, para medir la calidad.
   let artResult: { before: Record<string, number>; after?: Record<string, number>; kept?: boolean; web: boolean; problemas: string[]; mejoras: string[] } | undefined;
+  let improveResult: JobImprove | undefined;
   const artUntil = Date.now() + (claimed.artReview && !editKind && finalPath ? clock.phaseMs('art') : 0);
   const artOpen = (): boolean => jobOpen() && Date.now() < artUntil;
   if (claimed.artReview && !editKind && finalPath && artOpen() && clock.remainingMs() >= 45_000) {
@@ -2270,6 +2467,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
       };
       const first = await reviewOnce(sheet);
       const review = first.review;
+      let scoreNow = review;
       const low = review ? lowScores(review) : [];
       if (review) artResult = { before: review.notas, web: !!web, problemas: review.problemas, mejoras: review.mejoras };
       const reviewFile = path.join(workDir, 'revision-visual.md');
@@ -2322,7 +2520,9 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         if (!taste || !reviseOpen() || clock.remainingMs() <= 60_000) {
           if (!taste && needsTasteRound(review) && !scope().cancelled) {
             const skip =
-              'Pasada de gusto omitida (HERMES_ART_REVISE_PASSES=0): se queda la nota y, si los hubo, los defectos arreglados. Con 1 o más vuelve la reescritura y las comparaciones A/B.';
+              improveSettings().maxPasses > 0
+                ? 'Pasada de gusto omitida (HERMES_ART_REVISE_PASSES=0). Las mejoras las aplica el bucle de iteraciones (HERMES_IMPROVE_MAX_PASSES). Con 1 o más en ART_REVISE vuelve además la reescritura A/B.'
+                : 'Pasada de gusto omitida (HERMES_ART_REVISE_PASSES=0): se queda la nota y, si los hubo, los defectos arreglados. Con 1 o más vuelve la reescritura y las comparaciones A/B.';
             fs.appendFileSync(reviewFile, `\n## Pasada de gusto\n\n${skip}\n`);
             console.log(`[${stamp()}] ${job.id}: ${skip}`);
           }
@@ -2417,6 +2617,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           // Al descartar vuelven la pieza Y notas.md de antes de la mejora, con una línea que lo dice (2026-10-19).
           if (!keep && changed) restoreWork(base, finalPath, notesFile, discardNote(verdictReason, fixedDefects));
           if (artResult) artResult = { ...artResult, ...(second.review ? { after: second.review.notas } : {}), kept: keep };
+          if (keep && second.review) scoreNow = second.review;
           const notes = second.review ? `${scoreTotal(review)} → ${scoreTotal(second.review)}/${Object.keys(review.notas).length * 5}, ` : '';
           const verdict = newErrors.length
             ? `${notes}se descarta: añadía errores (${newErrors.join(', ')}), se recupera la versión anterior${keptWhat}`
@@ -2432,6 +2633,58 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
         }
       } else if (review && notesReady()) {
         fs.appendFileSync(notesFile, `\n\n## Revisión de dirección de arte (Studio)\n${artReviewSummary(review)}\n`);
+      }
+      if ((review || (quality && quality.errors > 0)) && improveSettings().maxPasses > 0 && jobOpen()) {
+        const improved = await applyScoreImprove({
+          jobId: job.id,
+          htmlPath: finalPath,
+          notesPath: notesFile,
+          workDir,
+          filePath: `${job.outputDir}/newsletter.html`,
+          brandName: claimed.brand?.name || slug,
+          brandSlug: slug,
+          prompt: job.prompt,
+          request: claimed.request,
+          web,
+          openingReview: review,
+          bestReview: scoreNow,
+          quality,
+          checkCmd: `npm run check-newsletter -- ${job.outputDir}/newsletter.html`,
+          timeLeftMs: () => clock.remainingMs(),
+          alive: () => jobOpen(),
+          repairRetries: budget.artRepairRetries,
+          design: !editKind,
+          log: (line) => {
+            console.log(`[${stamp()}] ${job.id}: ${line}`);
+            void progressMessage(line);
+          },
+          progress: (line) => progressMessage(line),
+        }).catch((err) => {
+          console.log(`[${stamp()}] ${job.id}: la mejora se cortó — ${(err as Error).message.slice(0, 200)}`);
+          return null;
+        });
+        if (improved) {
+          improveResult = improved.record;
+          if (improved.quality) quality = improved.quality;
+          if (improved.kept && improved.review && artResult) {
+            artResult = {
+              ...artResult,
+              after: improved.review.notas,
+              kept: true,
+              problemas: improved.review.problemas,
+              mejoras: improved.review.mejoras,
+            };
+          }
+          fs.appendFileSync(
+            reviewFile,
+            `\n## Iteraciones de mejora\n\n${improved.record.passes
+              .map(
+                (p) =>
+                  `- Pasada ${p.n}: ${p.before.total}/${p.before.max} → ${p.after ? `${p.after.total}/${p.after.max}` : 'sin nota'} en ${Math.round(p.durationMs / 1000)} s — ${p.reason}`
+              )
+              .join('\n')}\n`
+          );
+        }
       }
     }
     timeline.end(Math.max(0, lastCount));
@@ -2506,7 +2759,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
     const finalMessage = [notes, turn.output.trim()].filter(Boolean).join('\n\n---\n\n');
     // Miniatura para el historial: si no sale, la newsletter se entrega igual.
     const thumbs = await renderThumbnails({ path: htmlPath });
-    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult, ...usageBody() }, 6);
+    const res = await api(`/api/worker/jobs/${job.id}/complete`, { html, finalMessage, quality, thumbnail: thumbs?.image, thumbnailLong: thumbs ? thumbs.long : undefined, timings, artReview: artResult, ...(improveResult ? { improve: improveResult } : {}), ...usageBody() }, 6);
     if (!res.ok) uploadError = `Studio respondió ${res.status}: ${(await res.text()).slice(0, 300)}`;
   } catch (err) {
     uploadError = (err as Error).message;
@@ -2553,6 +2806,9 @@ async function runMaintenance(): Promise<void> {
       // La nota de calidad llama a Hermes. No se abre si ya hay un trabajo en un hueco.
       if (!activeScopes().some((s) => s.id)) {
         await backfillArtReviews().catch((err) => console.error(`[${stamp()}] Notas de calidad: ${(err as Error).message}`));
+        if (maintenanceOpen() && improveSettings().maxPasses >= 1) {
+          await backfillChannelBImproves().catch((err) => console.error(`[${stamp()}] Mejora de la versión B: ${(err as Error).message}`));
+        }
       }
       if (!maintenanceOpen()) return;
       await syncBrandCards().catch((err) => console.error(`[${stamp()}] Fichas de marca: ${(err as Error).message}`));
@@ -2580,6 +2836,103 @@ async function backfillThumbnails(): Promise<void> {
     await api(`/api/worker/jobs/${j.id}/thumb`, thumbs ? { image: thumbs.image, long: thumbs.long } : { failed: true }, 2).catch(() => undefined);
   }
   console.log(`[${stamp()}] Miniaturas del historial: ${jobs.length} generada(s)`);
+}
+
+/** Versión B con errores de QC (2026-10-21): con el worker libre, Studio da UNA pieza y aquí se reescribe
+ *  con el mismo bucle que la de Hermes. Si llega un trabajo a medias, no se publica: la reserva vence y otro hueco la retoma. */
+let channelBIdleUntil = 0;
+
+async function backfillChannelBImproves(): Promise<void> {
+  if (improveSettings().maxPasses < 1) return;
+  if (Date.now() < channelBIdleUntil) return;
+  const res = await api('/api/worker/channel-b/pending', {}, 1);
+  if (!res.ok) {
+    channelBIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS;
+    return;
+  }
+  const { jobs } = (await res.json()) as {
+    jobs: { id: string; html: string; slug: string; name: string; request: string; prompt: string }[];
+  };
+  if (!jobs.length) {
+    channelBIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS;
+    return;
+  }
+  for (const j of jobs) {
+    if (!maintenanceOpen()) return;
+    const workDir = path.join(ROOT, '.improve-tmp', j.id);
+    fs.rmSync(workDir, { recursive: true, force: true });
+    fs.mkdirSync(workDir, { recursive: true });
+    const htmlPath = path.join(workDir, 'newsletter.html');
+    const notesPath = path.join(workDir, 'notas.md');
+    fs.writeFileSync(htmlPath, j.html);
+    const rel = path.relative(ROOT, htmlPath);
+    const deadline = Date.now() + CHANNEL_B_IMPROVE_BUDGET_MS;
+    const timeLeftMs = (): number => Math.max(0, deadline - Date.now());
+    const alive = (): boolean => maintenanceOpen() && timeLeftMs() > 0;
+    const passes = jobBudgetFromEnv().artRepairRetries;
+    try {
+      const scored = await scoreNewsletterFile({
+        jobId: j.id,
+        htmlPath,
+        workDir,
+        brandSlug: j.slug,
+        prompt: j.prompt,
+        request: j.request,
+        web: null,
+        timeLeftMs,
+        repairRetries: passes,
+        design: false,
+      });
+      if (!maintenanceOpen()) {
+        console.log(`[${stamp()}] ${j.id} (B): mejora interrumpida antes de reescribir, no se publica`);
+        return;
+      }
+      const improved = await applyScoreImprove({
+        jobId: j.id,
+        htmlPath,
+        notesPath,
+        workDir,
+        filePath: rel,
+        brandName: j.name || j.slug || 'la marca',
+        brandSlug: j.slug,
+        prompt: j.prompt,
+        request: j.request,
+        web: null,
+        openingReview: scored.review,
+        bestReview: scored.review,
+        quality: scored.quality,
+        checkCmd: `npm run check-newsletter -- ${rel}`,
+        timeLeftMs,
+        alive,
+        repairRetries: passes,
+        design: false,
+        log: (line) => console.log(`[${stamp()}] ${j.id} (B): ${line}`),
+        progress: async () => undefined,
+      });
+      if (!maintenanceOpen()) {
+        console.log(`[${stamp()}] ${j.id} (B): mejora interrumpida, no se publica`);
+        return;
+      }
+      if (!improved) {
+        console.log(`[${stamp()}] ${j.id} (B): sin pasada que guardar (se reintentará cuando venza la reserva)`);
+        return;
+      }
+      const html = fs.readFileSync(htmlPath, 'utf8');
+      const posted = await api(`/api/worker/jobs/${j.id}/channel-b/improve`, { html, improve: improved.record }, 3);
+      if (!posted.ok) {
+        console.log(`[${stamp()}] ${j.id} (B): Studio no guardó la mejora (${posted.status})`);
+        return;
+      }
+      const rec = improved.record;
+      console.log(
+        `[${stamp()}] ${j.id} (B): ${rec.initial.total}/${rec.initial.max} → ${rec.final.total}/${rec.final.max} en ${rec.passes.length} pasada(s)`
+      );
+    } catch (err) {
+      console.log(`[${stamp()}] ${j.id} (B): la mejora se cortó — ${(err as Error).message.slice(0, 200)}`);
+    } finally {
+      fs.rmSync(workDir, { recursive: true, force: true });
+    }
+  }
 }
 
 /** Notas de calidad de piezas anteriores (2026-10-06): con el worker libre, Studio da UNA pieza terminada sin notas y

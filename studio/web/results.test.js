@@ -37,6 +37,27 @@ const page = {
         warnings: 0,
         checks: [{ id: 'links', label: 'Enlaces', status: 'error', errorCount: 1 }],
       },
+      improve: {
+        initial: '40/50',
+        final: '48/50',
+        passCount: 2,
+        reached: false,
+        belowMax: ['Concepto', 'Originalidad'],
+        qcErrors: 0,
+        durationSec: 180,
+        passes: [
+          {
+            n: 1,
+            before: '40/50',
+            after: '46/50',
+            kept: true,
+            reason: 'se queda: la nota sube',
+            durationSec: 90,
+            changed: ['Sube el concepto'],
+            criteria: [{ id: 'concepto', label: 'Concepto', before: 3, after: 4 }],
+          },
+        ],
+      },
       versions: {
         a: {
           label: 'A',
@@ -49,6 +70,27 @@ const page = {
           preview: '/api/jobs/new333-cccc/channel-b',
           art: null,
           quality: { errors: 0, warnings: 1, checks: [{ id: 'size', label: 'Peso', status: 'warning', errorCount: 0 }] },
+          improve: {
+            initial: '40/50',
+            final: '44/50',
+            passCount: 1,
+            reached: false,
+            belowMax: ['Originalidad'],
+            qcErrors: 1,
+            durationSec: 60,
+            passes: [
+              {
+                n: 1,
+                before: '40/50',
+                after: '44/50',
+                kept: true,
+                reason: 'se queda: la nota sube',
+                durationSec: 60,
+                changed: ['Menos errores'],
+                criteria: [{ id: 'originalidad', label: 'Originalidad', before: 3, after: 4 }],
+              },
+            ],
+          },
         },
       },
     },
@@ -75,6 +117,12 @@ test('pinta una pieza con sus datos, las notas y las dos versiones', () => {
   assert.match(html, /\/api\/jobs\/new333-cccc\/result/);
   assert.match(html, /\/api\/jobs\/new333-cccc\/channel-b/);
   assert.match(html, /Peso/);
+  assert.match(html, /Iteraciones de mejora/);
+  assert.match(html, /40\/50 → 48\/50/);
+  assert.match(html, /Concepto: 3\/5 → 4\/5/);
+  assert.match(html, /Sube el concepto/);
+  assert.match(html, /Siguen por debajo: Concepto, Originalidad/);
+  assert.match(html, /40\/50 → 44\/50/);
   assert.match(html, /\?job=new333-cccc/);
   assert.match(R.render({ total: 0, offset: 0, items: [] }), /Aún no hay piezas terminadas/);
   const file = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');

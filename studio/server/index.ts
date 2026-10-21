@@ -76,6 +76,7 @@ import {
   wantsCostFields,
   priorUsageOf,
   sanitizeArtReview,
+  sanitizeImprove,
   pendingArtReviews,
   needsBrief,
   completeStandaloneJob,
@@ -87,7 +88,17 @@ import {
 } from './standalone';
 import { TextEditError, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { runQualityCheck } from '../worker/qualityCheck';
-import { attachChannelB, bearerMatches, ChannelBInputError, parseChannelBBody, readChannelBHtml, readChannelBText } from './channelB';
+import {
+  applyChannelBImprove,
+  attachChannelB,
+  bearerMatches,
+  ChannelBInputError,
+  channelBImproveDue,
+  claimChannelBImprove,
+  parseChannelBBody,
+  readChannelBHtml,
+  readChannelBText,
+} from './channelB';
 import { standaloneInputFromBody } from './standaloneCreate';
 import { clientMatrix } from './clientMatrix';
 import { MAX_TEST_RECIPIENTS, MailError, mailEnabled, parseRecipients, sendTestEmail } from './mail';
@@ -540,8 +551,11 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     completeStandaloneJob(job.id, req.body.html, String(req.body.finalMessage || ''), sanitizeQuality(req.body.quality), req.body.thumbnail, sanitizeTimings(req.body.timings), req.body.thumbnailLong);
     // Notas de la revisión de dirección de arte (2026-10-06, punto 7): para ver por marca y fecha si la calidad sube.
     const artReview = sanitizeArtReview(req.body.artReview);
+    const improve = sanitizeImprove(req.body.improve);
     const cost = sanitizeJobCost(req.body);
-    if (artReview || cost) updateJob(job.id, { ...(artReview ? { artReview } : {}), ...(cost || {}) });
+    if (artReview || improve || cost) {
+      updateJob(job.id, { ...(artReview ? { artReview } : {}), ...(improve ? { improve } : {}), ...(cost || {}) });
+    }
   } catch (err) {
     const cost = sanitizeJobCost(req.body);
     const error = (err as Error).message;
@@ -607,6 +621,48 @@ app.post('/api/worker/jobs/:id/art-review', requireWorker, express.json({ limit:
   }
   if (!job.artReview) updateJob(job.id, { artReview });
   res.json({ ok: true });
+});
+
+// Versión B con errores de QC (2026-10-21): el worker, libre, la reescribe y la vuelve a puntuar.
+app.post('/api/worker/channel-b/pending', requireWorker, express.json({ limit: '16kb' }), (_req: Request, res: Response) => {
+  const due = listJobs().find((job) => channelBImproveDue(job));
+  if (!due) {
+    res.json({ jobs: [] });
+    return;
+  }
+  const html = readChannelBHtml(due);
+  if (!html) {
+    res.json({ jobs: [] });
+    return;
+  }
+  claimChannelBImprove(due);
+  res.json({
+    jobs: [
+      {
+        id: due.id,
+        html,
+        slug: due.input.clientSlug || '',
+        name: due.input.clientName || '',
+        request: due.input.instruction || '',
+        prompt: (due.input.briefText || '').slice(0, 8000),
+      },
+    ],
+  });
+});
+
+app.post('/api/worker/jobs/:id/channel-b/improve', requireWorker, express.json({ limit: '16mb' }), async (req: Request, res: Response) => {
+  const job = getJob(req.params.id);
+  if (!job?.channelB) {
+    res.status(404).json({ error: 'Trabajo sin versión B.' });
+    return;
+  }
+  try {
+    const updated = await applyChannelBImprove(job, req.body?.html, req.body?.improve);
+    res.json({ ok: true, errors: updated.channelB?.quality?.errors ?? 0 });
+  } catch (err) {
+    const message = err instanceof ChannelBInputError ? err.message : 'No se pudo guardar la versión B mejorada.';
+    res.status(400).json({ error: message });
+  }
 });
 
 app.post('/api/worker/thumbs/pending', requireWorker, express.json({ limit: '16kb' }), (req: Request, res: Response) => {
