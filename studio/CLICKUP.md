@@ -52,18 +52,22 @@ trabajo se abre igual pero el brief sigue vacío y Hermes intenta escribirlo.
 La marca sale, por este orden, de un campo **Cliente** / **Client** / **Marca** / **Brand**; de una línea
 `Marca:` / `Cliente:` en el nombre o la descripción; de una ficha de marca ya sincronizada si el nombre
 aparece en el título o la descripción; y, si no, del texto (`Nike — Verano` → Nike, `newsletter Feebbo` →
-Feebbo, y un prefijo `PRUEBA` / `TEST` no se queda con la marca). La campaña sale del campo **Campaña** / **Campaign** y se
+Feebbo, y un prefijo `PRUEBA` / `TEST` no se queda con la marca). En el campo y en esa línea, un enlace
+markdown, una URL o una URL entre paréntesis no forma parte del nombre
+(`Cliente: Feebbo ([https://feebbo.com](https://feebbo.com))` → Feebbo). La campaña sale del campo **Campaña** / **Campaign** y se
 guarda en `campaignName`. Una URL `https://` de la descripción (que no sea de ClickUp) es
-`brandUrl`. El id de tarea, su URL y quien la creó quedan en el trabajo: `requesterName` (el username,
+`brandUrl`, también cuando iba dentro del markdown del nombre. El id de tarea, su URL y quien la creó quedan en el trabajo: `requesterName` (el username,
 nunca el correo) y `clickupCreatorId` (el id numérico de ese usuario en ClickUp). `clientId` y
 `campaignId` están reservados para vincular cliente y campaña; esta integración no los rellena y no
 toca la base de datos.
 
 Cuando el trabajo termina (`POST /api/worker/jobs/:id/complete`) o falla (`/fail`), y `CLICKUP_COMMENT=1`,
 Studio publica otro comentario en la misma tarea. Si hay `clickupCreatorId`, el cuerpo es un array
-`comment` con `notify_all: false` y una mención (`type: "tag"`, `user.id` el del creador), para que
-ClickUp avise solo a esa persona. ClickUp pinta ese array al revés: en el JSON el texto va primero
-(empieza por un espacio) y el tag después, para que en la tarea se lea la mención delante. El enlace
+`comment` con `notify_all: false`. El primer bloque es la mención como la documenta ClickUp
+(`{type: "tag", user: {id}}`, sin `text` y sin `attributes`); el segundo es la frase, que empieza por
+un espacio. ClickUp pinta ese array en el orden enviado y escribe el nombre en el hueco del tag, así
+que la mención queda delante y avisa a esa persona. Un `text` dentro del tag se concatena al final de
+`comment_text` y reordenar los bloques no lo mueve. El enlace
 va sin ángulos. El texto, en español, es
 `@Nombre tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=<id> · duración M:SS · nota visual X/50`
 (la duración y la nota solo si existen; la nota es la suma de los criterios, sobre 50). Si falla:
