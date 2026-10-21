@@ -2,14 +2,18 @@
  * improveLoop.ts — iteraciones de mejora tras la primera nota y el control de calidad (2026-10-21).
  *
  * La revisión visual deja criterios por debajo del máximo y una lista de mejoras, y con
- * HERMES_ART_REVISE_PASSES=0 esa lista no se aplica. Este bucle sí: le pasa al modelo solo lo
- * que flojea (criterios, notas, mejoras propuestas y errores de QC), vuelve a puntuar y se queda
- * con la mejor versión. Para cuando la nota llega al objetivo, cuando una pasada no mejora, o al
- * llegar a HERMES_IMPROVE_MAX_PASSES.
+ * HERMES_ART_REVISE_PASSES=0 esa lista no se aplica. Este bucle sí: le pasa al modelo lo que
+ * flojea (los más bajos primero, con la razón de cada nota y todas las mejoras propuestas),
+ * vuelve a puntuar y se queda con la mejor versión. Una pasada que baja la nota se descarta y
+ * el bucle sigue desde esa mejor versión, con otro encargo, hasta el objetivo o hasta
+ * HERMES_IMPROVE_MAX_PASSES.
  *
  * HERMES_ART_REVISE_PASSES no hace falta subirlo: esa pasada es la reescritura de gusto con
  * comparaciones A/B, y este bucle la sustituye para entregar. Déjala en 0.
  */
+import * as os from 'os';
+import * as path from 'path';
+
 export const IMPROVE_REVISE_CAP_MS = 6 * 60 * 1000;
 export const IMPROVE_SCORE_CAP_MS = 4 * 60 * 1000;
 export const IMPROVE_MIN_START_MS = 3 * 60 * 1000;
@@ -48,6 +52,14 @@ export interface ImproveSnapshot {
   mejoras: string[];
   problemas: string[];
   defectos: string[];
+  /** Por qué el revisor puso cada nota. */
+  pruebas: Record<string, string>;
+}
+
+/** Tras una pasada descartada: el siguiente encargo se estrecha y no repite lo que bajó la nota. */
+export interface ImproveRetry {
+  focus: string[];
+  avoid: string[];
 }
 
 export interface ImproveNotes {
@@ -79,6 +91,8 @@ export interface JobImprove {
   /** Ids de criterio que siguen por debajo del máximo en la versión entregada. */
   belowMax: string[];
   qcErrors: number;
+  /** Errores de QC que una pasada conservada quitó (el texto, no solo el número). */
+  qcFixed?: string[];
   closed?: boolean;
 }
 
@@ -110,12 +124,21 @@ export function snapshotOf(opts: {
   problemas?: string[];
   defectos?: string[];
   qcLines?: string[];
+  pruebas?: Record<string, string> | null;
   per?: number;
 }): ImproveSnapshot {
   const per = opts.per && opts.per > 0 ? opts.per : SCORE_PER_CRITERION;
   const notas = opts.notas && Object.keys(opts.notas).length ? { ...opts.notas } : null;
   const values = notas ? Object.values(notas) : [];
   const qcLines = (opts.qcLines || []).map((line) => line.trim()).filter(Boolean);
+  const pruebas: Record<string, string> = {};
+  for (const [key, value] of Object.entries(opts.pruebas || {})) {
+    if (!/^[a-z_]{2,24}$/.test(key) || typeof value !== 'string') continue;
+    const clean = value.replace(/\s+/g, ' ').trim();
+    if (!clean) continue;
+    pruebas[key] = clean.slice(0, 400);
+    if (Object.keys(pruebas).length >= 12) break;
+  }
   return {
     notas,
     total: notas ? values.reduce((a, b) => a + b, 0) : null,
@@ -126,7 +149,24 @@ export function snapshotOf(opts: {
     mejoras: [...(opts.mejoras || [])],
     problemas: [...(opts.problemas || [])],
     defectos: [...(opts.defectos || [])],
+    pruebas,
   };
+}
+
+/** Carpeta escribible para la mejora de la versión B. `/app` en el contenedor no lo es. */
+export function improveTempDir(id: string, env: NodeJS.ProcessEnv = process.env, tmp: string = os.tmpdir()): string {
+  const configured = (env.HERMES_IMPROVE_TMP || '').trim();
+  const root = configured || tmp;
+  const safe = id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80) || 'job';
+  return path.join(root, 'hermes-improve', safe);
+}
+
+/** Criterios por debajo del máximo, del más flojo al menos. */
+export function criteriaByWeakness(snap: ImproveSnapshot): string[] {
+  if (!snap.notas) return [];
+  return Object.keys(snap.notas)
+    .filter((k) => snap.notas![k] < snap.per)
+    .sort((a, b) => snap.notas![a] - snap.notas![b] || a.localeCompare(b));
 }
 
 export function criteriaBelowMax(snap: ImproveSnapshot): string[] {
@@ -198,6 +238,13 @@ export const EMAIL_CONSTRAINTS =
   'modo oscuro legible (texto claro sobre fondo oscuro y el logo visible); accesible (alt en todas las imágenes, contraste ' +
   'suficiente, cuerpo de al menos 14 px en la columna de 375 px).';
 
+function criterionBrief(snap: ImproveSnapshot, key: string, criteria: Record<string, string>): string {
+  const note = snap.notas?.[key];
+  const desc = criteria[key] ? ` ${criteria[key]}` : '';
+  const why = snap.pruebas[key] ? ` Por qué: ${snap.pruebas[key]}` : '';
+  return `- ${key} ${note}/${snap.per}.${desc}${why}`;
+}
+
 export function improvePrompt(opts: {
   filePath: string;
   brand: string;
@@ -205,10 +252,14 @@ export function improvePrompt(opts: {
   criteria?: Record<string, string>;
   webPath?: string;
   checkCmd: string;
+  retry?: ImproveRetry | null;
+  /** Aprendizajes ya vistos en otras piezas (generales y de esta marca). */
+  learnings?: string;
 }): string {
-  const failing = criteriaBelowMax(opts.snap);
+  const failing = criteriaByWeakness(opts.snap);
   const solid = criteriaAtMax(opts.snap);
   const criteria = opts.criteria || {};
+  const retry = opts.retry && (opts.retry.focus.length || opts.retry.avoid.length) ? opts.retry : null;
   const lines: string[] = [
     `Revisa la newsletter ${opts.filePath} (${opts.brand}) y sube solo lo que está flojo. La pieza ya está hecha: no la rehagas.`,
     opts.webPath ? `Portada de la web de la marca, para no alejarte de ella: ${opts.webPath}.` : '',
@@ -217,6 +268,7 @@ export function improvePrompt(opts: {
     EMAIL_CONSTRAINTS,
     '',
   ];
+  if (opts.learnings?.trim()) lines.push(opts.learnings.trim(), '');
   if (opts.snap.notas && opts.snap.total != null && opts.snap.max != null) {
     lines.push(
       `Nota visual actual: ${opts.snap.total}/${opts.snap.max}.`,
@@ -224,29 +276,45 @@ export function improvePrompt(opts: {
       ''
     );
   }
-  if (solid.length) {
+  if (solid.length && !retry) {
     lines.push(
       `No toques estos criterios: ya están en el máximo (${opts.snap.per}/${opts.snap.per}).`,
       ...solid.map((k) => `- ${k}`),
       ''
     );
   }
-  if (failing.length) {
-    lines.push('Criterios por debajo del máximo (hay que subirlos, con el cambio mínimo):');
-    for (const key of failing) {
-      const note = opts.snap.notas?.[key];
-      const desc = criteria[key] ? ` ${criteria[key]}` : '';
-      lines.push(`- ${key} ${note}/${opts.snap.per}.${desc}`);
+  if (retry) {
+    lines.push(
+      'La pasada anterior se descartó. No repitas lo que hizo bajar la nota:',
+      ...retry.avoid.map((line) => `- ${line}`),
+      ''
+    );
+    if (retry.focus.length) {
+      lines.push('Esta pasada céntrate solo en los uno o dos criterios más flojos. No toques el resto:');
+      for (const key of retry.focus) lines.push(criterionBrief(opts.snap, key, criteria));
+      lines.push('');
     }
+  } else if (failing.length) {
+    lines.push('Empieza por los criterios más flojos, en este orden, y súbelos:');
+    for (const key of failing) lines.push(criterionBrief(opts.snap, key, criteria));
     lines.push('');
   }
   if (opts.snap.problemas.length) {
     lines.push('Problemas que bajan la nota:', ...opts.snap.problemas.map((p) => `- ${p}`), '');
   }
-  if (opts.snap.mejoras.length) {
+  if (opts.snap.mejoras.length && !retry) {
     lines.push(
-      'Mejoras propuestas (aplícalas; si una exige rehacer la pieza, sáltala):',
+      'Mejoras propuestas: aplícalas todas, empezando por las de los criterios más flojos. No dejes ninguna sin hacer, salvo que rompa una restricción de email o baje un criterio que ya está en el máximo.',
       ...opts.snap.mejoras.map((p) => `- ${p}`),
+      ''
+    );
+  } else if (opts.snap.mejoras.length && retry) {
+    const focus = new Set(retry.focus);
+    const related = opts.snap.mejoras.filter((line) => [...focus].some((key) => line.toLowerCase().includes(key.replace(/_/g, ' ')) || line.toLowerCase().includes(key)));
+    const picked = related.length ? related : opts.snap.mejoras.slice(0, 2);
+    lines.push(
+      'De las mejoras propuestas, aplica solo las de esos criterios:',
+      ...picked.map((p) => `- ${p}`),
       ''
     );
   }
@@ -330,6 +398,56 @@ export function formatScore(total: number | null, max: number | null): string {
   return `${total}/${max}`;
 }
 
+type ScoreLine = { notas: Record<string, number> | null; total: number | null; max: number | null };
+
+/** Total y cada criterio. El que cambia va `3→4`; el que no, solo la nota. */
+export function formatPassScoreLine(before: ScoreLine, after: ScoreLine | null): string {
+  const head = `${formatScore(before.total, before.max)} → ${formatScore(after?.total ?? null, after?.max ?? null)}`;
+  const keys = Object.keys(before.notas || {});
+  if (!keys.length) return head;
+  const parts = keys.map((key) => {
+    const from = before.notas![key];
+    const to = after?.notas?.[key];
+    if (to == null || to === from) return `${key} ${from}`;
+    return `${key} ${from}→${to}`;
+  });
+  return `${head} (${parts.join(', ')})`;
+}
+
+/**
+ * Lo que cabe en el comentario de ClickUp. Con notas: todos los criterios en 3 o menos;
+ * si no hay ninguno tan bajo, los 3 más flojos de los que no están en el máximo.
+ * Sin notas, los 3 primeros de `belowMax` (registros antiguos).
+ */
+export function commentCriteria(finalNotes: ImproveNotes | null | undefined, belowMax: string[]): string[] {
+  const notas = finalNotes?.notas || {};
+  const keys = Object.keys(notas);
+  if (!keys.length) return belowMax.slice(0, 3);
+  const below = [
+    ...keys.filter((key) => notas[key] < SCORE_PER_CRITERION),
+    ...belowMax.filter((key) => notas[key] == null),
+  ];
+  const score = (key: string) => notas[key] ?? SCORE_PER_CRITERION;
+  const byWeak = (a: string, b: string) => score(a) - score(b) || a.localeCompare(b);
+  const severe = below.filter((key) => score(key) <= 3).sort(byWeak);
+  if (severe.length) return severe;
+  return [...new Set(below)].sort(byWeak).slice(0, 3);
+}
+
+/** La pasada que se descarta: el siguiente encargo mira solo los 1–2 criterios más flojos de la mejor versión. */
+export function retryFrom(best: ImproveSnapshot, next: ImproveSnapshot | null, changed: string[], reason: string): ImproveRetry {
+  const avoid = [reason];
+  if (best.notas && next?.notas) {
+    for (const key of Object.keys(best.notas)) {
+      const from = best.notas[key];
+      const to = next.notas[key];
+      if (to != null && to < from) avoid.push(`bajó ${criterionLabel(key)} ${from} → ${to}`);
+    }
+  }
+  for (const change of changed) avoid.push(`no repitas: ${change}`);
+  return { focus: criteriaByWeakness(best).slice(0, 2), avoid: avoid.filter(Boolean).slice(0, 8) };
+}
+
 export function formatImproveComment(imp: Pick<JobImprove, 'initial' | 'final' | 'passes' | 'reached' | 'belowMax' | 'qcErrors'>): string {
   const n = imp.passes.length;
   const passes = n === 1 ? '1 pasada' : `${n} pasadas`;
@@ -340,7 +458,7 @@ export function formatImproveComment(imp: Pick<JobImprove, 'initial' | 'final' |
   }
   let line = `nota visual ${imp.initial.total}/${imp.initial.max} → ${imp.final.total}/${imp.final.max} (${passes})`;
   if (!imp.reached) {
-    const names = imp.belowMax.map(criterionLabel);
+    const names = commentCriteria(imp.final, imp.belowMax).map(criterionLabel);
     if (names.length) line += `. Siguen por debajo del máximo: ${names.join(', ')}`;
     else if (imp.qcErrors > 0) line += `. Quedan ${imp.qcErrors} error${imp.qcErrors === 1 ? '' : 'es'} de calidad`;
   }
@@ -361,7 +479,7 @@ export interface ImproveLoopDeps {
   restoreHtml: (html: string) => void;
   revise: (prompt: string, pass: number) => Promise<string>;
   rescore: () => Promise<ImproveSnapshot | null>;
-  promptFor: (snap: ImproveSnapshot, pass: number) => string;
+  promptFor: (snap: ImproveSnapshot, pass: number, retry?: ImproveRetry | null) => string;
   onKeep?: (snap: ImproveSnapshot) => void;
   log?: (line: string) => void;
 }
@@ -377,6 +495,8 @@ export async function runImproveLoop(deps: ImproveLoopDeps): Promise<JobImprove>
   let best = deps.best;
   const passes: ImprovePass[] = [];
   const openingNotes = notesOf(deps.opening) || emptyNotes();
+  const qcFixed: string[] = [];
+  let retry: ImproveRetry | null = null;
 
   for (let n = 1; n <= deps.maxPasses; n++) {
     if (!alive()) break;
@@ -391,7 +511,7 @@ export async function runImproveLoop(deps: ImproveLoopDeps): Promise<JobImprove>
     const started = now();
     let output = '';
     try {
-      output = await deps.revise(deps.promptFor(best, n), n);
+      output = await deps.revise(deps.promptFor(best, n, retry), n);
     } catch (err) {
       output = '';
       deps.log?.(`pasada ${n}: el modelo falló (${(err as Error).message || 'error'})`);
@@ -429,9 +549,15 @@ export async function runImproveLoop(deps: ImproveLoopDeps): Promise<JobImprove>
         durationMs,
       });
       deps.log?.(
-        `pasada ${n}: ${formatScore(beforeSnap.total, beforeSnap.max)} → ${formatScore(next?.total ?? null, next?.max ?? null)} en ${Math.round(durationMs / 1000)} s — ${decision.reason}`
+        `pasada ${n}: ${formatPassScoreLine(beforeSnap, next)} en ${Math.round(durationMs / 1000)} s — ${decision.reason}`
       );
-      break;
+      // Una pasada que baja (o no cambia) no para el bucle: se vuelve a la mejor versión y se prueba otra.
+      retry = retryFrom(beforeSnap, next, changed, decision.reason);
+      continue;
+    }
+    retry = null;
+    for (const line of beforeSnap.qcLines) {
+      if (next && !next.qcLines.includes(line) && !qcFixed.includes(line)) qcFixed.push(line);
     }
     best = next as ImproveSnapshot;
     if (!changed.length) changed.push('Revisión de los criterios flojos.');
@@ -448,7 +574,7 @@ export async function runImproveLoop(deps: ImproveLoopDeps): Promise<JobImprove>
     });
     deps.onKeep?.(best);
     deps.log?.(
-      `pasada ${n}: ${formatScore(beforeNotes.total, beforeNotes.max)} → ${formatScore(best.total, best.max)} en ${Math.round(durationMs / 1000)} s — ${decision.reason}`
+      `pasada ${n}: ${formatPassScoreLine(beforeNotes, best)} en ${Math.round(durationMs / 1000)} s — ${decision.reason}`
     );
     if (reachedTarget(best, deps.target)) break;
   }
@@ -463,6 +589,7 @@ export async function runImproveLoop(deps: ImproveLoopDeps): Promise<JobImprove>
     reached: reachedTarget(best, deps.target),
     belowMax: belowOf(best),
     qcErrors: best.qcErrors,
+    ...(qcFixed.length ? { qcFixed: qcFixed.slice(0, 20) } : {}),
   };
 }
 
@@ -526,6 +653,7 @@ export function sanitizeImproveRecord(raw: unknown): JobImprove | undefined {
     reached: r.reached === true,
     belowMax,
     qcErrors: Math.max(0, Math.min(40, Math.round(Number(r.qcErrors) || 0))),
+    ...(clipList(r.qcFixed, 20).length ? { qcFixed: clipList(r.qcFixed, 20) } : {}),
     ...(r.closed === true ? { closed: true } : {}),
   };
 }

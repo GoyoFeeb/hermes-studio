@@ -169,6 +169,11 @@ export function createSupabase(opts: SupabaseOptions = {}) {
       enqueue(`ficha de ${slug}`, () => upsert('brand_cards', 'slug', { slug, updated_at: new Date().toISOString(), data }));
     },
 
+    /** El banco de aprendizajes entero, una fila. Hace falta studio/supabase/003-learnings.sql. */
+    saveLearnings(data: unknown): void {
+      enqueue('aprendizajes', () => upsert('learnings', 'id', { id: 'bank', updated_at: new Date().toISOString(), data }));
+    },
+
     saveFile(bucket: Bucket, relPath: string, body: Buffer | string, contentType: string): void {
       enqueue(`archivo ${bucket}/${relPath}`, () =>
         request(`/storage/v1/object/${bucket}/${objectPath(relPath)}`, {
@@ -244,6 +249,7 @@ export const supabase: Supabase = {
   saveJob: (job) => get().saveJob(job),
   saveEvent: (jobId, ev) => get().saveEvent(jobId, ev),
   saveBrandCard: (slug, data) => get().saveBrandCard(slug, data),
+  saveLearnings: (data) => get().saveLearnings(data),
   saveFile: (bucket, relPath, body, contentType) => get().saveFile(bucket, relPath, body, contentType),
   readFile: (bucket, relPath) => get().readFile(bucket, relPath),
   raw: (path, init) => get().raw(path, init),

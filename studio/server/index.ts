@@ -34,6 +34,7 @@ import {
 } from './clickup';
 import { prepareClickupTask } from './clickupPrepare';
 import { paginateResults } from './results';
+import { canEditLearnings, deleteLearning, editLearning, learningView, learningsRepository, openingFromArt, promptLearnings, rememberJob } from './learnings';
 import { leaseUntil, selectClaim, withStoreLock, workerIdentity } from './claimQueue';
 import { renewJobLease } from './lease';
 import { noteWorker, workerCapacity } from './workerPool';
@@ -71,7 +72,7 @@ import {
   pendingThumbnails,
   sanitizeQuality,
   sanitizeTimings,
-  usagePatch
+  usagePatch,
   costJobSummary,
   wantsCostFields,
   priorUsageOf,
@@ -433,6 +434,7 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), a
   }
   hermesLog(job.id, 'Hermes ha recogido el trabajo y está trabajando.');
   void notifyClickupStarted(job);
+  const learnings = learningsFor(job);
   res.json({
     id: job.id,
     outputDir: standaloneOutputDir(job),
@@ -447,18 +449,35 @@ app.post('/api/worker/claim', requireWorker, express.json({ limit: '256kb' }), a
     ...(priorUsageOf(job) ? { priorUsage: priorUsageOf(job) } : {}),
     // Instrucción básica: el worker ejecuta primero briefPrompt y luego pide el encargo final
     // a /brief. Con prompt pegado, el encargo va directamente.
+    ...(learnings ? { learnings } : {}),
     ...(job.input.revisionOf
       ? (() => {
           const source = getJob(job.input.revisionOf) || job;
-          return { editKind: 'revision', prompt: buildRevisionPrompt(job), sourceHtml: readResultHtml(source) || '', sourceNotes: readResultNotes(source) || '' };
+          return { editKind: 'revision', prompt: withLearnings(buildRevisionPrompt(job), learnings), sourceHtml: readResultHtml(source) || '', sourceNotes: readResultNotes(source) || '' };
         })()
       : job.input.mobileFixOf
       ? { editKind: 'mobile-fix', prompt: buildMobileFixPrompt(job), sourceHtml: readResultHtml(getJob(job.input.mobileFixOf) || job) || '' }
       : needsBrief(job)
-        ? { briefPrompt: buildBriefPrompt(job) }
-        : { prompt: buildHermesPrompt(job) }),
+        ? { briefPrompt: withLearnings(buildBriefPrompt(job), learnings) }
+        : { prompt: withLearnings(buildHermesPrompt(job), learnings) }),
   });
 });
+
+/** Aprendizajes de esta marca (y los generales) para el encargo. Se apuntan en el trabajo. */
+function learningsFor(job: Job): string {
+  try {
+    const bundle = promptLearnings(job.input.clientSlug);
+    if (bundle.applied.length) updateJob(job.id, { learningsApplied: bundle.applied });
+    return bundle.block;
+  } catch (err) {
+    console.error(`[learnings] ${(err as Error).message}`);
+    return '';
+  }
+}
+
+function withLearnings(prompt: string, block: string): string {
+  return block ? `${prompt}\n\n${block}` : prompt;
+}
 
 app.post('/api/worker/jobs/:id/heartbeat', requireWorker, express.json({ limit: '16kb' }), (req: Request, res: Response) => {
   const job = standaloneJobForWorker(req, res);
@@ -503,7 +522,7 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
     ...cost,
   });
   hermesLog(job.id, 'Brief creativo listo: Hermes empieza la newsletter. Puedes leerlo y corregirlo mientras trabaja.', 'success');
-  res.json({ prompt: buildHermesPrompt(updated) });
+  res.json({ prompt: withLearnings(buildHermesPrompt(updated), learningsFor(updated)) });
 });
 
 app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '64kb' }), (req: Request, res: Response) => {
@@ -533,7 +552,7 @@ app.post('/api/worker/jobs/:id/progress', requireWorker, express.json({ limit: '
   if (beat.restart) {
     const fresh = getJob(job.id) || job;
     hermesLog(job.id, 'Hermes vuelve a empezar la pieza con el brief corregido.', 'success');
-    res.json({ ok: true, briefRestart: { prompt: buildHermesPrompt(fresh), brief: fresh.input.briefText } });
+    res.json({ ok: true, briefRestart: { prompt: withLearnings(buildHermesPrompt(fresh), learningsFor(fresh)), brief: fresh.input.briefText } });
     return;
   }
   if (req.body?.briefLock === true && beat.patch) hermesLog(job.id, 'Primera versión hecha: el brief ya no se puede corregir (para cambios, «Pedir cambios»).');
@@ -556,6 +575,19 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     const cost = usagePatch(fresh, req.body, 'replace');
     if (artReview || improve || cost) {
       updateJob(job.id, { ...(artReview ? { artReview } : {}), ...(improve ? { improve } : {}), ...(cost || {}) });
+    }
+    const saved = getJob(job.id) || job;
+    try {
+      rememberJob({
+        jobId: job.id,
+        clientSlug: saved.input.clientSlug,
+        channel: 'a',
+        at: new Date().toISOString(),
+        improve: saved.improve,
+        opening: openingFromArt(saved.artReview?.before),
+      });
+    } catch (err) {
+      console.error(`[learnings] ${(err as Error).message}`);
     }
   } catch (err) {
     const cost = usagePatch(getJob(job.id) || job, req.body, 'replace');
@@ -648,6 +680,7 @@ app.post('/api/worker/channel-b/pending', requireWorker, express.json({ limit: '
         name: due.input.clientName || '',
         request: due.input.instruction || '',
         prompt: (due.input.briefText || '').slice(0, 8000),
+        learnings: promptLearnings(due.input.clientSlug).block,
       },
     ],
   });
@@ -1241,6 +1274,50 @@ app.get('/api/results', (req: Request, res: Response) => {
     return;
   }
   res.json(outcome.page);
+});
+
+/** Banco de aprendizajes. Solo una cuenta de Google @feebbo.com: la contraseña compartida no basta. */
+function requireFeebbo(req: Request, res: Response): boolean {
+  const user = res.locals.user as { via?: string; email?: string } | undefined;
+  if (canEditLearnings(user)) return true;
+  res.status(401).json({ error: 'Esta vista es solo para cuentas @feebbo.com.' });
+  return false;
+}
+
+app.get('/api/learnings', (req: Request, res: Response) => {
+  if (!requireFeebbo(req, res)) return;
+  res.set('Cache-Control', 'no-store').json(learningView(learningsRepository().load()));
+});
+
+app.patch('/api/learnings/:id', express.json({ limit: '16kb' }), (req: Request, res: Response) => {
+  if (!requireFeebbo(req, res)) return;
+  const id = String(req.params.id || '');
+  if (!/^l[a-z0-9]{4,24}$/.test(id)) {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  const repo = learningsRepository();
+  const next = editLearning(repo.load(), id, typeof req.body?.text === 'string' ? req.body.text : '');
+  if (!next) {
+    res.status(400).json({ error: 'No se pudo guardar ese aprendizaje.' });
+    return;
+  }
+  repo.save(next);
+  res.json(learningView(next));
+});
+
+app.delete('/api/learnings/:id', (req: Request, res: Response) => {
+  if (!requireFeebbo(req, res)) return;
+  const id = String(req.params.id || '');
+  const repo = learningsRepository();
+  const bank = repo.load();
+  if (!/^l[a-z0-9]{4,24}$/.test(id) || !bank.learnings.some((item) => item.id === id)) {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  const next = deleteLearning(bank, id);
+  repo.save(next);
+  res.json(learningView(next));
 });
 
 app.get('/api/jobs/:id', (req: Request, res: Response) => {

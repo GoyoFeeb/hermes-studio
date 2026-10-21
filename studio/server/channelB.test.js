@@ -151,6 +151,6 @@ test('la versión B entra en la cola de mejora solo con errores de QC y sin pasa
   assert.equal(out.closed, false);
   assert.equal(out.cancelled, false);
   assert.equal(out.claimed, false);
-  assert.equal(out.expired, true);
+  assert.equal(out.expired, false);
   assert.equal(out.none, false);
 });

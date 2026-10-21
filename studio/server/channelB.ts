@@ -18,6 +18,7 @@ import { ROOT } from './paths';
 import { writeMirrored } from './mirror';
 import { appendEvent, updateJob, type Job, type JobChannelB } from './store';
 import { sanitizeImproveRecord, type JobImprove } from '../worker/improveLoop';
+import { rememberJob } from './learnings';
 import { publishEmbeddedImages, standaloneOutputDir } from './standalone';
 import { findPreheader, runQualityCheck, type Fetcher } from '../worker/qualityCheck';
 
@@ -150,20 +151,21 @@ export function readChannelBText(job: Job): string | null {
   return readRel(job.channelB?.textRelPath);
 }
 
-/** Cuánto se reserva una B mientras el worker la mejora. Si no vuelve, otro hueco puede cogerla. */
+/** Reservada al pedirla. Ya no vuelve a la cola: un intento que no pudo ni crear la carpeta
+ *  (EACCES en /app) se repetía en cada arranque cuando la reserva vencía. */
 export const CHANNEL_B_IMPROVE_CLAIM_MS = 25 * 60 * 1000;
 
-/** La B tiene errores de QC y todavía no se cerró una pasada de mejora. */
+/** La B tiene errores de QC, no se cerró una pasada y nadie la ha reservado todavía. */
 export function channelBImproveDue(
   job: { status: string; channelB?: Pick<JobChannelB, 'quality' | 'improve' | 'improveClaimedAt'> | null },
-  now = Date.now()
+  _now = Date.now()
 ): boolean {
   const b = job.channelB;
   if (!b?.quality || b.quality.errors < 1) return false;
   if (b.improve?.closed) return false;
   if (job.status === 'cancelled' || job.status === 'failed') return false;
   const claimed = b.improveClaimedAt ? Date.parse(b.improveClaimedAt) : NaN;
-  if (Number.isFinite(claimed) && now - claimed < CHANNEL_B_IMPROVE_CLAIM_MS) return false;
+  if (Number.isFinite(claimed)) return false;
   return true;
 }
 
@@ -203,7 +205,19 @@ export async function applyChannelBImprove(
     level: quality.errors ? 'error' : 'success',
     message: `Mejora de la versión B: ${record.passes.length} pasada(s), ${quality.errors} error(es) de calidad.`,
   });
-  return updateJob(job.id, { channelB });
+  const saved = updateJob(job.id, { channelB });
+  try {
+    rememberJob({
+      jobId: job.id,
+      clientSlug: job.input.clientSlug,
+      channel: 'b',
+      at: new Date().toISOString(),
+      improve: saved.channelB?.improve,
+    });
+  } catch (err) {
+    console.error(`[learnings] ${(err as Error).message}`);
+  }
+  return saved;
 }
 
 /**

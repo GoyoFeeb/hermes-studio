@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aprendizajes · Hermes Studio</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background: #050c2a; color: #edf3fc; font: 16px/1.5 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }
+    main { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; }
+    a { color: #fb73ff; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    .lead, .hint { color: #8991ae; }
+    .trend { margin: 24px 0; padding: 16px 18px; border: 1px solid #262b59; border-radius: 10px; background: #0a1030; }
+    .trend strong { font-size: 28px; }
+    section { margin-top: 28px; }
+    h2 { font-size: 18px; margin: 0 0 12px; }
+    article { display: grid; gap: 8px; margin: 0 0 12px; padding: 12px 14px; border: 1px solid #262b59; border-radius: 10px; background: #0a1030; }
+    article p { margin: 0; }
+    textarea { width: 100%; min-height: 64px; box-sizing: border-box; border: 1px solid #262b59; border-radius: 8px; background: #050c2a; color: inherit; font: inherit; padding: 8px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { border: 1px solid #fb73ff; border-radius: 45px; background: #262b59; color: inherit; font: inherit; font-weight: 600; padding: 8px 14px; cursor: pointer; }
+    button.danger { border-color: #c45656; }
+    .meta { color: #8991ae; font-size: 14px; }
+    .up { color: #8ee0a8; }
+    .down { color: #f0a0a0; }
+    @media (prefers-color-scheme: light) {
+      body { background: #f4f5fb; color: #0e1545; }
+      .trend, article { background: #fff; border-color: #dcdeec; }
+      textarea { background: #fff; border-color: #dcdeec; color: inherit; }
+      .lead, .hint, .meta { color: #5a6182; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p><a href="/">← Studio</a></p>
+    <h1>Aprendizajes</h1>
+    <p class="lead">Lo que las pasadas de mejora han enseñado, en general y por marca. El siguiente borrador los lleva en el encargo. Solo cuentas @feebbo.com.</p>
+    <p id="status" class="hint" role="status">Cargando…</p>
+    <div id="trend" class="trend" hidden></div>
+    <div id="list"></div>
+  </main>
+  <script src="/learnings.js"></script>
+</body>
+</html>

@@ -67,7 +67,7 @@ Respuesta `200`:
 
 `quality` es el informe de `studio/worker/qualityCheck.ts` (el mismo revisor que usa el servidor al editar texto: enlaces, imágenes, preheader, peso, Outlook, modo oscuro, baja, alt…). Los errores no rechazan el HTML: se guardan para la comparativa. Lo que el worker mide con Chromium (`renderChecks.ts`: desborde a 375 px, contraste medido, etc.) no corre aquí, porque el servidor no abre navegador. En la comparativa esas filas salen como «No medida» en B.
 
-Si ese QC deja errores y `HERMES_IMPROVE_MAX_PASSES` no es 0, el worker (cuando no tiene un trabajo) reescribe la B con el mismo bucle que la de Hermes: le pasa los errores, vuelve a puntuar y se queda con la mejor versión. El registro queda en `channelB.improve` y la página lo enseña en «Iteraciones de mejora» al ver Creas IT. El aviso de ClickUp sigue siendo el de la pieza de Hermes.
+Si ese QC deja errores y `HERMES_IMPROVE_MAX_PASSES` no es 0, el worker (cuando no tiene un trabajo) reescribe la B una vez, con el mismo bucle que la de Hermes: le pasa los errores, vuelve a puntuar y se queda con la mejor versión. La carpeta temporal es la del sistema (`os.tmpdir()/hermes-improve`) o `HERMES_IMPROVE_TMP`, no `/app/.improve-tmp`. Al reservarla ya no vuelve a entrar, aunque el intento no publique nada: así un fallo de permisos no se repite en cada arranque. El registro queda en `channelB.improve` y la página lo enseña en «Iteraciones de mejora» al ver Creas IT. El aviso de ClickUp sigue siendo el de la pieza de Hermes.
 
 Ejemplo (el token es ficticio; el id también):
 

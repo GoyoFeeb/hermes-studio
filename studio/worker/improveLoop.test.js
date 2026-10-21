@@ -155,6 +155,10 @@ test('el encargo nombra los criterios flojos, las mejoras y los errores, y prote
   assert.match(r.prompt, /No toques estos criterios/);
   assert.match(r.prompt, /- identidad/);
   assert.match(r.prompt, /- copy/);
+  assert.match(r.prompt, /aplícalas todas/);
+  const ordered = r.prompt.slice(r.prompt.indexOf('Empieza por'));
+  assert.ok(ordered.indexOf('concepto 3/5') < ordered.indexOf('originalidad 3/5'));
+  assert.ok(ordered.indexOf('originalidad 3/5') < ordered.indexOf('- aire'));
   assert.equal(r.constraints, true);
   assert.deepEqual(r.changes, ['concepto: titular de la escena 2', 'originalidad: cita a sangre']);
   assert.equal(r.bullets.length, 2);
@@ -258,11 +262,13 @@ test('el bucle sube 40/50 hasta el objetivo, descarta lo que empeora y para si n
   assert.ok(r.passes[0].ms >= 1000);
   assert.deepEqual(r.passes[0].changed, ['pasada 1']);
   assert.equal(r.comment, 'nota visual 40/50 → 50/50 (2 pasadas)');
-  assert.deepEqual(r.worseKept, [false]);
+  assert.deepEqual(r.worseKept, [false, false, false]);
   assert.equal(r.worseFinal, 40);
-  assert.match(r.worseComment, /40\/50 → 40\/50 \(1 pasada\)/);
+  assert.match(r.worseComment, /40\/50 → 40\/50 \(3 pasadas\)/);
   assert.match(r.worseComment, /concepto/);
   assert.match(r.worseComment, /originalidad/);
+  assert.doesNotMatch(r.worseComment, /petición/);
+  assert.match(r.logs.join('\n'), /concepto 3→5/);
   assert.equal(r.restored, 'base');
   assert.equal(r.earlyPasses, 1);
   assert.equal(r.earlyReached, true);
@@ -294,6 +300,81 @@ test('el comentario de ClickUp lista lo que sigue por debajo del máximo', () =>
   assert.match(r.qc, /2 errores de calidad/);
 });
 
+test('el encargo pone primero lo más flojo, con el porqué, y tras un descarte no repite lo que bajó', async () => {
+  const r = run(`
+    const notas = ${JSON.stringify(notas({ texto_imagen: 2, concepto: 3, originalidad: 3, copy: 3, peticion: 5, jerarquia: 5, aire: 5, movil: 5, oscuro: 5 }))};
+    const opening = m.snapshotOf({
+      notas,
+      pruebas: { texto_imagen: 'el titular de la escena 2 no es la foto', concepto: 'tres escenas sueltas' },
+      mejoras: ['texto imagen: que el titular nombre lo que se ve', 'concepto: un hilo', 'originalidad: un módulo propio', 'copy: el botón con verbo'],
+      qcLines: [],
+    });
+    let html = 'v0';
+    const prompts = [];
+    const up = m.snapshotOf({ notas: ${JSON.stringify(notas({ texto_imagen: 3, concepto: 4, originalidad: 4, copy: 4, peticion: 5, jerarquia: 5, aire: 5, movil: 5, oscuro: 5 }))}, qcLines: [] });
+    const down = m.snapshotOf({ notas: ${JSON.stringify(notas({ texto_imagen: 1, concepto: 4, originalidad: 4, copy: 4, peticion: 5, jerarquia: 5, aire: 5, movil: 5, oscuro: 5 }))}, qcLines: [] });
+    const recovered = m.snapshotOf({ notas: ${JSON.stringify(notas({ texto_imagen: 4, concepto: 4, originalidad: 4, copy: 4, peticion: 5, jerarquia: 5, aire: 5, movil: 5, oscuro: 5 }))}, qcLines: [] });
+    const scores = [up, down, recovered];
+    const record = await m.runImproveLoop({
+      opening, best: opening, maxPasses: 3, target: 1, minStartMs: 0,
+      timeLeftMs: () => 60_000,
+      now: () => 1000,
+      readHtml: () => html,
+      restoreHtml: (prev) => { html = prev; },
+      revise: async (prompt) => { prompts.push(prompt); html = html + '+'; return JSON.stringify({ cambios: ['tocar ' + prompts.length] }); },
+      rescore: async () => scores.shift(),
+      promptFor: (snap, _pass, retry) => m.improvePrompt({
+        filePath: 'n.html', brand: 'Mazda', snap, retry,
+        criteria: { texto_imagen: 'el texto dice lo que se ve', concepto: 'una idea' },
+        learnings: '## Aprendizajes de piezas anteriores\\n- sube el concepto en el primer borrador',
+        checkCmd: 'npm run check-newsletter -- n.html',
+      }),
+    });
+    const dirCustom = m.improveTempDir('mvh6qir6-dhmpvc', { HERMES_IMPROVE_TMP: '/tmp/custom' }, '/no');
+    const dirTmp = m.improveTempDir('../etc/passwd', {}, '/var/tmp');
+    const severe = {
+      initial: { notas: {}, total: 30, max: 50 },
+      final: { notas: { texto_imagen: 2, concepto: 3, originalidad: 3, copy: 3, peticion: 4, identidad: 5, jerarquia: 4, aire: 4, movil: 4, oscuro: 4 }, total: 36, max: 50 },
+      passes: [{ n: 1 }],
+      reached: false,
+      belowMax: ['aire', 'concepto', 'copy', 'jerarquia', 'movil', 'originalidad', 'oscuro', 'peticion', 'texto_imagen'],
+      qcErrors: 0,
+    };
+    const mild = {
+      ...severe,
+      final: { notas: { aire: 4, jerarquia: 4, movil: 4, oscuro: 4, peticion: 4, identidad: 5, concepto: 5, originalidad: 5, texto_imagen: 5, copy: 5 }, total: 46, max: 50 },
+    };
+    process.stdout.write(JSON.stringify({
+      kept: record.passes.map((p) => p.kept),
+      final: record.final.total,
+      prompts,
+      dirCustom, dirTmp,
+      severe: m.formatImproveComment(severe),
+      mild: m.formatImproveComment(mild),
+    }));
+  `);
+  assert.deepEqual(r.kept, [true, false, true]);
+  assert.equal(r.final, 46);
+  assert.equal(r.prompts.length, 3);
+  assert.match(r.prompts[0], /Por qué: el titular de la escena 2/);
+  assert.match(r.prompts[0], /aplícalas todas/);
+  assert.match(r.prompts[0], /Aprendizajes de piezas anteriores/);
+  const first = r.prompts[0].slice(r.prompts[0].indexOf('Empieza por'));
+  assert.ok(first.indexOf('texto_imagen 2/5') < first.indexOf('concepto 3/5'));
+  assert.ok(first.indexOf('concepto 3/5') < first.indexOf('copy 3/5'));
+  assert.match(r.prompts[2], /La pasada anterior se descartó/);
+  assert.match(r.prompts[2], /No repitas/);
+  assert.match(r.prompts[2], /texto_imagen/);
+  assert.doesNotMatch(r.prompts[2], /No toques estos criterios/);
+  assert.equal(r.dirCustom, path.join('/tmp/custom', 'hermes-improve', 'mvh6qir6-dhmpvc'));
+  assert.ok(r.dirTmp.startsWith(path.join('/var/tmp', 'hermes-improve')));
+  assert.ok(!r.dirTmp.includes('..'));
+  assert.match(r.severe, /texto e imagen, concepto, copy, originalidad/);
+  assert.doesNotMatch(r.severe, /petición/);
+  assert.match(r.mild, /aire, jerarquía, móvil/);
+  assert.doesNotMatch(r.mild, /oscuro/);
+});
+
 test('el worker llama al bucle y el entorno de la nube deja pasar las dos variables', () => {
   const src = fs.readFileSync(path.join(__dirname, 'hermes-worker.ts'), 'utf8');
   assert.match(src, /runImproveLoop\(/);
@@ -301,7 +382,11 @@ test('el worker llama al bucle y el entorno de la nube deja pasar las dos variab
   assert.match(src, /backfillChannelBImproves\(/);
   assert.match(src, /channel-b\/improve/);
   assert.match(src, /shouldRunTasteRound\(review, budget\.artRevisePasses\)/);
+  assert.match(src, /improveTempDir\(/);
+  assert.match(src, /formatPassScoreLine/);
+  assert.doesNotMatch(src, /path\.join\(ROOT, '\.improve-tmp'/);
   const allow = fs.readFileSync(path.join(__dirname, 'cloudEnv.ts'), 'utf8');
   assert.match(allow, /HERMES_IMPROVE_MAX_PASSES/);
   assert.match(allow, /HERMES_IMPROVE_TARGET/);
+  assert.match(allow, /HERMES_IMPROVE_TMP/);
 });

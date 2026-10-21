@@ -173,6 +173,8 @@ export interface Job {
   artReview?: JobArtReview;
   /** Pasadas que suben la nota o quitan errores de QC (2026-10-21, improveLoop.ts). */
   improve?: JobImprove;
+  /** Aprendizajes inyectados en el encargo de este trabajo (learnings.ts). */
+  learningsApplied?: { id: string; scope: string; kind: string; text: string }[];
   /** El worker no pudo puntuarla después (sin HTML o sin notas legibles): no se le vuelve a pedir. */
   artReviewFailed?: boolean;
   /** Versión B del mismo brief (Creas IT u otro canal), adjunta por API. Sin ella, la página dice «en preparación». */

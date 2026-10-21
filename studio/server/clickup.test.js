@@ -952,13 +952,13 @@ test('el aviso de fin usa la nota inicial y la final cuando hay iteraciones', ()
         target: 1,
         maxPasses: 3,
         initial: { notas: { peticion: 4, concepto: 3 }, total: 40, max: 50 },
-        final: { notas: { peticion: 4, concepto: 5 }, total: 48, max: 50 },
+        final: { notas: { peticion: 4, concepto: 3, originalidad: 3, identidad: 5 }, total: 48, max: 50 },
         passes: [
           { n: 1, before: { notas: {}, total: 40, max: 50 }, after: { notas: {}, total: 46, max: 50 }, qcBefore: 1, qcAfter: 0, kept: true, changed: ['concepto'], reason: 'se queda', durationMs: 1000 },
           { n: 2, before: { notas: {}, total: 46, max: 50 }, after: { notas: {}, total: 48, max: 50 }, qcBefore: 0, qcAfter: 0, kept: true, changed: ['originalidad'], reason: 'se queda', durationMs: 1000 },
         ],
         reached: false,
-        belowMax: ['concepto', 'originalidad'],
+        belowMax: ['aire', 'concepto', 'originalidad', 'peticion'],
         qcErrors: 0,
       },
     };

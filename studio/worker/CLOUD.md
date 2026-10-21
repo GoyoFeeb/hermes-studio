@@ -77,7 +77,10 @@ Nombres en `env.example`. Valores solo en Railway, en el servicio `hermes-worker
   de gusto ni comparaciones A/B. `1` o más restaura esa pasada (una sola vez).
 - `HERMES_IMPROVE_MAX_PASSES` (3), `HERMES_IMPROVE_TARGET` (1). Tras la primera nota y el QC, si un
   criterio no está en el máximo o queda un error, el worker reescribe solo eso y vuelve a puntuar,
-  hasta el objetivo (1 = 100 %) o hasta que una pasada no mejore. `0` desactiva el bucle.
+  hasta el objetivo (1 = 100 %) o hasta agotar las pasadas. Una pasada que baja la nota se descarta
+  y el bucle sigue desde la mejor versión, con otro encargo. `0` desactiva el bucle.
+  `HERMES_IMPROVE_TMP` (opcional) es la carpeta de la mejora de la versión B. Vacío = la temporal
+  del sistema. No uses el directorio de la app: en el contenedor `/app` no se puede escribir.
   **No subas `HERMES_ART_REVISE_PASSES`**: ese interruptor es la pasada antigua de gusto (A/B) y
   este bucle la sustituye. Déjalo en 0. Con 1 correrían las dos y el trabajo se alarga.
   Cada pasada cabe en el tiempo que le quede al trabajo (`HERMES_JOB_TIMEOUT_MIN`, 20). Si el
