@@ -2366,6 +2366,9 @@ a.show-card:hover .show-brand, a.show-card:focus-visible .show-brand { opacity: 
 .art-bar.is-low > span { background: var(--error); }
 .art-notes-title { margin: 16px 0 4px; font-size: var(--fs-small); font-weight: 600; color: var(--text); }
 .art-notes { margin: 0; padding-left: 20px; font-size: var(--fs-small); color: var(--muted); display: grid; gap: 4px; }
+.improve-list { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 14px; }
+.improve-pass p { margin: 0 0 4px; }
+.art-card-improve { margin: 10px 0 0; font-size: var(--fs-small); color: var(--muted); }
 .art-spark { display: block; max-width: 100%; height: auto; margin: 8px 0; color: var(--pink); }
 .art-spark circle { fill: var(--bg); stroke: currentColor; stroke-width: 2; }
 .stat.stat-static { cursor: default; }

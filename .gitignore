@@ -24,6 +24,8 @@ newsletters/*/*/*/09-exports/final-inline.html
 # (2026-09-24) se pensó trackear newsletter.html y sus imágenes, pero nunca se hizo y son ~150 MB que crecen 2-10 MB por
 # pieza y Railway descargaría en cada despliegue.
 newsletters/*/*/hermes/
+# HTML temporal de la mejora de la versión B (el worker lo borra al terminar).
+.improve-tmp/
 
 # Pruebas de _archive: se guardan el README, los scripts y los resultados; las piezas generadas se quedan en el Mac.
 _archive/prueba-modelos-2026-10-06/*/

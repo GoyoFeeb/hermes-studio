@@ -23,6 +23,7 @@ import { getJob, updateJob, appendEvent, listJobs, type Job, type JobArtReview, 
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
 import { findPreheader, staticChecks } from '../worker/qualityCheck';
+import { sanitizeImproveRecord, type JobImprove } from '../worker/improveLoop';
 import { applyTextEdits, type TextEdit, type AltEdit, type LinkEdit, type ImageEdit } from './textEdit';
 import { createJob } from './store';
 import { joinLabels, requestTerms } from './requestCoverage';
@@ -683,6 +684,11 @@ export function sanitizeArtReview(raw: unknown): JobArtReview | undefined {
     mejoras: list(r.mejoras),
     ...(r.backfill === true ? { backfill: true } : {}),
   };
+}
+
+/** Registro de iteraciones de mejora que manda el worker. */
+export function sanitizeImprove(raw: unknown): JobImprove | undefined {
+  return sanitizeImproveRecord(raw);
 }
 
 /** Piezas terminadas de los últimos `days` días sin notas de calidad (2026-10-06): el worker, libre, las puntúa con la
