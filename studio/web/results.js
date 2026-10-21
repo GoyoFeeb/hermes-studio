@@ -97,6 +97,57 @@
     return /^\/api\/jobs\/[a-z0-9-]+\/(?:result|channel-b)$/.test(url || '') ? url : '';
   }
 
+  function improveSection(imp) {
+    if (!imp || !imp.passes || !imp.passes.length) return '';
+    var n = imp.passes.length;
+    var summary = [
+      imp.initial && imp.final ? imp.initial + ' → ' + imp.final : '',
+      n + (n === 1 ? ' pasada' : ' pasadas'),
+      formatDuration(imp.durationSec),
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    if (!imp.reached && imp.belowMax && imp.belowMax.length) summary += '. Siguen por debajo: ' + imp.belowMax.join(', ');
+    else if (!imp.reached && imp.qcErrors) summary += '. Quedan ' + imp.qcErrors + (imp.qcErrors === 1 ? ' error de calidad' : ' errores de calidad');
+    var steps = imp.passes
+      .map(function (pass) {
+        var line =
+          'Pasada ' +
+          pass.n +
+          ' · ' +
+          (pass.before || '—') +
+          ' → ' +
+          (pass.after || 'sin nota') +
+          ' · ' +
+          formatDuration(pass.durationSec) +
+          ' · ' +
+          (pass.kept ? 'se queda' : 'se descarta');
+        var criteria = (pass.criteria || [])
+          .map(function (row) {
+            var change =
+              row.after == null || row.after === row.before ? row.before + '/5' : row.before + '/5 → ' + row.after + '/5';
+            return '<li>' + esc(row.label) + ': ' + esc(change) + '</li>';
+          })
+          .join('');
+        var changed = (pass.changed || [])
+          .map(function (line) {
+            return '<li>' + esc(line) + '</li>';
+          })
+          .join('');
+        return (
+          '<li><p>' +
+          esc(line) +
+          '</p>' +
+          (pass.reason ? '<p class="hint">' + esc(pass.reason) + '</p>' : '') +
+          (criteria ? '<ul>' + criteria + '</ul>' : '') +
+          (changed ? '<ul>' + changed + '</ul>' : '') +
+          '</li>'
+        );
+      })
+      .join('');
+    return '<section class="results-improve"><h3>Iteraciones de mejora</h3><p>' + esc(summary) + '</p><ol>' + steps + '</ol></section>';
+  }
+
   function versionBlock(version) {
     if (!version) return '<p class="hint">No hay versión B.</p>';
     var preview = safePreview(version.preview);
@@ -107,6 +158,7 @@
       criteriaList(version.art) +
       '<p>Control de calidad: ' + esc(qualityLine(version.quality)) + '</p>' +
       checksList(version.quality) +
+      (version.label === 'B' ? improveSection(version.improve) : '') +
       '<iframe class="results-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Vista previa ' +
       esc(version.label) +
       '" src="' +
@@ -139,6 +191,7 @@
       '</header>' +
       criteriaList(item.art) +
       checksList(item.quality) +
+      improveSection(item.improve) +
       '<div class="results-versions">' +
       versionBlock(item.versions && item.versions.a) +
       versionBlock(item.versions && item.versions.b) +

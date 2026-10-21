@@ -31,6 +31,7 @@ function run(code) {
         },
         quality: partial.quality,
         artReview: partial.artReview,
+        improve: partial.improve,
         channelB: partial.channelB,
       };
     }
@@ -102,6 +103,7 @@ test('los resultados van de uno en uno, el más nuevo primero, con cursor, offse
       previewA: item.previewA,
       previewB: item.previewB,
       bScore: item.versions.b && item.versions.b.quality && item.versions.b.quality.warnings,
+      improve: item.improve,
     }));
   `);
   assert.deepEqual(out.order, ['new333-cccc']);
@@ -128,6 +130,68 @@ test('los resultados van de uno en uno, el más nuevo primero, con cursor, offse
   assert.equal(out.previewA, '/api/jobs/new333-cccc/result');
   assert.equal(out.previewB, '/api/jobs/new333-cccc/channel-b');
   assert.equal(out.bScore, 1);
+  assert.equal(out.improve, null);
+});
+
+test('los resultados incluyen las iteraciones de mejora de Hermes y de la versión B', () => {
+  const out = run(`
+    const pass = (n, before, after, kept) => ({
+      n,
+      before: { notas: { concepto: before === 40 ? 3 : 4, identidad: 5 }, total: before, max: 50 },
+      after: { notas: { concepto: after === 48 ? 5 : 4, identidad: 5 }, total: after, max: 50 },
+      qcBefore: 1,
+      qcAfter: 0,
+      kept,
+      changed: ['Sube el concepto'],
+      reason: kept ? 'se queda: la nota sube' : 'la nota bajó',
+      durationMs: 90000,
+    });
+    const improve = {
+      target: 1,
+      maxPasses: 3,
+      initial: { notas: { concepto: 3, identidad: 5 }, total: 40, max: 50 },
+      final: { notas: { concepto: 5, identidad: 5 }, total: 48, max: 50 },
+      passes: [pass(1, 40, 48, true)],
+      reached: false,
+      belowMax: ['concepto'],
+      qcErrors: 0,
+    };
+    const item = results.resultItem(job({
+      id: 'imp666-ffff',
+      createdAt: '2026-10-21T11:00:00.000Z',
+      clientName: 'Mejora',
+      improve,
+      channelB: {
+        status: 'ready',
+        attachedAt: '2026-10-21T11:10:00.000Z',
+        channel: 'creas-it',
+        subject: null,
+        preheader: null,
+        hasText: false,
+        bytes: 10,
+        resultRelPath: 'b.html',
+        improve: { ...improve, passes: [pass(1, 40, 46, true), pass(2, 46, 44, false)], final: { notas: { concepto: 4 }, total: 46, max: 50 } },
+      },
+    }));
+    console.log(JSON.stringify({
+      arrow: item.improve && item.improve.initial + '→' + item.improve.final,
+      passes: item.improve && item.improve.passCount,
+      below: item.improve && item.improve.belowMax,
+      kept: item.improve && item.improve.passes[0].kept,
+      changed: item.improve && item.improve.passes[0].changed,
+      duration: item.improve && item.improve.durationSec,
+      stable: item.improve && item.improve.passes[0].criteria.map((row) => row.id),
+      bPasses: item.versions.b && item.versions.b.improve && item.versions.b.improve.passCount,
+    }));
+  `);
+  assert.equal(out.arrow, '40/50→48/50');
+  assert.equal(out.passes, 1);
+  assert.deepEqual(out.below, ['Concepto']);
+  assert.equal(out.kept, true);
+  assert.deepEqual(out.changed, ['Sube el concepto']);
+  assert.equal(out.duration, 90);
+  assert.deepEqual(out.stable, ['concepto']);
+  assert.equal(out.bPasses, 2);
 });
 
 test('GET /api/results queda detrás del acceso de las cuentas', () => {
