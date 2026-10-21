@@ -33,6 +33,12 @@ function run(code) {
         artReview: partial.artReview,
         improve: partial.improve,
         channelB: partial.channelB,
+        inputTokens: partial.inputTokens,
+        outputTokens: partial.outputTokens,
+        cacheTokens: partial.cacheTokens,
+        costEur: partial.costEur,
+        usageSteps: partial.usageSteps,
+        briefWaitSec: partial.briefWaitSec,
       };
     }
     ${code}
@@ -192,6 +198,40 @@ test('los resultados incluyen las iteraciones de mejora de Hermes y de la versi�
   assert.equal(out.duration, 90);
   assert.deepEqual(out.stable, ['concepto']);
   assert.equal(out.bPasses, 2);
+});
+
+test('GET /api/results incluye tiempo, tokens y coste, y «sin datos» si no hay', () => {
+  const out = run(`
+    const known = results.resultItem(job({
+      id: 'tok111-aaaa',
+      createdAt: '2026-10-21T10:00:00.000Z',
+      startedAt: '2026-10-21T10:00:00.000Z',
+      finishedAt: '2026-10-21T10:06:00.000Z',
+      clientName: 'Nike',
+      inputTokens: 100000,
+      outputTokens: 80000,
+      cacheTokens: 2000,
+      costEur: 0.94,
+      usageSteps: [{ id: 'draft', label: 'Generación', model: 'claude-sonnet-5-5', provider: 'anthropic', inputTokens: 100000, outputTokens: 80000, cacheReadTokens: 0, cacheWriteTokens: 2000, cacheTokens: 2000, costUsd: 1, costEur: 0.94, durationSec: 120 }],
+    }));
+    const old = results.resultItem(job({ id: 'old222-bbbb', createdAt: '2026-10-01T10:00:00.000Z', clientName: 'Viejo' }));
+    console.log(JSON.stringify({
+      known: known.usage.known,
+      sec: known.usage.durationSec,
+      tokens: known.usage.tokens,
+      eur: known.usage.costEur,
+      step: known.usage.steps[0] && known.usage.steps[0].label,
+      old: old.usage.known,
+      oldTokens: old.usage.tokens,
+    }));
+  `);
+  assert.equal(out.known, true);
+  assert.equal(out.sec, 360);
+  assert.equal(out.tokens, 182000);
+  assert.equal(out.eur, 0.94);
+  assert.equal(out.step, 'Generación');
+  assert.equal(out.old, false);
+  assert.equal(out.oldTokens, null);
 });
 
 test('GET /api/results queda detrás del acceso de las cuentas', () => {

@@ -39,8 +39,8 @@ test('el libro suma el incremento de cada sesión y el coste de cada fase', () =
       seeded: seeded.report({ USD_EUR: '1' }),
     }));
   `);
-  assert.deepEqual(body.cache, { input: 10, output: 2, cache: 7 });
-  assert.deepEqual(body.direct, { input: 8, output: 1, cache: 5 });
+  assert.deepEqual(body.cache, { input: 10, output: 2, cache: 7, cacheRead: 4, cacheWrite: 3, cacheWrite1h: 0 });
+  assert.deepEqual(body.direct, { input: 8, output: 1, cache: 5, cacheRead: 0, cacheWrite: 0, cacheWrite1h: 0 });
   assert.equal(body.delta.inputTokens, 150);
   assert.equal(body.delta.outputTokens, 40);
   assert.equal(body.delta.cacheTokens, 5);
@@ -53,4 +53,44 @@ test('el libro suma el incremento de cada sesión y el coste de cada fase', () =
   assert.equal(body.seeded.inputTokens, 1500);
   assert.equal(body.seeded.outputTokens, 10);
   assert.equal(body.seeded.phases.some((p) => p.id === 'previo'), true);
+});
+
+test('el libro restaura los pasos y no los duplica en «previo»', () => {
+  const body = run(`
+    const { UsageLedger, usageStepLabel } = require(${JSON.stringify(path.join(__dirname, 'usage.ts'))});
+    const ledger = new UsageLedger({ model: 'claude-sonnet-5-5', provider: 'anthropic' });
+    ledger.seed({
+      steps: [{
+        id: 'brief-normalizado',
+        model: 'claude-sonnet-5-5',
+        provider: 'anthropic',
+        inputTokens: 100,
+        outputTokens: 20,
+        cacheReadTokens: 4,
+        cacheWriteTokens: 1,
+        durationSec: 3,
+      }],
+    });
+    ledger.note('s', [{ usage: { input_tokens: 50, output_tokens: 10, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } }], 'mejora-2', 'claude-sonnet-5-5', 'anthropic', 8);
+    ledger.note('vacio', [], 'nota', 'claude-sonnet-5-5', 'anthropic', 4);
+    const report = ledger.report({ USD_EUR: '1' });
+    process.stdout.write(JSON.stringify({
+      ids: report.phases.map((p) => p.id),
+      labels: report.phases.map((p) => p.label),
+      input: report.inputTokens,
+      output: report.outputTokens,
+      read: report.cacheReadTokens,
+      write: report.cacheWriteTokens,
+      duration: report.durationSec,
+      b: usageStepLabel('b-nota-mejora-1'),
+    }));
+  `);
+  assert.deepEqual(body.ids, ['brief-normalizado', 'mejora-2', 'nota']);
+  assert.deepEqual(body.labels, ['Brief normalizado', 'Mejora 2', 'Nota visual']);
+  assert.equal(body.input, 150);
+  assert.equal(body.output, 30);
+  assert.equal(body.read, 4);
+  assert.equal(body.write, 1);
+  assert.equal(body.duration, 15);
+  assert.equal(body.b, 'Nota tras la mejora 1 (B)');
 });

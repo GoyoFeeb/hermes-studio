@@ -19,7 +19,7 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import { ROOT, DATA_DIR } from './paths';
 import { writeMirrored } from './mirror';
-import { getJob, updateJob, appendEvent, listJobs, type Job, type JobArtReview, type JobTimings } from './store';
+import { getJob, updateJob, appendEvent, listJobs, type Job, type JobArtReview, type JobTimings, type JobUsageStep } from './store';
 import { toPublicAssetUrl } from './heroImage';
 import type { QualityReport, QualityCheckItem } from '../worker/qualityCheck';
 import { findPreheader, staticChecks } from '../worker/qualityCheck';
@@ -575,32 +575,185 @@ function costMoney(value: unknown): number | null {
   return Math.round(n * 1e6) / 1e6;
 }
 
+const USAGE_STEP_ID = /^[a-z0-9][a-z0-9-]{0,48}$/;
+
+function sanitizeUsageSteps(raw: unknown): JobUsageStep[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: JobUsageStep[] = [];
+  for (const item of raw.slice(0, 48)) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const id = typeof row.id === 'string' ? row.id.trim() : '';
+    if (!USAGE_STEP_ID.test(id)) continue;
+    const labelRaw = typeof row.label === 'string' && row.label.trim() ? row.label.trim() : id;
+    const modelRaw = typeof row.model === 'string' ? row.model.trim() : '';
+    const providerRaw = typeof row.provider === 'string' ? row.provider.trim() : '';
+    const inputTokens = costTokens(row.inputTokens ?? row.input_tokens) || 0;
+    const outputTokens = costTokens(row.outputTokens ?? row.output_tokens) || 0;
+    const cacheReadTokens = costTokens(row.cacheReadTokens ?? row.cache_read_tokens) || 0;
+    const cacheWriteTokens = costTokens(row.cacheWriteTokens ?? row.cache_write_tokens) || 0;
+    const cacheTokens = costTokens(row.cacheTokens ?? row.cache_tokens) ?? cacheReadTokens + cacheWriteTokens;
+    const durationSec = Math.min(7 * 24 * 3600, costTokens(row.durationSec ?? row.duration_sec) || 0);
+    if (inputTokens + outputTokens + cacheTokens + durationSec <= 0) continue;
+    out.push({
+      id,
+      label: labelRaw.slice(0, 80),
+      model: modelRaw && COST_MODEL_RE.test(modelRaw) ? modelRaw : null,
+      provider: providerRaw && COST_PROVIDER_RE.test(providerRaw) ? providerRaw : null,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+      cacheTokens,
+      costUsd: costMoney(row.costUsd ?? row.cost_usd),
+      costEur: costMoney(row.costEur ?? row.cost_eur),
+      durationSec,
+    });
+  }
+  return out;
+}
+
+export type JobUsagePatch = Pick<
+  Job,
+  | 'inputTokens'
+  | 'outputTokens'
+  | 'cacheTokens'
+  | 'cacheReadTokens'
+  | 'cacheWriteTokens'
+  | 'costUsd'
+  | 'costEur'
+  | 'model'
+  | 'provider'
+  | 'usageSteps'
+>;
+
 /** Tokens y coste que manda el worker. Undefined si el cuerpo no trae ninguno (worker anterior). */
-export function sanitizeJobCost(raw: unknown): Pick<Job, 'inputTokens' | 'outputTokens' | 'cacheTokens' | 'costUsd' | 'costEur' | 'model' | 'provider'> | undefined {
+export function sanitizeJobCost(raw: unknown): JobUsagePatch | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;
   const keys: [string, string][] = [
     ['inputTokens', 'input_tokens'],
     ['outputTokens', 'output_tokens'],
     ['cacheTokens', 'cache_tokens'],
+    ['cacheReadTokens', 'cache_read_tokens'],
+    ['cacheWriteTokens', 'cache_write_tokens'],
     ['costUsd', 'cost_usd'],
     ['costEur', 'cost_eur'],
     ['model', 'model'],
     ['provider', 'provider'],
+    ['usageSteps', 'usage_steps'],
   ];
   if (!keys.some(([camel, snake]) => r[camel] !== undefined || r[snake] !== undefined)) return undefined;
   const modelRaw = costPick(r, 'model', 'model');
   const providerRaw = costPick(r, 'provider', 'provider');
   const model = typeof modelRaw === 'string' && COST_MODEL_RE.test(modelRaw.trim()) ? modelRaw.trim() : null;
   const provider = typeof providerRaw === 'string' && COST_PROVIDER_RE.test(providerRaw.trim()) ? providerRaw.trim() : null;
+  const steps = sanitizeUsageSteps(r.usageSteps !== undefined ? r.usageSteps : r.usage_steps);
   return {
     inputTokens: costTokens(costPick(r, 'inputTokens', 'input_tokens')),
     outputTokens: costTokens(costPick(r, 'outputTokens', 'output_tokens')),
     cacheTokens: costTokens(costPick(r, 'cacheTokens', 'cache_tokens')),
+    cacheReadTokens: costTokens(costPick(r, 'cacheReadTokens', 'cache_read_tokens')),
+    cacheWriteTokens: costTokens(costPick(r, 'cacheWriteTokens', 'cache_write_tokens')),
     costUsd: costMoney(costPick(r, 'costUsd', 'cost_usd')),
     costEur: costMoney(costPick(r, 'costEur', 'cost_eur')),
     model,
     provider,
+    ...(steps ? { usageSteps: steps } : {}),
+  };
+}
+
+function usageSignal(part: { inputTokens?: number | null; outputTokens?: number | null; cacheTokens?: number | null; cacheReadTokens?: number | null; cacheWriteTokens?: number | null; usageSteps?: JobUsageStep[] }): boolean {
+  const flat = (part.inputTokens || 0) + (part.outputTokens || 0) + (part.cacheTokens || 0) + (part.cacheReadTokens || 0) + (part.cacheWriteTokens || 0);
+  if (flat > 0) return true;
+  return (part.usageSteps || []).some((step) => step.inputTokens + step.outputTokens + step.cacheTokens > 0);
+}
+
+function round6(n: number): number {
+  return Math.round(n * 1e6) / 1e6;
+}
+
+function stepKey(step: JobUsageStep): string {
+  return `${step.id}\0${step.model || ''}\0${step.provider || ''}`;
+}
+
+/** Totales planos de un trabajo antiguo, como un paso, para no perderlos al sumar otro. */
+function stepsAlreadyOn(job: Job): JobUsageStep[] {
+  if (job.usageSteps?.length) return job.usageSteps.map((step) => ({ ...step }));
+  const used = (job.inputTokens || 0) + (job.outputTokens || 0) + (job.cacheTokens || 0);
+  if (!used) return [];
+  return [
+    {
+      id: 'previo',
+      label: 'Uso anterior',
+      model: job.model ?? null,
+      provider: job.provider ?? null,
+      inputTokens: job.inputTokens || 0,
+      outputTokens: job.outputTokens || 0,
+      cacheReadTokens: job.cacheReadTokens || 0,
+      cacheWriteTokens: job.cacheWriteTokens || 0,
+      cacheTokens: job.cacheTokens || 0,
+      costUsd: job.costUsd ?? null,
+      costEur: job.costEur ?? null,
+      durationSec: 0,
+    },
+  ];
+}
+
+function totalsFromSteps(steps: JobUsageStep[]): Pick<Job, 'inputTokens' | 'outputTokens' | 'cacheTokens' | 'cacheReadTokens' | 'cacheWriteTokens' | 'costUsd' | 'costEur' | 'usageSteps'> {
+  let input = 0;
+  let output = 0;
+  let cache = 0;
+  let read = 0;
+  let write = 0;
+  let usd = 0;
+  let eur = 0;
+  let priced = true;
+  let any = false;
+  for (const step of steps) {
+    input += step.inputTokens;
+    output += step.outputTokens;
+    cache += step.cacheTokens;
+    read += step.cacheReadTokens;
+    write += step.cacheWriteTokens;
+    const used = step.inputTokens + step.outputTokens + step.cacheTokens;
+    if (!used) continue;
+    any = true;
+    if (step.costUsd == null || step.costEur == null) priced = false;
+    else {
+      usd += step.costUsd;
+      eur += step.costEur;
+    }
+  }
+  return {
+    inputTokens: input,
+    outputTokens: output,
+    cacheReadTokens: read,
+    cacheWriteTokens: write,
+    cacheTokens: cache,
+    costUsd: !any ? 0 : priced ? round6(usd) : null,
+    costEur: !any ? 0 : priced ? round6(eur) : null,
+    usageSteps: steps,
+  };
+}
+
+/**
+ * `replace`: el libro del worker ya trae el total del trabajo (incluido lo sembrado).
+ * Un cuerpo a cero no borra tokens que ya estaban (el export de la sesión a veces llega vacío).
+ * `merge`: suma pasos nuevos (nota hecha después, versión B) y recalcula los totales.
+ */
+export function usagePatch(job: Job, raw: unknown, mode: 'replace' | 'merge'): Partial<Job> | undefined {
+  const incoming = sanitizeJobCost(raw);
+  if (!incoming || !usageSignal(incoming)) return undefined;
+  if (mode === 'replace') return incoming;
+  if (!incoming.usageSteps?.length) return usageSignal(job) ? undefined : incoming;
+  const merged = new Map<string, JobUsageStep>();
+  for (const step of stepsAlreadyOn(job)) merged.set(stepKey(step), step);
+  for (const step of incoming.usageSteps) merged.set(stepKey(step), step);
+  return {
+    ...totalsFromSteps([...merged.values()]),
+    model: job.model || incoming.model || null,
+    provider: job.provider || incoming.provider || null,
   };
 }
 
@@ -622,6 +775,8 @@ export function costJobSummary(job: Job): {
   costEur: number | null;
   model: string | null;
   provider: string | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
 } {
   return {
     id: job.id,
@@ -636,6 +791,8 @@ export function costJobSummary(job: Job): {
     inputTokens: job.inputTokens ?? null,
     outputTokens: job.outputTokens ?? null,
     cacheTokens: job.cacheTokens ?? null,
+    cacheReadTokens: job.cacheReadTokens ?? null,
+    cacheWriteTokens: job.cacheWriteTokens ?? null,
     costUsd: job.costUsd ?? null,
     costEur: job.costEur ?? null,
     model: job.model ?? null,
@@ -650,12 +807,31 @@ export function wantsCostFields(fields: unknown): boolean {
 }
 
 /** Lo ya gastado, para que el siguiente proceso del mismo trabajo no lo pierda. */
-export function priorUsageOf(job: Job): { inputTokens: number; outputTokens: number; cacheTokens: number; model: string | null; provider: string | null } | undefined {
+export function priorUsageOf(job: Job): {
+  inputTokens: number;
+  outputTokens: number;
+  cacheTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  model: string | null;
+  provider: string | null;
+  steps?: JobUsageStep[];
+} | undefined {
   const inputTokens = job.inputTokens || 0;
   const outputTokens = job.outputTokens || 0;
   const cacheTokens = job.cacheTokens || 0;
-  if (inputTokens + outputTokens + cacheTokens <= 0) return undefined;
-  return { inputTokens, outputTokens, cacheTokens, model: job.model ?? null, provider: job.provider ?? null };
+  const steps = job.usageSteps?.filter((step) => step.inputTokens + step.outputTokens + step.cacheTokens > 0);
+  if (inputTokens + outputTokens + cacheTokens <= 0 && !steps?.length) return undefined;
+  return {
+    inputTokens,
+    outputTokens,
+    cacheTokens,
+    cacheReadTokens: job.cacheReadTokens || 0,
+    cacheWriteTokens: job.cacheWriteTokens || 0,
+    model: job.model ?? null,
+    provider: job.provider ?? null,
+    ...(steps?.length ? { steps } : {}),
+  };
 }
 
 /** Revisión de dirección de arte que manda el worker: notas 1-5 por criterio y listas de texto cortas. */

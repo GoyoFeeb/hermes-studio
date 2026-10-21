@@ -89,6 +89,34 @@ export interface ResultVersion {
   improve: ResultImprove | null;
 }
 
+export interface ResultUsageStep {
+  id: string;
+  label: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  costEur: number | null;
+  costUsd: number | null;
+  durationSec: number;
+  model: string | null;
+}
+
+export interface ResultUsage {
+  known: boolean;
+  durationSec: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  tokens: number | null;
+  costEur: number | null;
+  costUsd: number | null;
+  steps: ResultUsageStep[];
+}
+
 export interface ResultItem {
   id: string;
   createdAt: string;
@@ -106,6 +134,7 @@ export interface ResultItem {
   art: ResultArt | null;
   quality: ResultQuality | null;
   improve: ResultImprove | null;
+  usage: ResultUsage;
   versions: { a: ResultVersion; b: ResultVersion | null };
 }
 
@@ -240,10 +269,45 @@ export function artView(review: JobArtReview | undefined): ResultArt | null {
   return { pct: artPct(review), score, max: criteria.length * 5, criteria };
 }
 
+export function usageView(job: Job): ResultUsage {
+  const steps = (job.usageSteps || []).map((step) => ({
+    id: step.id,
+    label: step.label,
+    inputTokens: step.inputTokens,
+    outputTokens: step.outputTokens,
+    cacheTokens: step.cacheTokens,
+    cacheReadTokens: step.cacheReadTokens,
+    cacheWriteTokens: step.cacheWriteTokens,
+    costEur: step.costEur,
+    costUsd: step.costUsd,
+    durationSec: step.durationSec,
+    model: step.model,
+  }));
+  const input = job.inputTokens ?? 0;
+  const output = job.outputTokens ?? 0;
+  const cache = job.cacheTokens ?? 0;
+  const fromSteps = steps.some((step) => step.inputTokens + step.outputTokens + step.cacheTokens > 0);
+  const known = input + output + cache > 0 || fromSteps;
+  return {
+    known,
+    durationSec: durationSec(job),
+    inputTokens: known ? input : null,
+    outputTokens: known ? output : null,
+    cacheTokens: known ? cache : null,
+    cacheReadTokens: known ? job.cacheReadTokens ?? 0 : null,
+    cacheWriteTokens: known ? job.cacheWriteTokens ?? 0 : null,
+    tokens: known ? input + output + cache : null,
+    costEur: known ? job.costEur ?? null : null,
+    costUsd: known ? job.costUsd ?? null : null,
+    steps: known ? steps : [],
+  };
+}
+
 export function resultItem(job: Job): ResultItem {
   const art = artView(job.artReview);
   const quality = qualityView(job.quality);
   const improve = improveView(job.improve);
+  const usage = usageView(job);
   const previewA = `/api/jobs/${encodeURIComponent(job.id)}/result`;
   const previewB = job.channelB ? `/api/jobs/${encodeURIComponent(job.id)}/channel-b` : null;
   const taskId = job.input.clickupTaskId || null;
@@ -259,6 +323,7 @@ export function resultItem(job: Job): ResultItem {
     clickupUrl: job.input.clickupUrl || (taskId ? `https://app.clickup.com/t/${taskId}` : null),
     requesterName: job.input.requesterName || null,
     durationSec: durationSec(job),
+    usage,
     previewA,
     previewB,
     art,

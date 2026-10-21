@@ -7087,6 +7087,7 @@ async function poll(id) {
   renderLiveFeed(job, events || []);
 
   if (job.status === 'completed') {
+    renderUsageCard(job);
     const resultBox = document.getElementById('job-result');
     if (resultBox.hidden) {
       resultBox.hidden = false;
@@ -8058,6 +8059,17 @@ const TIME_GROUPS = [
 /** La primera versión con desglose cuenta como sus partes («draft-research», «draft-write», «draft-selfreview»). */
 const splitDraft = (phases) =>
   phases.flatMap((p) => (p.id === 'draft' && p.parts?.length ? p.parts.map((x) => ({ id: `draft-${x.id}`, label: x.label, sec: x.sec })) : [p]));
+function renderUsageCard(job) {
+  const card = document.getElementById('usage-card');
+  const U = window.HermesUsage;
+  if (!card || !U) return;
+  const sec = job.startedAt && job.finishedAt
+    ? Math.max(1, Math.round((Date.parse(job.finishedAt) - Date.parse(job.startedAt)) / 1000 - (job.briefWaitSec || 0)))
+    : null;
+  card.hidden = false;
+  card.innerHTML = U.renderBlock(U.usageFromJob(job, sec));
+}
+
 function renderTimeCard(t) {
   const card = document.getElementById('time-card');
   if (!card) return;
@@ -9614,7 +9626,12 @@ function paintCostes() {
   if (!C || !body || !totalsEl) return;
   const rows = C.filterJobs(costesJobs, costesFilters());
   const totals = C.totals(rows);
-  totalsEl.textContent = `${totals.jobs} trabajo${totals.jobs === 1 ? '' : 's'} · ${C.formatTokens(totals.inputTokens)} entrada · ${C.formatTokens(totals.outputTokens)} salida · ${C.formatTokens(totals.cacheTokens)} caché · ${C.formatEur(totals.costEur)}`;
+  const anyTokens = rows.some((job) => C.hasTokenData(job));
+  totalsEl.textContent = anyTokens
+    ? `${totals.jobs} trabajo${totals.jobs === 1 ? '' : 's'} · ${C.formatTokens(totals.inputTokens)} entrada · ${C.formatTokens(totals.outputTokens)} salida · ${C.formatTokens(totals.cacheTokens)} caché · ${C.formatEur(totals.costEur)}`
+    : `${totals.jobs} trabajo${totals.jobs === 1 ? '' : 's'} · sin datos`;
+  const tokenCell = (job, n) => (C.hasTokenData(job) ? C.formatTokens(n) : 'sin datos');
+  const costCell = (job) => (C.hasTokenData(job) && job.costEur != null ? C.formatEur(job.costEur) : 'sin datos');
   body.innerHTML = rows.map((job) => {
     const href = C.jobHref(job, location.origin);
     return `<tr>
@@ -9626,10 +9643,10 @@ function paintCostes() {
       <td>${escapeHtml(C.formatTime(job.finishedAt))}</td>
       <td>${escapeHtml(C.formatDuration(job.durationSec))}</td>
       <td>${escapeHtml(C.statusLabel(job.status))}</td>
-      <td class="num">${escapeHtml(C.formatTokens(job.inputTokens))}</td>
-      <td class="num">${escapeHtml(C.formatTokens(job.outputTokens))}</td>
-      <td class="num">${escapeHtml(C.formatTokens(job.cacheTokens))}</td>
-      <td class="num">${escapeHtml(C.formatEur(job.costEur))}</td>
+      <td class="num">${escapeHtml(tokenCell(job, job.inputTokens))}</td>
+      <td class="num">${escapeHtml(tokenCell(job, job.outputTokens))}</td>
+      <td class="num">${escapeHtml(tokenCell(job, job.cacheTokens))}</td>
+      <td class="num">${escapeHtml(costCell(job))}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="12">No hay trabajos con este filtro.</td></tr>';
 }

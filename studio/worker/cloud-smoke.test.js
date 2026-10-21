@@ -253,6 +253,8 @@ test('el entorno de la nube deja pasar tarifas, el cambio y las pasadas de arte'
     ['-e', `const { filterCloudEnv, allowlistOverlapsDeny } = require(${JSON.stringify(path.join(WORKER, 'cloudEnv.ts'))});
       const env = filterCloudEnv({
         USD_EUR: '0.86',
+        HERMES_USD_EUR: '0.92',
+        HERMES_PRICE_TABLE: '{"models":{}}',
         HERMES_ART_REVISE_PASSES: '0',
         HERMES_PRICE_ANTHROPIC_CLAUDE_SONNET_5_5: '2,10,0.1',
         hermes_price_lower: '1,1,1',
@@ -262,6 +264,8 @@ test('el entorno de la nube deja pasar tarifas, el cambio y las pasadas de arte'
       process.stdout.write(JSON.stringify({
         overlap: allowlistOverlapsDeny(),
         usd: env.USD_EUR,
+        eur: env.HERMES_USD_EUR,
+        table: env.HERMES_PRICE_TABLE,
         passes: env.HERMES_ART_REVISE_PASSES,
         price: env.HERMES_PRICE_ANTHROPIC_CLAUDE_SONNET_5_5,
         lower: Object.prototype.hasOwnProperty.call(env, 'hermes_price_lower'),
@@ -273,6 +277,8 @@ test('el entorno de la nube deja pasar tarifas, el cambio y las pasadas de arte'
   const body = JSON.parse(out);
   assert.deepEqual(body.overlap, []);
   assert.equal(body.usd, '0.86');
+  assert.equal(body.eur, '0.92');
+  assert.equal(body.table, '{"models":{}}');
   assert.equal(body.passes, '0');
   assert.equal(body.price, '2,10,0.1');
   assert.equal(body.lower, false);

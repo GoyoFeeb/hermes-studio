@@ -11,6 +11,8 @@
  * Sin proveedor, la tarea sigue y el brief queda como llegó.
  */
 import { canonicalProvider, ANTHROPIC_PROVIDER, NOUS_API_PROVIDER, NOUS_INFERENCE_BASE, DEFAULT_NOUS_MODEL } from '../worker/hermesCloudProfile';
+import { costFor } from '../worker/pricing';
+import { usageFromMessage } from '../worker/usage';
 
 export const DEFAULT_ASSIGNEE_NAME = 'Javier Condado';
 export const BACKLOG_STATUS = 'BACKLOG';
@@ -36,9 +38,39 @@ export interface PrepareNote {
   level?: 'info' | 'error';
 }
 
+export interface BriefUsageStep {
+  id: string;
+  label: string;
+  model: string | null;
+  provider: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  cacheTokens: number;
+  costUsd: number | null;
+  costEur: number | null;
+  durationSec: number;
+}
+
+/** Tokens de la reescritura del brief. Solo si la respuesta trae uso. */
+export interface BriefUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  cacheTokens: number;
+  costUsd: number | null;
+  costEur: number | null;
+  model: string;
+  provider: string;
+  usageSteps: BriefUsageStep[];
+}
+
 export interface PrepareResult {
   task: PrepareTask;
   notes: PrepareNote[];
+  usage?: BriefUsage;
 }
 
 export interface PrepareOptions {
@@ -197,9 +229,17 @@ export function acceptBriefReply(text: string): string | null {
   return clean;
 }
 
-export async function completeBrief(prompt: string, env: NodeJS.ProcessEnv, doFetch: typeof fetch): Promise<string> {
+function pricedProvider(provider: string): string {
+  return provider === 'anthropic' ? 'anthropic' : 'nous';
+}
+
+/** Texto y tokens de la reescritura. `completeBrief` sigue devolviendo solo el texto. */
+export async function completeBriefCall(prompt: string, env: NodeJS.ProcessEnv, doFetch: typeof fetch): Promise<{ text: string; usage: BriefUsage | null }> {
   const cfg = briefModelConfigFromEnv(env);
   if (!cfg) throw new Error('sin proveedor para reescribir el brief');
+  const started = Date.now();
+  let data: unknown;
+  let text = '';
   if (cfg.provider === 'anthropic') {
     const res = await doFetch(cfg.url, {
       method: 'POST',
@@ -208,18 +248,60 @@ export async function completeBrief(prompt: string, env: NodeJS.ProcessEnv, doFe
       signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) throw new Error(`modelo → ${res.status}`);
-    const data = (await res.json()) as { content?: { type?: string; text?: string }[] };
-    return (data.content || []).filter((block) => block.type === 'text').map((block) => block.text || '').join('\n');
+    data = await res.json();
+    const body = data as { content?: { type?: string; text?: string }[] };
+    text = (body.content || []).filter((block) => block.type === 'text').map((block) => block.text || '').join('\n');
+  } else {
+    const res = await doFetch(cfg.url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${cfg.apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: cfg.model, max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) throw new Error(`modelo → ${res.status}`);
+    data = await res.json();
+    const body = data as { choices?: { message?: { content?: string } }[] };
+    text = body.choices?.[0]?.message?.content || '';
   }
-  const res = await doFetch(cfg.url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${cfg.apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model: cfg.model, max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }),
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`modelo → ${res.status}`);
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return data.choices?.[0]?.message?.content || '';
+  const counts = usageFromMessage(data);
+  const durationSec = Math.max(0, Math.round((Date.now() - started) / 1000));
+  const used = counts.input + counts.output + (counts.cache || 0);
+  if (!used) return { text, usage: null };
+  const provider = pricedProvider(cfg.provider);
+  const cost = costFor(counts, provider, cfg.model, env);
+  const step: BriefUsageStep = {
+    id: 'brief-normalizado',
+    label: 'Brief normalizado',
+    model: cfg.model,
+    provider,
+    inputTokens: counts.input,
+    outputTokens: counts.output,
+    cacheReadTokens: counts.cacheRead || 0,
+    cacheWriteTokens: counts.cacheWrite || 0,
+    cacheTokens: counts.cache,
+    costUsd: cost ? cost.usd : null,
+    costEur: cost ? cost.eur : null,
+    durationSec,
+  };
+  return {
+    text,
+    usage: {
+      inputTokens: step.inputTokens,
+      outputTokens: step.outputTokens,
+      cacheReadTokens: step.cacheReadTokens,
+      cacheWriteTokens: step.cacheWriteTokens,
+      cacheTokens: step.cacheTokens,
+      costUsd: step.costUsd,
+      costEur: step.costEur,
+      model: cfg.model,
+      provider,
+      usageSteps: [step],
+    },
+  };
+}
+
+export async function completeBrief(prompt: string, env: NodeJS.ProcessEnv, doFetch: typeof fetch): Promise<string> {
+  return (await completeBriefCall(prompt, env, doFetch)).text;
 }
 
 function membersFromTeams(data: unknown): MemberHit[] {
@@ -342,11 +424,16 @@ export async function prepareClickupTask(task: PrepareTask, taskId: string, opti
   const original = taskText(task);
   const source = [task.name?.trim(), original].filter((part) => part).join('\n\n');
   let structured: string | null = null;
+  let briefUsage: BriefUsage | null = null;
   if (source && !briefIsStructured(original)) {
     try {
       const raw = options.complete
         ? await options.complete(briefPrompt(task.name || '', original))
-        : await completeBrief(briefPrompt(task.name || '', original), env, doFetch);
+        : await (async () => {
+            const call = await completeBriefCall(briefPrompt(task.name || '', original), env, doFetch);
+            briefUsage = call.usage;
+            return call.text;
+          })();
       const accepted = acceptBriefReply(raw);
       if (!accepted) {
         notes.push({ message: 'El modelo no devolvió un brief con los campos obligatorios: se deja la descripción como estaba.', level: 'error' });
@@ -384,5 +471,5 @@ export async function prepareClickupTask(task: PrepareTask, taskId: string, opti
     notes.push({ message: 'Brief reestructurado para el trabajo. ClickUp no guardó la descripción.', level: 'error' });
   }
 
-  return { task: next, notes };
+  return { task: next, notes, ...(briefUsage ? { usage: briefUsage } : {}) };
 }

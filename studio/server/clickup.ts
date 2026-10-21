@@ -16,6 +16,7 @@ import { slugify } from './campaignFs';
 import { JOBS_DIR } from './paths';
 import { queueCommentLine } from './queueEta';
 import { finalArtNotes, isValidJobId, listJobs, type Job, type JobArtReview, type JobInput } from './store';
+import type { BriefUsage } from './clickupPrepare';
 import { formatImproveComment, type JobImprove } from '../worker/improveLoop';
 
 export const DEFAULT_CLICKUP_LIST_ID = '901223474074';
@@ -81,7 +82,7 @@ export interface ClickupDeps {
   /** Fichas de marca ya sincronizadas. Si no está, la marca sale del texto de la tarea. */
   brandRecords?: () => KnownBrand[];
   /** Asignado por defecto, BACKLOG si no hay estado y brief estructurado. Sin esto, la tarea se usa tal cual. */
-  prepareTask?: (task: ClickupTask, taskId: string) => Promise<{ task: ClickupTask; notes: { message: string; level?: 'info' | 'error' }[] }>;
+  prepareTask?: (task: ClickupTask, taskId: string) => Promise<{ task: ClickupTask; notes: { message: string; level?: 'info' | 'error' }[]; usage?: BriefUsage }>;
   log: (id: string, message: string, level?: 'info' | 'error' | 'success') => void;
 }
 
@@ -227,6 +228,10 @@ export interface ClickupEndJob {
   input: { clickupTaskId?: string; requesterName?: string; clickupCreatorId?: string };
   /** Versión B adjunta. Si está, el aviso de fin incluye su vista previa. */
   channelB?: unknown;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  cacheTokens?: number | null;
+  costEur?: number | null;
 }
 
 export interface ClickupEndDeps {
@@ -257,6 +262,37 @@ export function clickupUserId(value: unknown): string | undefined {
 export function formatDurationMSS(sec: number): string {
   const s = Math.max(0, Math.round(sec));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** 182000 → «182k». Por debajo de 1000, el número entero. Igual que la ficha (usageCard.js). */
+export function compactTokenCount(n: number): string {
+  const x = Math.max(0, Math.round(n));
+  if (x < 1000) return String(x);
+  const million = x >= 1_000_000;
+  const v = x / (million ? 1_000_000 : 1000);
+  const suffix = million ? 'M' : 'k';
+  if (v >= 10) return `${Math.round(v)}${suffix}`;
+  const text = (Math.round(v * 10) / 10).toFixed(1).replace('.', ',');
+  return `${text}${suffix}`;
+}
+
+/** 0.94 → «0,94 €». */
+export function formatEurCompact(n: number): string {
+  const sign = n < 0 ? '-' : '';
+  const [whole, frac] = Math.abs(n).toFixed(2).split('.');
+  return `${sign}${whole},${frac} €`;
+}
+
+/** Cola del aviso de fin cuando el trabajo tiene tokens: ` · 6:00 · 182k tokens · 0,94 €`. */
+export function usageCommentSuffix(job: ClickupEndJob): string {
+  const tokens = (job.inputTokens || 0) + (job.outputTokens || 0) + (job.cacheTokens || 0);
+  if (tokens <= 0) return '';
+  const bits: string[] = [];
+  const sec = jobDurationSec(job);
+  if (sec != null) bits.push(formatDurationMSS(sec));
+  bits.push(`${compactTokenCount(tokens)} tokens`);
+  bits.push(job.costEur == null ? 'sin datos' : formatEurCompact(job.costEur));
+  return ` · ${bits.join(' · ')}`;
 }
 
 /** Primera línea del fallo, recortada. El volcado de Hermes va debajo y no entra en el comentario. */
@@ -336,7 +372,7 @@ export function clickupEndComment(job: ClickupEndJob, outcome: 'completed' | 'fa
   const score = artScoreOutOf50(job.artReview);
   if (improved) bits.push(improved);
   else if (score != null) bits.push(`nota visual ${score}/${ART_SCORE_MAX}`);
-  const detail = `${bits.join(' · ')}\n${previewBlock(job, webBase)}`;
+  const detail = `${bits.join(' · ')}${usageCommentSuffix(job)}\n${previewBlock(job, webBase)}`;
   if (userId) return mentionBody(userId, `tu trabajo está listo: ${detail}`);
   return { notify_all: false, comment_text: `Tu trabajo está listo: ${detail}` };
 }
@@ -643,15 +679,17 @@ async function enrichClickupJob(jobId: string, payload: ClickupPayload, deps: Cl
   }
 
   let ready = task;
+  let preparedUsage: BriefUsage | undefined;
   if (task) {
     const prepared = await applyPrepare(task, taskId, deps);
     ready = prepared.task;
+    preparedUsage = prepared.usage;
     logPrepareNotes(jobId, prepared.notes, deps);
   }
 
   const input = ready ? inputFromTask(ready, payload, deps, taskId) : { ...fresh.input, clickupPending: false };
   const title = ready?.name?.trim().slice(0, 140);
-  deps.updateJob(jobId, { input, ...(title && !fresh.title ? { title } : {}) });
+  deps.updateJob(jobId, { input, ...(title && !fresh.title ? { title } : {}), ...(preparedUsage || {}) });
   if (ready && !taskDescription(ready)) {
     deps.log(jobId, 'La tarea de ClickUp no trae descripción: el brief es solo el nombre.', 'error');
   }
@@ -676,6 +714,7 @@ async function createAfterListCheck(taskId: string, payload: ClickupPayload, dep
       if (raced) return { id: raced.id, created: false };
       const prepared = await applyPrepare(task, taskId, deps);
       const job = deps.createJob(inputFromTask(prepared.task, payload, deps, taskId));
+      if (prepared.usage) deps.updateJob(job.id, prepared.usage);
       deps.log(job.id, `Abierto desde la tarea de ClickUp ${taskId}.`);
       logPrepareNotes(job.id, prepared.notes, deps);
       armQueueNotice(job.id, deps);
@@ -701,12 +740,12 @@ async function applyPrepare(
   task: ClickupTask,
   taskId: string,
   deps: ClickupDeps
-): Promise<{ task: ClickupTask; notes: { message: string; level?: 'info' | 'error' }[] }> {
+): Promise<{ task: ClickupTask; notes: { message: string; level?: 'info' | 'error' }[]; usage?: BriefUsage }> {
   if (!deps.prepareTask) return { task, notes: [] };
   try {
     const prepared = await deps.prepareTask(task, taskId);
     if (!prepared?.task) return { task, notes: [] };
-    return { task: prepared.task, notes: prepared.notes || [] };
+    return { task: prepared.task, notes: prepared.notes || [], ...(prepared.usage ? { usage: prepared.usage } : {}) };
   } catch (err) {
     return { task, notes: [{ message: `No se pudo preparar la tarea de ClickUp: ${(err as Error).message}`, level: 'error' }] };
   }

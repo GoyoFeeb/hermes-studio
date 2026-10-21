@@ -7,6 +7,14 @@
 (function (root) {
   'use strict';
 
+  var Usage = null;
+  if (typeof require === 'function' && typeof module !== 'undefined' && module.exports) {
+    try { Usage = require('./usageCard.js'); } catch (err) { Usage = null; }
+  }
+  function usageApi() {
+    return Usage || (root && root.HermesUsage) || null;
+  }
+
   var STATUS = { ok: 'Correcto', warning: 'Aviso', error: 'Error' };
 
   function esc(value) {
@@ -168,6 +176,13 @@
     );
   }
 
+  function renderUsage(item) {
+    var U = usageApi();
+    if (!U) return '';
+    var usage = item && item.usage ? item.usage : { known: false };
+    return U.renderBlock(usage);
+  }
+
   function render(page) {
     var item = page && page.items && page.items[0];
     if (!item) return '<p class="results-empty">Aún no hay piezas terminadas.</p>';
@@ -178,6 +193,7 @@
     return (
       '<header class="results-meta">' +
       '<p class="results-client">' + esc(item.clientName || '—') + '</p>' +
+      renderUsage(item) +
       '<dl>' +
       '<div><dt>Campaña</dt><dd>' + esc(item.campaignName || item.title || '—') + '</dd></div>' +
       '<div><dt>Tarea</dt><dd>' + task + '</dd></div>' +

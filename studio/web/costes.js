@@ -72,6 +72,10 @@
     return r + ' s';
   }
 
+  function hasTokenData(job) {
+    return (Number(job && job.inputTokens) || 0) + (Number(job && job.outputTokens) || 0) + (Number(job && job.cacheTokens) || 0) > 0;
+  }
+
   function formatTokens(n) {
     if (n == null || n === '' || !isFinite(Number(n))) return '—';
     var x = Math.round(Number(n));
@@ -206,6 +210,7 @@
     formatDate: formatDate,
     formatTime: formatTime,
     formatDuration: formatDuration,
+    hasTokenData: hasTokenData,
     formatTokens: formatTokens,
     formatEur: formatEur,
     statusLabel: statusLabel,

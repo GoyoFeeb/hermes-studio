@@ -66,3 +66,60 @@ test('el trabajo de costes se limpia, resume y recuerda el uso previo', () => {
   assert.equal(body.prior.model, 'claude-sonnet-5-5');
   assert.equal(body.fresh, true);
 });
+
+test('un cuerpo a cero no borra el uso y un paso nuevo se suma', () => {
+  const body = run(`
+    const s = require(${JSON.stringify(path.join(__dirname, 'standalone.ts'))});
+    const step = (id, label, input, output, cache, usd, eur, sec) => ({
+      id, label, model: 'claude-sonnet-5-5', provider: 'anthropic',
+      inputTokens: input, outputTokens: output, cacheReadTokens: 0, cacheWriteTokens: cache, cacheTokens: cache,
+      costUsd: usd, costEur: eur, durationSec: sec,
+    });
+    const job = {
+      id: 'abc',
+      inputTokens: 1000,
+      outputTokens: 100,
+      cacheTokens: 10,
+      costUsd: 1,
+      costEur: 0.92,
+      model: 'claude-sonnet-5-5',
+      provider: 'anthropic',
+      usageSteps: [step('draft', 'Generación', 1000, 100, 10, 1, 0.92, 30)],
+      input: { clientName: 'Nike', clientSlug: 'nike', mode: 'standalone', brandMode: 'existing', briefText: '' },
+    };
+    const wiped = s.usagePatch(job, { inputTokens: 0, outputTokens: 0, cacheTokens: 0, costUsd: 0, costEur: 0 }, 'replace');
+    const replaced = s.usagePatch(job, {
+      inputTokens: 50, outputTokens: 5, cacheTokens: 0, costUsd: 0.1, costEur: 0.09,
+      model: 'claude-sonnet-5-5', provider: 'anthropic',
+      usageSteps: [step('brief', 'Brief', 50, 5, 0, 0.1, 0.09, 2)],
+    }, 'replace');
+    const merged = s.usagePatch(job, {
+      inputTokens: 20, outputTokens: 4, cacheTokens: 0, costUsd: 0.05, costEur: 0.04,
+      model: 'claude-sonnet-5-5', provider: 'anthropic',
+      usageSteps: [step('b-nota', 'Nota visual (B)', 20, 4, 0, 0.05, 0.04, 8)],
+    }, 'merge');
+    const old = s.usagePatch({ ...job, usageSteps: undefined }, {
+      inputTokens: 3, outputTokens: 1, cacheTokens: 3, cacheReadTokens: 2, cacheWriteTokens: 1,
+      costUsd: 0.01, costEur: 0.01, model: 'claude-sonnet-5-5', provider: 'anthropic',
+      usageSteps: [step('nota', 'Nota visual', 3, 1, 3, 0.01, 0.01, 5)],
+    }, 'merge');
+    process.stdout.write(JSON.stringify({
+      wiped: wiped == null,
+      replaced: replaced && replaced.inputTokens,
+      replacedSteps: replaced && replaced.usageSteps.length,
+      mergedIn: merged && merged.inputTokens,
+      mergedIds: merged && merged.usageSteps.map((row) => row.id),
+      mergedEur: merged && merged.costEur,
+      oldIds: old && old.usageSteps.map((row) => row.id),
+      oldIn: old && old.inputTokens,
+    }));
+  `);
+  assert.equal(body.wiped, true);
+  assert.equal(body.replaced, 50);
+  assert.equal(body.replacedSteps, 1);
+  assert.equal(body.mergedIn, 1020);
+  assert.deepEqual(body.mergedIds, ['draft', 'b-nota']);
+  assert.equal(body.mergedEur, 0.96);
+  assert.deepEqual(body.oldIds, ['previo', 'nota']);
+  assert.equal(body.oldIn, 1003);
+});
