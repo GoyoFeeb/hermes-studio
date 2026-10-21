@@ -72,7 +72,7 @@ import {
   pendingThumbnails,
   sanitizeQuality,
   sanitizeTimings,
-  sanitizeJobCost,
+  usagePatch,
   costJobSummary,
   wantsCostFields,
   priorUsageOf,
@@ -500,7 +500,7 @@ app.post('/api/worker/jobs/:id/brief', requireWorker, express.json({ limit: '1mb
   const missingTerms = job.input.instruction ? missingInBrief(job.input.instruction, brief) : [];
   const briefMissing = missingTerms.map((t) => t.label);
   if (missingTerms.length) hermesLog(job.id, `Ojo: la petición pide ${joinLabels(missingTerms)} y el brief no lo recoge.`, 'error');
-  const cost = sanitizeJobCost(req.body) || {};
+  const cost = usagePatch(job, req.body, 'replace') || {};
   if (job.input.reviewBrief && req.body?.canPause === true) {
     updateJob(job.id, {
       briefMissing,
@@ -571,7 +571,8 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
     // Notas de la revisión de dirección de arte (2026-10-06, punto 7): para ver por marca y fecha si la calidad sube.
     const artReview = sanitizeArtReview(req.body.artReview);
     const improve = sanitizeImprove(req.body.improve);
-    const cost = sanitizeJobCost(req.body);
+    const fresh = getJob(job.id) || job;
+    const cost = usagePatch(fresh, req.body, 'replace');
     if (artReview || improve || cost) {
       updateJob(job.id, { ...(artReview ? { artReview } : {}), ...(improve ? { improve } : {}), ...(cost || {}) });
     }
@@ -589,7 +590,7 @@ app.post('/api/worker/jobs/:id/complete', requireWorker, express.json({ limit: '
       console.error(`[learnings] ${(err as Error).message}`);
     }
   } catch (err) {
-    const cost = sanitizeJobCost(req.body);
+    const cost = usagePatch(getJob(job.id) || job, req.body, 'replace');
     const error = (err as Error).message;
     updateJob(job.id, { status: 'failed', error, finishedAt: job.finishedAt || new Date().toISOString(), ...(cost || {}) });
     await notifyClickupEnded(job.id, 'failed');
@@ -614,7 +615,7 @@ app.post('/api/worker/jobs/:id/fail', requireWorker, express.json({ limit: '256k
   const error = clipWorkerError(String(req.body?.error || 'Hermes no pudo terminar la newsletter.'));
   hermesLog(job.id, error, 'error');
   const timings = sanitizeTimings(req.body?.timings);
-  const cost = sanitizeJobCost(req.body);
+  const cost = usagePatch(job, req.body, 'replace');
   updateJob(job.id, { status: 'failed', error, finishedAt: job.finishedAt || new Date().toISOString(), ...(timings ? { timings } : {}), ...(cost || {}) });
   await notifyClickupEnded(job.id, 'failed');
   res.json({ ok: true });
@@ -641,8 +642,9 @@ app.post('/api/worker/jobs/:id/art-review', requireWorker, express.json({ limit:
     res.status(404).json({ error: 'Trabajo no encontrado o no terminado.' });
     return;
   }
+  const cost = usagePatch(job, req.body, 'merge');
   if (req.body?.failed) {
-    updateJob(job.id, { artReviewFailed: true });
+    updateJob(job.id, { artReviewFailed: true, ...(cost || {}) });
     res.json({ ok: true });
     return;
   }
@@ -651,7 +653,8 @@ app.post('/api/worker/jobs/:id/art-review', requireWorker, express.json({ limit:
     res.status(400).json({ error: 'Notas no válidas.' });
     return;
   }
-  if (!job.artReview) updateJob(job.id, { artReview });
+  if (!job.artReview) updateJob(job.id, { artReview, ...(cost || {}) });
+  else if (cost) updateJob(job.id, cost);
   res.json({ ok: true });
 });
 
@@ -689,8 +692,16 @@ app.post('/api/worker/jobs/:id/channel-b/improve', requireWorker, express.json({
     res.status(404).json({ error: 'Trabajo sin versión B.' });
     return;
   }
+  if (req.body?.usageOnly === true) {
+    const cost = usagePatch(job, req.body, 'merge');
+    if (cost) updateJob(job.id, cost);
+    res.json({ ok: true, usageOnly: true });
+    return;
+  }
   try {
     const updated = await applyChannelBImprove(job, req.body?.html, req.body?.improve);
+    const cost = usagePatch(getJob(job.id) || updated, req.body, 'merge');
+    if (cost) updateJob(job.id, cost);
     res.json({ ok: true, errors: updated.channelB?.quality?.errors ?? 0 });
   } catch (err) {
     const message = err instanceof ChannelBInputError ? err.message : 'No se pudo guardar la versión B mejorada.';

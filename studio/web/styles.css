@@ -3195,6 +3195,17 @@ kbd.is-pressed { animation: key-press 0.26s ease-out; }
 @keyframes art-card-grow { from { width: 0; } }
 @media (prefers-reduced-motion: reduce) { .art-card.is-drawing .art-card-bar i { animation: none; } }
 
+/* ---------- tiempo, tokens y coste (2026-10-21) ---------- */
+.usage-card { margin: 0 0 12px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-row); }
+.usage-kicker { margin: 0 0 6px; font-size: var(--fs-small); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.usage-total { margin: 0; font-size: 22px; font-weight: 700; line-height: 1.25; font-variant-numeric: tabular-nums; color: var(--text); }
+.usage-break { margin-top: 10px; }
+.usage-break summary { cursor: pointer; color: var(--lilac); font-size: var(--fs-small); }
+.usage-break ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.usage-break li { display: flex; justify-content: space-between; gap: 12px; font-size: var(--fs-small); }
+.usage-break li b { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.results-meta .usage-card { margin-bottom: 16px; }
+
 /* ---------- tiempo de la pieza (2026-10-08) ---------- */
 .time-card { margin: 12px 0 4px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-row); }
 .time-card-total { font-size: 30px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }

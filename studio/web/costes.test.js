@@ -66,4 +66,7 @@ test('filtra por fecha y por quien pidió, suma y exporta CSV', () => {
   assert.match(html, /id="view-costes"/);
   assert.match(html, />Costes</);
   assert.match(app, /\/api\/jobs\?fields=cost/);
+  assert.equal(C.hasTokenData(jobs[0]), true);
+  assert.equal(C.hasTokenData(jobs[2]), false);
+  assert.match(app, /sin datos/);
 });

@@ -38,6 +38,7 @@
     "changelog:backup": "npx tsx scripts/backup-changelog.ts",
     "ci:example-campaign-gate": "npx tsx scripts/ci-example-campaign-gate.ts",
     "test": "node --test",
+    "smoke": "node --test studio/server/boot-smoke.test.js",
     "tiempos": "tsx studio/worker/tiempos.ts",
     "legacy:validate-newsletter": "npx tsx scripts/validate-newsletter.ts",
     "legacy:check-links": "npx tsx scripts/check-links.ts",

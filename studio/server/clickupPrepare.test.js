@@ -239,3 +239,39 @@ test('el proveedor del brief sale de HERMES_PROVIDER y, si no, de Anthropic Sonn
   assert.equal(out.call.key, 'sk-ant');
   assert.equal(out.call.model, 'claude-sonnet-5-5');
 });
+
+test('la reescritura del brief guarda entrada, salida y caché', () => {
+  const out = run(`
+    const doFetch = async () => ({
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'text', text: structured }],
+        usage: { input_tokens: 1000, output_tokens: 200, cache_read_input_tokens: 10, cache_creation_input_tokens: 4 },
+      }),
+    });
+    const call = await prep.completeBriefCall('prompt', { ANTHROPIC_API_KEY: 'sk-ant', HERMES_USD_EUR: '1' }, doFetch);
+    const result = await prep.prepareClickupTask(
+      { name: 'Pieza', description: vague, assignees: [{ id: 1 }], status: { status: 'BACKLOG' } },
+      'task1',
+      { token: '', comment: false, env: { ANTHROPIC_API_KEY: 'sk-ant', HERMES_USD_EUR: '1' }, doFetch }
+    );
+    console.log(JSON.stringify({
+      text: prep.briefIsStructured(call.text),
+      input: call.usage && call.usage.inputTokens,
+      output: call.usage && call.usage.outputTokens,
+      read: call.usage && call.usage.cacheReadTokens,
+      write: call.usage && call.usage.cacheWriteTokens,
+      id: call.usage && call.usage.usageSteps[0].id,
+      usd: call.usage && call.usage.costUsd,
+      kept: result.usage && result.usage.inputTokens,
+    }));
+  `);
+  assert.equal(out.text, true);
+  assert.equal(out.input, 1000);
+  assert.equal(out.output, 200);
+  assert.equal(out.read, 10);
+  assert.equal(out.write, 4);
+  assert.equal(out.id, 'brief-normalizado');
+  assert.equal(out.usd, 0.004011);
+  assert.equal(out.kept, 1000);
+});

@@ -1,0 +1,25 @@
+{
+  "models": {
+    "anthropic::claude-sonnet-5-5": {
+      "input": 2,
+      "output": 10,
+      "cacheRead": 0.1,
+      "cacheWrite": 2.5,
+      "cacheWrite1h": 4
+    },
+    "anthropic::claude-haiku-5-5": {
+      "input": 0.1,
+      "output": 0.5,
+      "cacheRead": 0.01,
+      "cacheWrite": 0.125,
+      "cacheWrite1h": 0.2
+    },
+    "nous::deepseek/deepseek-v4-flash": {
+      "input": 0.091,
+      "output": 0.182,
+      "cache": 0.0182,
+      "cacheRead": 0.0182,
+      "cacheWrite": 0.0182
+    }
+  }
+}
