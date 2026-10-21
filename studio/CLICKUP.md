@@ -95,8 +95,8 @@ y, en líneas siguientes, `Vista previa A: https://hermes-studio-beta.vercel.app
 y, si el trabajo tiene versión B, `Vista previa B: …/api/jobs/<id>/channel-b`
 (la duración y la nota solo si existen; la nota es la suma de los criterios, sobre 50). Si hubo
 pasadas de mejora, la nota dice la inicial, la final y cuántas fueron:
-`nota visual 40/50 → 48/50 (2 pasadas)`. Si no llegó al objetivo, añade los criterios que siguen
-por debajo del máximo. Si falla:
+`nota visual 40/50 → 48/50 (2 pasadas)`. Si no llegó al objetivo, la lista «siguen por debajo del máximo»
+se queda con los criterios en 3 o menos; si no hay ninguno tan bajo, con los 3 más flojos. Si falla:
 `@Nombre el trabajo ha fallado: motivo en una línea. https://…/?job=<id>` (sin vistas previas). Sin id de creador, el mismo aviso
 sale como texto plano, sin `@`. El aviso se escribe una vez por trabajo: un reintento de la ruta o
 otra réplica ve la reserva y no vuelve a comentar. Si ClickUp no responde, la reserva se suelta y

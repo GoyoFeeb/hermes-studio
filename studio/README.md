@@ -364,6 +364,7 @@ un proyecto de Supabase (`hermes-studio`, región UE). El plan completo, con lo 
 | Trabajos | `studio/data/jobs/<id>.json` | tabla `jobs` (el trabajo entero en `data`) |
 | Eventos | `studio/data/jobs/<id>.events.ndjson` | tabla `job_events` |
 | Fichas de marca | `studio/data/brand-cards/<marca>.json` | tabla `brand_cards` |
+| Aprendizajes | `studio/data/learnings.json` | tabla `learnings` (una fila, `id = bank`; hace falta `003-learnings.sql`) |
 | Resultado de cada newsletter | `newsletters/…` | bucket `newsletters` (privado), misma ruta |
 | Imágenes de los correos | `brands/…` (las sirve `/assets`) | bucket `assets` (público), ruta dentro de `brands/` |
 | Resto de `brands/` | `brands/…` | bucket `brand-packs` (privado) |

@@ -4062,6 +4062,10 @@ sideMenu.addEventListener('click', (e) => {
     }
     return;
   }
+  if (where === 'learnings') {
+    location.href = '/learnings.html';
+    return;
+  }
   if (viewForm.hidden) {
     if (where === 'history') scrollToHistory = true;
     if (showFormView() === false) {
@@ -8121,8 +8125,30 @@ function improveCriterionLines(before, after) {
     .join('')}</ul>`;
 }
 
+const LEARNING_KIND = { raise: 'subió la nota', drop: 'hizo bajar la nota', qc: 'error de calidad', weak: 'criterio flojo' };
+
+/** Lo que el encargo de este trabajo ya traía del banco de aprendizajes. */
+function renderAppliedLearnings(job) {
+  const box = document.getElementById('applied-learnings');
+  if (!box) return;
+  const items = job?.learningsApplied || [];
+  box.hidden = !items.length;
+  const sum = document.getElementById('applied-learnings-sum');
+  const list = document.getElementById('applied-learnings-list');
+  if (sum) sum.textContent = items.length ? `${items.length}` : '';
+  if (!list || box.hidden) return;
+  list.innerHTML = items
+    .map((item) => {
+      const kind = LEARNING_KIND[item.kind] || item.kind || '';
+      const scope = item.scope && item.scope !== 'general' ? item.scope : 'general';
+      return `<li>${escapeHtml(item.text || '')} <span class="hint">${escapeHtml(kind)} · ${escapeHtml(scope)}</span></li>`;
+    })
+    .join('');
+}
+
 /** Pasadas que suben la nota o quitan errores de QC. En Creas IT se enseña la de la versión B. */
 function renderImprove(job) {
+  renderAppliedLearnings(job);
   const box = document.getElementById('improve-box');
   if (!box) return;
   const rec = !job ? null : channelView === 'b' ? job.channelB?.improve : job.improve;

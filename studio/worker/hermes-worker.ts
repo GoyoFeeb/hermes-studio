@@ -68,8 +68,10 @@ import {
   IMPROVE_MIN_START_MS,
   IMPROVE_REVISE_CAP_MS,
   IMPROVE_SCORE_CAP_MS,
+  formatPassScoreLine,
   improvePrompt,
   improveSettings,
+  improveTempDir,
   runImproveLoop,
   shouldImprove,
   snapshotOf,
@@ -966,6 +968,8 @@ interface ClaimedJob {
     model?: string | null;
     provider?: string | null;
   };
+  /** Aprendizajes generales y de la marca, para el bucle de mejora. */
+  learnings?: string;
 }
 
 /** Una adaptación a móvil es un retoque, no una newsletter: la barra estima con esto. */
@@ -1836,6 +1840,7 @@ function snapFromReview(review: ArtReview | null, quality: QualityReport | null)
     problemas: review?.problemas || [],
     defectos: review?.defectos || [],
     qcLines: quality ? checkFailureLines(quality) : [],
+    pruebas: review?.pruebas || {},
   });
 }
 
@@ -1864,6 +1869,7 @@ async function applyScoreImprove(opts: {
   design: boolean;
   log: (line: string) => void;
   progress: (line: string) => Promise<unknown>;
+  learnings?: string;
 }): Promise<{ record: JobImprove; review: ArtReview | null; kept: boolean; quality: QualityReport | null } | null> {
   const settings = improveSettings();
   if (settings.maxPasses < 1 || !opts.alive()) return null;
@@ -1914,7 +1920,7 @@ async function applyScoreImprove(opts: {
       if (passSnap) restoreWork(passSnap, opts.htmlPath, opts.notesPath);
       else fs.writeFileSync(opts.htmlPath, html);
     },
-    promptFor: (snap) =>
+    promptFor: (snap, _pass, retry) =>
       improvePrompt({
         filePath: opts.filePath,
         brand: opts.brandName,
@@ -1922,6 +1928,8 @@ async function applyScoreImprove(opts: {
         criteria: ART_CRITERIA,
         webPath: opts.web?.path,
         checkCmd: opts.checkCmd,
+        retry,
+        learnings: opts.learnings,
       }),
     revise: async (prompt, pass) => {
       passSnap = snapshotWork(opts.htmlPath, opts.notesPath, path.join(opts.workDir, `antes-mejora-${pass}.html`));
@@ -2654,6 +2662,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
           alive: () => jobOpen(),
           repairRetries: budget.artRepairRetries,
           design: !editKind,
+          learnings: claimed.learnings,
           log: (line) => {
             console.log(`[${stamp()}] ${job.id}: ${line}`);
             void progressMessage(line);
@@ -2680,7 +2689,7 @@ async function runJob(claimed: ClaimedJob): Promise<void> {
             `\n## Iteraciones de mejora\n\n${improved.record.passes
               .map(
                 (p) =>
-                  `- Pasada ${p.n}: ${p.before.total}/${p.before.max} → ${p.after ? `${p.after.total}/${p.after.max}` : 'sin nota'} en ${Math.round(p.durationMs / 1000)} s — ${p.reason}`
+                  `- Pasada ${p.n}: ${formatPassScoreLine(p.before, p.after)} en ${Math.round(p.durationMs / 1000)} s — ${p.reason}`
               )
               .join('\n')}\n`
           );
@@ -2839,7 +2848,8 @@ async function backfillThumbnails(): Promise<void> {
 }
 
 /** Versión B con errores de QC (2026-10-21): con el worker libre, Studio da UNA pieza y aquí se reescribe
- *  con el mismo bucle que la de Hermes. Si llega un trabajo a medias, no se publica: la reserva vence y otro hueco la retoma. */
+ *  con el mismo bucle que la de Hermes. La carpeta es temporal y escribible (no /app). Una reserva ya
+ *  hecha no vuelve a entrar, aunque el intento no llegue a publicarse. */
 let channelBIdleUntil = 0;
 
 async function backfillChannelBImproves(): Promise<void> {
@@ -2851,7 +2861,7 @@ async function backfillChannelBImproves(): Promise<void> {
     return;
   }
   const { jobs } = (await res.json()) as {
-    jobs: { id: string; html: string; slug: string; name: string; request: string; prompt: string }[];
+    jobs: { id: string; html: string; slug: string; name: string; request: string; prompt: string; learnings?: string }[];
   };
   if (!jobs.length) {
     channelBIdleUntil = Date.now() + THUMB_BACKFILL_IDLE_MS;
@@ -2859,13 +2869,12 @@ async function backfillChannelBImproves(): Promise<void> {
   }
   for (const j of jobs) {
     if (!maintenanceOpen()) return;
-    const workDir = path.join(ROOT, '.improve-tmp', j.id);
+    const workDir = improveTempDir(j.id);
     fs.rmSync(workDir, { recursive: true, force: true });
     fs.mkdirSync(workDir, { recursive: true });
     const htmlPath = path.join(workDir, 'newsletter.html');
     const notesPath = path.join(workDir, 'notas.md');
     fs.writeFileSync(htmlPath, j.html);
-    const rel = path.relative(ROOT, htmlPath);
     const deadline = Date.now() + CHANNEL_B_IMPROVE_BUDGET_MS;
     const timeLeftMs = (): number => Math.max(0, deadline - Date.now());
     const alive = (): boolean => maintenanceOpen() && timeLeftMs() > 0;
@@ -2892,7 +2901,7 @@ async function backfillChannelBImproves(): Promise<void> {
         htmlPath,
         notesPath,
         workDir,
-        filePath: rel,
+        filePath: htmlPath,
         brandName: j.name || j.slug || 'la marca',
         brandSlug: j.slug,
         prompt: j.prompt,
@@ -2901,7 +2910,8 @@ async function backfillChannelBImproves(): Promise<void> {
         openingReview: scored.review,
         bestReview: scored.review,
         quality: scored.quality,
-        checkCmd: `npm run check-newsletter -- ${rel}`,
+        checkCmd: `npm run check-newsletter -- ${htmlPath}`,
+        learnings: j.learnings,
         timeLeftMs,
         alive,
         repairRetries: passes,
@@ -2914,7 +2924,7 @@ async function backfillChannelBImproves(): Promise<void> {
         return;
       }
       if (!improved) {
-        console.log(`[${stamp()}] ${j.id} (B): sin pasada que guardar (se reintentará cuando venza la reserva)`);
+        console.log(`[${stamp()}] ${j.id} (B): sin pasada que guardar. No se reintenta: la reserva ya cuenta como intento.`);
         return;
       }
       const html = fs.readFileSync(htmlPath, 'utf8');
