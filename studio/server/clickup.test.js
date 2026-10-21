@@ -658,6 +658,8 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
       ...job,
       artReview: { before: { a: 5, b: 5 }, after: { a: 1, b: 1 }, kept: false, web: false, problemas: [], mejoras: [] },
     }, 'completed', web);
+    const withB = clickup.clickupEndComment({ ...job, channelB: { status: 'ready' } }, 'completed', web);
+    const bPlain = clickup.clickupCommentPlain(withB);
     const calls = [];
     await clickup.postClickupCommentBody('task123', 'pk_test', ready, async (url, init) => {
       calls.push({ url: String(url), authorization: init.headers.Authorization, method: init.method, body: JSON.parse(init.body) });
@@ -691,12 +693,18 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
       failedNoId: failedNoId.comment_text,
       kept: clickup.clickupCommentPlain(keptBefore).includes('nota visual 10/50'),
       notAfter: !clickup.clickupCommentPlain(keptBefore).includes('nota visual 2/50'),
+      bPlain,
+      bOrder: withB.comment.map((part) => part.type || 'text'),
+      bLead: withB.comment[0],
+      failedPreview: failedPlain.includes('Vista previa'),
       call: calls[0],
       plainCall,
     }));
   `);
   const page = 'https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd';
-  const readyText = ` tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`;
+  const previewA = 'https://hermes-studio-beta.vercel.app/api/jobs/m1h2k3-abcd/result';
+  const previewB = 'https://hermes-studio-beta.vercel.app/api/jobs/m1h2k3-abcd/channel-b';
+  const readyText = ` tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50\nVista previa A: ${previewA}`;
   const mention = { type: 'tag', user: { id: 183 } };
   assert.equal(out.plain, readyText);
   assert.equal(out.notify, false);
@@ -709,10 +717,10 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
   assert.deepEqual(out.payload, [mention, { text: readyText }]);
   assert.deepEqual(out.failedTag, mention);
   assert.equal(out.failedTail, ` el trabajo ha fallado: Hermes no dejó el HTML. ${page}`);
-  assert.equal(out.noId, `Tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50`);
+  assert.equal(out.noId, `Tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50\nVista previa A: ${previewA}`);
   assert.equal(out.noIdComment, null);
-  assert.equal(out.noScore, ` tu trabajo está listo: ${page}`);
-  assert.deepEqual(out.noScorePayload, [mention, { text: ` tu trabajo está listo: ${page}` }]);
+  assert.equal(out.noScore, ` tu trabajo está listo: ${page}\nVista previa A: ${previewA}`);
+  assert.deepEqual(out.noScorePayload, [mention, { text: ` tu trabajo está listo: ${page}\nVista previa A: ${previewA}` }]);
   assert.deepEqual(out.spacedTag, mention);
   assert.deepEqual(out.spacedKeys, ['type', 'user']);
   assert.equal(out.failedPlain, ` el trabajo ha fallado: Hermes no dejó el HTML. ${page}`);
@@ -720,6 +728,10 @@ test('al terminar menciona al creador y, sin id, publica el texto sin @', () => 
   assert.equal(out.failedNoId, `El trabajo ha fallado: se cortó el modelo. ${page}`);
   assert.equal(out.kept, true);
   assert.equal(out.notAfter, true);
+  assert.equal(out.bPlain, ` tu trabajo está listo: ${page} · duración 3:05 · nota visual 42/50\nVista previa A: ${previewA}\nVista previa B: ${previewB}`);
+  assert.deepEqual(out.bOrder, ['tag', 'text']);
+  assert.deepEqual(out.bLead, mention);
+  assert.equal(out.failedPreview, false);
   assert.equal(out.call.url, 'https://api.clickup.com/api/v2/task/task123/comment');
   assert.equal(out.call.method, 'POST');
   assert.equal(out.call.authorization, 'pk_test');
@@ -862,7 +874,7 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
   assert.equal(out.noticeAt, true);
   assert.equal(out.noticeOutcome, 'completed');
   assert.equal(out.posts, 1);
-  assert.equal(out.text, ' tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd · duración 1:00');
+  assert.equal(out.text, ' tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=m1h2k3-abcd · duración 1:00\nVista previa A: https://hermes-studio-beta.vercel.app/api/jobs/m1h2k3-abcd/result');
   assert.deepEqual(out.order, ['tag', 'text']);
   assert.deepEqual(out.lead, { type: 'tag', user: { id: 183 } });
   assert.equal(out.first, false);
@@ -877,4 +889,52 @@ test('el aviso de fin se publica una vez aunque lo intenten dos réplicas o un r
   assert.deepEqual(out.staleLead, { type: 'tag', user: { id: 183 } });
   assert.equal(out.off, false);
   assert.equal(out.offFiles, 0);
+});
+
+test('el brief que devuelve prepareTask es el que usa el trabajo', () => {
+  const out = run(`
+    const marker = '<!-- hermes-brief -->';
+    const structured = [
+      marker,
+      'Cliente/Marca: Novo Resort Deluxe',
+      'URL de la marca: https://novoresortdeluxe.com',
+      'Producto/servicio: alquiler de apartamentos',
+      'Objetivo: promocionar los últimos días',
+      'Formato: email newsletter HTML',
+      'CTA: "Reserva" → https://novoresortdeluxe.com',
+      'Idioma: español',
+      'Tono: el de la marca',
+      'Público: No indicado',
+      'Mensajes clave: últimos días',
+      'Imágenes: de la web',
+    ].join('\\n');
+    const { jobs, deps } = memory();
+    const logs = [];
+    deps.log = (id, message) => logs.push({ id, message });
+    deps.fetchTask = async () => ({
+      id: 'novo123',
+      name: 'Novo',
+      list: { id: listId },
+      markdown_description: 'vamos a crear una creatividad',
+    });
+    deps.prepareTask = async (task) => ({
+      task: { ...task, markdown_description: structured, text_content: structured, description: structured },
+      notes: [{ message: 'Brief reestructurado y guardado en la tarea.' }],
+    });
+    const body = createdPayload('novo123');
+    const res = await clickup.handleClickupWebhook(Buffer.from(body), sign(body), deps);
+    await res.after;
+    const job = jobs[0];
+    console.log(JSON.stringify({
+      status: res.status,
+      brief: job.input.briefText,
+      reused: job.input.briefReused,
+      logged: logs.some((row) => row.id === job.id && row.message.includes('Brief reestructurado')),
+    }));
+  `);
+  assert.equal(out.status, 201);
+  assert.match(out.brief, /Cliente\/Marca: Novo Resort Deluxe/);
+  assert.match(out.brief, /https:\/\/novoresortdeluxe\.com/);
+  assert.equal(out.reused, true);
+  assert.equal(out.logged, true);
 });

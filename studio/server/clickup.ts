@@ -56,6 +56,8 @@ export interface ClickupTask {
   creator?: { id?: string | number; username?: string };
   attachments?: { title?: string; name?: string; url?: string }[];
   custom_fields?: unknown[];
+  assignees?: { id?: number | string; username?: string }[] | null;
+  status?: { status?: string } | string | null;
 }
 
 export interface ClickupDeps {
@@ -77,6 +79,8 @@ export interface ClickupDeps {
   knownBrand: (slug: string) => boolean;
   /** Fichas de marca ya sincronizadas. Si no está, la marca sale del texto de la tarea. */
   brandRecords?: () => KnownBrand[];
+  /** Asignado por defecto, BACKLOG si no hay estado y brief estructurado. Sin esto, la tarea se usa tal cual. */
+  prepareTask?: (task: ClickupTask, taskId: string) => Promise<{ task: ClickupTask; notes: { message: string; level?: 'info' | 'error' }[] }>;
   log: (id: string, message: string, level?: 'info' | 'error' | 'success') => void;
 }
 
@@ -156,6 +160,12 @@ export function clickupJobPageUrl(webBase: string, jobId: string): string {
   return `${webBase}/?job=${encodeURIComponent(jobId)}`;
 }
 
+/** Vista previa directa. A es el HTML de Hermes; B, el canal adjunto. */
+export function clickupPreviewUrl(webBase: string, jobId: string, version: 'a' | 'b'): string {
+  const path = version === 'b' ? 'channel-b' : 'result';
+  return `${webBase}/api/jobs/${encodeURIComponent(jobId)}/${path}`;
+}
+
 export function clickupJobComment(
   webBase: string,
   jobId: string,
@@ -212,6 +222,8 @@ export interface ClickupEndJob {
   error?: string;
   artReview?: JobArtReview;
   input: { clickupTaskId?: string; requesterName?: string; clickupCreatorId?: string };
+  /** Versión B adjunta. Si está, el aviso de fin incluye su vista previa. */
+  channelB?: unknown;
 }
 
 export interface ClickupEndDeps {
@@ -297,7 +309,14 @@ function mentionBody(userId: number, rest: string): ClickupCommentBody {
   };
 }
 
-/** Texto del aviso de fin. Sin id de creador, el mismo texto en comment_text y sin @. */
+function previewBlock(job: ClickupEndJob, webBase: string): string {
+  const lines = [`Vista previa A: ${clickupPreviewUrl(webBase, job.id, 'a')}`];
+  if (job.channelB) lines.push(`Vista previa B: ${clickupPreviewUrl(webBase, job.id, 'b')}`);
+  return lines.join('\n');
+}
+
+/** Texto del aviso de fin. Sin id de creador, el mismo texto en comment_text y sin @.
+ *  La mención va la primera. Al terminar se añaden la ficha y las vistas previas. */
 export function clickupEndComment(job: ClickupEndJob, outcome: 'completed' | 'failed', webBase: string): ClickupCommentBody {
   const page = clickupJobPageUrl(webBase, job.id);
   const userId = mentionUserId(job.input.clickupCreatorId);
@@ -312,7 +331,7 @@ export function clickupEndComment(job: ClickupEndJob, outcome: 'completed' | 'fa
   if (sec != null) bits.push(`duración ${formatDurationMSS(sec)}`);
   const score = artScoreOutOf50(job.artReview);
   if (score != null) bits.push(`nota visual ${score}/${ART_SCORE_MAX}`);
-  const detail = bits.join(' · ');
+  const detail = `${bits.join(' · ')}\n${previewBlock(job, webBase)}`;
   if (userId) return mentionBody(userId, `tu trabajo está listo: ${detail}`);
   return { notify_all: false, comment_text: `Tu trabajo está listo: ${detail}` };
 }
@@ -618,13 +637,20 @@ async function enrichClickupJob(jobId: string, payload: ClickupPayload, deps: Cl
     return;
   }
 
-  const input = task ? inputFromTask(task, payload, deps, taskId) : { ...fresh.input, clickupPending: false };
-  const title = task?.name?.trim().slice(0, 140);
+  let ready = task;
+  if (task) {
+    const prepared = await applyPrepare(task, taskId, deps);
+    ready = prepared.task;
+    logPrepareNotes(jobId, prepared.notes, deps);
+  }
+
+  const input = ready ? inputFromTask(ready, payload, deps, taskId) : { ...fresh.input, clickupPending: false };
+  const title = ready?.name?.trim().slice(0, 140);
   deps.updateJob(jobId, { input, ...(title && !fresh.title ? { title } : {}) });
-  if (task && !taskDescription(task)) {
+  if (ready && !taskDescription(ready)) {
     deps.log(jobId, 'La tarea de ClickUp no trae descripción: el brief es solo el nombre.', 'error');
   }
-  if (task) deps.log(jobId, `Encargo actualizado desde ClickUp (${taskId}).`);
+  if (ready) deps.log(jobId, `Encargo actualizado desde ClickUp (${taskId}).`);
   await commentOnTask(taskId, jobId, deps);
 }
 
@@ -643,8 +669,10 @@ async function createAfterListCheck(taskId: string, payload: ClickupPayload, dep
       if (list !== deps.listId) return null;
       const raced = deps.findJob(taskId);
       if (raced) return { id: raced.id, created: false };
-      const job = deps.createJob(inputFromTask(task, payload, deps, taskId));
+      const prepared = await applyPrepare(task, taskId, deps);
+      const job = deps.createJob(inputFromTask(prepared.task, payload, deps, taskId));
       deps.log(job.id, `Abierto desde la tarea de ClickUp ${taskId}.`);
+      logPrepareNotes(job.id, prepared.notes, deps);
       armQueueNotice(job.id, deps);
       await commentOnTask(taskId, job.id, deps);
       return { id: job.id, created: true };
@@ -662,6 +690,29 @@ async function createAfterListCheck(taskId: string, payload: ClickupPayload, dep
   } finally {
     if (owner) confirming.delete(taskId);
   }
+}
+
+async function applyPrepare(
+  task: ClickupTask,
+  taskId: string,
+  deps: ClickupDeps
+): Promise<{ task: ClickupTask; notes: { message: string; level?: 'info' | 'error' }[] }> {
+  if (!deps.prepareTask) return { task, notes: [] };
+  try {
+    const prepared = await deps.prepareTask(task, taskId);
+    if (!prepared?.task) return { task, notes: [] };
+    return { task: prepared.task, notes: prepared.notes || [] };
+  } catch (err) {
+    return { task, notes: [{ message: `No se pudo preparar la tarea de ClickUp: ${(err as Error).message}`, level: 'error' }] };
+  }
+}
+
+function logPrepareNotes(
+  jobId: string,
+  notes: { message: string; level?: 'info' | 'error' }[],
+  deps: ClickupDeps
+): void {
+  for (const note of notes) deps.log(jobId, note.message, note.level === 'error' ? 'error' : 'info');
 }
 
 async function commentOnTask(taskId: string, jobId: string, deps: ClickupDeps): Promise<void> {

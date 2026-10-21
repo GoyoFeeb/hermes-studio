@@ -17,7 +17,13 @@ Ponlas en Railway, servicio `hermes-studio`. No las copies a `hermes-worker` ni 
 | `CLICKUP_WEBHOOK_SECRET` | Sí, para activar | El `webhook.secret` que devuelve el alta. Sin ella la ruta está apagada (401). |
 | `CLICKUP_API_TOKEN` | Para leer la tarea y comentar | Token personal de ClickUp (Settings → Apps). No es el secret del webhook. |
 | `CLICKUP_LIST_ID` | No | Lista que abre trabajos. Por defecto `901223474074`. |
-| `CLICKUP_COMMENT` | No | `1` publica comentarios en la tarea: el enlace al crear el trabajo, el aviso si sigue en cola, el aviso de que Hermes ha empezado, y al terminar o fallar un comentario que menciona a quien creó la tarea. Cualquier otro valor, o vacío, no comenta. No hay variable nueva para el aviso de fin. |
+| `CLICKUP_COMMENT` | No | `1` publica comentarios en la tarea: el enlace al crear el trabajo, el aviso si sigue en cola, el aviso de que el brief se reestructuró, el aviso de que Hermes ha empezado, y al terminar o fallar un comentario que menciona a quien creó la tarea. Cualquier otro valor, o vacío, no comenta. No hay variable nueva para el aviso de fin ni para el del brief. |
+| `CLICKUP_DEFAULT_ASSIGNEE_ID` | No | Id numérico de ClickUp. Si la tarea llega sin asignado, se le pone este usuario y no se busca el nombre. Sin ella, se busca a **Javier Condado** entre los miembros de la workspace. |
+| `CLICKUP_TEAM_ID` | No | Si está, la búsqueda de Javier Condado se limita a esa workspace. El script de alta del webhook ya lo usaba. |
+| `ANTHROPIC_API_KEY` | Para reescribir un brief vago | La misma clave que el worker. Sin clave (ni `NOUS_API_KEY` si el proveedor es Nous), el trabajo se abre con el texto original. |
+| `HERMES_PROVIDER` | No | El del worker (`anthropic` o `nous-api`). Si no está y hay `ANTHROPIC_API_KEY`, se usa Anthropic. |
+| `HERMES_INFERENCE_MODEL` | No | Modelo del worker. Con Anthropic y sin modelo, `claude-sonnet-5-5`. |
+| `HERMES_MODEL_BRIEF` | No | Si está, solo este paso lo usa, por delante de `HERMES_INFERENCE_MODEL`. |
 
 Opcional, solo si la web deja de estar en Vercel: `STUDIO_WEB_URL` (https). El enlace del comentario
 sale de ahí. Si no está, el enlace es `https://hermes-studio-beta.vercel.app/?job=<id>`.
@@ -61,6 +67,21 @@ nunca el correo) y `clickupCreatorId` (el id numérico de ese usuario en ClickUp
 `campaignId` están reservados para vincular cliente y campaña; esta integración no los rellena y no
 toca la base de datos.
 
+Antes de dejar el trabajo en cola, Studio prepara la tarea (`studio/server/clickupPrepare.ts`):
+
+- **Asignado.** Si `assignees` viene vacío, asigna a Javier Condado. El id sale de
+  `GET /api/v2/team` (el `username`, sin distinguir mayúsculas ni tildes) o de
+  `CLICKUP_DEFAULT_ASSIGNEE_ID` si está puesta. Si ya hay alguien asignado, no se toca.
+- **Estado.** Solo si la tarea no trae estado, se pone `BACKLOG` (o el estado de la lista que se
+  llame igual, con la grafía que tenga la lista). Si ya tiene estado, no se cambia.
+- **Brief.** Si la descripción no tiene el marcador `<!-- hermes-brief -->` ni los once campos
+  (Cliente/Marca, URL de la marca, Producto/servicio, Objetivo, Formato, CTA, Idioma, Tono, Público,
+  Mensajes clave, Imágenes), el modelo la reescribe en español y se guarda en la tarea. Debajo queda
+  el texto de la persona, bajo `Descripción original:`. El trabajo usa esa descripción. Si ya está
+  estructurada, no se vuelve a llamar al modelo ni se vuelve a comentar. Con `CLICKUP_COMMENT=1` se
+  publica un comentario corto diciendo que el brief se reestructuró. Si el modelo o ClickUp fallan,
+  el trabajo se abre igual: con el brief nuevo si el modelo respondió, o con el texto original si no.
+
 Cuando el trabajo termina (`POST /api/worker/jobs/:id/complete`) o falla (`/fail`), y `CLICKUP_COMMENT=1`,
 Studio publica otro comentario en la misma tarea. Si hay `clickupCreatorId`, el cuerpo es un array
 `comment` con `notify_all: false`. El primer bloque es la mención como la documenta ClickUp
@@ -70,11 +91,18 @@ que la mención queda delante y avisa a esa persona. Un `text` dentro del tag se
 `comment_text` y reordenar los bloques no lo mueve. El enlace
 va sin ángulos. El texto, en español, es
 `@Nombre tu trabajo está listo: https://hermes-studio-beta.vercel.app/?job=<id> · duración M:SS · nota visual X/50`
+y, en líneas siguientes, `Vista previa A: https://hermes-studio-beta.vercel.app/api/jobs/<id>/result`
+y, si el trabajo tiene versión B, `Vista previa B: …/api/jobs/<id>/channel-b`
 (la duración y la nota solo si existen; la nota es la suma de los criterios, sobre 50). Si falla:
-`@Nombre el trabajo ha fallado: motivo en una línea. https://…/?job=<id>`. Sin id de creador, el mismo aviso
+`@Nombre el trabajo ha fallado: motivo en una línea. https://…/?job=<id>` (sin vistas previas). Sin id de creador, el mismo aviso
 sale como texto plano, sin `@`. El aviso se escribe una vez por trabajo: un reintento de la ruta o
 otra réplica ve la reserva y no vuelve a comentar. Si ClickUp no responde, la reserva se suelta y
 el siguiente intento puede publicar.
+
+La web tiene una vista de resultados (`/?results=1`, y `/?results=1&job=<id>` para abrir una pieza).
+`GET /api/results` pagina las piezas terminadas, la más nueva primero (`limit`, `offset` o `cursor`).
+Pasa por el mismo acceso que el resto de `/api` (cuenta `@feebbo.com`). `/?job=<id>` sigue abriendo
+la ficha de trabajo, no el paginador.
 
 Si ClickUp repite el aviso, y ya hay un trabajo con ese `clickupTaskId`, la ruta responde 200 con
 ese id y no abre otro. La respuesta sale antes de terminar de leer la tarea. Mientras se lee, el
@@ -109,8 +137,10 @@ Eso hace `POST https://api.clickup.com/api/v2/team/{team_id}/webhook` con:
    `CLICKUP_WEBHOOK_SECRET` y reinicia el servicio **antes** de crear una tarea de prueba.
 5. Pon también `CLICKUP_API_TOKEN` en ese mismo servicio. Sin él el trabajo se abre, pero el
    encargo no tiene la descripción. `CLICKUP_COMMENT=1` si quieres los comentarios, incluido el aviso
-   a quien creó la tarea cuando el trabajo termina o falla. Sin esa variable (o con otro valor) no
-   se comenta. Hace falta el mismo `CLICKUP_API_TOKEN`: no hay variable nueva.
+   a quien creó la tarea cuando el trabajo termina o falla y el aviso de brief reestructurado. Sin
+   esa variable (o con otro valor) no se comenta. Hace falta el mismo `CLICKUP_API_TOKEN`: no hay
+   variable nueva. Para reescribir un brief vago, pon también `ANTHROPIC_API_KEY` (y, si no es el
+   modelo por defecto, `HERMES_PROVIDER` y `HERMES_INFERENCE_MODEL`) en este servicio.
 6. Crea una tarea en JAVI AI. En la tarea (si el comentario está activo) y en Studio debe aparecer
    el trabajo. El enlace es `https://hermes-studio-beta.vercel.app/?job=<id>`.
 

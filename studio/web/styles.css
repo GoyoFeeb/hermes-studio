@@ -4033,3 +4033,17 @@ html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(roo
 .costes-table th { color: var(--muted); font-weight: 600; }
 .costes-table td.num, .costes-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .costes-table a { color: inherit; }
+
+/* Resultados (2026-10-21): una pieza por página. */
+.results-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.results-nav .hint { margin: 0; }
+.results-meta .results-client { margin: 0 0 12px; font-family: Barlow, sans-serif; font-size: 28px; font-weight: 800; }
+.results-meta dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; margin: 0 0 16px; }
+.results-meta dt { color: var(--muted); font-size: var(--fs-small); }
+.results-meta dd { margin: 2px 0 0; }
+.results-criteria, .results-checks { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 6px; }
+.results-criteria li, .results-checks li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; background: var(--surface-row); border-radius: 8px; }
+.results-versions { display: grid; gap: 24px; }
+.results-version h3 { margin: 0 0 8px; }
+.results-frame { width: 100%; max-width: 640px; height: 720px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.results-empty { margin: 12px 0; }
