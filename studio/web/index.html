@@ -12,7 +12,7 @@
     } catch (e) {}
     // Enlace directo a una newsletter o a una ficha (2026-10-05): la portada se pintaba ~70 ms (o más en móvil)
     // antes de que app.js cambiara de vista. Con esta clase no se pinta; route() la quita al decidir la vista.
-    if (/[?&](job|brand|costes)=/.test(location.search)) document.documentElement.classList.add('deep-link');
+    if (/[?&](job|brand|costes|results)=/.test(location.search)) document.documentElement.classList.add('deep-link');
   </script>
   <title>Hermes Studio · Feebbo</title>
   <link rel="icon" type="image/png" href="/favicon.png" />
@@ -60,6 +60,7 @@
            solo en móvil, donde el botón de la cabecera no cabe. Los números los pone renumberMenu() (app.js). -->
       <li><button type="button" data-menu="new"><span class="menu-num"></span>Nueva newsletter</button></li>
       <li><button type="button" data-menu="history"><span class="menu-num"></span>Historial</button></li>
+      <li><button type="button" data-menu="results"><span class="menu-num"></span>Resultados</button></li>
       <li><button type="button" data-menu="costes"><span class="menu-num"></span>Costes</button></li>
       <li><button type="button" data-menu="brands"><span class="menu-num"></span>Marcas</button></li>
       <li><button type="button" data-menu="how"><span class="menu-num"></span>Cómo funciona</button></li>
@@ -1075,6 +1076,24 @@
       </div>
     </section>
 
+    <!-- Resultados (2026-10-21): una pieza terminada cada vez. La ficha la pinta app.js con results.js. -->
+    <section id="view-results" class="card" hidden>
+      <a href="/" id="results-back" class="back-link">← Todas las newsletters</a>
+      <div class="section-head">
+        <div class="section-title">
+          <span class="section-num" aria-hidden="true">02</span>
+          <h2 id="results-title" tabindex="-1">Resultados</h2>
+        </div>
+      </div>
+      <div class="results-nav">
+        <button type="button" id="results-prev" class="btn btn-secondary">Anterior</button>
+        <p id="results-pos" class="hint"></p>
+        <button type="button" id="results-next" class="btn btn-secondary">Siguiente</button>
+      </div>
+      <p id="results-status" class="form-warning" role="status" hidden></p>
+      <article id="results-body"></article>
+    </section>
+
     <!-- Costes (2026-10-20): tokens y euros de cada trabajo. La tabla la pinta app.js con costes.js. -->
     <section id="view-costes" class="card" hidden>
       <a href="/" id="costes-back" class="back-link">← Todas las newsletters</a>
@@ -1213,6 +1232,7 @@
   <script src="/textedit.js"></script>
   <script src="/export.js"></script>
   <script src="/costes.js"></script>
+  <script src="/results.js"></script>
   <script src="/auth.js"></script>
   <script src="/app.js"></script>
   <!-- Reproductor Lottie (versión ligera, solo SVG) para el logo y la hamburguesa de la web. defer: no retrasa nada. -->

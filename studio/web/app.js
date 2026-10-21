@@ -3,6 +3,7 @@ const viewForm = document.getElementById('view-form');
 const viewJob = document.getElementById('view-job');
 const viewBrand = document.getElementById('view-brand');
 const viewCostes = document.getElementById('view-costes');
+const viewResults = document.getElementById('view-results');
 const hero = document.querySelector('.hero');
 const clientNameInput = document.getElementById('client-name-input');
 const existingBrandInput = document.getElementById('existing-brand-input');
@@ -4054,6 +4055,13 @@ sideMenu.addEventListener('click', (e) => {
     }
     return;
   }
+  if (where === 'results') {
+    if (confirmLeaveJob()) {
+      history.pushState({}, '', '?results=1');
+      route();
+    }
+    return;
+  }
   if (viewForm.hidden) {
     if (where === 'history') scrollToHistory = true;
     if (showFormView() === false) {
@@ -4214,6 +4222,7 @@ function showFormView() {
     viewJob.hidden = true;
     viewBrand.hidden = true;
     if (viewCostes) viewCostes.hidden = true;
+    if (viewResults) viewResults.hidden = true;
     viewForm.hidden = false;
     hero.hidden = false;
     document.title = BASE_TITLE;
@@ -4658,6 +4667,7 @@ async function showBrandView(slug) {
   hero.hidden = true;
   viewJob.hidden = true;
   if (viewCostes) viewCostes.hidden = true;
+  if (viewResults) viewResults.hidden = true;
   viewBrand.hidden = false;
   updateSticky();
   const body = document.getElementById('brand-body');
@@ -4704,6 +4714,7 @@ async function showBrandsView() {
   hero.hidden = true;
   viewJob.hidden = true;
   if (viewCostes) viewCostes.hidden = true;
+  if (viewResults) viewResults.hidden = true;
   viewBrand.hidden = false;
   updateSticky();
   document.title = `Marcas · ${BASE_TITLE}`;
@@ -6914,6 +6925,7 @@ function showJobView(id) {
   hero.hidden = true;
   viewBrand.hidden = true;
   if (viewCostes) viewCostes.hidden = true;
+  if (viewResults) viewResults.hidden = true;
   viewJob.hidden = false;
   document.getElementById('job-result').hidden = true;
   showJobTab('preview');
@@ -9383,7 +9395,9 @@ function routeNow() {
   const id = params.get('job');
   const brand = params.get('brand');
   const brands = params.has('brands');
-  if (id) {
+  if (params.has('results')) {
+    showResultsView(id);
+  } else if (id) {
     // ?tab=client (2026-10-05, desde «Te esperan»): se abre esa pestaña en cuanto llegan los datos del trabajo.
     pendingJobTab = JOB_TABS.includes(params.get('tab')) ? params.get('tab') : null;
     showJobView(id);
@@ -9404,12 +9418,94 @@ function routeNow() {
     viewJob.hidden = true;
     viewBrand.hidden = true;
     if (viewCostes) viewCostes.hidden = true;
+    if (viewResults) viewResults.hidden = true;
     viewForm.hidden = false;
     hero.hidden = false;
     document.title = BASE_TITLE;
     loadHistory();
   }
 }
+
+// ---------------------------------------------------------------- resultados (2026-10-21)
+let resultsPage = null;
+function paintResults(page) {
+  resultsPage = page;
+  const R = window.HermesResults;
+  const body = document.getElementById('results-body');
+  const pos = document.getElementById('results-pos');
+  if (!R || !body) return;
+  body.innerHTML = R.render(page);
+  if (pos) pos.textContent = R.positionLabel(page);
+  const prev = document.getElementById('results-prev');
+  const next = document.getElementById('results-next');
+  if (prev) prev.disabled = !page.prevJob;
+  if (next) next.disabled = !page.nextJob;
+  const shown = page.items && page.items[0];
+  if (shown) {
+    const url = `?results=1&job=${encodeURIComponent(shown.id)}`;
+    if (location.search !== url) history.replaceState(history.state, '', url);
+  }
+}
+async function showResultsView(jobId) {
+  if (!confirmLeaveJob()) return;
+  clearTimeout(pollTimer);
+  clearTimeout(historyTimer);
+  currentJob = null;
+  setFaviconStatus(null);
+  viewForm.hidden = true;
+  hero.hidden = true;
+  viewJob.hidden = true;
+  viewBrand.hidden = true;
+  if (viewCostes) viewCostes.hidden = true;
+  if (viewResults) viewResults.hidden = false;
+  updateSticky();
+  document.title = `Resultados · ${BASE_TITLE}`;
+  const status = document.getElementById('results-status');
+  const body = document.getElementById('results-body');
+  if (status) status.hidden = true;
+  const q = new URLSearchParams({ limit: '1' });
+  if (jobId) q.set('job', jobId);
+  else {
+    const cursor = new URLSearchParams(location.search).get('cursor');
+    const offset = new URLSearchParams(location.search).get('offset');
+    if (cursor) q.set('cursor', cursor);
+    else if (offset) q.set('offset', offset);
+  }
+  try {
+    const res = await apiFetch(`/api/results?${q}`);
+    if (!res.ok) {
+      resultsPage = null;
+      const prev = document.getElementById('results-prev');
+      const next = document.getElementById('results-next');
+      if (prev) prev.disabled = true;
+      if (next) next.disabled = true;
+      if (status) {
+        status.hidden = false;
+        status.textContent = res.status === 401 ? 'Inicia sesión para ver los resultados.' : res.status === 404 ? 'Ese resultado no está.' : 'No se han podido cargar los resultados.';
+      }
+      if (body) body.innerHTML = '';
+      return;
+    }
+    paintResults(await res.json());
+    document.getElementById('results-title')?.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  } catch {
+    if (status) {
+      status.hidden = false;
+      status.textContent = NETWORK_ERROR;
+    }
+  }
+}
+document.getElementById('results-prev')?.addEventListener('click', () => {
+  if (!resultsPage?.prevJob) return;
+  history.pushState({}, '', `?results=1&job=${encodeURIComponent(resultsPage.prevJob)}`);
+  route();
+});
+document.getElementById('results-next')?.addEventListener('click', () => {
+  if (!resultsPage?.nextJob) return;
+  history.pushState({}, '', `?results=1&job=${encodeURIComponent(resultsPage.nextJob)}`);
+  route();
+});
 
 // ---------------------------------------------------------------- costes (2026-10-20)
 let costesJobs = [];
@@ -9465,6 +9561,7 @@ async function showCostesView() {
   hero.hidden = true;
   viewJob.hidden = true;
   viewBrand.hidden = true;
+  if (viewResults) viewResults.hidden = true;
   if (viewCostes) viewCostes.hidden = false;
   updateSticky();
   document.title = `Costes · ${BASE_TITLE}`;

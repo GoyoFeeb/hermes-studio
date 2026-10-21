@@ -32,6 +32,8 @@ import {
   type ClickupDeps,
   type ClickupEndDeps,
 } from './clickup';
+import { prepareClickupTask } from './clickupPrepare';
+import { paginateResults } from './results';
 import { leaseUntil, selectClaim, withStoreLock, workerIdentity } from './claimQueue';
 import { renewJobLease } from './lease';
 import { noteWorker, workerCapacity } from './workerPool';
@@ -869,6 +871,11 @@ function clickupDeps(): ClickupDeps {
       const card = readBrandCard(slug)?.card;
       return card ? [{ slug, name: card.name }] : [];
     }),
+    prepareTask: (task, taskId) => prepareClickupTask(task, taskId, {
+      token: cfg.apiToken,
+      comment: cfg.comment,
+      listId: cfg.listId,
+    }),
     log: (id, message, level = 'info') => appendEvent(id, { phase: 'studio', level, message }),
     queueFor: (job) => {
       const info = queueInfo(job);
@@ -1157,6 +1164,16 @@ app.get('/api/jobs', (req: Request, res: Response) => {
       archivedAt: j.archivedAt || null,
     }));
   res.json({ jobs, truncated: standalone.length > HISTORY_LIMIT, limit: HISTORY_LIMIT });
+});
+
+/** Una pieza terminada por página (2026-10-21). Va detrás del mismo acceso que el resto de /api. */
+app.get('/api/results', (req: Request, res: Response) => {
+  const outcome = paginateResults(listJobs(), req.query as Record<string, unknown>);
+  if (!outcome.ok) {
+    res.status(404).json({ error: 'No encontrado' });
+    return;
+  }
+  res.json(outcome.page);
 });
 
 app.get('/api/jobs/:id', (req: Request, res: Response) => {
